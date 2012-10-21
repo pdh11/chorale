@@ -1,12 +1,15 @@
 #ifndef SETTINGS_WINDOW_H
 #define SETTINGS_WINDOW_H
 
-#include "settings.h"
 #include <qdialog.h>
 #include <list>
 
+class QGroupBox;
+
+namespace choraleqt {
+
+class Settings;
 class SettingsEntry;
-class Q3GroupBox;
 
 class SettingsWindow: public QDialog
 {
@@ -17,7 +20,7 @@ class SettingsWindow: public QDialog
     typedef std::list<SettingsEntry*> list_t;
     list_t m_entries;
 
-    Q3GroupBox *m_gb;
+    QGroupBox *m_gb;
 
 public:
     explicit SettingsWindow(Settings*);
@@ -26,5 +29,7 @@ public:
 public slots:
     void accept();
 };
+
+} // namespace choraleqt
 
 #endif

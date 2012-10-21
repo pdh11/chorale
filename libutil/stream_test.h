@@ -2,7 +2,9 @@
 #define LIBUTIL_STREAM_TEST_H
 
 #include "stream.h"
+#include "counted_pointer.h"
 #include <assert.h>
+#include <algorithm>
 
 namespace util {
 

@@ -16,8 +16,13 @@ class Recordset: public db::ReadOnlyRecordset
 {
 protected:
     Database *m_parent;
-    db::RecordsetPtr m_freers;
     unsigned int m_id;
+
+    /** m_freers is populated lazily -- only as GetString/GetInteger
+     * ask for things -- but GetString/GetInteger are const, so
+     * m_freers must be mutable.
+     */
+    mutable db::RecordsetPtr m_freers;
 
     enum {
 	GOT_CONTENT = 1,
@@ -25,17 +30,17 @@ protected:
 	GOT_TITLE = 4,
 	GOT_TYPE = 8
     };
-    unsigned int m_got_what;
+    mutable unsigned int m_got_what;
 
-    void GetTags();
-    void GetContent();
+    void GetTags() const;
+    void GetContent() const;
 
 public:
     explicit Recordset(Database *parent);
 
     // Being a Recordset
-    uint32_t GetInteger(field_t which);
-    std::string GetString(field_t which);
+    uint32_t GetInteger(field_t which) const;
+    std::string GetString(field_t which) const;
 
     // Not MoveNext() or IsEOF() -- implemented in derived classes
 };
@@ -47,7 +52,7 @@ public:
 
     // Remaining Recordset methods
     void MoveNext();
-    bool IsEOF();
+    bool IsEOF() const;
 };
 
 class RestrictionRecordset: public Recordset
@@ -66,7 +71,7 @@ public:
 
     // Remaining Recordset methods
     void MoveNext();
-    bool IsEOF();
+    bool IsEOF() const;
 };
 
 
@@ -84,10 +89,10 @@ public:
 		     int collateby);
 
     // Being a Recordset
-    uint32_t GetInteger(field_t which);
-    std::string GetString(field_t which);
+    uint32_t GetInteger(field_t which) const;
+    std::string GetString(field_t which) const;
     void MoveNext();
-    bool IsEOF();
+    bool IsEOF() const;
 };
 
 } // namespace receiver

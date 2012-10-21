@@ -16,6 +16,10 @@ TcpWrappers::TcpWrappers(const char *daemon)
 {
 }
 
+TcpWrappers::~TcpWrappers()
+{
+}
+
 bool TcpWrappers::Allowed(IPAddress client)
 {
 #if HAVE_LIBWRAP
@@ -68,6 +72,9 @@ int main()
     util::IPAddress addr = util::IPAddress::FromDottedQuad(10,35,1,39);
     TRACE << ::IsAllowed(addr.addr, "choraled") << "\n";
     TRACE << ::IsAllowed(addr.addr, "choraled.ro") << "\n";
+
+    util::TcpWrappers tcpw("choraled");
+    TRACE << tcpw.Allowed(addr) << "\n";
 }
 
 #endif

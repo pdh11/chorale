@@ -5,8 +5,8 @@
 
 #include <vector>
 #include <string>
-#include "db.h"
 #include "recordset.h"
+#include "db.h"
 
 namespace db {
 
@@ -22,13 +22,13 @@ public:
     static RecordsetPtr Create();
 
     // Being a Recordset
-    bool IsEOF();
+    bool IsEOF() const;
 
-    uint32_t GetInteger(field_t which);
-    std::string GetString(field_t which);
+    uint32_t GetInteger(unsigned int which) const;
+    std::string GetString(unsigned int which) const;
 
-    unsigned int SetInteger(field_t which, uint32_t value);
-    unsigned int SetString(field_t which, const std::string& value);
+    unsigned int SetInteger(unsigned int which, uint32_t value);
+    unsigned int SetString(unsigned int which, const std::string& value);
 
     void MoveNext();
     unsigned int AddRecord();

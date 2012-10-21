@@ -2,18 +2,25 @@
 #include "hal.h"
 #include "dbus.h"
 #include "trace.h"
-#include "poll.h"
 #include "observable.h"
+#include "counted_pointer.h"
 #include <errno.h>
 
 #if HAVE_HAL
-
 #include <libhal.h>
 #include <dbus/dbus.h>
+#endif
 
 namespace util {
 
 namespace hal {
+
+Observer::~Observer() {}
+
+void Observer::OnDeviceAdded(DevicePtr) {}
+void Observer::OnDeviceRemoved(DevicePtr) {}
+
+#if HAVE_HAL
 
 class Context::Impl: public util::Observable<Observer>
 {
@@ -206,17 +213,19 @@ unsigned int Device::GetInt(const char *key)
     return m_ctx->DeviceGetInt(m_udi.c_str(), key);
 }
 
+#endif // HAVE_HAL
+
 } // namespace hal
 
 } // namespace util
-
-#endif // HAVE_HAL
 
 
         /* Unit tests */
 
 
 #ifdef TEST
+
+#include "scheduler.h"
 
 #if HAVE_HAL
 
@@ -270,7 +279,7 @@ void DVBObserver::OnDevice(util::hal::DevicePtr dev)
 int main()
 {
 #if HAVE_HAL
-    util::Poller poller;
+    util::BackgroundScheduler poller;
     util::dbus::Connection conn(&poller);
     unsigned int rc = conn.Connect(util::dbus::Connection::SYSTEM);
 

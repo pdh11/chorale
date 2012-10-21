@@ -1,7 +1,7 @@
 #ifndef LIBUTIL_IP_FILTER_H
 #define LIBUTIL_IP_FILTER_H
 
-#include "socket.h"
+#include "ip.h"
 
 namespace util {
 

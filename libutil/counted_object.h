@@ -1,7 +1,6 @@
 #ifndef COUNTED_OBJECT_H
 #define COUNTED_OBJECT_H
 
-#include <boost/intrusive_ptr.hpp>
 #include "locking.h"
 
 namespace util {
@@ -29,6 +28,9 @@ public:
     friend void intrusive_ptr_add_ref<>(CountedObject*);
     friend void intrusive_ptr_release<>(CountedObject*);
 };
+
+// Forward declaration -- see counted_pointer.h
+template <class T> class CountedPointer;
 
 } // namespace util
 

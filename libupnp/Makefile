@@ -33,7 +33,7 @@ include $(TOP)Make.common
 LIBUPNP_OBJS:=$(LOBJS)
 LIBUPNP_TESTS:=$(TESTS)
 
-libupnp:=$(TOP)$(DIR)$(TARGETDIR)libupnp.la
+libupnp:=$(TOP)$(DIR)$(TARGETDIR)libupnp.a
 
 all-libupnp: $(libupnp)
 
@@ -42,29 +42,32 @@ $(TOP)$(DIR)% : CXXFLAGS += $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) \
 
 ifeq ($(HAVE_XSLTPROC),yes)
 
-$(TOP)$(DIR)%.h : $(TOP)$(DIR)%.xml $(LIBUPNP_DIR)scpd.xsl
+$(TOP)$(DIR)%.h : $(TOP)$(DIR)%.xml $(LIBUPNP_DIR)scpd-header.xsl \
+		$(LIBUPNP_DIR)scpd-common.xsl
 	$(GEN_PRE)$(XSLTPROC) --stringparam class $* \
-		    --stringparam mode header \
 		    -o $@ \
-		    $(LIBUPNP_DIR)scpd.xsl $<
+		    $(LIBUPNP_DIR)scpd-header.xsl $<
 
-$(TOP)$(DIR)%.cpp : $(TOP)$(DIR)%.xml $(LIBUPNP_DIR)scpd.xsl
+$(TOP)$(DIR)%.cpp : $(TOP)$(DIR)%.xml $(LIBUPNP_DIR)scpd-source.xsl \
+		$(LIBUPNP_DIR)scpd-common.xsl
 	$(GEN_PRE)$(XSLTPROC) --stringparam class $* \
-		    --stringparam mode stubs \
 		    -o $@ \
-		    $(LIBUPNP_DIR)scpd.xsl $<
+		    $(LIBUPNP_DIR)scpd-source.xsl $<
 
-$(TOP)$(DIR)%_client.h : $(TOP)$(DIR)%.xml $(LIBUPNP_DIR)scpd.xsl
+$(TOP)$(DIR)%_client.h : $(TOP)$(DIR)%.xml \
+		$(LIBUPNP_DIR)scpd-clientheader.xsl \
+		$(LIBUPNP_DIR)scpd-common.xsl
 	$(GEN_PRE)$(XSLTPROC) --stringparam class $* \
-		    --stringparam mode clientheader \
 		    -o $@ \
-		    $(LIBUPNP_DIR)scpd.xsl $<
+		    $(LIBUPNP_DIR)scpd-clientheader.xsl $<
 
-$(TOP)$(DIR)%_client.cpp : $(TOP)$(DIR)%.xml $(LIBUPNP_DIR)scpd.xsl
+$(TOP)$(DIR)%_client.cpp : $(TOP)$(DIR)%.xml \
+		$(LIBUPNP_DIR)scpd-clientsource.xsl \
+		$(LIBUPNP_DIR)scpd-common.xsl
 	$(GEN_PRE)$(XSLTPROC) --stringparam class $* \
 		    --stringparam mode client \
 		    -o $@ \
-		    $(LIBUPNP_DIR)scpd.xsl $<
+		    $(LIBUPNP_DIR)scpd-clientsource.xsl $<
 
 $(TOP)$(DIR)%_server.h : $(TOP)$(DIR)%.xml $(LIBUPNP_DIR)scpd.xsl
 	$(GEN_PRE)$(XSLTPROC) --stringparam class $* \
@@ -107,9 +110,13 @@ ifeq ($(libdbsteam),)
 include $(TOP)libdbsteam/Makefile
 endif
 
-$(LIBUPNP_TESTS): TEST_LIBS+= $(BOOST_LIBS) $(LIBS)
+$(LIBUPNP_TESTS): TEST_LIBS+= $(libupnp) $(libutil) $(BOOST_LIBS) $(LIBS)
 
 $(LIBUPNP_TESTS): $(libdbsteam) $(libdb) $(libupnp) $(libutil)
+
+ifneq ($(EXCEPTIONAL_boost_thread_tss_hpp),)
+$(LIBUPNP_DIR)$(TARGETDIR)server%: CXXFLAGS += -fexceptions -UBOOST_NO_EXCEPTIONS
+endif
 
 $(libupnp): $(LIBUPNP_OBJS)
 	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \

@@ -32,7 +32,7 @@ struct CDDBLookup: public util::CountedObject<>
     std::vector<CDDBFound> discs;
 };
 
-typedef boost::intrusive_ptr<CDDBLookup> CDDBLookupPtr;
+typedef util::CountedPointer<CDDBLookup> CDDBLookupPtr;
 
 class CDDBService
 {

@@ -13,6 +13,7 @@ SRCS:=\
 	file_notifier.cpp \
 	playlist.cpp \
 	playlist_asx.cpp \
+	playlist_pls.cpp \
 	playlist_wpl.cpp \
 	remote_cd_drive.cpp \
 	ripping_control.cpp \
@@ -27,6 +28,7 @@ TEST_SRCS:=\
 	cd_drives.cpp \
 	file_notifier.cpp \
 	playlist_asx.cpp \
+	playlist_pls.cpp \
 	playlist_wpl.cpp
 
 all-libimport:
@@ -38,7 +40,7 @@ include $(TOP)Make.common
 LIBIMPORT_OBJS:=$(LOBJS)
 LIBIMPORT_TESTS:=$(TESTS)
 
-libimport:=$(TOP)$(DIR)$(TARGETDIR)libimport.la
+libimport:=$(TOP)$(DIR)$(TARGETDIR)libimport.a
 
 all-libimport: $(libimport)
 
@@ -55,8 +57,9 @@ ifeq ($(libmediadb),)
 include $(TOP)libmediadb/Makefile
 endif
 
-$(LIBIMPORT_TESTS) : TEST_LIBS += $(BOOST_LIBS) $(TAGLIB_LIBS) \
-	$(PARANOIA_LIBS) $(HAL_LIBS) $(LIBCDIOP_LIBS) $(LIBS)
+$(LIBIMPORT_TESTS) : TEST_LIBS += $(libimport) $(libutil) \
+	$(BOOST_LIBS) $(TAGLIB_LIBS) $(PARANOIA_LIBS) $(HAL_LIBS) \
+	$(LIBCDIOP_LIBS) $(LIBS)
 
 $(LIBIMPORT_TESTS) : $(libimport) $(libmediadb) \
 	$(libdb) $(libutil)

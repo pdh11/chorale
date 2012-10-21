@@ -5,6 +5,7 @@
 #include "libupnp/OpticalDrive_server.h"
 #include "libimport/audio_cd.h"
 #include "libimport/cd_drives.h"
+#include "libutil/counted_pointer.h"
 
 namespace import { class CDContentFactory; }
 

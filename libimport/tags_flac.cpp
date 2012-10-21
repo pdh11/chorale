@@ -1,5 +1,6 @@
 #include "config.h"
 #include "tags_flac.h"
+#include "tags_mutex.h"
 #include "vorbis_comment.h"
 #include "libutil/trace.h"
 #include "libdb/recordset.h"
@@ -13,8 +14,10 @@
 namespace import {
 namespace flac {
 
-unsigned Tags::Write(db::RecordsetPtr tags)
+unsigned Tags::Write(const db::Recordset *tags)
 {
+    util::Mutex::Lock lock(s_taglib_mutex);
+
 //    TRACE << "Opening '" << m_filename << "'\n";
 	    
     typedef std::map<std::string, std::string> tagmap_t;

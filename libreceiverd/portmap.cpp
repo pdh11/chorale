@@ -17,8 +17,14 @@ struct Mapping
 
 } // namespace portmap
 
-PortMapper::PortMapper(util::PollerInterface *poller, util::IPFilter *filter)
-    : m_rpc(PROGRAM_PORTMAP, 2, poller, filter, this)
+PortMapperPtr PortMapper::Create(util::Scheduler *scheduler, 
+				 util::IPFilter *filter)
+{
+    return PortMapperPtr(new PortMapper(scheduler, filter));
+}
+
+PortMapper::PortMapper(util::Scheduler *poller, util::IPFilter *filter)
+    : RPCServer(PROGRAM_PORTMAP, 2, poller, filter)
 {
 }
 

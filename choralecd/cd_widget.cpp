@@ -7,8 +7,8 @@
  * are thus subject to the licence under which you obtained Qt:
  * typically, the GPL.
  */
-#include "config.h"
 #include "cd_widget.h"
+#include "features.h"
 #include "libimport/eject_task.h"
 #include "libimport/cd_drives.h"
 #include "libimport/remote_cd_drive.h"
@@ -16,6 +16,8 @@
 #include <qpushbutton.h>
 #include <qlabel.h>
 #include "cd_progress.h"
+
+#if HAVE_CD
 
 namespace choraleqt {
 
@@ -85,14 +87,16 @@ UpnpCDWidgetFactory::UpnpCDWidgetFactory(QPixmap *pixmap,
 					 util::TaskQueue *cpu_queue,
 					 util::TaskQueue *disk_queue,
 					 util::http::Client *client,
-					 util::http::Server *server)
+					 util::http::Server *server,
+					 util::Scheduler *poller)
     : m_pixmap(pixmap),
       m_parent(NULL),
       m_settings(settings),
       m_cpu_queue(cpu_queue),
       m_disk_queue(disk_queue),
       m_client(client),
-      m_server(server)
+      m_server(server),
+      m_poller(poller)
 {
 }
 
@@ -104,7 +108,8 @@ void UpnpCDWidgetFactory::CreateWidgets(QWidget *parent)
 void UpnpCDWidgetFactory::OnService(const std::string& url,
 				    const std::string& udn)
 {
-    import::RemoteCDDrive *cd = new import::RemoteCDDrive(m_client, m_server);
+    import::RemoteCDDrive *cd = new import::RemoteCDDrive(m_client, m_server,
+							  m_poller);
     unsigned rc = cd->Init(url, udn);
     if (rc != 0)
     {
@@ -117,3 +122,6 @@ void UpnpCDWidgetFactory::OnService(const std::string& url,
 }
 
 } // namespace choraleqt
+
+#endif // HAVE_CD
+

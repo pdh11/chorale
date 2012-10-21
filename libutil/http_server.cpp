@@ -1,6 +1,5 @@
 #include "http_server.h"
 #include "config.h"
-#include "buffer_chain.h"
 #include "file.h"
 #include "file_stream.h"
 #include "http_client.h"
@@ -9,17 +8,20 @@
 #include "ip_filter.h"
 #include "line_reader.h"
 #include "partial_stream.h"
-#include "poll.h"
 #include "socket.h"
 #include "errors.h"
 #include "string_stream.h"
 #include "peeking_line_reader.h"
 #include "trace.h"
 #include "scanf64.h"
+#include "scheduler.h"
 #include "worker_thread_pool.h"
 #include <sys/stat.h>
 #if HAVE_SYS_UTSNAME_H
 #include <sys/utsname.h>
+#endif
+#if HAVE_WINDOWS_H
+#include <windows.h>
 #endif
 #include <fcntl.h>
 #include <errno.h>
@@ -46,7 +48,7 @@ void Response::Clear()
 
 /** Per-socket HTTP server subtask
  */
-class Server::Task: public util::PollableTask
+class Server::DataTask: public util::Task
 {
     Server *m_parent;
     StreamSocketPtr m_socket;
@@ -60,6 +62,10 @@ class Server::Task: public util::PollableTask
 
     Request m_rq;
     Response m_rs;
+    std::string m_last_path;
+    util::SeekableStreamPtr m_response_stream;
+    bool m_reuse_stream;
+
     std::string m_headers;
 
     enum { BUFFER_SIZE = 8192 };
@@ -90,21 +96,54 @@ class Server::Task: public util::PollableTask
 	SEND_BODY
     } m_state;
 
-public:
-    Task(Server *parent, StreamSocketPtr client);
-    ~Task();
+    typedef util::CountedPointer<DataTask> DataTaskPtr;
 
-    // Being a Task
+    void WaitForReadable(StreamPtr sock)
+    {
+	m_parent->m_scheduler->WaitForReadable(
+	    Bind<DataTask,&DataTask::OnActivity>(DataTaskPtr(this)),
+	    sock.get());
+    }
+
+    void WaitForWritable(StreamPtr sock)
+    {
+	m_parent->m_scheduler->WaitForWritable(
+	    Bind<DataTask,&DataTask::OnActivity>(DataTaskPtr(this)),
+	    sock.get());
+    }
+
+    /** Called from polling thread; punts work to background thread */
+    unsigned OnActivity()
+    {
+	m_parent->m_pool->PushTask(
+	    Bind<DataTask,&DataTask::Run>(DataTaskPtr(this)));
+	return 0;
+    }
+
+    DataTask(Server *parent, StreamSocketPtr client);
+
+public:
+    ~DataTask();
+
+    static TaskCallback Create(Server*, StreamSocketPtr);
+
+    /** Called on background thread */
     unsigned int Run();
 };
 
-Server::Task::Task(Server *parent, StreamSocketPtr client)
-    : PollableTask(&parent->m_task_poller),
-      m_parent(parent),
+TaskCallback Server::DataTask::Create(Server *parent, StreamSocketPtr client)
+{
+    DataTaskPtr ptr(new DataTask(parent, client));
+    return util::Bind<DataTask,&DataTask::Run>(ptr);
+}
+
+Server::DataTask::DataTask(Server *parent, StreamSocketPtr client)
+    : m_parent(parent),
       m_socket(client),
       m_count(0),
       m_line_reader(m_socket),
       m_parser(&m_line_reader),
+      m_reuse_stream(false),
       m_buffer_fill(0),
       m_state(CHECKING)
 {
@@ -118,12 +157,12 @@ Server::Task::Task(Server *parent, StreamSocketPtr client)
     m_rs.Clear();
 }
 
-Server::Task::~Task()
+Server::DataTask::~DataTask()
 {
-//    TRACE << "~Task in state " << m_state << "\n";
+//    TRACE << "~DataTask in state " << m_state << "\n";
 }
 
-unsigned int Server::Task::Run()
+unsigned int Server::DataTask::Run()
 {
     if (!m_socket->IsOpen())
 	return 0;
@@ -169,10 +208,23 @@ unsigned int Server::Task::Run()
 	    return rc;
 	}
 
-	LOG(HTTP) << "Got request " << m_rq.verb << " " << m_rq.path << " "
-		  << version << "\n";
-
 	++m_count;
+
+	LOG(HTTP) << "Got request " << m_count << ": " << m_rq.verb << " "
+		  << m_rq.path << " " << version << "\n";
+
+	m_reuse_stream = (m_last_path == m_rq.path && m_rq.verb == "GET");
+	if (m_reuse_stream)
+	{
+	    LOG(HTTP) << "Same path, keeping stream\n";
+	}
+	else
+	{
+	    LOG(HTTP) << "Last path '" << m_last_path << "' now '" << m_rq.path
+		      << "' not reusing\n";
+	    m_last_path = m_rq.path;
+	}
+
 	m_entity.Clear();
 
 	if (version == "HTTP/1.0")
@@ -234,7 +286,10 @@ unsigned int Server::Task::Run()
 			  << "'\n";
 	    }
 	    else if (!strcasecmp(key.c_str(), "Cache-Control"))
+	    {
 		m_rq.refresh = true;
+		m_reuse_stream = false;
+	    }
 	    else if (!strcasecmp(key.c_str(), "Content-Length"))
 	    {
 		uint64_t clen;
@@ -261,9 +316,13 @@ unsigned int Server::Task::Run()
 //	    TRACE << "No body\n";
 
 
-//	TRACE << "st" << this << ": calling SFP\n";
-	m_parent->StreamForPath(&m_rq, &m_rs);
-//	TRACE << "st" << this << ": SFP returned\n";
+	if (!m_reuse_stream)
+	{
+	    m_rs.Clear();
+	    LOG(HTTP) << "st" << this << " calling SFP\n";
+	    m_parent->StreamForPath(&m_rq, &m_rs);
+	    LOG(HTTP) << "st" << this << " SFP returned\n";
+	}
 
 	m_state = RECV_BODY;
 	/* fall through */
@@ -276,47 +335,71 @@ unsigned int Server::Task::Run()
 	 */
 	size_t remain = (size_t)m_entity.post_body_length;
 
-	while (remain)
+	while (remain || (m_rs.body_sink && m_buffer_fill))
 	{
-	    size_t readable;
-	    rc = m_socket->GetReadable(&readable);
-	    if (rc)
+	    if (!m_buffer)
 	    {
-		TRACE << "Not readable" << rc << "\n";
-		return rc;
+		m_buffer.reset(new char[BUFFER_SIZE]);
+		m_buffer_fill = 0;
 	    }
 
-	    if (!readable)
+	    size_t lump = std::min(remain, BUFFER_SIZE - m_buffer_fill);
+
+	    if (lump)
 	    {
-//		TRACE << "Going idle waiting for readable body\n";
-		m_entity.post_body_length = remain;
-		WaitForReadable(m_socket);
-		return 0;
+		size_t nread;
+		rc = m_socket->Read(m_buffer.get() + m_buffer_fill,
+				    lump, &nread);
+		if (rc == EWOULDBLOCK)
+		{
+		    if (m_buffer_fill == 0)
+		    {
+			WaitForReadable(m_socket);
+			return 0;
+		    }
+		}
+		else if (rc)
+		{
+		    TRACE << "Read failed (" << rc << ")\n";
+		    return rc;
+		}
+		else
+		{
+		    m_buffer_fill += nread;
+		    remain -= nread;
+		}
 	    }
 
-	    readable = std::min(readable, (size_t)4096);
-	    readable = std::min(readable, remain);
+	    if (m_rs.body_sink)
+	    {
+		size_t nwrote;
 
-	    BufferPtr ptr(new Buffer((bufsize_t)readable));
+		rc = m_rs.body_sink->Write(m_buffer.get(), m_buffer_fill,
+					   &nwrote);
+		if (rc == EWOULDBLOCK)
+		{
+		    if (lump == 0)
+		    {
+			TRACE << "Waiting for body sink writability\n";
+			WaitForWritable(m_rs.body_sink);
+			return 0;
+		    }
+		}
 
-	    rc = m_socket->Read(ptr->data, readable, &readable);
-	    ptr.len = (bufsize_t)readable;
-
-//	    TRACE << "Actually read " << readable << "\n";
-
-	    if (m_rs.body_sink.get())
-		m_rs.body_sink->OnBuffer(ptr);
-
-	    remain -= readable;
+		if (nwrote < m_buffer_fill)
+		{
+		    memmove(m_buffer.get(),
+			    m_buffer.get() + nwrote, m_buffer_fill - nwrote);
+		}
+		m_buffer_fill -= nwrote;	   
+	    }
 	}
 
-	if (m_rs.body_sink.get())
-	{
-	    m_rs.body_sink->OnBuffer(BufferPtr(NULL));
-	    m_rs.body_sink.reset(NULL);
-	}
-
+	m_rs.body_sink.reset(NULL);
 	m_headers.clear();
+
+	uint64_t len;
+
 	if (!m_rs.ssp)
 	{
 	    m_headers = "HTTP/1.1 404 Not Found\r\n";
@@ -324,11 +407,42 @@ unsigned int Server::Task::Run()
 	    ssp->str() = "<i>404, dude, it's just not there</i>";
 	    m_rs.ssp = ssp;
 	    m_rs.content_type = "text/html";
+	    len = ssp->GetLength();
+	    m_entity.do_range = false;
 	}
-	else if (m_entity.do_range)
-	    m_headers = "HTTP/1.1 206 OK But A Bit Partial\r\n";
 	else
-	    m_headers = "HTTP/1.1 200 OK\r\n";
+	{
+	    len = m_rs.length ? m_rs.length : m_rs.ssp->GetLength();
+
+	    if (m_entity.do_range)
+	    {
+		LOG(HTTP_SERVER) << "Clipping range " << m_entity.range_min
+				 << "-" << m_entity.range_max
+				 << " against len " << len << "\n";
+		if (m_entity.range_min > len)
+		    m_entity.range_min = len;
+		if (m_entity.range_max > len)
+		    m_entity.range_max = len;
+	    
+		LOG(HTTP_SERVER) << "Clipped range " << m_entity.range_min
+				 << "-" << m_entity.range_max << "\n";
+	    
+		uint64_t new_len = m_entity.range_max - m_entity.range_min;
+
+		if (new_len)
+		    len = new_len;
+		else
+		{
+		    LOG(HTTP) << "Range unsatisfiable\n";
+		    m_entity.do_range = false;
+		}
+	    }
+
+	    if (m_entity.do_range)
+		m_headers = "HTTP/1.1 206 OK But A Bit Partial\r\n";
+	    else
+		m_headers = "HTTP/1.1 200 OK\r\n";
+	}
 	
 	time_t now = ::time(NULL);
 	struct tm bdtime = *gmtime(&now);
@@ -355,47 +469,31 @@ unsigned int Server::Task::Run()
 	     ++i)
 	    m_headers += i->first + ": " + i->second + "\r\n";
 
-	unsigned long long len;
-
-	if (m_rs.ssp)
+	if (m_entity.do_range)
 	{
-	    len = m_rs.length ? m_rs.length : m_rs.ssp->GetLength();
-
-	    if (m_entity.do_range)
-	    {
-		LOG(HTTP_SERVER) << "Clipping range " << m_entity.range_min
-				 << "-" << m_entity.range_max
-				 << " against len " << len << "\n";
-		if (m_entity.range_min > len)
-		    m_entity.range_min = len;
-		if (m_entity.range_max > len)
-		    m_entity.range_max = len;
-
-		LOG(HTTP_SERVER) << "Clipped range " << m_entity.range_min
-				 << "-" << m_entity.range_max << "\n";
-
-		/* This form of the Content-Range header is completely
-		 * bogus (the '=' should be whitespace), but is what
-		 * Receivers expect.
-		 */
-		m_headers += (boost::format("Content-Range: bytes=%llu-%llu\r\n")
-			      % m_entity.range_min
-			      % (m_entity.range_max-1)).str();
-//		headers += (boost::format("Content-Range: bytes %llu-%llu/%llu\r\n")
+	    /* This form of the Content-Range header is completely
+	     * bogus (the '=' should be whitespace), but is what
+	     * Receivers expect.
+	     */
+	    m_headers += (boost::format("Content-Range: bytes=%llu-%llu\r\n")
+			  % m_entity.range_min
+			  % (m_entity.range_max-1)).str();
+//	   headers += (boost::format("Content-Range: bytes %llu-%llu/%llu\r\n")
 //			    % range_min
 //			    % (range_max-1)
 //			    % len).str();
 
-		if (m_entity.range_min > 0 || m_entity.range_max != len)
-		    m_rs.ssp = util::CreatePartialStream(m_rs.ssp, 
-							 m_entity.range_min,
-							 m_entity.range_max);
-
-		len = m_entity.range_max - m_entity.range_min;
-	    }
+	    if (m_entity.range_min > 0 || m_entity.range_max != len)
+		m_response_stream = util::CreatePartialStream(m_rs.ssp, 
+							  m_entity.range_min,
+							  m_entity.range_max);
+	    else
+		m_response_stream = m_rs.ssp;
 	}
 	else
-	    len = 0;
+	    m_response_stream = m_rs.ssp;
+
+	m_response_stream->Seek(0);
 
 	m_headers += (boost::format("Content-Length: %llu\r\n") % len).str();
 	m_headers += "\r\n";
@@ -434,7 +532,7 @@ unsigned int Server::Task::Run()
 
     case SEND_BODY:
 
-	if (m_rs.ssp && m_rq.verb != "HEAD")
+	if (m_response_stream && m_rq.verb != "HEAD")
 	{
 	    if (!m_buffer)
 	    {
@@ -447,8 +545,9 @@ unsigned int Server::Task::Run()
 		if (m_buffer_fill < BUFFER_SIZE)
 		{
 		    size_t nread;
-		    rc = m_rs.ssp->Read(m_buffer.get() + m_buffer_fill,
-					BUFFER_SIZE - m_buffer_fill, &nread);
+		    rc = m_response_stream->Read(
+			m_buffer.get() + m_buffer_fill,
+			BUFFER_SIZE - m_buffer_fill, &nread);
 
 //		    TRACE << "st" << this << ": Read(" << (BUFFER_SIZE-m_buffer_fill) << ")=" << rc << "\n";
 
@@ -456,14 +555,23 @@ unsigned int Server::Task::Run()
 		    {
 			if (rc == EWOULDBLOCK && m_buffer_fill == 0)
 			{
-			    PollHandle h = m_rs.ssp->GetReadHandle();
+			    // Quickly check for socket death first
+			    rc = m_socket->Write(m_buffer.get(), 0, &nread);
+			    if (rc)
+			    {
+				TRACE << "st" << this << " " << m_socket
+				      << " went away " << rc << "\n";
+				return 0;
+			    }
+
+			    PollHandle h = m_response_stream->GetHandle();
 			    if (h == NOT_POLLABLE)
 			    {
 				TRACE << "st" << this << ": ** Problem, non-pollable stream returned EWOULDBLOCK\n";
 				return rc;
 			    }
 			    LOG(HTTP) << "Waiting for body readability\n";
-			    WaitForReadable(m_rs.ssp);
+			    WaitForReadable(m_response_stream);
 			    return 0;
 			}
 
@@ -536,10 +644,9 @@ unsigned int Server::Task::Run()
 	    return 0;
 	}
 
-        m_rq.Clear();
-	m_rs.Clear();
-
 //	TRACE << "Going round again on same connection\n";
+
+	m_rq.Clear();
 
 	m_state = WAITING;
 	
@@ -556,18 +663,65 @@ unsigned int Server::Task::Run()
 }
 
 
+        /** Server::AcceptorTask */
+
+
+class Server::AcceptorTask: public util::Task
+{
+    Server *m_parent;
+    StreamSocketPtr m_socket;
+
+    typedef CountedPointer<AcceptorTask> AcceptorTaskPtr;
+
+    AcceptorTask(Server *parent, StreamSocketPtr socket)
+	: m_parent(parent), m_socket(socket)
+    {}
+
+public:
+
+    static TaskCallback Create(Server *parent, StreamSocketPtr socket)
+    {
+	AcceptorTaskPtr ptr(new AcceptorTask(parent, socket));
+	return util::Bind<AcceptorTask,&AcceptorTask::Run>(ptr);
+    }
+
+    ~AcceptorTask()
+    {
+	LOG(HTTP_SERVER) << "~AcceptorTask\n";
+    }
+
+    unsigned Run()
+    {
+//	TRACE << "Got activity, trying to accept\n";
+
+	StreamSocketPtr ssp;
+	unsigned int rc = m_socket->Accept(&ssp);
+	if (rc == 0)
+	{
+	    m_parent->m_pool->PushTask(DataTask::Create(m_parent, ssp));
+	}
+	else
+	{
+	    TRACE << "Accept failed " << rc << "\n";
+	    if (rc != EWOULDBLOCK)
+		return rc;
+	}
+	return 0;
+    }
+};
+
+
+
         /* Server itself */
 
 
-Server::Server(util::PollerInterface *poller, 
-	       util::WorkerThreadPool *thread_pool,
+Server::Server(util::Scheduler *scheduler,
+	       util::WorkerThreadPool *pool,
 	       util::IPFilter *filter)
-    : m_poller(poller),
-      m_thread_pool(thread_pool),
+    : m_scheduler(scheduler),
+      m_pool(pool),
       m_filter(filter),
-      m_server_socket(StreamSocket::Create()),
-      m_port(0),
-      m_task_poller(poller, m_thread_pool)
+      m_port(0)
 {
 #ifdef WIN32
     OSVERSIONINFO osvi;
@@ -594,47 +748,34 @@ Server::Server(util::PollerInterface *poller,
 
 Server::~Server()
 {
-    m_poller->Remove(m_server_socket.get());
+    LOG(HTTP_SERVER) << "~Server calls shutdown\n";
+
+    m_scheduler->Shutdown();
+    m_pool->Shutdown();
+
     LOG(HTTP_SERVER) << "~Server\n";
 }
 
 unsigned Server::Init(unsigned short port)
 {
+    StreamSocketPtr server_socket(StreamSocket::Create());
     IPEndPoint ep = { IPAddress::ANY, port };
-    unsigned int rc = m_server_socket->Bind(ep);
+    unsigned int rc = server_socket->Bind(ep);
     if (rc != 0)
     {
 	TRACE << "Server bind failed " << rc << "\n";
 	return rc;
     }
 
-    ep = m_server_socket->GetLocalEndPoint();
-    
-    m_server_socket->SetNonBlocking(true);
-    m_server_socket->Listen();
-    m_poller->Add(m_server_socket,
-		  util::Bind<Server, &Server::OnActivity>(this),
-		  PollerInterface::IN);
+    server_socket->SetNonBlocking(true);
+    server_socket->Listen();
 
+    m_scheduler->WaitForReadable(AcceptorTask::Create(this, server_socket),
+				 server_socket.get(), false);
+
+    ep = server_socket->GetLocalEndPoint();
     TRACE << "http::Server got port " << ep.port << "\n";
     m_port = ep.port;
-    return 0;
-}
-
-unsigned Server::OnActivity()
-{
-//    TRACE << "Got activity, trying to accept\n";
-
-    StreamSocketPtr ssp;
-    unsigned int rc = m_server_socket->Accept(&ssp);
-    if (rc != 0)
-    {
-	TRACE << "Accept failed " << rc << "\n";
-	return 0;
-    }
-    
-    m_thread_pool->PushTask(TaskPtr(new Server::Task(this, ssp)));
-
     return 0;
 }
 
@@ -665,6 +806,10 @@ void Server::AddContentFactory(const std::string&, ContentFactory *cf)
 
         /* FileContentFactory */
 
+
+FileContentFactory::~FileContentFactory()
+{
+}
 
 bool FileContentFactory::StreamForPath(const Request *rq, Response *rs)
 {
@@ -719,18 +864,20 @@ bool FileContentFactory::StreamForPath(const Request *rq, Response *rs)
 
 #ifdef TEST
 
+#include "worker_thread_pool.h"
+
 class FetchTask: public util::Task
 {
     util::http::Client *m_client;
     std::string m_url;
     std::string m_contents;
-    util::PollerInterface *m_poller;
+    util::Scheduler *m_poller;
     volatile bool m_done;
     unsigned int m_which;
 
 public:
     FetchTask(util::http::Client *client, const std::string& url,
-	      util::PollerInterface *poller, unsigned int which)
+	      util::Scheduler *poller, unsigned int which)
 	: m_client(client), m_url(url), m_poller(poller), m_done(false),
 	  m_which(which) {}
 
@@ -761,15 +908,13 @@ public:
 	util::StringStreamPtr ssp = util::StringStream::Create();
 	ssp->str() = rq->path;
 	rs->ssp = ssp;
+//	TRACE << "returned stream for path " << rq->path << "\n";
 	return true;
     }
 };
 
 int main(int, char*[])
 {
-    util::ThreadUser tu;
-    util::Poller poller;
-
     enum { NUM_CLIENTS = 100,
 	   NUM_THREADS = 50     // Note Wine (maybe Windows too) can't select() on more than 64 fds
     };
@@ -779,7 +924,8 @@ int main(int, char*[])
 					  NUM_THREADS);
 
     util::http::Client hc;
-    util::http::Server ws(&poller, &server_threads);
+    util::BackgroundScheduler poller;
+    util::http::Server ws(&poller,&server_threads);
 
     unsigned rc = ws.Init();
 
@@ -792,15 +938,12 @@ int main(int, char*[])
 		       % ws.GetPort()
 	).str();
 
-    util::TaskPtr tasks[NUM_CLIENTS];
-    FetchTask *fetches[NUM_CLIENTS];
+    util::CountedPointer<FetchTask> tasks[NUM_CLIENTS];
 
     for (unsigned int i=0; i<NUM_CLIENTS; ++i)
     {
-	fetches[i] = new FetchTask(&hc, url, &poller, i);
-	
-	tasks[i].reset(fetches[i]);
-	client_threads.PushTask(tasks[i]);
+	tasks[i].reset(new FetchTask(&hc, url, &poller, i));
+	client_threads.PushTask(util::Bind<FetchTask,&FetchTask::Run>(tasks[i]));
     }
 
     time_t start = time(NULL);
@@ -823,8 +966,7 @@ int main(int, char*[])
 	unsigned int done = 0;
 	for (unsigned int i=0; i<NUM_CLIENTS; ++i)
 	{
-	    FetchTask *ft = fetches[i];
-	    if (ft->IsDone())
+	    if (tasks[i]->IsDone())
 		++done;
 	}
 	if (done == NUM_CLIENTS)
@@ -834,7 +976,7 @@ int main(int, char*[])
 
     for (unsigned int i=0; i<NUM_CLIENTS; ++i)
     {
-	FetchTask *ft = fetches[i];
+	util::CountedPointer<FetchTask> ft = tasks[i];
 
 //    TRACE << "Got '" << ft->GetContents() << "' (len "
 //	  << strlen(ft->GetContents().c_str()) << " sz "

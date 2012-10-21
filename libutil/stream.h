@@ -4,8 +4,11 @@
 #include "attributes.h"
 #include "counted_object.h"
 #include "pollable.h"
+#include <string>
 
 namespace util {
+
+template <class T> class CountedPointer;
 
 /** Abstract base class for anything which can be streamed.
  */
@@ -16,7 +19,7 @@ public:
      *
      * If result is 0, *pread is 0 iff (len == 0 or EOF).
      */
-    virtual unsigned Read(void *buffer, size_t len, size_t *pread) 
+    virtual unsigned Read(void *buffer, size_t len, size_t *pread)
 	ATTRIBUTE_WARNUNUSED = 0;
 
     virtual unsigned Write(const void *buffer, size_t len, size_t *pwrote)
@@ -33,8 +36,7 @@ public:
     unsigned WriteAll(const void *buffer, size_t len) ATTRIBUTE_WARNUNUSED;
 };
 
-typedef boost::intrusive_ptr<Stream> StreamPtr;
-
+typedef CountedPointer<Stream> StreamPtr;
 
 /** Abstract base class for anything which can be streamed, and which is
  * also seekable.
@@ -79,24 +81,32 @@ public:
      */
     unsigned WriteAllAt(const void *buffer, pos64 pos, 
 			size_t len) ATTRIBUTE_WARNUNUSED;
+
+    /** Does not add a '\n'.
+     */
+    unsigned WriteString(const std::string&) ATTRIBUTE_WARNUNUSED;
+
+    /** Reads until '\n', '\0', or EOF. Does not return the terminator.
+     */
+    unsigned ReadLine(std::string *line) ATTRIBUTE_WARNUNUSED;
 };
 
-typedef boost::intrusive_ptr<SeekableStream> SeekableStreamPtr;
+typedef CountedPointer<SeekableStream> SeekableStreamPtr;
 
 /** Repeatedly Read()s one stream and Writes() the other, until EOF or error.
  */
-unsigned int CopyStream(StreamPtr from, StreamPtr to);
+unsigned int CopyStream(Stream* from, Stream* to);
 
 /** Repeatedly Read()s one stream and Writes() the other, until EOF or error.
  *
  * Uses ReadAt() so is safe to use several times independently on the same
  * stream.
  */
-unsigned int CopyStream(SeekableStreamPtr from, StreamPtr to);
+unsigned int CopyStream(SeekableStream* from, Stream* to);
 
 /** Repeatedly Read()s stream, discarding data, until EOF or error.
  */
-unsigned int DiscardStream(StreamPtr);
+unsigned int DiscardStream(Stream*);
 
 } // namespace util
 

@@ -80,13 +80,15 @@ $(libchoraled): $(CHORALED_OBJS)
 	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(CHORALED_OBJS)
 
+NON_FINAL_SOURCE:= tcp_wrappers_c.c search.cpp mutex.cpp
+
 $(choraled): $(libchoraled) $(libtv) $(libdblocal) $(libdbmerge) \
 		$(libreceiverd) $(libdbreceiver) $(libreceiver) $(libimport) \
 		$(libdbsteam) $(libdb) $(libutil) $(libmediadb) \
 		$(libupnpd) $(libupnp) $(liboutput) Makefile
 	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
 		$(CXX) -o $@ $(LDFLAGS) $(TOP)choraled/$(TARGETDIR)$(CHORALED_MAIN).lo \
-		-Wl,-Map,map.txt \
+		-Wl,-Map,map-choraled-$(FULLTARGET).txt \
 		$(libchoraled) $(libtv) $(libdbreceiver) \
 		$(libreceiverd) $(libreceiver) $(libupnpd) $(libupnp) \
 		$(liboutput) $(libdblocal) $(libdbmerge) \
@@ -96,25 +98,30 @@ $(choraled): $(libchoraled) $(libtv) $(libdblocal) $(libdbmerge) \
 		$(GSTREAMER_LIBS) $(HAL_LIBS) $(LIBCDIOP_LIBS) $(LIBS)
 ifneq ($(FINAL),no)
 	@$(RM) $@
-	@grep ^$(TOP)[a-z].*\.a\( map.txt | sed -e 's,/obj-.*[\(],/,' -e 's,.o[\)],.cpp",' -e 's,^,#include ",' | grep -v tcp_wrappers_c.c | sort \
-		 > $@.all-$(FULLTARGET).h
+	@grep ^$(TOP)[a-z].*\.a\( map-choraled-$(FULLTARGET).txt | \
+		sed -e 's,/obj-.*[\(],/,' -e 's,.o[\)],.cpp",' \
+			-e 's,^,#include ",' | \
+		grep -v tcp_wrappers_c.c | grep -v mutex.cpp | \
+		grep -v search.cpp | grep -v whole.cpp | sort \
+		 > $(TOP)choraled/all-$(FULLTARGET).h
 	@$(CXX) $(CXXFLAGS) -I$(TOP). \
-		-include $@.all-$(FULLTARGET).h -E -dD \
+		-include $(TOP)choraled/all-$(FULLTARGET).h -E -dD \
 		-C $(TOP)choraled/$(CHORALED_MAIN).cpp \
-		-o $@.all-$(FULLTARGET).i -fwhole-program $(BOOST_CXXFLAGS) \
-		$(TAGLIB_CXXFLAGS) \
+		-o $(TOP)choraled/$(TARGETDIR)all.i -fwhole-program \
+		$(BOOST_CXXFLAGS) $(TAGLIB_CXXFLAGS) \
 		$(DBUS_CXXFLAGS) $(HAL_CXXFLAGS) $(GSTREAMER_CXXFLAGS) &
 	$(CC_PRE)libtool --tag=CXX --mode=compile --silent \
 		$(CXX) $(CXXFLAGS) -I$(TOP). \
-		-include $@.all-$(FULLTARGET).h \
+		-include $(TOP)choraled/all-$(FULLTARGET).h \
 		-c $(TOP)choraled/$(CHORALED_MAIN).cpp \
-		-o $(TOP)choraled/$(TARGETDIR)all-cpp.lo \
+		-o $(TOP)choraled/$(TARGETDIR)all.lo \
 		-fwhole-program $(BOOST_CXXFLAGS) \
 		$(TAGLIB_CXXFLAGS) \
 		$(DBUS_CXXFLAGS) $(HAL_CXXFLAGS) $(GSTREAMER_CXXFLAGS)
 	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
-		$(CXX) -o $@ $(TOP)choraled/$(TARGETDIR)all-cpp.lo \
-		-Wl,-Map,map2.txt \
+		$(CXX) -o $@ $(TOP)choraled/$(TARGETDIR)all.lo \
+		-fno-exceptions -Wl,-z,combreloc \
+		-Wl,-Map,map-choraled-$(FULLTARGET)-final.txt -Wl,--gc-sections \
 		$(libchoraled) $(libtv) \
 		$(libreceiverd) $(libreceiver) $(libupnpd) $(libupnp) \
 		$(liboutput) \
@@ -126,5 +133,4 @@ endif
 	@$(STRIP) $@
 	@echo $@: `ldd $@ | wc -l` shared libraries | fmt
 
-CLEANS += $(CHORALED_DIR)choraled $(CHORALED_DIR)choralesvc.exe \
-	$(CHORALED_DIR)map2.txt
+CLEANS += $(CHORALED_DIR)choraled $(CHORALED_DIR)choralesvc.exe

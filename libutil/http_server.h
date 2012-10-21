@@ -4,17 +4,18 @@
 #include <string>
 #include <list>
 #include <map>
-#include "socket.h"
+#include <boost/noncopyable.hpp>
+#include <string.h>
 #include "stream.h"
-#include "pollable_task.h"
+#include "counted_pointer.h"
+#include "ip.h"
 
 namespace util {
 
 class BufferSink;
-class TaskQueue;
-class PollerInterface;
-class IPFilter;
+class Scheduler;
 class WorkerThreadPool;
+class IPFilter;
 
 namespace http {
 
@@ -64,11 +65,30 @@ struct Request: public boost::noncopyable
  */
 struct Response: public boost::noncopyable
 {
-    boost::intrusive_ptr<BufferSink> body_sink;
-    SeekableStreamPtr ssp;
-    const char *content_type;   /// Default is text/html
+    /** A place to send the incoming body (for POST or similar).
+     *
+     * The stream's Write() method will be called as the body comes
+     * in; the Read() method is never called.
+     */
+    util::StreamPtr body_sink;
+
+    /** The stream to return to the client as the outgoing body.
+     */
+    util::SeekableStreamPtr ssp;
+
+    /** The HTTP Content-Type to return; if left NULL, "text/html" is used.
+     */
+    const char *content_type;
+
+    /** Any additional HTTP headers to return.
+     */
     std::map<std::string, std::string> headers;
-    uint64_t length; /// If zero, use ssp->GetLength()
+
+    /** Body length (Content-Length) to return.
+     *
+     * If zero, ssp->GetLength() is used (which is usually what you want).
+     */
+    uint64_t length;
 
     void Clear();
 };
@@ -98,6 +118,7 @@ public:
     FileContentFactory(const std::string& file_root,
 		       const std::string& page_root)
 	: m_file_root(file_root), m_page_root(page_root) {}
+    ~FileContentFactory();
 
     // Being a ContentFactory
     bool StreamForPath(const Request*, Response*);
@@ -107,22 +128,22 @@ public:
  */
 class Server
 {
-    util::PollerInterface *m_poller;
-    util::WorkerThreadPool *m_thread_pool;
+    util::Scheduler *m_scheduler;
+    util::WorkerThreadPool *m_pool;
     util::IPFilter *m_filter;
     typedef std::list<ContentFactory*> list_t;
     list_t m_content;
-    StreamSocketPtr m_server_socket;
     unsigned short m_port;
-    TaskPoller m_task_poller;
     std::string m_server_header;
 
-    class Task;
-    friend class Task;
+    class DataTask;
+    friend class DataTask;
+
+    class AcceptorTask;
+    friend class AcceptorTask;
 
 public:
-    explicit Server(util::PollerInterface*, util::WorkerThreadPool*,
-		    util::IPFilter* = NULL);
+    Server(util::Scheduler*, util::WorkerThreadPool*, util::IPFilter* = NULL);
     ~Server();
 
     /** Pass port==0 to get a random unassigned port

@@ -1,6 +1,7 @@
 #include "diff.h"
 #include "trace.h"
 #include <assert.h>
+#include <string.h>
 
 #ifdef TEST
 

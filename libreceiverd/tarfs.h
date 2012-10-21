@@ -2,6 +2,7 @@
 #define LIBRECEIVERD_TARFS_H
 
 #include "libutil/stream.h"
+#include "libutil/counted_pointer.h"
 #include "vfs.h"
 #include <map>
 

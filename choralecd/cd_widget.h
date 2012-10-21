@@ -8,16 +8,19 @@
 #include "widget_factory.h"
 #include "libupnp/ssdp.h"
 #include "libimport/cd_drives.h"
+#include "libutil/counted_pointer.h"
 
 class QWidget;
 class QPixmap;
 
-class Settings;
+namespace util { class Scheduler; }
 namespace util { class TaskQueue; }
 namespace util { namespace http { class Client; } }
 namespace util { namespace http { class Server; } }
 
 namespace choraleqt {
+
+class Settings;
 
 /** A widget for the MainWindow's device list, representing a CD drive.
  */
@@ -74,13 +77,15 @@ class UpnpCDWidgetFactory: public WidgetFactory,
     util::TaskQueue *m_disk_queue;
     util::http::Client *m_client;
     util::http::Server *m_server;
+    util::Scheduler *m_poller;
 
 public:
     UpnpCDWidgetFactory(QPixmap*, Settings *settings,
 			util::TaskQueue *cpu_queue,
 			util::TaskQueue *disk_queue,
 			util::http::Client*,
-			util::http::Server*);
+			util::http::Server*,
+			util::Scheduler*);
 
     // Being a WidgetFactory
     void CreateWidgets(QWidget *parent);

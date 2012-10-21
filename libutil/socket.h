@@ -1,45 +1,13 @@
 #ifndef LIBUTIL_SOCKET_H
 #define LIBUTIL_SOCKET_H
 
-#include <inttypes.h>
-#include <stdlib.h>
 #include <string>
-#include <boost/noncopyable.hpp>
+#include <stdint.h>
 #include "stream.h"
-#include "config.h"
 #include "trace.h"
+#include "ip.h"
 
 namespace util {
-
-struct IPAddress
-{
-    // Network byte order
-    uint32_t addr;
-
-    static IPAddress FromDottedQuad(unsigned char a, unsigned char b,
-				    unsigned char c, unsigned char d);
-
-    /** Blocking call, could take some time */
-    static IPAddress Resolve(const char *hostname);
-
-    static IPAddress FromHostOrder(uint32_t);
-    static IPAddress FromNetworkOrder(uint32_t);
-    static IPAddress ANY;
-    static IPAddress ALL;
-
-    std::string ToString() const;
-
-    bool operator==(const IPAddress& other) { return addr == other.addr; }
-    bool operator!=(const IPAddress& other) { return addr != other.addr; }
-};
-
-struct IPEndPoint
-{
-    IPAddress      addr;
-    unsigned short port; ///< Host byte order
-
-    std::string ToString() const;
-};
 
 /** Thin veneer round BSD-style sockets API.
  *
@@ -49,8 +17,6 @@ class Socket: public Stream
 {
 protected:
     int m_fd;
-    void *m_event;
-    enum { NONE, READ, WRITE } m_event_type;
 
     /** Timeout for synchronous operations */
     unsigned int m_timeout_ms;
@@ -87,8 +53,8 @@ public:
 
     unsigned Connect(const IPEndPoint&);
 
-    PollHandle GetReadHandle();
-    PollHandle GetWriteHandle();
+    // Being a Pollable
+    PollHandle GetHandle() { return m_fd; }
 
     bool IsOpen() const;
     unsigned Close();
@@ -175,9 +141,9 @@ class StreamSocket: public Socket
 
     StreamSocket();
 public:
-    typedef boost::intrusive_ptr<StreamSocket> StreamSocketPtr;
+    typedef util::CountedPointer<StreamSocket> StreamSocketPtr;
 
-    static StreamSocketPtr Create() { return new StreamSocket; }
+    static StreamSocketPtr Create();
     
     unsigned Listen(unsigned int queue = 64);
     unsigned Accept(StreamSocketPtr *accepted);
@@ -195,7 +161,7 @@ public:
     unsigned ShutdownWrite();
 };
 
-typedef boost::intrusive_ptr<StreamSocket> StreamSocketPtr;
+typedef util::CountedPointer<StreamSocket> StreamSocketPtr;
 
 } // namespace util
 

@@ -23,7 +23,7 @@ public:
     virtual bool IsCompound() { return GetChildren()->IsValid(); }
     virtual bool HasCompoundChildren() = 0;
 
-    typedef boost::intrusive_ptr<Node> Pointer;
+    typedef util::CountedPointer<Node> Pointer;
 
     class Enumerator: public util::CountedObject<util::NoLocking>
     {
@@ -34,7 +34,7 @@ public:
 	virtual void Next() = 0;
     };
 
-    typedef boost::intrusive_ptr<Enumerator> EnumeratorPtr;
+    typedef util::CountedPointer<Enumerator> EnumeratorPtr;
 
     virtual EnumeratorPtr GetChildren() = 0;
     virtual db::RecordsetPtr GetInfo() = 0;
@@ -48,7 +48,7 @@ public:
 //    virtual uint64_t GetFieldBitmap() ?
 };
 
-typedef boost::intrusive_ptr<Node> NodePtr;
+typedef util::CountedPointer<Node> NodePtr;
 
 } // namespace mediatree
 

@@ -4,13 +4,16 @@
 #include "cd_drives.h"
 #include "audio_cd.h"
 #include "libupnp/OpticalDrive_client.h"
-#include "libutil/task.h"
 #include "libutil/worker_thread_pool.h"
+
+namespace util { class TaskQueue; }
+namespace util { class Scheduler; }
 
 namespace import {
 
 class RemoteCDDrive: public CDDrive, public upnp::OpticalDriveObserver
 {
+    util::http::Client *m_client;
     upnp::DeviceClient m_device_client;
     upnp::OpticalDriveClient m_optical_drive;
     std::string m_friendly_name;
@@ -26,7 +29,8 @@ class RemoteCDDrive: public CDDrive, public upnp::OpticalDriveObserver
     util::WorkerThreadPool m_threads;
 
 public:
-    RemoteCDDrive(util::http::Client*, util::http::Server*);
+    RemoteCDDrive(util::http::Client*, util::http::Server*, 
+		  util::Scheduler*);
     ~RemoteCDDrive();
 
     unsigned Init(const std::string& url, const std::string& udn);
@@ -46,6 +50,7 @@ public:
 class RemoteAudioCD: public AudioCD
 {
     std::vector<std::string> m_urls;
+    util::http::Client *m_client;
 
     friend class RemoteCDDrive;
 

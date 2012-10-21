@@ -1,20 +1,21 @@
 #ifndef SETTINGS_ENTRY_H
 #define SETTINGS_ENTRY_H
 
-#include <q3vbox.h>
 #include <map>
+#include "settings.h"
+#include <QObject>
 
-class Settings;
+class QBoxLayout;
 class QLineEdit;
 class QCheckBox;
 class QTableWidget;
 
-class SettingsEntry: public Q3VBox
-{
-    Q_OBJECT
+namespace choraleqt {
 
+class SettingsEntry: public QObject
+{
 public:
-    SettingsEntry(QWidget *parent) : Q3VBox(parent) {}
+    virtual ~SettingsEntry() {}
 
     virtual void OnShow() = 0;
     virtual void OnOK() = 0;
@@ -23,6 +24,8 @@ public:
 /** A string config item */
 class SettingsEntryText: public SettingsEntry
 {
+    Q_OBJECT
+
 public:
     typedef void (Settings::*setter_fn)(const std::string&);
     typedef std::string (Settings::*getter_fn)() const;
@@ -34,10 +37,13 @@ private:
     QLineEdit *m_line;
 
 public:
-    SettingsEntryText(QWidget *parent, Settings *settings,
+    SettingsEntryText(QBoxLayout *parent, Settings *settings,
 		      const char *label, setter_fn setter, getter_fn getter);
     void OnShow();
     void OnOK();
+
+private slots:
+    void OnBrowse();
 };
 
 /** A bool config item */
@@ -54,7 +60,7 @@ private:
     QCheckBox *m_cb;
 
 public:
-    SettingsEntryBool(QWidget *parent, Settings *settings,
+    SettingsEntryBool(QBoxLayout *parent, Settings *settings,
 		      const char *label, setter_fn setter, getter_fn getter);
     void OnShow();
     void OnOK();
@@ -79,7 +85,7 @@ private:
     QLineEdit *m_portline;
 
 public:
-    SettingsEntryEndpoint(QWidget *parent, Settings *settings,
+    SettingsEntryEndpoint(QBoxLayout *parent, Settings *settings,
 			  setter_fn setter, getter_fn getter,
 			  setter2_fn portsetter, getter2_fn portgetter);
     void OnShow();
@@ -101,10 +107,12 @@ private:
     QTableWidget *m_table;
 
 public:
-    SettingsEntryMap(QWidget *parent, Settings *settings, const char *label,
+    SettingsEntryMap(QBoxLayout *parent, Settings *settings, const char *label,
 		     setter_fn setter, getter_fn getter);
     void OnShow();
     void OnOK();
 };
+
+} // namespace choraleqt
 
 #endif

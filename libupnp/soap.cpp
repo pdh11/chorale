@@ -69,28 +69,46 @@ std::string Outbound::CreateBody(const std::string& action_name,
 Inbound::Inbound() {}
 Inbound::~Inbound() {}
 
-void Inbound::Get(std::string *ps, const char *tag)
+void Inbound::Get(std::string *ps, const char *tag) const
 {
     if (ps)
-	*ps = m_params[tag];
+	*ps = GetString(tag);
 }
 
-void Inbound::Get(uint32_t *ps, const char *tag)
+void Inbound::Get(uint32_t *ps, const char *tag) const
 {
     if (ps)
-	*ps = (uint32_t)strtoul(m_params[tag].c_str(), NULL, 10);
+	*ps = (uint32_t)strtoul(GetString(tag).c_str(), NULL, 10);
 }
 
-void Inbound::Get(int32_t *ps, const char *tag)
+void Inbound::Get(int32_t *ps, const char *tag) const
 {
     if (ps)
-	*ps = (int32_t)strtol(m_params[tag].c_str(), NULL, 10);
+	*ps = (int32_t)strtol(GetString(tag).c_str(), NULL, 10);
 }
 
-void Inbound::Get(uint8_t *ps, const char *tag)
+void Inbound::Get(uint16_t *ps, const char *tag) const
 {
     if (ps)
-	*ps = (uint8_t)strtol(m_params[tag].c_str(), NULL, 10);
+	*ps = (uint16_t)strtoul(GetString(tag).c_str(), NULL, 10);
+}
+
+void Inbound::Get(int16_t *ps, const char *tag) const
+{
+    if (ps)
+	*ps = (int16_t)strtol(GetString(tag).c_str(), NULL, 10);
+}
+
+void Inbound::Get(uint8_t *ps, const char *tag) const
+{
+    if (ps)
+	*ps = (uint8_t)strtol(GetString(tag).c_str(), NULL, 10);
+}
+
+void Inbound::Get(bool *ps, const char *tag) const
+{
+    if (ps)
+	*ps = ParseBool(GetString(tag));
 }
 
 std::string Inbound::GetString(const char *tag) const

@@ -7,8 +7,10 @@
 namespace import {
 
 RemoteCDDrive::RemoteCDDrive(util::http::Client *client,
-			     util::http::Server *server)
-    : m_device_client(client, server),
+			     util::http::Server *server,
+			     util::Scheduler *scheduler)
+    : m_client(client),
+      m_device_client(client, server, scheduler),
       m_optical_drive(&m_device_client, upnp::s_service_id_optical_drive),
       m_disc_present(true),
       m_threads(util::WorkerThreadPool::NORMAL, 1)
@@ -79,6 +81,7 @@ unsigned int RemoteCDDrive::GetCD(AudioCDPtr *result)
     cd->m_urls.resize(tracks);
     cd->m_toc.resize(tracks);
     cd->m_total_sectors = sectors;
+    cd->m_client = m_client;
     
     for (uint8_t i=0; i<tracks; ++i)
     {
@@ -107,7 +110,8 @@ util::SeekableStreamPtr RemoteAudioCD::GetTrackStream(unsigned int track)
     if (track >= m_urls.size())
 	return util::SeekableStreamPtr();
     util::http::StreamPtr ptr;
-    unsigned int rc = util::http::Stream::Create(&ptr, m_urls[track].c_str());
+    unsigned int rc = util::http::Stream::Create(&ptr, m_client,
+						 m_urls[track].c_str());
     if (rc != 0)
     {
 	TRACE << "Can't create HTTP stream: " << rc << "\n";

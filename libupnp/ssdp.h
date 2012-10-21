@@ -4,10 +4,11 @@
 #define LIBUPNP_SSDP_H 1
 
 #include <string>
+#include "libutil/counted_pointer.h"
 
 namespace util { class IPFilter; }
 namespace util { class PartialURL; }
-namespace util { class PollerInterface; }
+namespace util { class Scheduler; }
 
 namespace upnp {
 
@@ -20,11 +21,12 @@ namespace ssdp {
 
 class Responder
 {
-    class Impl;
-    Impl *m_impl;
+    class Task;
+    typedef util::CountedPointer<Task> TaskPtr;
+    TaskPtr m_task;
 
 public:
-    Responder(util::PollerInterface*, util::IPFilter*);
+    Responder(util::Scheduler*, util::IPFilter*);
     ~Responder();
 
     class Callback

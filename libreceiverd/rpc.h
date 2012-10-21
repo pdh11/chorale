@@ -2,8 +2,9 @@
 #define LIBRECEIVERD_RPC_H 1
 
 #include "libutil/socket.h"
+#include "libutil/task.h"
 
-namespace util { class PollerInterface; }
+namespace util { class Scheduler; }
 namespace util { class IPFilter; }
 
 namespace receiverd {
@@ -64,42 +65,37 @@ enum accept_stat {
 
 } // namespace rpc
 
-class RPCObserver
+
+/** Server for Sun (ONC) RPC, as needed by NFS.
+ */
+class RPCServer: public util::Task
 {
+    uint32_t m_program_number;
+    uint32_t m_version;
+    util::Scheduler *m_poller;
+    util::IPFilter *m_filter;
+    util::DatagramSocket m_socket;
+    enum { BUFSIZE = 9000 };
+    static unsigned char sm_buf[BUFSIZE];
+
+    unsigned int Run();
+    
+    typedef util::CountedPointer<RPCServer> RPCServerPtr;
+
 public:
-    virtual ~RPCObserver() {}
+    RPCServer(uint32_t program_number, uint32_t version, 
+	      util::Scheduler *poller, 
+	      util::IPFilter *filter);
+    virtual ~RPCServer() {}
+
+    unsigned short GetPort();
 
     virtual unsigned int OnRPC(uint32_t proc, const void *args,
 			       size_t argslen,
 			       void *reply, size_t *replylen) = 0;
-
-    // Helper function
-    std::string String(uint32_t *lenptr, size_t maxlen);
 };
 
-/** Server for Sun (ONC) RPC, as needed by NFS.
- */
-class RPCServer
-{
-    uint32_t m_program_number;
-    uint32_t m_version;
-    util::IPFilter *m_filter;
-    util::DatagramSocket m_socket;
-    RPCObserver *m_observer;
-    enum { BUFSIZE = 9000 };
-    static unsigned char sm_buf[BUFSIZE];
-
-public:
-    RPCServer(uint32_t program_number, uint32_t version, 
-	      util::PollerInterface *poller, 
-	      util::IPFilter *filter,
-	      RPCObserver *observer);
-
-    unsigned short GetPort();
-
-    // Being a util::Pollable
-    unsigned int OnActivity();
-};
+std::string String(uint32_t *lenptr, size_t maxlen);
 
 } // namespace receiverd
 

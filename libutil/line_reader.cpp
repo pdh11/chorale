@@ -1,6 +1,7 @@
 #include "line_reader.h"
 #include "trace.h"
 #include "string_stream.h"
+#include "counted_pointer.h"
 #include <errno.h>
 #include <string.h>
 

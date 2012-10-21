@@ -26,10 +26,10 @@ SRCS:= \
 	main_window.moc.cpp \
 	output_widget.cpp \
 	output_widget.moc.cpp \
-	poller.cpp \
-	poller.moc.cpp \
 	resource_widget.cpp \
 	resource_widget.moc.cpp \
+	setlist_model.cpp \
+	setlist_model.moc.cpp \
 	setlist_window.cpp \
 	setlist_window.moc.cpp \
 	settings.cpp \
@@ -37,13 +37,11 @@ SRCS:= \
 	settings_entry.moc.cpp \
 	settings_window.cpp \
 	settings_window.moc.cpp \
-	tagtable.cpp \
-	tagtable.moc.cpp \
 	tree_model.cpp \
 	tree_model.moc.cpp
 
-choralecd:=$(TOP)$(DIR)choralecd
-cloud:=$(TOP)$(DIR)cloud
+choralecd:=$(TOP)$(DIR)choralecd$(DOTEXE)
+cloud:=$(TOP)$(DIR)cloud$(DOTEXE)
 
 all-choralecd: $(choralecd) $(cloud)
 
@@ -55,6 +53,12 @@ CLEANS += $(choralecd) $(cloud) $(TOP)$(DIR)*.moc.cpp $(choralecd).map.txt
 
 CHORALECD_OBJS:=$(LOBJS)
 CHORALECD_DIR:=$(DIR)
+
+ifneq ($(WINDRES),:)
+CHORALECD_RESOURCES:=$(TOP)$(DIR)$(TARGETDIR)choralecd.res.o
+else
+CHORALECD_RESOURCES:=
+endif
 
 $(TOP)$(DIR)% : CXXFLAGS += $(BOOST_CXXFLAGS) $(QT_CXXFLAGS) \
 		$(TAGLIB_CXXFLAGS) -Wno-shadow
@@ -95,6 +99,9 @@ endif
 ifeq ($(liboutput),)
 include $(TOP)liboutput/Makefile
 endif
+ifeq ($(libuiqt),)
+include $(TOP)libuiqt/Makefile
+endif
 ifeq ($(imagery),)
 include $(TOP)imagery/Makefile
 endif
@@ -111,25 +118,29 @@ install: install-choralecd
 $(choralecd): $(libchoralecd) $(libutil) $(libimport) $(libdbreceiver) \
 		$(libreceiver) $(libdbupnp) $(libmediatree) \
 		$(libmediadb) $(libupnp) $(libdbempeg) $(libempeg) \
-		$(libdbsteam) $(libdb) $(liboutput)
+		$(libdbsteam) $(libdb) $(liboutput) $(libuiqt) \
+		$(CHORALECD_RESOURCES)
 	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
 		$(CXX) -o $@ $(TOP)$(CHORALECD_DIR)$(TARGETDIR)choralecd.lo \
-		$(libchoralecd) \
+		$(CHORALECD_RESOURCES) \
+		$(libchoralecd) $(libuiqt) \
 		$(libmediatree) $(libdbupnp) $(libimport) $(libdbempeg) \
 		$(libdbreceiver) $(liboutput) $(libupnp) $(libmediadb) \
 		$(libdbsteam) $(libdb) $(libreceiver) $(libempeg) $(libupnp) \
 		$(libutil) -Wl,--as-needed $(PARANOIA_LIBS) \
 		$(LIBCDIOP_LIBS) $(LIBCDDB_LIBS) \
 		$(LIBFLAC_LIBS) $(TAGLIB_LIBS) $(BOOST_LIBS) $(QT_LIBS) \
-		$(LAME_LIBS) \
-		$(GSTREAMER_LIBS) $(HAL_LIBS) -Wl,-Map,$@.map.txt
+		$(LAME_LIBS) $(GSTREAMER_LIBS) $(HAL_LIBS) $(LIBS) \
+		-Wl,-Map,map-choralecd-$(FULLTARGET).txt
 ifneq ($(FINAL),no)
-	@mv $@ $@-libs
-	@grep ^$(TOP)[a-z].*\.a\( $@.map.txt | sed -e 's,/obj-.*[\(],/,' -e 's,.o[\)],.cpp",' -e 's,^,#include ",' | grep -v tcp_wrappers_c.c | sort \
-		 > $@.all-$(FULLTARGET).h
+	@$(RM) $@
+	@grep ^$(TOP)[a-z].*\.a\( map-choralecd-$(FULLTARGET).txt | sed -e 's,/obj-.*[\(],/,' -e 's,.o[\)],.cpp",' -e 's,^,#include ",' | \
+		grep -v tcp_wrappers_c.c | grep -v mutex.cpp | \
+		grep -v search.cpp | sort \
+		 > $(TOP)choralecd/all-$(FULLTARGET).h
 	$(CC_PRE)libtool --tag=CXX --mode=compile --silent \
 		$(CXX) $(CXXFLAGS) -I$(TOP). \
-		-include $@.all-$(FULLTARGET).h \
+		-include $(TOP)choralecd/all-$(FULLTARGET).h \
 		-c $(TOP)choralecd/choralecd.cpp \
 		-o $(TOP)choralecd/$(TARGETDIR)all-cpp.lo \
 		-fwhole-program $(BOOST_CXXFLAGS) \
@@ -137,8 +148,9 @@ ifneq ($(FINAL),no)
 		$(DBUS_CXXFLAGS) $(HAL_CXXFLAGS) $(GSTREAMER_CXXFLAGS)
 	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
 		$(CXX) -o $@ $(TOP)choralecd/$(TARGETDIR)all-cpp.lo \
-		-Wl,-Map,map2.txt \
-		$(libchoralecd) \
+		$(CHORALECD_RESOURCES) \
+		-Wl,-Map,map-choralecd-$(FULLTARGET)-final.txt \
+		$(libchoralecd) $(libuiqt) \
 		$(libmediatree) $(libdbupnp) $(libimport) $(libdbempeg) \
 		$(libdbreceiver) $(liboutput) $(libupnp) $(libmediadb) \
 		$(libdbsteam) $(libdb) $(libreceiver) $(libempeg) $(libupnp) \
@@ -146,17 +158,20 @@ ifneq ($(FINAL),no)
 		$(LIBCDIOP_LIBS) $(LIBCDDB_LIBS) \
 		$(LIBFLAC_LIBS) $(TAGLIB_LIBS) $(BOOST_LIBS) $(QT_LIBS) \
 		$(LAME_LIBS) \
-		$(GSTREAMER_LIBS) $(HAL_LIBS)
+		$(GSTREAMER_LIBS) $(HAL_LIBS) $(LIBS)
 endif
+	@$(STRIP) $@
 	@echo $@: `ldd $@ | wc -l` shared libraries | fmt
 
 $(cloud): $(libchoralecd) $(libutil) $(libimport) $(libdbreceiver) \
 		$(libreceiver) $(libdbupnp) $(libmediatree) \
 		$(libmediadb) $(libupnp) $(libdbempeg) $(libempeg) \
-		$(libdbsteam) $(libdb) $(liboutput)
+		$(libdbsteam) $(libdb) $(liboutput) $(libuiqt) \
+		$(CHORALECD_RESOURCES)
 	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
 		$(CXX) -o $@ $(TOP)$(CHORALECD_DIR)$(TARGETDIR)cloud.lo \
-		$(libchoralecd) \
+		$(CHORALECD_RESOURCES) \
+		$(libchoralecd) $(libuiqt) \
 		$(libmediatree) $(libdbupnp) $(libimport) $(libdbempeg) \
 		$(libdbreceiver) $(liboutput) $(libupnp) $(libmediadb) \
 		$(libdbsteam) $(libdb) $(libreceiver) $(libempeg) $(libupnp) \
@@ -165,7 +180,7 @@ $(cloud): $(libchoralecd) $(libutil) $(libimport) $(libdbreceiver) \
 		$(LIBCDIOP_LIBS) $(LIBCDDB_LIBS) \
 		$(LIBFLAC_LIBS) $(TAGLIB_LIBS) $(BOOST_LIBS) $(QT_LIBS) \
 		$(LAME_LIBS) \
-		$(GSTREAMER_LIBS) $(HAL_LIBS)
+		$(GSTREAMER_LIBS) $(HAL_LIBS) $(LIBS)
 
 else
 $(choralecd):

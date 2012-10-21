@@ -6,20 +6,16 @@
 #ifndef LIBUTIL_TRACE_H
 #define LIBUTIL_TRACE_H
 
-#include <stdio.h>
 #include <string>
-#include <map>
-#include <set>
-#include <vector>
-#include <boost/thread/mutex.hpp>
+#include "mutex.h"
 #include "attributes.h"
 
 namespace util {
 
 class Tracer
 {
-    static boost::mutex sm_mutex;
-    boost::mutex::scoped_lock m_lock;
+    static Mutex sm_mutex;
+    Mutex::Lock m_lock;
     bool m_emit;
 
 public:
@@ -33,25 +29,47 @@ public:
 };
 
 inline const Tracer& operator<<(const Tracer& n, const char* s) { n.Printf("%s",s?s:"NULL"); return n; }
+inline const Tracer& operator<<(const Tracer& n, char* s) { n.Printf("%s",s?s:"NULL"); return n; }
        const Tracer& operator<<(const Tracer& n, const wchar_t* s);
+       const Tracer& operator<<(const Tracer& n, wchar_t* s);
 inline const Tracer& operator<<(const Tracer& n, const std::string& s) { n.Printf("%s", s.c_str()); return n; }
        const Tracer& operator<<(const Tracer& n, const std::wstring& s);
-inline const Tracer& operator<<(const Tracer& n, unsigned int ui) { n.Printf("%u",ui); return n; }
-inline const Tracer& operator<<(const Tracer& n, unsigned long ul) { n.Printf("%lu",ul); return n; }
+inline const Tracer& operator<<(const Tracer& n, bool b) { n.Printf("%s", b?"true":"false"); return n; }
 inline const Tracer& operator<<(const Tracer& n, char i) { n.Printf("'%c'",i); return n; }
+inline const Tracer& operator<<(const Tracer& n, signed char i) { n.Printf("%d",i); return n; }
+inline const Tracer& operator<<(const Tracer& n, unsigned char ui) { n.Printf("%u",ui); return n; }
+inline const Tracer& operator<<(const Tracer& n, short i) { n.Printf("%d",i); return n; }
+inline const Tracer& operator<<(const Tracer& n, unsigned short ui) { n.Printf("%u",ui); return n; }
 inline const Tracer& operator<<(const Tracer& n, int i) { n.Printf("%d",i); return n; }
+inline const Tracer& operator<<(const Tracer& n, unsigned int ui) { n.Printf("%u",ui); return n; }
 inline const Tracer& operator<<(const Tracer& n, long i) { n.Printf("%ld",i); return n; }
+inline const Tracer& operator<<(const Tracer& n, unsigned long ul) { n.Printf("%lu",ul); return n; }
 inline const Tracer& operator<<(const Tracer& n, const void *p) { n.Printf("%p",p); return n; }
 inline const Tracer& operator<<(const Tracer& n, double d) { n.Printf("%f",d); return n; }
 // These ones are out-of-line due to mingw shenanigans
-const Tracer& operator<<(const Tracer& n, unsigned long long ull);
-const Tracer& operator<<(const Tracer& n, long long ll);
+       const Tracer& operator<<(const Tracer& n, unsigned long long ull);
+       const Tracer& operator<<(const Tracer& n, long long ll);
 
-template<typename X> 
-inline const Tracer& operator<<(const Tracer& n, const std::set<X>& m)
+template<typename T>
+inline const Tracer& operator<<(const Tracer& n, const T* ptr)
+{
+    return n << ((const void*)ptr);
+}
+
+template<typename T>
+inline const Tracer& operator<<(const Tracer& n, T* ptr)
+{
+    return n << ((const void*)ptr);
+}
+
+/** For STL sequences (two-parameter) eg vector
+ */
+template<typename X, typename Y, template<typename,typename> class SEQ> 
+inline const Tracer& operator<<(const Tracer& n,
+				const SEQ<X,Y>& m)
 {
     n << "{ ";
-    for (typename std::set<X>::const_iterator i = m.begin(); i != m.end(); ++i)
+    for (typename SEQ<X,Y>::const_iterator i = m.begin(); i != m.end(); ++i)
     {
 	n << *i << ", ";
     }
@@ -59,27 +77,33 @@ inline const Tracer& operator<<(const Tracer& n, const std::set<X>& m)
     return n;
 }
 
-template<typename X> 
-inline const Tracer& operator<<(const Tracer& n, const std::vector<X>& v)
+/** For STL sequences (three-parameter) eg set
+ */
+template<typename X, typename Y, typename Z,
+	 template<typename,typename,typename> class SEQ> 
+inline const Tracer& operator<<(const Tracer& n, const SEQ<X,Y,Z>& m)
 {
-    n << "( ";
-    for (typename std::vector<X>::const_iterator i = v.begin(); i != v.end(); ++i)
+    n << "{ ";
+    for (typename SEQ<X,Y,Z>::const_iterator i = m.begin(); i != m.end(); ++i)
     {
 	n << *i << ", ";
     }
-    n << ")\n";
+    n << "}\n";
     return n;
 }
 
-template<typename X, typename Y, typename Z> 
-inline const Tracer& operator<<(const Tracer& n, const std::map<X,Y,Z>& m)
+/** For STL sequences (four-parameter) eg map
+ */
+template<typename W, typename X, typename Y, typename Z,
+	 template<typename,typename,typename,typename> class SEQ>
+inline const Tracer& operator<<(const Tracer& n, const SEQ<W,X,Y,Z>& m)
 {
-    n << "[ ";
-    for (typename std::map<X,Y>::const_iterator i = m.begin(); i != m.end(); ++i)
+    n << "{ ";
+    for (typename SEQ<W,X,Y,Z>::const_iterator i = m.begin(); i != m.end(); ++i)
     {
-	n << i->first << "=" << i->second << " ";
+	n << *i << ", ";
     }
-    n << "]\n";
+    n << "}\n";
     return n;
 }
 
@@ -128,26 +152,14 @@ public:
 };
 
 /** A tracer that does nothing, for release builds.
- *
- * For EnumHelper, see
- * http://pdh11.blogspot.com/2009/04/one-template-to-rule-them-all-revisited.html
  */
 struct NullTracer {
-    NullTracer() {}
-
-    struct EnumHelper {
-	EnumHelper() {}
-	EnumHelper(const NullTracer&) {}
-    } helper;
-
-    NullTracer(const EnumHelper&) {}
 };
 
 template<typename T>
 inline const NullTracer& operator<<(const NullTracer& n, T) { return n; }
 
-inline const NullTracer::EnumHelper& operator<<(const NullTracer& n, int)
-{ return n.helper; }
+inline const NullTracer& operator<<(const NullTracer& n, int) { return n; }
 
 } // namespace util
 

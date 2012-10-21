@@ -4,6 +4,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string>
 #include <assert.h>
 
@@ -28,6 +29,8 @@ void RenameWithMkdir(const char *oldname, const char *newname)
 {
     MkdirParents(newname);
 //    TRACE << "Rename " << oldname << " to " << newname << "\n";
+
+    /// @bug These names are UTF-8 on Windows
     ::rename(oldname, newname);
 }
 
@@ -202,6 +205,46 @@ std::string URLToPath(const std::string& url)
 
 #ifdef TEST
 
+static const struct {
+    const char *from;
+    const char *to;
+    const char *rel;
+} tests[] = {
+    { "/", "/", "/" },
+    { "/foo",     "/bar", "bar" },
+    { "/foo/woo", "/bar", "../bar" },
+    { "/foo",     "/bar/boo", "bar/boo" },
+    { "/media/mp3audio/New Albums/foo", "/media/mp3audio/Artists/Elbow/foo", "../Artists/Elbow/foo" },
+
+#if 0
+    { "C:/foo/woo", "C:/bar", "../bar" },
+    { "C:/foo", "D:/bar", "D:/bar" },
+
+    { "//server1/share1/foo/bar", "//server1/share1/boo/wah", "../boo/wah" },
+    { "//server1/share1/foo/bar", "//server2/share2/boo/wah", "//server2/share2/boo/wah" },
+#endif
+};
+
+void TestRelativePaths()
+{
+    for (unsigned int i=0; i<(sizeof(tests)/sizeof(*tests)); ++i)
+    {
+	const char *from = tests[i].from;
+	const char *to   = tests[i].to;
+	const char *rel  = tests[i].rel;
+
+	std::string rel2 = util::MakeRelativePath(from, to);
+	if (rel2 != rel)
+	{
+	    TRACE << "From '" << from << "' to '" << to << "' expected '"
+		  << rel << "' got '" << rel2 << "'\n";
+	}
+
+	assert(util::MakeRelativePath(from, to) == rel);
+	assert(util::MakeAbsolutePath(from, rel) == to);
+    }
+}
+
 int main()
 {
     assert(util::PathToURL("/") == "file:///");
@@ -239,6 +282,8 @@ int main()
     assert(util::posix::GetExtension("foo/bar.txt") == "txt");
     assert(util::win32::GetExtension("foo.bar/txt") == "");
     assert(util::posix::GetExtension("foo.bar/txt") == "");
+
+    TestRelativePaths();
 
     return 0;
 }

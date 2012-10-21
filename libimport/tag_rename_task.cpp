@@ -13,18 +13,22 @@ TagRenameTask::TagRenameTask(const std::string& oldname,
 {
 }
 
-util::TaskPtr TagRenameTask::Create(const std::string& oldname, 
+util::TaskCallback TagRenameTask::Create(const std::string& oldname, 
 				    const std::string& newname,
 				    db::RecordsetPtr tags)
 {
-    return util::TaskPtr(new TagRenameTask(oldname, newname, tags));
+    return util::Bind<TagRenameTask,&TagRenameTask::Run>(TaskPtr(new TagRenameTask(oldname, newname, tags)));
 }
 
 unsigned int TagRenameTask::Run()
 {
     util::RenameWithMkdir(m_oldname.c_str(), m_newname.c_str());
     TRACE << "Tag point 3\n";
-    return WriteTags(m_newname, m_tags);
+    import::Tags tags;
+    unsigned int rc = tags.Open(m_newname);
+    if (rc)
+	return rc;
+    return tags.Write(m_tags.get());
 }
 
 } // namespace import

@@ -2,28 +2,15 @@
 #define IMPORT_FILE_NOTIFIER 1
 
 #include "libutil/pollable.h"
+#include "libutil/task.h"
 
-namespace util { class PollerInterface; }
+namespace util { class Scheduler; }
 
 namespace import {
 
-class FileNotifier: public util::Pollable
+class FileNotifierTask: public util::Task, private util::Pollable
 {
 public:
-    class Observer;
-
-private:
-    Observer *m_obs;
-    util::PollHandle m_fd;
-
-public:
-    FileNotifier();
-    ~FileNotifier();
-
-    unsigned int Init(util::PollerInterface*);
-
-    void Watch(const char *directory);
-
     class Observer
     {
     public:
@@ -32,13 +19,32 @@ public:
 	virtual void OnChange() = 0;
     };
 
-    void SetObserver(Observer *obs) { m_obs = obs; }
+private:
+    util::Scheduler *m_scheduler;
+    Observer *m_obs;
+    util::PollHandle m_fd;
 
-    unsigned OnActivity();
+    explicit FileNotifierTask(util::Scheduler*);
 
     // Being a util::Pollable
-    util::PollHandle GetReadHandle() { return m_fd; }
+    util::PollHandle GetHandle() { return m_fd; }
+
+    unsigned Run();
+
+public:
+    ~FileNotifierTask();
+
+    typedef util::CountedPointer<FileNotifierTask> FileNotifierPtr;
+    static FileNotifierPtr Create(util::Scheduler*);
+
+    unsigned int Init();
+
+    void Watch(const char *directory);
+
+    void SetObserver(Observer *obs) { m_obs = obs; }
 };
+
+typedef util::CountedPointer<FileNotifierTask> FileNotifierPtr;
 
 } // namespace import
 

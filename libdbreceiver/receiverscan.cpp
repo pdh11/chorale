@@ -2,7 +2,7 @@
 #include "libmediadb/schema.h"
 #include "libreceiver/ssdp.h"
 #include "libdb/query.h"
-#include "libutil/poll.h"
+#include "libutil/scheduler.h"
 #include "libutil/http_client.h"
 #include "libutil/trace.h"
 #include "libutil/socket.h"
@@ -78,14 +78,14 @@ int main()
 {
     util::http::Client http;
     SSDPC callback(&http);
-    util::Poller poller;
+    util::BackgroundScheduler poller;
     receiver::ssdp::Client ssdpc;
 
     ssdpc.Init(&poller, receiver::ssdp::s_uuid_musicserver, &callback);
 
     while (1)
     {
-	poller.Poll(util::Poller::INFINITE_MS);
+	poller.Poll(util::BackgroundScheduler::INFINITE_MS);
     }
 
     return 0;

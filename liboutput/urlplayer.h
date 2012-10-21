@@ -32,6 +32,7 @@ public:
 				    const std::string& metadataxml) = 0;
 
     virtual unsigned int SetPlayState(output::PlayState) = 0;
+    virtual unsigned int Seek(unsigned int ms) = 0;
 
     virtual void AddObserver(URLObserver*) = 0;
     virtual void RemoveObserver(URLObserver*) = 0;

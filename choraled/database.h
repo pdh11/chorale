@@ -8,6 +8,8 @@
 
 #define HAVE_LOCAL_DB HAVE_TAGLIB
 
+namespace util { namespace http { class Client; } }
+
 namespace choraled {
 
 class LocalDatabase
@@ -17,7 +19,8 @@ class LocalDatabase
     db::local::Database m_ldb;
 
 public:
-    LocalDatabase();
+    LocalDatabase(util::http::Client *client);
+    ~LocalDatabase();
     
     unsigned int Init(const std::string& loroot, const std::string& hiroot,
 		      util::TaskQueue *queue, const std::string& dbfilename);

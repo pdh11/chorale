@@ -5,7 +5,6 @@ choralesvc-lib
 obj-*
 .libs
 db.xml
-choraled.all-*
-choralesvc.all-*
-map.txt
-map2.txt
+all-*.h
+map-*.txt
+*.i

@@ -7,6 +7,7 @@
 #include "libutil/urlescape.h"
 #include "libutil/http_fetcher.h"
 #include <boost/tokenizer.hpp>
+#include <stdio.h>
 
 namespace db {
 namespace receiver {
@@ -22,7 +23,7 @@ Recordset::Recordset(Database *parent)
 {
 }
 
-uint32_t Recordset::GetInteger(field_t which)
+uint32_t Recordset::GetInteger(field_t which) const
 {
     if (which == mediadb::ID)
 	return m_id;
@@ -44,7 +45,7 @@ uint32_t Recordset::GetInteger(field_t which)
     return m_freers->GetInteger(which);
 }
 
-std::string Recordset::GetString(field_t which)
+std::string Recordset::GetString(field_t which) const
 {
     if (IsEOF())
 	return std::string();
@@ -70,7 +71,7 @@ std::string Recordset::GetString(field_t which)
     return m_freers->GetString(which);
 }
 
-void Recordset::GetTags()
+void Recordset::GetTags() const
 {
     std::ostringstream os;
     os << "http://" << m_parent->m_ep.ToString() << "/tags/"
@@ -150,7 +151,7 @@ void Recordset::GetTags()
     m_got_what |= GOT_TAGS|GOT_TITLE|GOT_TYPE;
 }
 
-void Recordset::GetContent()
+void Recordset::GetContent() const
 {
     if (!m_freers)
 	m_freers = db::FreeRecordset::Create();
@@ -158,8 +159,8 @@ void Recordset::GetContent()
     unsigned int type = m_freers->GetInteger(mediadb::TYPE);
     if (type != mediadb::PLAYLIST && type != mediadb::DIR)
     {
-//	TRACE << "Content asked-for on id " << m_id 
-//	      << " with non-playlist type " << type << "\n";
+	TRACE << "Content asked-for on id " << m_id 
+	      << " with non-playlist type " << type << "\n";
 	m_got_what |= GOT_CONTENT;
 	return;
     }
@@ -174,7 +175,7 @@ void Recordset::GetContent()
     util::http::Fetcher hc(m_parent->m_http, url);
     hc.FetchToString(&content);
 
-//    TRACE << "Content of " << m_id << " is\n" << Hex(content.c_str(), content.length());
+//    TRACE << "Content of " << m_id << " is\n" << util::Hex(content.c_str(), content.length());
 
     std::vector<unsigned int> childvec;
 
@@ -236,7 +237,7 @@ void RecordsetOne::MoveNext()
 	m_freers = NULL;
 }
 
-bool RecordsetOne::IsEOF()
+bool RecordsetOne::IsEOF() const
 {
     return m_id == 0;
 }
@@ -307,7 +308,7 @@ void RestrictionRecordset::LoadID()
 	+ ((unsigned char)m_content[offset+3] << 24);
 }
 
-bool RestrictionRecordset::IsEOF()
+bool RestrictionRecordset::IsEOF() const
 {
     return m_eof;
 }
@@ -386,14 +387,14 @@ CollateRecordset::CollateRecordset(Database *parent,
     m_eof = m_counts.empty();
 }
 
-uint32_t CollateRecordset::GetInteger(field_t which)
+uint32_t CollateRecordset::GetInteger(field_t which) const
 {
     if (which == 1 && !m_eof)
 	return m_counts[m_recno];
     return 0; 
 }
 
-std::string CollateRecordset::GetString(field_t which)
+std::string CollateRecordset::GetString(field_t which) const
 { 
     if (which == 0 && !m_eof)
 	return m_values[m_recno];
@@ -407,7 +408,7 @@ void CollateRecordset::MoveNext()
 	m_eof = true;
 }
 
-bool CollateRecordset::IsEOF()
+bool CollateRecordset::IsEOF() const
 {
     return m_eof; 
 }

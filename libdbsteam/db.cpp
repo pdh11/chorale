@@ -15,6 +15,10 @@ Database::Database(field_t nfields)
     m_intindexes.resize(nfields);
 }
 
+Database::~Database()
+{
+}
+
 db::RecordsetPtr Database::CreateRecordset()
 {
     return db::RecordsetPtr(new SimpleRecordset(this, QueryPtr()));

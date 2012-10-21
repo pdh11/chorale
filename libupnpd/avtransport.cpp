@@ -4,6 +4,7 @@
 #include "liboutput/urlplayer.h"
 #include "libutil/xmlescape.h"
 #include <boost/format.hpp>
+#include <stdio.h>
 
 namespace upnpd {
 
@@ -116,6 +117,61 @@ void AVTransportImpl::OnTimeCode(unsigned int sec)
     m_timecodesec = sec;
 }
 
+static bool ParseTime(const std::string& target, unsigned int *pms)
+{
+    unsigned int ms;
+    unsigned int h,m,s,f0,f1;
+    if (sscanf(target.c_str(), "%u:%u:%u.%u/%u", &h, &m, &s, &f0, &f1) == 5)
+    {
+	if (f1 > 0 && f0 < f1)
+	    ms = (f0 * 1000 / f1);
+	else
+	    ms = 0;
+    }
+    else if (sscanf(target.c_str(), "%u:%u:%u.%u", &h, &m, &s, &f0) == 4)
+    {
+	unsigned int digits = (unsigned int)(target.size()-target.rfind('.') - 1);
+	while (digits > 3)
+	{
+	    f0 /= 10;
+	    --digits;
+	}
+	while (digits < 3)
+	{
+	    f0 *= 10;
+	    ++digits;
+	}
+	ms = f0;
+    }
+    else if (sscanf(target.c_str(), "%u:%u:%u", &h, &m, &s) == 3)
+    {
+	// OK
+	ms = 0;
+    }
+    else
+    {
+	TRACE << "Don't like timecode '" << target << "'\n";
+	return false;
+    }
+    
+    *pms = h * 3600 * 1000
+	+ m * 60 * 1000
+	+ s * 1000
+	+ ms;
+    return true;
+}
+
+unsigned int AVTransportImpl::Seek(uint32_t, SeekMode unit, 
+				   const std::string& target)
+{
+    if (unit != SEEKMODE_ABS_TIME)
+	return 0;
+    unsigned int ms;
+    if (!ParseTime(target, &ms))
+	return 0;
+    return m_player->Seek(ms);
+}
+
 unsigned int AVTransportImpl::GetPositionInfo(uint32_t,
 					      uint32_t *track,
 					      std::string *track_duration,
@@ -163,3 +219,40 @@ unsigned int AVTransportImpl::GetLastChange(std::string *change)
 }
 
 } // namespace upnpd
+
+#ifdef TEST
+
+static const struct {
+    const char *timecode;
+    unsigned int ms;
+} tests[] = {
+    { "0:0:0",       0 },
+    { "0:0:1",    1000 },
+    { "0:1:0",   60000 },
+    { "1:0:0", 3600000 },
+    { "00:01:00.1",    60100 },
+    { "00:01:00.01",   60010 },
+    { "00:01:00.001",  60001 },
+    { "00:01:00.0001", 60000 },
+    { "00:01:00.1/25", 60040 },
+    { "00:01:00.12/25", 60480 },
+};
+
+int main()
+{
+    unsigned int ms;
+    for (unsigned int i=0; i<sizeof(tests)/sizeof(tests[0]); ++i)
+    {
+	bool ok = upnpd::ParseTime(tests[i].timecode, &ms);
+	assert(ok);
+	if (ms != tests[i].ms)
+	{
+	    TRACE << tests[i].timecode << " expected " << tests[i].ms
+		  << " got " << ms << "\n";
+	}
+	assert(ms == tests[i].ms);
+    }
+    return 0;
+}
+
+#endif

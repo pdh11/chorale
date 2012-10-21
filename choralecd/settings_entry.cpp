@@ -9,30 +9,37 @@
  */
 #include "settings_entry.h"
 #include <qpushbutton.h>
-#include <q3hbox.h>
 #include <qlineedit.h>
 #include <qlabel.h>
 #include <qcheckbox.h>
 #include <stdio.h>
 #include <QTableWidget>
 #include <QHeaderView>
+#include <QBoxLayout>
+#include <QFileDialog>
 
-SettingsEntryText::SettingsEntryText(QWidget *parent, Settings *settings,
+namespace choraleqt {
+
+SettingsEntryText::SettingsEntryText(QBoxLayout *parent, Settings *settings,
 				     const char *label, 
 				     setter_fn setter, getter_fn getter)
-    : SettingsEntry(parent),
-      m_settings(settings),
+    : m_settings(settings),
       m_setter(setter),
       m_getter(getter),
       m_line(NULL)
 {
-    setMargin(6);
-    QLabel *mr = new QLabel(this);
-    mr->setText(label);
-    Q3HBox *hb = new Q3HBox(this);
-    m_line = new QLineEdit(hb);
-    QPushButton *br = new QPushButton(hb);
+    parent->addWidget(new QLabel(label));
+
+    QHBoxLayout *hb = new QHBoxLayout;
+    m_line = new QLineEdit;
+    hb->addWidget(m_line);
+
+    QPushButton *br = new QPushButton;
     br->setText("Browse...");
+    hb->addWidget(br);
+    connect(br, SIGNAL(clicked()), this, SLOT(OnBrowse()));
+
+    parent->addLayout(hb);
 }
 
 void SettingsEntryText::OnShow()
@@ -45,18 +52,22 @@ void SettingsEntryText::OnOK()
     (m_settings->*m_setter)(m_line->text().toUtf8().data());
 }
 
-SettingsEntryBool::SettingsEntryBool(QWidget *parent, Settings *settings,
+void SettingsEntryText::OnBrowse()
+{
+    QString qs = QFileDialog::getExistingDirectory(m_line);
+    m_line->setText(qs);
+}
+
+SettingsEntryBool::SettingsEntryBool(QBoxLayout *parent, Settings *settings,
 				     const char *label, 
 				     setter_fn setter, getter_fn getter)
-    : SettingsEntry(parent),
-      m_settings(settings),
+    : m_settings(settings),
       m_setter(setter),
       m_getter(getter),
       m_cb(NULL)
 {
-    setMargin(6);
-    m_cb = new QCheckBox(this);
-    m_cb->setText(label);
+    m_cb = new QCheckBox(label);
+    parent->addWidget(m_cb);
 }
 
 void SettingsEntryBool::OnShow()
@@ -73,14 +84,13 @@ void SettingsEntryBool::OnOK()
         /* Endpoint */
 
 
-SettingsEntryEndpoint::SettingsEntryEndpoint(QWidget *parent, 
+SettingsEntryEndpoint::SettingsEntryEndpoint(QBoxLayout *parent, 
 					     Settings *settings,
 					     setter_fn setter, 
 					     getter_fn getter,
 					     setter2_fn portsetter, 
 					     getter2_fn portgetter)
-    : SettingsEntry(parent),
-      m_settings(settings),
+    : m_settings(settings),
       m_setter(setter),
       m_getter(getter),
       m_setter2(portsetter),
@@ -88,14 +98,13 @@ SettingsEntryEndpoint::SettingsEntryEndpoint(QWidget *parent,
       m_line(NULL),
       m_portline(NULL)
 {
-    setMargin(6);
-    Q3HBox *hb = new Q3HBox(this);
-    m_line = new QLineEdit(hb);
-    hb->setStretchFactor(m_line, 4);
-    QLabel *colon = new QLabel(hb);
-    colon->setText(":");
-    m_portline = new QLineEdit(hb);
-    hb->setStretchFactor(m_portline, 1);
+    QHBoxLayout *hb = new QHBoxLayout;
+    m_line = new QLineEdit;
+    hb->addWidget(m_line, 4);
+    hb->addWidget(new QLabel(":"));
+    m_portline = new QLineEdit;
+    hb->addWidget(m_portline, 1);
+    parent->addLayout(hb);
 }
 
 void SettingsEntryEndpoint::OnShow()
@@ -116,21 +125,18 @@ void SettingsEntryEndpoint::OnOK()
         /* Map */
 
 
-SettingsEntryMap::SettingsEntryMap(QWidget *parent, 
+SettingsEntryMap::SettingsEntryMap(QBoxLayout *parent, 
 				   Settings *settings,
 				   const char *label,
 				   setter_fn setter, 
 				   getter_fn getter)
-    : SettingsEntry(parent),
-      m_settings(settings),
+    : m_settings(settings),
       m_setter(setter),
       m_getter(getter),
       m_table(NULL)
 {
-    setMargin(6);
-    QLabel *mr = new QLabel(this);
-    mr->setText(label);
-    m_table = new QTableWidget(this);
+    parent->addWidget(new QLabel(label));
+    m_table = new QTableWidget;
     m_table->setColumnCount(2);
     m_table->setRowCount(2);
     m_table->setItem(0,0, new QTableWidgetItem("/dev/pcmC0D0p"));
@@ -141,6 +147,7 @@ SettingsEntryMap::SettingsEntryMap(QWidget *parent,
     m_table->verticalHeader()->hide();
     m_table->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
     m_table->setEnabled(false);
+    parent->addWidget(m_table);
 }
 
 void SettingsEntryMap::OnShow()
@@ -150,3 +157,5 @@ void SettingsEntryMap::OnShow()
 void SettingsEntryMap::OnOK()
 {
 }
+
+} // namespace choraleqt

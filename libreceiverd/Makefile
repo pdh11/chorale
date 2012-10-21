@@ -21,7 +21,7 @@ include $(TOP)Make.common
 LIBRECEIVERD_OBJS:=$(LOBJS)
 LIBRECEIVERD_TESTS:=$(TESTS)
 
-libreceiverd:=$(TOP)$(DIR)$(TARGETDIR)libreceiverd.la
+libreceiverd:=$(TOP)$(DIR)$(TARGETDIR)libreceiverd.a
 
 all-libreceiverd: $(libreceiverd)
 
@@ -47,7 +47,10 @@ ifeq ($(libreceiver),)
 include $(TOP)libreceiver/Makefile
 endif
 
-$(LIBRECEIVERD_TESTS) : TEST_LIBS += $(TAGLIB_LIBS) $(BOOST_LIBS) \
+$(LIBRECEIVERD_TESTS) : TEST_LIBS +=  $(libreceiverd) $(libreceiver) \
+	$(libdbsteam) $(libdbmerge) \
+	$(libdblocal) $(libimport) $(libmediadb) $(libdb) $(libutil) \
+	$(TAGLIB_LIBS) $(BOOST_LIBS) \
 	$(DBUS_LIBS) $(HAL_LIBS) $(LIBS)
 
 $(LIBRECEIVERD_TESTS) : $(libreceiverd) $(libreceiver) $(libdbsteam) \

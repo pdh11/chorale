@@ -1,4 +1,5 @@
 #include "string_stream.h"
+#include "counted_pointer.h"
 #include <string.h>
 
 namespace util {

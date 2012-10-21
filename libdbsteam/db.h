@@ -3,13 +3,12 @@
 #ifndef STEAMDB_STEAMDB_H
 #define STEAMDB_STEAMDB_H
 
+#include "libutil/mutex.h"
 #include "libdb/db.h"
 #include <string>
 #include <map>
 #include <vector>
 #include <set>
-#include <boost/thread/mutex.hpp>
-#include <boost/thread/recursive_mutex.hpp>
 
 namespace db {
 
@@ -40,7 +39,7 @@ class Database: public db::Database
     /** Could use a rwlock in theory, but the critical sections are very
      * small.
      */
-    boost::recursive_mutex m_mutex;
+    util::RecursiveMutex m_mutex;
 
     unsigned int m_nfields;
     unsigned int m_next_recno;
@@ -76,6 +75,7 @@ class Database: public db::Database
 
 public:
     explicit Database(field_t nfields);
+    ~Database();
 
     void SetFieldInfo(field_t which, unsigned int flags)
     {

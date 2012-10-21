@@ -10,14 +10,14 @@ namespace import {
  */
 namespace mp3 {
 
-class Tags: public import::Tags
+class Tags: public import::Tags::Impl
 {
 public:
-    Tags(const std::string& filename): import::Tags(filename) {}
+    Tags(const std::string& filename): import::Tags::Impl(filename) {}
 
-    // Being a Tags
-    unsigned Read(db::RecordsetPtr);
-    unsigned Write(db::RecordsetPtr);
+    // Being a Tags::Impl
+    unsigned Read(db::Recordset*);
+    unsigned Write(const db::Recordset*);
 };
 
 } // namespace mp3

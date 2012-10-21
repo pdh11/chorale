@@ -9,12 +9,14 @@
 #include "libdb/query.h"
 #include "libempeg/discovery.h"
 #include "libempeg/protocol_client.h"
-#include "libutil/poll.h"
+#include "libutil/scheduler.h"
 #include "libutil/socket.h"
 #include "libutil/file_stream.h"
 #include "libutil/http_server.h"
+#include "libutil/http_client.h"
 #include "libutil/worker_thread_pool.h"
 #include <getopt.h>
+#include <stdlib.h>
 #if HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -88,7 +90,7 @@ struct FindDeviceCallback: public empeg::Discovery::Callback
  */
 void FindDevice()
 {
-    util::Poller poller;
+    util::BackgroundScheduler poller;
     empeg::Discovery disc;
     FindDeviceCallback sc;
     disc.Init(&poller, &sc);
@@ -203,14 +205,14 @@ void ScanCallback::OnDiscoveredEmpeg(const util::IPAddress& ip,
 
 static int Scan()
 {
-    util::Poller poller;
+    util::BackgroundScheduler poller;
     empeg::Discovery disc;
     ScanCallback sc;
     disc.Init(&poller, &sc);
 
-    time_t t = time(NULL) + 5;
+    time_t t = time(NULL);
 
-    while (time(NULL) < t)
+    while ((time(NULL) - t) < 5)
     {
 	poller.Poll(1000);
     }
@@ -312,7 +314,8 @@ static int Update()
     sdbsrc.SetFieldInfo(mediadb::TRACKNUMBER,
 		     db::steam::FIELD_INT|db::steam::FIELD_INDEXED);
 
-    db::local::Database dbsrc(&sdbsrc);
+    util::http::Client http_client;
+    db::local::Database dbsrc(&sdbsrc, &http_client);
 
     unsigned int rc;
 
@@ -346,7 +349,7 @@ static int Update()
     }
 
     // Prepare destination database
-    util::Poller poller;
+    util::BackgroundScheduler poller;
     util::http::Server server(&poller, &wtp);
     db::empeg::Database dbdest(&server);
     rc = dbdest.Init(s_device);
@@ -493,7 +496,7 @@ int Main(int argc, char *argv[])
 
     if (do_update && !update_xml)
     {
-	if (argc > optind+2 || argc < optind+1)
+	if (argc > optind+2 || argc <= optind)
 	{
 	    Usage(stderr);
 	    return 1;

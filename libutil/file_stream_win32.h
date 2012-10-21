@@ -2,6 +2,7 @@
 #define FILE_STREAM_WIN32_H
 
 #include "file_stream.h"
+#include <boost/noncopyable.hpp>
 
 namespace util {
 

@@ -1,16 +1,20 @@
 #include "http_client.h"
 #include "config.h"
 #include "errors.h"
-#include "poll.h"
+#include "scheduler.h"
 #include "http_fetcher.h"
 #include "bind.h"
 #include "magic.h"
 #include "peeking_line_reader.h"
+#include "counted_pointer.h"
 #include "http_parser.h"
 #include "trace.h"
 #include "scanf64.h"
+#include <string.h>
+#include <limits.h>
 #include <boost/format.hpp>
 #include <boost/tokenizer.hpp>
+#include <boost/scoped_array.hpp>
 
 LOG_DECL(HTTP);
 LOG_DECL(HTTP_CLIENT);
@@ -23,29 +27,40 @@ namespace http {
         /* util::http::Connection */
 
 
-Connection::Connection()
+unsigned int Connection::Read(void*, size_t, size_t*)
 {
+    return EINVAL;
+}
+
+unsigned int Connection::Write(const void*, size_t len, size_t *pwrote)
+{
+    *pwrote = len;
+    return 0;
 }
 
 
-        /* util::http::ConnectionImpl */
+        /* util::http::Client::Task */
 
 
-class ConnectionImpl: public Connection,
-		      public util::Magic<0x34562873>
+class Client::Task: public util::Task
 {
     Client *m_parent;
-    Observer *m_observer; /// @todo Observable?
+    ConnectionPtr m_target;
     std::string m_extra_headers;
     std::string m_body;
     const char *m_verb;
     util::IPEndPoint m_remote_endpoint;
 
-    util::PollerInterface *m_poller;
+    util::Scheduler *m_scheduler;
     util::StreamSocketPtr m_socket;
     std::string m_host;
     std::string m_path;
     std::string m_headers;
+
+    enum { BUFFER_SIZE = 8192 };
+    boost::scoped_array<char> m_buffer;
+    size_t m_buffer_fill;
+
     PeekingLineReader m_line_reader;
     Parser m_parser;
 
@@ -74,39 +89,52 @@ class ConnectionImpl: public Connection,
 	}
     } m_entity;
 
+    typedef CountedPointer<Client::Task> TaskPtr;
+
+    void WaitForWritable(StreamPtr stream)
+    {
+	m_scheduler->WaitForWritable(
+	    Bind<Task, &Task::Run>(TaskPtr(this)), 
+	    stream.get());
+    }
+
+    void WaitForReadable(StreamPtr stream)
+    {
+	m_scheduler->WaitForReadable(
+	    Bind<Task, &Task::Run>(TaskPtr(this)), 
+	    stream.get());
+    }
+
 public:
-    ConnectionImpl(Client *parent,
-		   util::PollerInterface *poller,
-		   Observer *observer,
+    Task(Client *parent,
+	 util::Scheduler *scheduler,
+	 ConnectionPtr target,
+	 const std::string& url,
+	 const std::string& extra_headers,
+	 const std::string& body,
+	 const char *verb);
+    ~Task();
+
+    unsigned int Run();
+
+    unsigned int Init();
+};
+ 
+Client::Task::Task(Client *parent,
+		   util::Scheduler *scheduler,
+		   ConnectionPtr target,
 		   const std::string& url,
 		   const std::string& extra_headers,
 		   const std::string& body,
-		   const char *verb);
-    ~ConnectionImpl();
-
-    unsigned int OnActivity();
-
-    unsigned int Init();
-
-    // Being a Stream
-    unsigned Read(void *buffer, size_t len, size_t *pread);
-    unsigned Write(const void *, size_t, size_t*) { return EINVAL; }
-};
- 
-ConnectionImpl::ConnectionImpl(Client *parent,
-		       util::PollerInterface *poller,
-		       Connection::Observer *observer,
-		       const std::string& url,
-		       const std::string& extra_headers,
-		       const std::string& body,
-		       const char *verb)
+		   const char *verb)
     : m_parent(parent),
-      m_observer(observer),
+      m_target(target),
       m_extra_headers(extra_headers),
       m_body(body),
       m_verb(verb),
-      m_poller(poller),
+      m_scheduler(scheduler),
       m_socket(StreamSocket::Create()),
+      m_buffer_fill(0),
       m_line_reader(m_socket),
       m_parser(&m_line_reader),
       m_state(UNINITIALISED)
@@ -119,12 +147,11 @@ ConnectionImpl::ConnectionImpl(Client *parent,
 
 /** Start connecting the socket.
  *
- * This must be done after the constructor returns, as otherwise our
- * OnActivity will start getting called, and its ConnectionPtr will
- * delete the connection unless our caller has already squirreled the result
- * of the constructor call away somewhere.
+ * This must be done after the constructor returns, as otherwise
+ * there's a risk that the task will run to completion and delete
+ * itself before anyone is ready for it to do so.
  */
-unsigned int ConnectionImpl::Init()
+unsigned int Client::Task::Init()
 {
     if (m_remote_endpoint.addr.addr == 0)
 	return ENOENT;
@@ -132,37 +159,38 @@ unsigned int ConnectionImpl::Init()
     m_state = CONNECTING;
     m_socket->SetNonBlocking(true);
     m_socket->SetTimeoutMS(0);
-    m_poller->Add(m_socket.get(),
-		  Bind<ConnectionImpl, &ConnectionImpl::OnActivity>(this), 
-		  util::PollerInterface::OUT);
+    WaitForWritable(m_socket);
+
     unsigned int rc = m_socket->Connect(m_remote_endpoint);
     if (rc && rc != EINPROGRESS && rc != EWOULDBLOCK && rc != EISCONN)
     {
 	TRACE << "Connect failed: " << rc << "\n";
-	m_poller->Remove(m_socket.get());
+	m_scheduler->Remove(TaskPtr(this));
 	return rc;
     }
 
     return 0;
 }
 
-ConnectionImpl::~ConnectionImpl()
+Client::Task::~Task()
 {
-    LOG(HTTP_CLIENT) << "hc" << this << ": ~ConnectionImpl in state "
+    LOG(HTTP_CLIENT) << "ct" << this << ": ~Client::Task in state "
 		     << m_state << "\n";
-    m_poller->Remove(m_socket.get());
-    LOG(HTTP_CLIENT) << "~ConnectionImpl" << " done\n";
+//    m_scheduler->Remove(m_socket.get());
+    LOG(HTTP_CLIENT) << "~Client::Task" << " done\n";
 }
 
-unsigned int ConnectionImpl::OnActivity()
+unsigned int Client::Task::Run()
 {
-    AssertValid();
+    /* Note that at every "return" site in this function, it must
+     * either call WaitForReadable, WaitForWritable, or
+     * target->OnDone. Otherwise the task will get forgotten and
+     * deleted.
+     */
 
     unsigned rc;
 
-    LOG(HTTP_CLIENT) << "hc" << this << ": activity, state " << m_state << "\n";
-
-    ConnectionPtr ptr(this); // Stop me being destroyed until OA exits
+    LOG(HTTP_CLIENT) << "ct" << this << ": activity, state " << m_state << "\n";
 
     switch (m_state)
     {
@@ -184,11 +212,12 @@ unsigned int ConnectionImpl::OnActivity()
 	    if (rc == EINPROGRESS || rc == EWOULDBLOCK)
 	    {
 //		TRACE << "Connection in progress (" << rc << ")\n";
+		WaitForWritable(m_socket);
 		return 0;
 	    }
 
 	    TRACE << "Connect says " << rc << "\n";
-	    m_observer->OnHttpDone(rc);
+	    m_target->OnDone(rc);
 	    return rc;
 	}
 //	TRACE << "Connected\n";
@@ -196,7 +225,7 @@ unsigned int ConnectionImpl::OnActivity()
 	/* Now we're connected, we can work out which of our IP
 	 * addresses got used.
 	 */
-	m_local_endpoint = m_socket->GetLocalEndPoint();
+	m_target->OnEndPoint(m_socket->GetLocalEndPoint());
 
 	m_headers = m_verb ? m_verb : (m_body.empty() ? "GET" : "POST");
 	m_headers += " " + m_path + " HTTP/1.1\r\n"
@@ -221,11 +250,13 @@ unsigned int ConnectionImpl::OnActivity()
 	else if (rc != EWOULDBLOCK)
 	{
 	    TRACE << "Write error " << rc << "\n";
+	    m_target->OnDone(rc);
 	    return rc;
 	}
 	if (!m_headers.empty())
 	{
 //	    TRACE << "EWOULDBLOCK(sendheaders), waiting for write\n";
+	    WaitForWritable(m_socket);
 	    return 0;
 	}
 
@@ -245,24 +276,20 @@ unsigned int ConnectionImpl::OnActivity()
 	    else if (rc != EWOULDBLOCK)
 	    {
 		TRACE << "Write error(body) " << rc << "\n";
+		m_target->OnDone(rc);
 		return rc;
 	    }
 
 	    if (!m_body.empty())
 	    {
 //		TRACE << "EWOULDBLOCK(sendbody), waiting for write\n";
+		WaitForWritable(m_socket);
 		return 0;
 	    }
 	}
 
 	/// @todo Remove this once pooling implemented
 	m_socket->ShutdownWrite();
-
-	m_poller->Remove(m_socket.get());
-//	TRACE << "hc" << this << ": rebinding for read fd " << m_socket << "\n";
-	m_poller->Add(m_socket.get(), 
-		      Bind<ConnectionImpl,&ConnectionImpl::OnActivity>(this), 
-		      util::PollerInterface::IN);
 
 	m_state = WAITING;
 	/* fall through */
@@ -276,7 +303,15 @@ unsigned int ConnectionImpl::OnActivity()
 	rc = m_parser.GetResponseLine(&http_code, NULL);
 	LOG(HTTP) << "GRL returned " << rc << "\n";
 	if (rc)
-	    return (rc == EWOULDBLOCK) ? 0 : rc;
+	{
+	    if (rc == EWOULDBLOCK)
+	    {
+		WaitForReadable(m_socket);
+		return 0;
+	    }
+	    m_target->OnDone(rc);
+	    return rc;
+	}
 
 	m_entity.Clear();
 	m_state = RECV_HEADERS;
@@ -290,12 +325,20 @@ unsigned int ConnectionImpl::OnActivity()
 	    std::string key, value;
 	    rc = m_parser.GetHeaderLine(&key, &value);
 	    if (rc)
-		return (rc == EWOULDBLOCK) ? 0 : rc;
+	    {
+		if (rc == EWOULDBLOCK)
+		{
+		    WaitForReadable(m_socket);
+		    return 0;
+		}
+		m_target->OnDone(rc);
+		return rc;
+	    }
 
 	    if (key.empty())
 		break;
 
-	    m_observer->OnHttpHeader(key, value);
+	    m_target->OnHeader(key, value);
 
 	    if (!strcasecmp(key.c_str(), "Content-Range"))
 	    {
@@ -347,29 +390,78 @@ unsigned int ConnectionImpl::OnActivity()
     }
 
     case RECV_BODY:
-//	TRACE << "hc" << this << ": in recv_body etl="
-//	      << m_entity.transfer_length << " egl=" << m_entity.got_length
-//	      << "\n";
-	if (m_entity.transfer_length != 0 || !m_entity.got_length)
+    {
+	/** @todo This is very like http::Server::Run's RECV_BODY -- merge
+	          somehow?
+	 */
+	size_t remain = (size_t)m_entity.transfer_length;
+
+	while (remain || m_buffer_fill)
 	{
-//	    TRACE << "hc" << this << " calls ohd\n";
-	    m_observer->OnHttpData();
-	}
-	if (m_entity.transfer_length != 0)
-	{
-//	    TRACE << "hc" << this << ": believe " << m_entity.transfer_length
-//		  << " bytes remain\n";
-	    return 0;
+	    if (!m_buffer)
+	    {
+		m_buffer.reset(new char[BUFFER_SIZE]);
+		m_buffer_fill = 0;
+	    }
+
+	    size_t lump = std::min(remain, BUFFER_SIZE - m_buffer_fill);
+
+	    if (lump)
+	    {
+		size_t nread;
+		rc = m_socket->Read(m_buffer.get() + m_buffer_fill,
+				    lump, &nread);
+		if (rc == EWOULDBLOCK)
+		{
+		    if (m_buffer_fill == 0)
+		    {
+			WaitForReadable(m_socket);
+			return 0;
+		    }
+		}
+		else if (rc)
+		{
+		    TRACE << "Read failed (" << rc << ")\n";
+		    return rc;
+		}
+		else
+		{
+		    m_buffer_fill += nread;
+		    remain -= nread;
+		}
+	    }
+
+	    size_t nwrote;
+
+	    rc = m_target->Write(m_buffer.get(), m_buffer_fill, &nwrote);
+	    if (rc == EWOULDBLOCK)
+	    {
+		if (lump == 0)
+		{
+		    TRACE << "Waiting for body sink writability\n";
+		    WaitForWritable(m_target);
+		    return 0;
+		}
+	    }
+
+	    if (nwrote < m_buffer_fill)
+	    {
+		memmove(m_buffer.get(),
+			m_buffer.get() + nwrote, m_buffer_fill - nwrote);
+	    }
+	    m_buffer_fill -= nwrote;	   
 	}
 
-	m_observer->OnHttpDone(0);
+	m_target->OnDone(0);
+	m_target.reset(NULL);
+	m_entity.Clear();
 
 	m_state = IDLE;
 	/* fall through */
-
+    }
     case IDLE:
 //	TRACE << "HttpConnection going idle\n";
-	m_poller->Remove(m_socket.get());
+//	m_scheduler->Remove(m_socket.get());
 
 	// -- When fixing, remove unconditional connection:close from headers
 	//
@@ -385,11 +477,12 @@ unsigned int ConnectionImpl::OnActivity()
     return 0;
 }
 
-unsigned int ConnectionImpl::Read(void *buffer, size_t len, size_t *pread)
+#if 0
+unsigned int Client::Task::Read(void *buffer, size_t len, size_t *pread)
 {
     assert(m_state != UNINITIALISED);
 
-//    TRACE << "hc" << this << ": in Read()\n";
+//    TRACE << "ct" << this << ": in Read()\n";
     if (m_state != RECV_BODY)
 	return EWOULDBLOCK;
 
@@ -405,12 +498,12 @@ unsigned int ConnectionImpl::Read(void *buffer, size_t len, size_t *pread)
     unsigned int rc = m_socket->Read(buffer, len, pread);
     if (rc)
     {
-//	TRACE << "hc" << this << ": Read(" << m_socket
+//	TRACE << "ct" << this << ": Read(" << m_socket
 //	      << ", " << len << ") returned " << rc << "\n";
 	return rc;
     }
 
-//    TRACE << "hc" << this << ": read " << *pread << " of " << len
+//    TRACE << "ct" << this << ": read " << *pread << " of " << len
 //	  << " adjusting tl " << m_entity.transfer_length << "\n";
 
     if (m_entity.got_length)
@@ -418,10 +511,11 @@ unsigned int ConnectionImpl::Read(void *buffer, size_t len, size_t *pread)
     else if (!*pread)
 	m_entity.transfer_length = 0;
 
-//    TRACE << "hc" << this << ": adjusted tl " << m_entity.transfer_length 
+//    TRACE << "ct" << this << ": adjusted tl " << m_entity.transfer_length 
 //	  << "\n";
     return 0;
 }
+#endif
 
 
         /* util::http::Client */
@@ -431,16 +525,17 @@ Client::Client()
 {
 }
 
-ConnectionPtr Client::Connect(util::PollerInterface *poller,
-			      Connection::Observer *observer,
-			      const std::string& url,
-			      const std::string& extra_headers,
-			      const std::string& body,
-			      const char *verb)
+unsigned int Client::Connect(util::Scheduler *scheduler,
+			     ConnectionPtr target,
+			     const std::string& url,
+			     const std::string& extra_headers,
+			     const std::string& body,
+			     const char *verb)
 {
-    ConnectionPtr ptr(new ConnectionImpl(this, poller, observer, url,
-					 extra_headers, body, verb));
-    return ptr;
+    util::CountedPointer<Task> ptr(new Client::Task(this, scheduler, target,
+						    url, extra_headers, body,
+						    verb));
+    return ptr->Init();
 }
 
 } // namespace http
@@ -466,10 +561,10 @@ public:
     }
 };
 
-class TestObserver: public util::http::Connection::Observer
+class TestObserver: public util::http::Connection
 {
     std::string m_reply;
-    util::StreamPtr m_stream;
+    util::http::ConnectionPtr m_stream;
     bool m_done;
 
 public:
@@ -478,32 +573,26 @@ public:
     {
     }
 
-    void SetStream(util::StreamPtr stream)
+    void SetStream(util::http::ConnectionPtr stream)
     {
 	m_stream = stream;
     }
 
     const std::string& GetReply() const { return m_reply; }
 
-    unsigned OnHttpHeader(const std::string&, const std::string&)
+    void OnHeader(const std::string&, const std::string&)
     {
 //	TRACE << "Header '" << key << "' = '" << value << "'\n";
-	return 0;
     }
     
-    unsigned OnHttpData()
+    unsigned Write(const void *buffer, size_t len, size_t *nwrote)
     {
-//	TRACE << "Data too\n";
-	char buffer[1024];
-	size_t nread;
-	unsigned int rc = m_stream->Read(buffer, sizeof(buffer), &nread);
-	if (rc)
-	    return rc;
-	m_reply.append(buffer, nread);
+	m_reply.append((const char*)buffer, len);
+	*nwrote = len;
 	return 0;
     }
 
-    void OnHttpDone(unsigned rc)
+    void OnDone(unsigned rc)
     {
 	if (rc)
 	{
@@ -512,16 +601,15 @@ public:
 	m_done = true;
     }    
 
-    bool Done() { return m_done; }
+    bool IsDone() const { return m_done; }
 };
 
 int main(int, char*[])
 {
-    util::ThreadUser tu;
-    util::Poller poller;
     util::WorkerThreadPool wtp(util::WorkerThreadPool::NORMAL);
+    util::BackgroundScheduler scheduler;
 
-    util::http::Server ws(&poller, &wtp);
+    util::http::Server ws(&scheduler, &wtp);
 
     unsigned rc = ws.Init(0);
 
@@ -536,13 +624,9 @@ int main(int, char*[])
 
     util::http::Client client;
 
-    TestObserver tobs;
+    util::CountedPointer<TestObserver> tobs(new TestObserver);
 
-    util::http::ConnectionPtr connection = client.Connect(&poller, &tobs, url);
-
-    tobs.SetStream(connection);
-
-    rc = connection->Init();
+    rc = client.Connect(&scheduler, tobs, url);
     assert(rc == 0);
 
     time_t start = time(NULL);
@@ -554,14 +638,14 @@ int main(int, char*[])
 	if (now < finish)
 	{
 //	    TRACE << "polling for " << (finish-now)*1000 << "ms\n";
-	    poller.Poll((unsigned)(finish-now)*1000);
+	    scheduler.Poll((unsigned)(finish-now)*1000);
 	}
-    } while (now < finish && !tobs.Done());
+    } while (now < finish && !tobs->IsDone());
 
 //    TRACE << "Got '" << tobs.GetReply() << "' (len "
 //	  << strlen(tobs.GetReply().c_str()) << " sz "
 //	  << tobs.GetReply().length() << ")\n";
-    assert(tobs.GetReply() == "/zootle/wurdle.html");
+    assert(tobs->GetReply() == "/zootle/wurdle.html");
 
     return 0;
 }

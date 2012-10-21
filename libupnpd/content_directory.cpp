@@ -11,6 +11,7 @@
 #include "search.h"
 #include <sstream>
 #include <errno.h>
+#include <string.h>
 #include <boost/format.hpp>
 
 LOG_DECL(CDS);
@@ -184,7 +185,7 @@ unsigned int ContentDirectoryImpl::Search(const std::string& container_id,
 
     unsigned int collate = 0;
 
-    unsigned int rc = ApplySearchCriteria(qp, search_criteria, &collate);
+    unsigned int rc = ApplySearchCriteria(qp.get(), search_criteria, &collate);
     if (rc != 0)
 	return rc;
 
@@ -340,8 +341,7 @@ unsigned int ContentDirectoryImpl::GetServiceResetToken(std::string *srt)
 
 #ifdef TEST
 
-# include "libutil/poll.h"
-# include "libutil/poll_thread.h"
+# include "libutil/scheduler.h"
 # include "libutil/http_client.h"
 # include "libutil/http_server.h"
 # include "libutil/worker_thread_pool.h"
@@ -353,6 +353,9 @@ unsigned int ContentDirectoryImpl::GetServiceResetToken(std::string *srt)
 # include "libupnp/ContentDirectory3_client.h"
 # include "libmediadb/xml.h"
 # include "media_server.h"
+#if HAVE_WINDOWS_H
+# include <windows.h>
+#endif
 
 static const struct {
     const char *objectid;
@@ -793,7 +796,8 @@ int main(int, char**)
 
     mediadb::ReadXML(&sdb, SRCROOT "/libmediadb/example.xml");
 
-    db::local::Database mdb(&sdb);
+    util::http::Client wc;
+    db::local::Database mdb(&sdb, &wc);
 
     upnpd::ContentDirectoryImpl cd(&mdb, NULL);
 
@@ -870,13 +874,13 @@ int main(int, char**)
 
     // Now again via UPnP
 
-    util::PollThread poller;
     util::WorkerThreadPool wtp(util::WorkerThreadPool::NORMAL);
-    util::http::Client wc;
+    util::BackgroundScheduler poller;
     util::http::Server ws(&poller, &wtp);
     upnp::ssdp::Responder ssdp(&poller, NULL);
 
     ws.Init();
+    wtp.PushTask(util::SchedulerTask::Create(&poller));
 
     upnp::Server server(&poller, &wc, &ws, &ssdp);
     upnpd::MediaServer ms(&mdb, NULL);
@@ -888,7 +892,7 @@ int main(int, char**)
     std::string descurl = (boost::format("http://127.0.0.1:%u/upnp/description.xml")
 			      % ws.GetPort()).str();
 
-    upnp::DeviceClient client(&wc, &ws);
+    upnp::DeviceClient client(&wc, &ws, &poller);
     rc = client.Init(descurl, ms.GetUDN());
     assert(rc == 0);
 
@@ -968,7 +972,7 @@ int main(int, char**)
 
     // Now via a dbupnp
 
-    db::upnpav::Database udb(&wc, &ws);
+    db::upnpav::Database udb(&wc, &ws, &poller);
     rc = udb.Init(descurl, ms.GetUDN());
     assert(rc == 0);
     

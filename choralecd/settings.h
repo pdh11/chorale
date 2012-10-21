@@ -4,6 +4,8 @@
 #include <string>
 #include <qsettings.h>
 
+namespace choraleqt {
+
 class Settings
 {
     mutable QSettings m_qs;
@@ -33,5 +35,7 @@ public:
 
     void SetDefaultDatabase(const std::string&);
 };
+
+} // namespace choraleqt
 
 #endif

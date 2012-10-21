@@ -33,16 +33,16 @@ class Query: public util::CountedObject<>
 {
 public:
     struct Restriction {
-	field_t which;
+	unsigned int which;
 	RestrictionType rt;
 	bool is_string;
 	std::string sval;
 	uint32_t ival;
 
-	Restriction(field_t w, RestrictionType r, const std::string& val)
+	Restriction(unsigned int w, RestrictionType r, const std::string& val)
 	    : which(w), rt(r), is_string(true), sval(val) {}
 
-	Restriction(field_t w, RestrictionType r, uint32_t val)
+	Restriction(unsigned int w, RestrictionType r, uint32_t val)
 	    : which(w), rt(r), is_string(false), ival(val) {}
     };
     typedef std::vector<Restriction> restrictions_t;
@@ -58,7 +58,7 @@ protected:
     };
     typedef std::vector<Relation> relations_t;
 
-    typedef std::list<field_t> orderby_t;
+    typedef std::list<unsigned int> orderby_t;
 
 protected:
     restrictions_t m_restrictions;
@@ -84,17 +84,17 @@ public:
 	bool IsValid() const { return val != 0; }
     };
 
-    virtual Subexpression Restrict(field_t which, RestrictionType rt, 
+    virtual Subexpression Restrict(unsigned int which, RestrictionType rt, 
 				   const std::string& val)
 	ATTRIBUTE_WARNUNUSED;
-    virtual Subexpression Restrict(field_t which, RestrictionType rt,
+    virtual Subexpression Restrict(unsigned int which, RestrictionType rt,
 				   uint32_t val) ATTRIBUTE_WARNUNUSED;
     virtual Subexpression And(const Subexpression&, const Subexpression&);
     virtual Subexpression Or(const Subexpression&, const Subexpression&);
 
     virtual unsigned int Where(const Subexpression&);
-    virtual unsigned int OrderBy(field_t which);
-    virtual unsigned int CollateBy(field_t which);
+    virtual unsigned int OrderBy(unsigned int which);
+    virtual unsigned int CollateBy(unsigned int which);
 
     virtual RecordsetPtr Execute() = 0;
 

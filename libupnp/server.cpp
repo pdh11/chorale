@@ -9,10 +9,14 @@
 #include "libutil/http_client.h"
 #include "libutil/http_server.h"
 #include "libutil/xml.h"
+#include "libutil/xmlescape.h"
 #include <sstream>
 #include <errno.h>
 #include <boost/format.hpp>
 #include <boost/thread/tss.hpp>
+#if HAVE_WS2TCPIP_H
+#include <ws2tcpip.h>  /* For gethostname */
+#endif
 
 static const char s_description_path[] = "/upnp/description.xml";
 
@@ -24,7 +28,7 @@ namespace upnp {
 class Server::Impl: public util::http::ContentFactory
 {
     Server *m_parent;
-    util::PollerInterface *m_poller;
+    util::Scheduler *m_scheduler;
     util::http::Client *m_client;
     util::http::Server *m_server;
     ssdp::Responder *m_ssdp;
@@ -57,7 +61,7 @@ class Server::Impl: public util::http::ContentFactory
     std::string MakeUUID(const std::string& resource);
 
 public:
-    Impl(Server*, util::PollerInterface *poller, util::http::Client *client,
+    Impl(Server*, util::Scheduler *scheduler, util::http::Client *client,
 	 util::http::Server *server, ssdp::Responder *ssdp);
     ~Impl();
 
@@ -78,11 +82,11 @@ public:
     bool StreamForPath(const util::http::Request*, util::http::Response*);
 };
 
-Server::Impl::Impl(Server *parent, util::PollerInterface *poller,
+Server::Impl::Impl(Server *parent, util::Scheduler *scheduler,
 		   util::http::Client *client, util::http::Server *server, 
 		   ssdp::Responder *ssdp)
     : m_parent(parent),
-      m_poller(poller),
+      m_scheduler(scheduler),
       m_client(client),
       m_server(server),
       m_ssdp(ssdp)
@@ -289,19 +293,16 @@ unsigned int Server::Impl::Init()
     return 0;
 }
 
-class Notify: public util::http::Connection::Observer
+class Notify: public util::http::Connection
 {
-    util::http::ConnectionPtr m_ptr;
-
 public:
     Notify() {}
-    ~Notify() { TRACE << "~Notify\n"; }
-
-    void SetPtr(util::http::ConnectionPtr ptr) { m_ptr = ptr; }
+    ~Notify() {}
     
-    unsigned OnHttpHeader(const std::string&, const std::string&) { return 0; }
-    unsigned OnHttpData() { return 0; }
-    void OnHttpDone(unsigned int) { delete this; }
+    void OnDone(unsigned int)
+    {
+//	TRACE << "notify" << (void*)this << " done(" << rc << "), deleting\n";
+    }
 };
 
 void Server::Impl::FireEvent(Service *service,
@@ -313,7 +314,8 @@ void Server::Impl::FireEvent(Service *service,
 
     std::string body = "<?xml version=\"1.0\"?>"
 	"<e:propertyset xmlns:e=\"urn:schemas-upnp-org:event-1-0\">"
-	"<e:property><" + std::string(variable) + ">" + value + "</" + variable + ">"
+	"<e:property><" + std::string(variable) + ">"
+	+ util::XmlEscape(value) + "</" + variable + ">"
 	"</e:property>"
 	"</e:propertyset>";
 
@@ -323,7 +325,7 @@ void Server::Impl::FireEvent(Service *service,
     {
 	if (service == i->service)
 	{
-	    TRACE << "Notifying " << i->delivery_url << "\n";
+//	    TRACE << "Notifying " << i->delivery_url << "\n";
 	    std::string extra_headers =
 		"NT: upnp:event\r\n"
 		"NTS: upnp:propchange\r\n"
@@ -333,16 +335,15 @@ void Server::Impl::FireEvent(Service *service,
 
 	    i->event_key++;
 
-	    /** @todo If this were a PollableTask we could just cut it loose
-	     */
-	    Notify *n = new Notify;
+	    util::http::ConnectionPtr ptr(new Notify);
 
-	    util::http::ConnectionPtr ptr = m_client->Connect(m_poller, n,
-							      i->delivery_url,
-							      extra_headers, 
-							      body, "NOTIFY");
-	    n->SetPtr(ptr);
-	    ptr->Init();
+	    unsigned rc = m_client->Connect(m_scheduler,
+					    ptr,
+					    i->delivery_url,
+					    extra_headers, 
+					    body, "NOTIFY");
+	    if (rc)
+		TRACE << "Can't connect for NOTIFY\n";
 	}
     }
 }
@@ -359,8 +360,8 @@ static bool prefixcmp(const char *haystack, const char *needle,
     return false;
 }
 
-class Server::Impl::SoapReplier: public xml::SaxParserObserver,
-				 public util::BufferSink
+class Server::Impl::SoapReplier: public util::Stream,
+				 public xml::SaxParserObserver
 {
     Service *m_service;
     util::http::Response *m_response;
@@ -383,6 +384,29 @@ public:
 	  m_endpoints(endpoints),
 	  m_parser(this)
     {
+    }
+
+    ~SoapReplier()
+    {
+	// End of body -- assemble reply
+
+	SoapInfo *soap_info = new SoapInfo;
+	soap_info->ipe = m_ipe;
+	soap_info->access = m_access;
+	m_endpoints->reset(soap_info);
+
+	soap::Outbound result;
+	unsigned int rc = m_service->OnAction(m_action_name.c_str(), m_args,
+					      &result);
+	if (rc)
+	    return;
+
+	std::string body = result.CreateBody(m_action_name + "Response",
+					     m_service->GetServiceType());
+	
+	LOG(SOAP) << "Soap response is " << body << "\n";
+	
+	m_response->ssp = util::StringStream::Create(body);
     }
 
     unsigned int OnBegin(const char *tag)
@@ -421,35 +445,14 @@ public:
 	return 0;
     }
 
-    // Being a BufferSink
-    unsigned int OnBuffer(util::BufferPtr p)
+    // Being a Stream
+    unsigned Read(void *, size_t, size_t*) { return EPERM; }
+    unsigned Write(const void *buffer, size_t len, size_t *pwrote)
     {
-//	TRACE << "I think I've got a buffer, size " << (p ? p->actual_len : 0)
-//	      << " used " << p.start << "--" << (p.start+p.len) << "\n";
-
-	if (p)
-	    return m_parser.OnBuffer(p);
-
-	// Otherwise, end of body -- assemble reply
-
-	SoapInfo *soap_info = new SoapInfo;
-	soap_info->ipe = m_ipe;
-	soap_info->access = m_access;
-	m_endpoints->reset(soap_info);
-
-	soap::Outbound result;
-	unsigned int rc = m_service->OnAction(m_action_name.c_str(), m_args,
-					      &result);
-	if (rc)
-	    return rc;
-
-	std::string body = result.CreateBody(m_action_name + "Response",
-					     m_service->GetServiceType());
-	
-	LOG(SOAP) << "Soap response is " << body << "\n";
-	
-	m_response->ssp = util::StringStream::Create(body);
-	return 0;
+	unsigned int rc = m_parser.WriteAll(buffer, len);
+	if (!rc)
+	    *pwrote = len;
+	return rc;
     }
 };
 
@@ -547,10 +550,10 @@ unsigned int Server::Impl::GetCurrentAccess()
         /* Server */
 
 
-Server::Server(util::PollerInterface *poller, 
+Server::Server(util::Scheduler *scheduler, 
 	       util::http::Client* hc, util::http::Server *hs, 
 	       ssdp::Responder *ssdp)
-    : m_impl(new Impl(this, poller, hc, hs, ssdp))
+    : m_impl(new Impl(this, scheduler, hc, hs, ssdp))
 {
 }
 
@@ -567,6 +570,7 @@ unsigned int Server::Init()
 void Server::FireEvent(Service *service,
 		       const char *variable, const std::string& value)
 {
+    LOG(UPNP) << "Firing event " << variable << "=" << value << "\n";
     m_impl->FireEvent(service, variable, value);
 }
 

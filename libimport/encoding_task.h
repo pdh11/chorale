@@ -3,7 +3,7 @@
 
 #include "libutil/task.h"
 #include <string>
-#include <map>
+#include "libutil/mutex.h"
 #include "libutil/stream.h"
 #include "libdb/db.h"
 
@@ -25,7 +25,7 @@ protected:
 	LATE
     } m_rename_stage;
 
-    boost::mutex m_rename_mutex;
+    util::Mutex m_rename_mutex;
     std::string m_rename_filename;
     db::RecordsetPtr m_rename_tags;
 
@@ -43,12 +43,15 @@ public:
 	m_input_size = size; 
     }
 
+    /** Implemented in subclasses */
+    virtual unsigned int Run() = 0;
+
     /** Called from UI thread once tags decided */
     void RenameAndTag(const std::string& new_filename,
 		      db::RecordsetPtr tags, util::TaskQueue *queue);
 };
 
-typedef boost::intrusive_ptr<EncodingTask> EncodingTaskPtr;
+typedef util::CountedPointer<EncodingTask> EncodingTaskPtr;
 
 } // namespace import
 

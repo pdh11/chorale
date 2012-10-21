@@ -7,27 +7,30 @@
 #include "libreceiverd/portmap.h"
 #include <errno.h>
 
+namespace choraled {
+
 class NFSService::Impl
 {
-    receiverd::PortMapper m_portmap;
-    receiverd::Mount m_mountd;
+    receiverd::PortMapperPtr m_portmap;
+    util::TaskPtr m_mountd;
     receiverd::TarFS m_tarfs;
-    receiverd::NFSServer m_nfsd;
+    util::TaskPtr m_nfsd;
 
 public:
-    Impl(util::PollerInterface *poller, util::IPFilter *filter,
+    Impl(util::Scheduler *poller, util::IPFilter *filter,
 	 util::SeekableStreamPtr arfstream);
 
-    unsigned short GetPort() { return m_portmap.GetPort(); }
+    unsigned short GetPort() { return m_portmap->GetPort(); }
 };
 
-NFSService::Impl::Impl(util::PollerInterface *poller, 
+NFSService::Impl::Impl(util::Scheduler *poller, 
 		       util::IPFilter *filter,
 		       util::SeekableStreamPtr arfstream)
-    : m_portmap(poller, filter),
-      m_mountd(poller, filter, &m_portmap),
+    : m_portmap(receiverd::PortMapper::Create(poller, filter)),
+      m_mountd(receiverd::Mount::Create(poller, filter, m_portmap.get())),
       m_tarfs(arfstream),
-      m_nfsd(poller, filter, &m_portmap, &m_tarfs)
+      m_nfsd(receiverd::NFSServer::Create(poller, filter, m_portmap.get(),
+					  &m_tarfs))
 {
 }
 
@@ -41,7 +44,7 @@ NFSService::~NFSService()
     delete m_impl;
 }
 
-unsigned int NFSService::Init(util::PollerInterface *poller,
+unsigned int NFSService::Init(util::Scheduler *poller,
 			      util::IPFilter *filter,
 			      const char *arf)
 {
@@ -67,3 +70,5 @@ unsigned short NFSService::GetPort()
 	return 0;
     return m_impl->GetPort();
 }
+
+} // namespace choraled

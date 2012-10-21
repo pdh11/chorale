@@ -2,6 +2,7 @@
 #define LINE_READER_H 1
 
 #include "stream.h"
+#include "counted_pointer.h"
 #include <string>
 
 namespace util {

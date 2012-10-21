@@ -8,31 +8,34 @@ all: all-choraleutil
 
 include $(TOP)Make.common
 
-play:=$(TOP)$(DIR)play
+play:=$(TOP)$(DIR)play$(DOTEXE)
 PLAY_OBJS:=$(TOP)$(DIR)$(TARGETDIR)play.lo
 
-pparse:=$(TOP)$(DIR)pparse
+pparse:=$(TOP)$(DIR)pparse$(DOTEXE)
 PPARSE_OBJS:=$(TOP)$(DIR)$(TARGETDIR)pparse.lo
 
 ifneq ($(TARGET),i586-mingw32)
-playlist2dir:=$(TOP)$(DIR)playlist2dir
+playlist2dir:=$(TOP)$(DIR)playlist2dir$(DOTEXE)
 PLAYLIST2DIR_OBJS:=$(TOP)$(DIR)$(TARGETDIR)playlist2dir.lo
+
+tcp:=$(TOP)$(DIR)tcp
+TCP_OBJS:=$(TOP)$(DIR)$(TARGETDIR)tcp.lo
 endif
 
 ifneq ($(TAGLIB),no)
-protocoltool:=$(TOP)$(DIR)protocoltool
+protocoltool:=$(TOP)$(DIR)protocoltool$(DOTEXE)
 PROTOCOLTOOL_OBJS:=$(TOP)$(DIR)$(TARGETDIR)protocoltool.lo
 endif
 
-readtags:=$(TOP)$(DIR)readtags
+readtags:=$(TOP)$(DIR)readtags$(DOTEXE)
 READTAGS_OBJS:=$(TOP)$(DIR)$(TARGETDIR)readtags.lo
 
 ifneq ($(TARGET),i586-mingw32)
-squirt:=$(TOP)$(DIR)squirt
+squirt:=$(TOP)$(DIR)squirt$(DOTEXE)
 SQUIRT_OBJS:=$(TOP)$(DIR)$(TARGETDIR)squirt.lo
 endif
 
-timedb:=$(TOP)$(DIR)timedb
+timedb:=$(TOP)$(DIR)timedb$(DOTEXE)
 TIMEDB_OBJS:=$(TOP)$(DIR)$(TARGETDIR)timedb.lo
 
 CUTIL_OBJS:=$(READTAGS_OBJS) $(PLAY_OBJS) $(PPARSE_OBJS) $(PLAYLIST2DIR_OBJS) \
@@ -40,7 +43,7 @@ CUTIL_OBJS:=$(READTAGS_OBJS) $(PLAY_OBJS) $(PPARSE_OBJS) $(PLAYLIST2DIR_OBJS) \
 CUTIL_DEPS:=$(CUTIL_OBJS:%.lo=%.lo.dep)
 
 all-choraleutil: $(pparse) $(playlist2dir) $(readtags) $(play) $(squirt) \
-	$(timedb) $(protocoltool)
+	$(timedb) $(protocoltool) $(tcp)
 
 $(TOP)$(DIR)% : CXXFLAGS += $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) \
 	$(LIBCDIOP_CXXFLAGS)
@@ -75,27 +78,33 @@ endif
 
 $(play): $(PLAY_OBJS) $(liboutput) $(libdb) $(libutil) \
 		$(libdbsteam) $(libmediadb) $(libimport) $(libdblocal)
-	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
-		$(CXX) -o $@ $(PLAY_OBJS) \
+	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
+		$(CXX) -o $@ $(LDFLAGS) $(PLAY_OBJS) \
 		$(liboutput) $(libdblocal) $(libdbsteam) $(libmediadb) \
 		$(libdb) $(libimport) $(libutil) $(LIBFLAC_LIBS) \
 		$(BOOST_LIBS) $(TAGLIB_LIBS) \
-		$(GSTREAMER_LIBS) $(LIBS)
+		$(GSTREAMER_LIBS) $(LIBS) -Wl,-Map,map-play.txt
 
-$(pparse): $(PPARSE_OBJS) $(libimport) $(libutil)
+$(tcp): $(TCP_OBJS) $(libutil)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
-		 $(CXX) -o $@ $(PPARSE_OBJS) $(libimport) $(libutil) \
+		 $(CXX) -o $@ $(TCP_OBJS) $(libutil) \
 		 $(BOOST_LIBS) $(LIBS)
+
+$(pparse): $(PPARSE_OBJS) $(libimport) $(libutil) Makefile
+	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
+		 $(CXX) -o $@ $(LDFLAGS) $(PPARSE_OBJS) \
+		 $(libimport) $(libutil) \
+		 $(BOOST_LIBS) $(LIBS) -Wl,-Map,map-pparse.txt
 
 $(protocoltool): $(PROTOCOLTOOL_OBJS) \
 		$(libdbempeg) $(libimport) $(libdblocal) \
 		$(libmediadb) $(libdbsteam) $(libdb) $(libempeg) $(libutil)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
-		$(CXX) -o $@ $(CXXFLAGS) $(PROTOCOLTOOL_OBJS) \
+		$(CXX) -o $@ $(LDFLAGS) $(PROTOCOLTOOL_OBJS) \
 		$(libdbempeg) $(libdblocal) $(libimport) \
 		$(libmediadb) $(libdbsteam) $(libdb) $(libempeg) $(libutil) \
 		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS)
-	$(STRIP) $@
+	@$(STRIP) $@
 
 $(playlist2dir): $(PLAYLIST2DIR_OBJS) $(libimport) $(libutil)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
@@ -104,11 +113,11 @@ $(playlist2dir): $(PLAYLIST2DIR_OBJS) $(libimport) $(libutil)
 
 $(readtags): $(READTAGS_OBJS) $(libimport) $(libdb) $(libutil) \
 		$(libdbsteam) $(libmediadb) $(libdblocal)
-	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
-		$(CXX) -o $@ $(READTAGS_OBJS) $(libdblocal) \
+	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
+		$(CXX) -o $@ $(LDFLAGS) $(READTAGS_OBJS) $(libdblocal) \
 		$(libimport) $(libdbsteam) $(libmediadb) \
 		$(libdb) $(libutil) \
-		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS) -Wl,-Map,map.txt
+		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS) -Wl,-Map,map-readtags.txt
 
 $(squirt): $(SQUIRT_OBJS) $(libimport) $(libdb) $(libutil) \
 		$(libdblocal) $(libdbsteam) $(libmediadb)
@@ -127,6 +136,7 @@ $(timedb): $(TIMEDB_OBJS) $(libimport) $(libdb) $(libutil) \
 		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS)
 
 CLEANS += $(pparse) $(playlist2dir) $(PPARSE_OBJS) $(protocoltool) \
-	$(PLAYLIST2DIR_OBJS) $(readtags) $(play) $(squirt) $(timedb)
+	$(PLAYLIST2DIR_OBJS) $(readtags) $(play) $(squirt) $(timedb) \
+	$(tcp)
 
 -include $(CUTIL_DEPS)

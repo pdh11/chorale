@@ -3,51 +3,27 @@
 
 #include "attributes.h"
 #include "task.h"
+#include "mutex.h"
 #include <list>
 #include <deque>
-#include <boost/thread/condition.hpp>
-#include <boost/thread/mutex.hpp>
-#include <pthread.h>
 
 namespace util {
-
-namespace posix {
-struct ThreadUser {  ThreadUser() {} };
-}
-
-namespace win32 {
-#ifdef WIN32
-struct ThreadUser
-{
-    ThreadUser() { pthread_win32_process_attach_np(); }
-    ~ThreadUser() { pthread_win32_process_detach_np(); }
-};
-#endif
-}
-
-#ifdef WIN32
-namespace threadpapi = ::util::win32;
-#else
-namespace threadpapi = ::util::posix;
-#endif
-
-using threadpapi::ThreadUser;
 
 class WorkerThread;
 
 class SimpleTaskQueue: public TaskQueue
 {
-    boost::mutex m_deque_mutex;
-    boost::condition m_dequenotempty;
-    typedef std::deque<TaskPtr> deque_t;
+    util::Mutex m_deque_mutex;
+    util::Condition m_dequenotempty;
+    typedef std::deque<TaskCallback> deque_t;
     deque_t m_deque;
     unsigned m_waiting;
 
 public:
     SimpleTaskQueue();
 
-    void PushTask(TaskPtr);
-    TaskPtr PopTask(unsigned int timeout_sec);
+    void PushTask(const TaskCallback&);
+    TaskCallback PopTask(unsigned int timeout_sec);
     bool AnyWaiting();
     size_t Count();
 };
@@ -65,9 +41,9 @@ private:
     SimpleTaskQueue m_queue;
     Priority m_priority;
     unsigned int m_max_threads;
-    boost::mutex m_mutex;
+    util::Mutex m_mutex;
     std::list<WorkerThread*> m_threads;
-    boost::condition m_threads_empty;
+    util::Condition m_threads_empty;
 
     void SuggestNewThread();
 
@@ -85,11 +61,14 @@ public:
      */
     void Shutdown();
 
-    TaskPtr PopTaskOrQuit(WorkerThread*);
+    /** Obtain the next task, or, if there are none, a null task that means
+     * to quit.
+     */
+    TaskCallback PopTaskOrQuit(WorkerThread*);
 
     // Being a TaskQueue
-    void PushTask(TaskPtr);
-    TaskPtr PopTask(unsigned int timeout_sec);
+    void PushTask(const TaskCallback&);
+    TaskCallback PopTask(unsigned int timeout_sec);
     bool AnyWaiting();
     size_t Count();
 };

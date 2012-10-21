@@ -11,21 +11,23 @@ class PortMapper;
  *
  * Not by any means a full implementation -- just the parts a Receiver uses.
  */
-class Mount: public RPCObserver
+class Mount: public RPCServer
 {
-    RPCServer m_rpc;
-
     enum {
 	MOUNTPROC_NULL = 0,
 	MOUNTPROC_MNT  = 1,
 	MOUNTPROC_UMNT = 3
     };
 
-public:
-    Mount(util::PollerInterface*, util::IPFilter*, PortMapper*);
-
     unsigned int OnRPC(uint32_t proc, const void *args,
 		       size_t argslen, void *reply, size_t *replylen);
+
+    Mount(util::Scheduler*, util::IPFilter*, PortMapper*);
+
+public:
+    
+    static util::TaskPtr Create(util::Scheduler*, util::IPFilter*, 
+				PortMapper*);
 };
 
 } // namespace receiverd

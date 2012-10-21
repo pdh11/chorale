@@ -6,6 +6,8 @@
 
 namespace util {
 
+template <class> class CountedPointer;
+
 namespace dbus { class Connection; }
 
 /** Classes for interacting with HAL for hardware enumeration and
@@ -52,14 +54,14 @@ public:
     const std::string& GetUDI() { return m_udi; }
 };
 
-typedef boost::intrusive_ptr<Device> DevicePtr;
+typedef util::CountedPointer<Device> DevicePtr;
 
 class Observer
 {
 public:
-    virtual ~Observer() {}
-    virtual void OnDeviceAdded(DevicePtr) {}
-    virtual void OnDeviceRemoved(DevicePtr) {}
+    virtual ~Observer();
+    virtual void OnDeviceAdded(DevicePtr);
+    virtual void OnDeviceRemoved(DevicePtr);
 };
 
 class DeviceObserver

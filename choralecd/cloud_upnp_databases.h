@@ -7,6 +7,7 @@ class QPixmap;
 namespace mediadb { class Registry; }
 namespace util { namespace http { class Client; } }
 namespace util { namespace http { class Server; } }
+namespace util { class Scheduler; }
 
 namespace cloud {
 
@@ -19,11 +20,13 @@ class UpnpDatabases: public upnp::ssdp::Responder::Callback
     mediadb::Registry *m_registry;
     util::http::Client *m_client;
     util::http::Server *m_server;
+    util::Scheduler *m_poller;
 
 public:
     UpnpDatabases(Window *parent, QPixmap*,
 		  upnp::ssdp::Responder*, mediadb::Registry*, 
-		  util::http::Client*, util::http::Server*);
+		  util::http::Client*, util::http::Server*, 
+		  util::Scheduler*);
 
     // Being a upnp::ssdp::Responder::Callback
     void OnService(const std::string& url, const std::string& udn);

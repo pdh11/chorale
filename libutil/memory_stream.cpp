@@ -2,6 +2,7 @@
 #include "stream_test.h"
 #include "trace.h"
 #include <string.h>
+#include <map>
 
 namespace util {
 

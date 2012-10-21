@@ -2,6 +2,7 @@
 #include "file.h"
 #include "config.h"
 #include "trace.h"
+#include "compare.h"
 #include <sys/stat.h>
 #include <string.h>
 #include <errno.h>
@@ -94,6 +95,14 @@ std::string Canonicalise(const std::string& path)
     return s;
 }
 
+static int ScandirCompare(SCANDIR_COMPARATOR_ARG_T v1,
+			  SCANDIR_COMPARATOR_ARG_T v2)
+{
+    const struct dirent *d1 = *(const struct dirent**)v1;
+    const struct dirent *d2 = *(const struct dirent**)v2;
+    return util::Compare(d1->d_name, d2->d_name, true);
+}
+
 unsigned int ReadDirectory(const std::string& path, 
 			   std::vector<Dirent> *entries)
 {
@@ -101,7 +110,7 @@ unsigned int ReadDirectory(const std::string& path,
 
     struct dirent **namelist;
 
-    int rc = ::scandir(path.c_str(), &namelist, NULL, versionsort);
+    int rc = ::scandir(path.c_str(), &namelist, NULL, &ScandirCompare);
     if (rc < 0)
 	return (unsigned) errno;
     if (rc == 0)

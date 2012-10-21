@@ -43,6 +43,8 @@ unsigned int PlaylistASX::Load()
 
 unsigned int PlaylistASX::Save()
 {
+    /// @bug Filename is UTF-8 on Windows
+
     FILE *f = fopen(GetFilename().c_str(), "w+");
     if (!f)
     {

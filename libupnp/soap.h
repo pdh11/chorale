@@ -31,14 +31,14 @@ public:
 	m_params[tag] = value;
     }
 
-    void Get(std::string*, const char*);
-    void Get(uint32_t*,    const char*);
-    void Get(int32_t*,     const char*);
-    void Get(uint16_t*,    const char*);
-    void Get(int16_t*,     const char*);
-    void Get(uint8_t*,     const char*);
-    void Get(int8_t*,      const char*);
-    void Get(bool*,        const char*);
+    void Get(std::string*, const char*) const;
+    void Get(uint32_t*,    const char*) const;
+    void Get(int32_t*,     const char*) const;
+    void Get(uint16_t*,    const char*) const;
+    void Get(int16_t*,     const char*) const;
+    void Get(uint8_t*,     const char*) const;
+    void Get(int8_t*,      const char*) const;
+    void Get(bool*,        const char*) const;
 
     std::string GetString(const char*) const;
     uint32_t GetUInt(const char*) const;

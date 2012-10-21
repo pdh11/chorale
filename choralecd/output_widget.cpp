@@ -7,7 +7,6 @@
  * are thus subject to the licence under which you obtained Qt:
  * typically, the GPL.
  */
-#include "features.h"
 #include "config.h"
 #include "output_widget.h"
 #include <qlayout.h>
@@ -16,6 +15,9 @@
 #include <qlabel.h>
 #include "setlist_window.h"
 #include "libutil/trace.h"
+#include "libutil/bind.h"
+#include "libutil/http_fetcher.h"
+#include "libutil/counted_pointer.h"
 #include "liboutput/gstreamer.h"
 #include "liboutput/upnpav.h"
 #include <boost/lambda/lambda.hpp>
@@ -57,6 +59,7 @@ void OutputWidget::OnBottomButton()
         /* OutputWidgetFactory */
 
 
+#if HAVE_HAL
 OutputWidgetFactory::OutputWidgetFactory(QPixmap *pixmap, 
 					 util::hal::Context *halp,
 					 mediadb::Registry *registry)
@@ -116,19 +119,49 @@ void OutputWidgetFactory::OnDevice(util::hal::DevicePtr dev)
     (void) new OutputWidget(m_parent, devnode.c_str(), *m_pixmap, queue, 
 			    m_registry, card_id);
 }
+#endif
+
+
+        /* UpnpOutputWidget */
+
+UpnpOutputWidget::UpnpOutputWidget(QWidget *parent, const std::string& name, 
+				   QPixmap pm, 
+				   output::upnpav::URLPlayer *player,
+				   output::Queue *queue, 
+				   mediadb::Registry *database_registry,
+				   const std::string& tooltip)
+    : OutputWidget(parent, name, pm, queue, database_registry, tooltip),
+      m_player(player)
+{
+    EnableTop(false);
+}
+
+unsigned int UpnpOutputWidget::OnInitialised(unsigned int rc)
+{
+    if (!rc)
+    {
+	std::string friendly_name = m_player->GetFriendlyName();
+	GetQueue()->SetName(friendly_name);
+	SetLabel(friendly_name);
+    }
+    EnableTop(rc == 0);
+    return 0;
+}
 
 
         /* UpnpOutputWidgetFactory */
 
 
 UpnpOutputWidgetFactory::UpnpOutputWidgetFactory(QPixmap *pixmap,
-						 mediadb::Registry *registry,
-						 util::PollerInterface *poller,
+						 mediadb::Registry *dbregistry,
+						 output::Registry *opregistry,
+						 util::Scheduler *poller,
 						 util::http::Client *client,
 						 util::http::Server *server)
     : m_pixmap(pixmap),
       m_parent(NULL),
-      m_registry(registry),
+      m_db_registry(dbregistry),
+      m_output_registry(opregistry),
       m_poller(poller),
       m_client(client),
       m_server(server)
@@ -143,18 +176,28 @@ void UpnpOutputWidgetFactory::CreateWidgets(QWidget *parent)
 void UpnpOutputWidgetFactory::OnService(const std::string& url,
 					const std::string& udn)
 {
-    output::upnpav::URLPlayer *player =
-	new output::upnpav::URLPlayer(m_client, m_server);
-    player->Init(url, udn, m_poller);
+    std::string output_name = "upnpav:" + udn;
 
-    std::string fn = player->GetFriendlyName();
-    TRACE << "fn '" << fn << "'\n";
+    output::upnpav::URLPlayer *player =
+	new output::upnpav::URLPlayer(m_client, m_server, m_poller);
 
     output::Queue *queue = new output::Queue(player);
-    queue->SetName(fn);
 
-    (void) new OutputWidget(m_parent, fn, *m_pixmap, queue, m_registry,
-			    std::string());
+    // Use the hostname as a stand-in until we know the friendly-name
+    std::string hostpart, pathpart;
+    util::http::ParseURL(url, &hostpart, &pathpart);
+    std::string host;
+    unsigned short port;
+    util::http::ParseHost(hostpart, 80, &host, &port);
+
+    UpnpOutputWidget *widget = new UpnpOutputWidget(m_parent, host,
+						    *m_pixmap, player,
+						    queue, m_db_registry,
+						    url);
+    
+    player->Init(url, udn,
+		 util::Bind1<unsigned int, UpnpOutputWidget,
+		             &UpnpOutputWidget::OnInitialised>(widget));
 }
 
 } // namespace choraleqt

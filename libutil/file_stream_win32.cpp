@@ -58,7 +58,7 @@ unsigned FileStream::Open(const char *filename, unsigned int mode)
 
     if (m_fd == INVALID_HANDLE_VALUE)
     {
-	TRACE << "Can't open file '" << filename << "' (" << GetLastError()
+	TRACE << "Can't open file '" << wfilename << "' (" << GetLastError()
 	      << ")\n";
 	return ENOENT;
     }
@@ -141,3 +141,19 @@ unsigned FileStream::SetLength(pos64 len)
 } // namespace util
 
 #endif // WIN32
+
+#ifdef TEST
+
+int main()
+{
+    util::SeekableStreamPtr msp;
+
+    unsigned int rc = util::OpenFileStream("./test.tmp", util::TEMP, &msp);
+    assert(rc == 0);
+
+    TestSeekableStream(msp);
+
+    return 0;
+}
+
+#endif

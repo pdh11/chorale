@@ -14,7 +14,7 @@ include $(TOP)Make.common
 
 LIBMEDIATREE_OBJS:=$(LOBJS)
 
-libmediatree:=$(TOP)$(DIR)$(TARGETDIR)libmediatree.la
+libmediatree:=$(TOP)$(DIR)$(TARGETDIR)libmediatree.a
 
 all-libmediatree: $(libmediatree)
 

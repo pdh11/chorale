@@ -16,6 +16,7 @@
 #include <QTreeView>
 #include <QHeaderView>
 #include "libmediadb/db.h"
+#include "libutil/trace.h"
 
 namespace choraleqt {
 
@@ -39,7 +40,7 @@ ExplorerWindow::ExplorerWindow(mediadb::Database *db,
     tv->setModel(m_treemodel);
     tv->header()->hide();
 
-    m_browse = new BrowseWidget(m_splitter, registry->IndexForDB(db));
+    m_browse = new BrowseWidget(m_splitter, registry->GetIndex(db));
 
     m_splitter->setStretchFactor(0,0);
     m_splitter->setStretchFactor(1,1);
@@ -61,9 +62,12 @@ ExplorerWindow::~ExplorerWindow()
 
 void ExplorerWindow::OnTreeSelectionChanged(const QModelIndex& qmi)
 {
+    TRACE << "OTSC: " << qmi.row() << "\n";
     mediatree::NodePtr node = m_treemodel->NodeForIndex(qmi);
     if (node)
 	m_browse->SetNode(node);
+    else
+	TRACE << "No node\n";
 }
 
 } // namespace choraleqt

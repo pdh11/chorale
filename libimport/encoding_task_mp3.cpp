@@ -4,6 +4,7 @@
 #include "libutil/trace.h"
 #include "libutil/file.h"
 #include "tags.h"
+#include "libutil/errors.h"
 
 #if HAVE_LAME
 #include <lame/lame.h>
@@ -98,14 +99,16 @@ unsigned int EncodingTaskMP3::Run()
     delete[] obuf;
 
     {
-	boost::mutex::scoped_lock lock(m_rename_mutex);
+	util::Mutex::Lock lock(m_rename_mutex);
 	m_rename_stage = LATE;
 	if (!m_rename_filename.empty())
 	{
 	    util::RenameWithMkdir(m_output_filename.c_str(), 
 				  m_rename_filename.c_str());
 //	    TRACE << "Tag point 2\n";
-	    import::WriteTags(m_rename_filename, m_rename_tags);
+	    import::Tags tags;
+	    tags.Open(m_rename_filename);
+	    tags.Write(m_rename_tags.get());
 	    m_rename_filename.clear();
 	}
     }

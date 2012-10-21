@@ -1,5 +1,6 @@
 TOP?=../
 DIR:=libmediadb/
+LIBMEDIADB_DIR:=$(TOP)$(DIR)
 SRCS:= 	allocate_id.cpp \
 	didl.cpp \
 	registry.cpp \
@@ -24,7 +25,7 @@ include $(TOP)Make.common
 MEDIADB_OBJS:=$(LOBJS)
 MEDIADB_TESTS:=$(TESTS)
 
-libmediadb:=$(TOP)$(DIR)$(TARGETDIR)libmediadb.la
+libmediadb:=$(TOP)$(DIR)$(TARGETDIR)libmediadb.a
 
 all-mediadb: $(libmediadb)
 
@@ -46,9 +47,13 @@ ifeq ($(libimport),)
 include $(TOP)libimport/Makefile
 endif
 
-$(MEDIADB_TESTS) : TEST_LIBS += $(libdblocal) $(libdb) $(libimport) $(libutil) $(TAGLIB_LIBS) $(BOOST_LIBS) $(LIBS)
+$(MEDIADB_TESTS) : TEST_LIBS += $(libdblocal) $(libmediadb) $(libdbsteam) $(libdb) $(libimport) $(libutil) $(TAGLIB_LIBS) $(BOOST_LIBS) $(LIBS)
 
 $(MEDIADB_TESTS) : $(libdblocal) $(libmediadb) $(libdbsteam) $(libdb) $(libutil)
+
+ifneq ($(EXCEPTIONAL_boost_function_hpp),)
+$(LIBMEDIADB_DIR)$(TARGETDIR)didl%: CXXFLAGS += -fexceptions -UBOOST_NO_EXCEPTIONS
+endif
 
 $(libmediadb): $(MEDIADB_OBJS)
 	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \

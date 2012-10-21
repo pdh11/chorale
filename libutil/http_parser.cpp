@@ -1,6 +1,7 @@
 #include "http_parser.h"
 #include "line_reader.h"
 #include "trace.h"
+#include "errors.h"
 #include <boost/tokenizer.hpp>
 
 namespace util {

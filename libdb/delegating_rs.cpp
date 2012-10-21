@@ -2,11 +2,14 @@
 
 namespace db {
 
-bool DelegatingRecordset::IsEOF() { return m_rs->IsEOF(); }
+bool DelegatingRecordset::IsEOF() const
+{ return m_rs->IsEOF(); }
 
-uint32_t DelegatingRecordset::GetInteger(field_t which) { return m_rs->GetInteger(which); }
+uint32_t DelegatingRecordset::GetInteger(field_t which) const
+{ return m_rs->GetInteger(which); }
 
-std::string DelegatingRecordset::GetString(field_t which) { return m_rs->GetString(which); }
+std::string DelegatingRecordset::GetString(field_t which) const 
+{ return m_rs->GetString(which); }
 
 unsigned int DelegatingRecordset::SetInteger(field_t which, uint32_t value)
 {

@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include "libutil/trace.h"
 #include "libutil/file.h"
-#include "libutil/poll.h"
+#include "libutil/scheduler.h"
 #undef IN
 #undef OUT
 
@@ -50,13 +50,19 @@ static int inotify_add_watch(int fd, const char *name, uint32_t mask)
 
 namespace import {
 
-FileNotifier::FileNotifier()
-    : m_obs(NULL),
+FileNotifierPtr FileNotifierTask::Create(util::Scheduler *scheduler)
+{
+    return FileNotifierPtr(new FileNotifierTask(scheduler));
+}
+
+FileNotifierTask::FileNotifierTask(util::Scheduler *scheduler)
+    : m_scheduler(scheduler),
+      m_obs(NULL),
       m_fd(util::NOT_POLLABLE)
 {
 }
 
-unsigned int FileNotifier::Init(util::PollerInterface *poller)
+unsigned int FileNotifierTask::Init()
 {
 #if HAVE_NOTIFY
     m_fd = inotify_init();
@@ -75,11 +81,12 @@ unsigned int FileNotifier::Init(util::PollerInterface *poller)
 	}
     }
     
-    poller->Add(this, 
-		util::Bind<FileNotifier, &FileNotifier::OnActivity>(this),
-		util::PollerInterface::IN);
+    /// @todo Non-oneshot
+    m_scheduler->WaitForReadable(
+	util::Bind<FileNotifierTask, &FileNotifierTask::Run>(FileNotifierPtr(this)),
+	this);
 
-    TRACE << "Notifier started successfully\n";
+//    TRACE << "Notifier started successfully\n";
 
     return 0;
 #else
@@ -87,7 +94,7 @@ unsigned int FileNotifier::Init(util::PollerInterface *poller)
 #endif
 }
 
-FileNotifier::~FileNotifier()
+FileNotifierTask::~FileNotifierTask()
 {
 #if HAVE_NOTIFY
     if (m_fd != -1)
@@ -95,7 +102,7 @@ FileNotifier::~FileNotifier()
 #endif
 }
 
-void FileNotifier::Watch(const char *directory)
+void FileNotifierTask::Watch(const char *directory)
 {
 #if HAVE_NOTIFY
     inotify_add_watch(m_fd, directory,
@@ -104,7 +111,7 @@ void FileNotifier::Watch(const char *directory)
 #endif
 }
 
-unsigned int FileNotifier::OnActivity()
+unsigned int FileNotifierTask::Run()
 {
 #if HAVE_NOTIFY
     enum { BUFSIZE = 1024 };
@@ -121,6 +128,11 @@ unsigned int FileNotifier::OnActivity()
     if (m_obs)
 	m_obs->OnChange();
 #endif
+    
+    m_scheduler->WaitForReadable(
+	util::Bind<FileNotifierTask, &FileNotifierTask::Run>(FileNotifierPtr(this)),
+	this);
+
     return 0;
 }
 
@@ -128,7 +140,7 @@ unsigned int FileNotifier::OnActivity()
 
 #ifdef TEST
 
-class TestObserver: public import::FileNotifier::Observer
+class TestObserver: public import::FileNotifierTask::Observer
 {
 public:
     int n;
@@ -137,18 +149,18 @@ public:
 
     void OnChange()
     {
-	TRACE << "changed\n";
+//	TRACE << "changed\n";
 	++n;
     }
 };
 
 int main()
 {
-    util::Poller poller;
+    util::BackgroundScheduler poller;
 
-    import::FileNotifier fn;
+    import::FileNotifierPtr fn(import::FileNotifierTask::Create(&poller));
 
-    unsigned int rc = fn.Init(&poller);
+    unsigned int rc = fn->Init();
     if (rc == ENOSYS)
     {
 	fprintf(stderr, "No inotify() available -- skipping file_notifier test\n");
@@ -167,8 +179,8 @@ int main()
     }
 
     TestObserver obs;
-    fn.SetObserver(&obs);
-    fn.Watch(root);
+    fn->SetObserver(&obs);
+    fn->Watch(root);
 
     poller.Poll(250);
 
@@ -186,7 +198,11 @@ int main()
     /* Tidy up */
 
     std::string rmrf = "rm -r " + util::Canonicalise(root);
-    system(rmrf.c_str());
+    if (system(rmrf.c_str()) < 0)
+    {
+	fprintf(stderr, "Clean up failed\n");
+	return 1;
+    }
 #endif
     return 0;
 }

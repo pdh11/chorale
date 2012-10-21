@@ -5,6 +5,7 @@
 #include "libdb/readonly_rs.h"
 #include "libmediadb/didl.h"
 #include <string>
+#include <vector>
 
 namespace db {
 namespace upnpav {
@@ -15,25 +16,26 @@ class Recordset: public db::ReadOnlyRecordset
 {
 protected:
     Database *m_parent;
-    db::RecordsetPtr m_freers;
     unsigned int m_id;
+
+    mutable db::RecordsetPtr m_freers;
 
     enum {
 	GOT_BASIC = 1, // Just title and type
 	GOT_TAGS = 2,
 	GOT_CHILDREN = 4
     };
-    unsigned int m_got_what;
+    mutable unsigned int m_got_what;
 
-    void GetTags();
-    void GetChildren();
+    void GetTags() const;
+    void GetChildren() const;
 
 public:
     explicit Recordset(Database *parent);
 
     // Being a Recordset
-    uint32_t GetInteger(field_t which);
-    std::string GetString(field_t which);
+    uint32_t GetInteger(field_t which) const;
+    std::string GetString(field_t which) const;
 
     // Not MoveNext() or IsEOF() -- implemented in derived classes
 };
@@ -45,7 +47,7 @@ public:
 
     // Remaining Recordset methods
     void MoveNext();
-    bool IsEOF();
+    bool IsEOF() const;
 };
 
 class CollateRecordset: public db::ReadOnlyRecordset
@@ -66,10 +68,10 @@ public:
     CollateRecordset(Database *db, field_t field);
 
     // Being a Recordset
-    uint32_t GetInteger(field_t which);
-    std::string GetString(field_t which);
+    uint32_t GetInteger(field_t which) const;
+    std::string GetString(field_t which) const;
     void MoveNext();
-    bool IsEOF();
+    bool IsEOF() const;
 };
 
 class SearchRecordset: public Recordset
@@ -92,7 +94,7 @@ public:
 
     // Remaining Recordset methods
     void MoveNext();
-    bool IsEOF();
+    bool IsEOF() const;
 };
 
 } // namespace upnpav

@@ -1,7 +1,10 @@
 #include "cloud_window.h"
 #include "cloud_style.h"
 #include "libutil/trace.h"
-#include <QtGui>
+#include <QWidget>
+#include <QPainter>
+#include <QMouseEvent>
+#include <QBitmap>
 
 #include "imagery/resize.xpm"
 #include "imagery/icon16.xpm"
@@ -80,7 +83,7 @@ void Window::paintEvent(QPaintEvent*)
 
     // Draw menu
 
-    QColor altbase = palette().brush(QPalette::AlternateBase);
+    QColor altbase = palette().brush(QPalette::AlternateBase).color();
     fm = painter.fontMetrics();
 
     for (unsigned int i=0; i<m_menu.size(); ++i)

@@ -16,7 +16,7 @@ class MultiStream: public Stream
     ~MultiStream();
 
 public:
-    typedef boost::intrusive_ptr<MultiStream> MultiStreamPtr;
+    typedef util::CountedPointer<MultiStream> MultiStreamPtr;
     
     static unsigned Create(SeekableStreamPtr backingstream, 
 			   SeekableStream::pos64 size,
@@ -32,7 +32,7 @@ public:
     unsigned Write(const void *buffer, size_t len, size_t *pwrote);
 };
 
-typedef boost::intrusive_ptr<MultiStream> MultiStreamPtr;
+typedef util::CountedPointer<MultiStream> MultiStreamPtr;
 
 } // namespace util
 

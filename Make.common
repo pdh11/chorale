@@ -59,20 +59,30 @@ clean:
 	@find . -name '*~' -o -name '*.i' -o -name '*.gcov' -print0 | xargs -0 rm -f
 
 vtests:
-	$(MAKE) tests TEST_RUN="valgrind --error-exitcode=99 --gen-suppressions=yes --leak-check=full $(VALGRIND_OPTS)" TEST_SUFFIX=vtest
+	$(MAKE) tests TEST_RUN="valgrind --error-exitcode=99 --leak-check=full $(VALGRIND_OPTS)" TEST_SUFFIX=vtest
 
 else
 CLEANS+=$(OBJS) $(SOBJS) $(LOBJS) $(DEPS) $(TESTS)
 endif
 
-.PHONY: tests
+.PHONY: tests localtests
 tests: all $(TESTS)
+
+ifeq ($(DONE_LOCALTESTS),)
+localtests: all $(TESTS)
+
+DONE_LOCALTESTS=yup
+endif
 
 -include .force-header-generation
 
 all: .force-header-generation
 
+.PHONY: all
+
 .force-header-generation:
+
+.PHONY: .force-header-generation
 
 ifeq ($(CHORALE_VERSION),)
 include $(TOP)Make.config.$(TARGET)
@@ -89,8 +99,8 @@ ifeq ($(DONE_FLAGS),)
 
 DONE_FLAGS:=1
 
-CFLAGS += -DLOCALSTATEDIR=\"$(localstatedir)\" -DCHORALE_DATADIR=\"$(datarootdir)\" -DPTW32_STATIC_LIB
-CXXFLAGS += -DLOCALSTATEDIR=\"$(localstatedir)\" -DCHORALE_DATADIR=\"$(datarootdir)\" -DPTW32_STATIC_LIB
+CFLAGS += -DLOCALSTATEDIR=\"$(localstatedir)\" -DCHORALE_DATADIR=\"$(datarootdir)\"
+CXXFLAGS += -DLOCALSTATEDIR=\"$(localstatedir)\" -DCHORALE_DATADIR=\"$(datarootdir)\" -fno-exceptions -DBOOST_NO_EXCEPTIONS
 
 ifneq ($(DEBUG),0)
 WITH_DEBUG:=1
@@ -100,13 +110,20 @@ LDFLAGS += -ggdb
 STRIP:= :
 else
 WITH_DEBUG:=0
-CFLAGS += -fomit-frame-pointer -DNDEBUG
-CXXFLAGS += -fomit-frame-pointer -DNDEBUG
+CFLAGS   += -fomit-frame-pointer -DNDEBUG -fno-unwind-tables 
+CXXFLAGS += -fomit-frame-pointer -DNDEBUG -fno-unwind-tables 
 endif
 
 ifneq ($(PROFILE),)
-CFLAGS += -fno-omit-frame-pointer -pg
-CXXFLAGS += -fno-omit-frame-pointer -pg
+CFLAGS += -fno-omit-frame-pointer -profile -pg -Wl,-static
+CXXFLAGS += -fno-omit-frame-pointer -profile -pg -Wl,-static
+LIBS += -lstdc++_p -lpthread_p
+BOOST_LIBS:= -lboost_thread-profile -lboost_regex-profile
+LDFLAGS += -static-libtool-libs -static-libgcc -lstdc++_p
+endif
+
+ifeq ($(WIN32),yes)
+LDFLAGS += -Wl,--wrap,fopen -Wl,--wrap,rename -Wl,--wrap,unlink -Wl,--wrap,wmemcpy -Wl,--wrap,wmemmove -u ___wrap_wmemmove -u ___wrap_unlink
 endif
 
 endif
@@ -139,6 +156,14 @@ ifeq ($(ABSTOP),)
 ABSTOP:=`readlink -f ./$(TOP)`
 endif
 
+%:: RCS/%,v
+
+%:: RCS/%
+
+%:: s.%
+
+%:: SCCS/s.%
+
 %.o: %.cpp
 	$(CC_PRE)$(CXX) $(CXXFLAGS) -I$(TOP). \
 		-c $< -o $@ -MD -MP
@@ -168,6 +193,10 @@ endif
 	$(MOCKING_PRE)$(MOC) $< -o $@
 
 .PRECIOUS: %.moc.cpp
+
+$(TOP)$(DIR)$(TARGETDIR)%.res.o: $(TOP)$(DIR)%.rc
+	@mkdir -p $(dir $@)
+	$(CC_PRE)$(WINDRES) -i $< -o $@ -O coff
 
 $(TOP)$(DIR)$(TARGETDIR)%.lo: $(TOP)$(DIR)%.cpp
 	@mkdir -p $(dir $@)
@@ -201,7 +230,7 @@ $(TOP)$(DIR)$(TARGETDIR)%__$(TEST_SUFFIX): $(TOP)$(DIR)%.cpp
 	@mkdir -p $(dir $@)
 	$(CC_PRE)$(LIBTOOL) --tag=CXX --mode=compile --silent \
 		$(CXX) $(CXXFLAGS) -fprofile-arcs -ftest-coverage \
-		-I$(TOP). -DTEST -DSRCROOT=\"$(SRCROOT)\" -O0 -c $< -o $@.lo \
+		-I$(TOP). -DTEST -DSRCROOT=\"$(SRCROOT)\" -c $< -o $@.lo \
 		-MD -MF $@.d -MT $@ -MP
 	@tr '.' ',' < $@.d \
 		| sed -e "s| $(TOPCOMMA)\([a-z.,]\)| \$$\(TOP\)\1|g" \
@@ -213,19 +242,20 @@ $(TOP)$(DIR)$(TARGETDIR)%__$(TEST_SUFFIX): $(TOP)$(DIR)%.cpp
 	@rm $@.d
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
 		$(CXX) $(CXXFLAGS) $(LDFLAGS) -fprofile-arcs -ftest-coverage \
-		$@.lo $(filter %.la,$^) $(TEST_LIBS) -lgcov -o $@ -Wl,-Map,$@.map
+		$@.lo $(filter %.la,$^) $(TEST_LIBS) $(LIBS) -lgcov -o $@ -Wl,-Map,$@.map
 	$(TEST_PRE)$(TEST_RUN) $@ || ( echo $@ FAILED ; rm -f $@ ; false )
-	@: > $@
-	@$(GCOV) -o $(dir $@).libs/$(notdir $@).cpp $< > $@.gcov.txt
-	@rm -f *[^c]??.gcov
-	@mv $(notdir $<).gcov  $(notdir $<).gcov0
-	@mv $(notdir $<).gcov0 $(dir $@)/../$(notdir $<).gcov
-	@grep -C1 $< $@.gcov.txt \
-		| grep executed | head -n 1 \
-		| sed -e "s,^,Covered $<: ," -e 's/ted:/ted: /'
+	@if [ -f $(dir $@).libs/$(notdir $@).gcda ]; then \
+		$(GCOV) -o $(dir $@).libs/$(notdir $@).cpp $< > $@.gcov.txt ; \
+		rm -f *[^c]??.gcov ; \
+		mv $(notdir $<).gcov  $(notdir $<).gcov0 ; \
+		mv $(notdir $<).gcov0 $(dir $@)/../$(notdir $<).gcov ; \
+		grep -C1 $< $@.gcov.txt \
+			| grep executed | head -n 1 \
+			| sed -e "s,^,Covered $<: ," -e 's/ted:/ted: /' ; \
+	fi
 
 %.s: %.cpp
-	$(CXX) $(CXXFLAGS) $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) -I$(TOP) -S $< -o $@ -DTEST
+	$(CXX) $(CXXFLAGS) $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) -I./$(TOP) -S $< -o $@ -DTEST
 
 %.i: %.cpp
 	$(CXX) $(CXXFLAGS) -I$(TOP) -E -dD -C $< -o $@ $(QT_CXXFLAGS)

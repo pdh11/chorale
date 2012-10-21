@@ -14,12 +14,14 @@ class TagRenameTask: public util::Task
     std::string m_newname;
     db::RecordsetPtr m_tags;
 
+    typedef util::CountedPointer<TagRenameTask> TaskPtr;
+
     TagRenameTask(const std::string& oldname, const std::string& newname,
 		  db::RecordsetPtr tags);
 public:
-    static util::TaskPtr Create(const std::string& oldname, 
-				const std::string& newname, 
-				db::RecordsetPtr tags);
+    static util::TaskCallback Create(const std::string& oldname, 
+				     const std::string& newname, 
+				     db::RecordsetPtr tags);
     unsigned int Run();
 };
 

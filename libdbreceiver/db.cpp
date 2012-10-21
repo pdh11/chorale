@@ -18,6 +18,10 @@ Database::Database(util::http::Client *http)
 {
 }
 
+Database::~Database()
+{
+}
+
 static const struct {
     const char *receivertag;
     int choraletag;
@@ -130,7 +134,7 @@ util::SeekableStreamPtr Database::OpenRead(unsigned int id)
     std::string url = GetURL(id);
 
     util::http::StreamPtr stm;
-    unsigned rc = util::http::Stream::Create(&stm, url.c_str());
+    unsigned rc = util::http::Stream::Create(&stm, m_http, url.c_str());
     if (rc)
 	return util::SeekableStreamPtr();
 

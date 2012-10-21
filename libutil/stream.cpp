@@ -3,6 +3,7 @@
 #include "memory_stream.h"
 #include "trace.h"
 #include <errno.h>
+#include <string.h>
 
 namespace util {
 
@@ -94,11 +95,53 @@ unsigned SeekableStream::WriteAllAt(const void *buffer, pos64 pos, size_t len)
     return 0;
 }
 
+unsigned SeekableStream::WriteString(const std::string& s)
+{
+    return WriteAll(s.c_str(), s.length());
+}
+
+unsigned SeekableStream::ReadLine(std::string *result)
+{
+    char buffer[1024];
+    
+    pos64 pos = m_pos;
+    std::string s;
+    
+    for (;;)
+    {
+	size_t nread;
+	unsigned rc = Read(buffer, sizeof(buffer), &nread);
+
+	if (rc)
+	    return rc;
+	if (!nread)
+	{
+	    *result = s;
+	    return 0;
+	}
+
+	char *nul = (char*)memchr(buffer, '\0', nread);
+	char *lf  = (char*)memchr(buffer, '\n', nread);
+
+	if (nul || lf)
+	{
+	    if (lf && (!nul || nul > lf))
+		nul = lf;
+	    s += std::string(buffer, nul);
+	    m_pos = pos + s.length() + 1;
+	    *result = s;
+	    return 0;
+	}
+
+	s += std::string(buffer, buffer+nread);
+    }
+}
+
 
         /* Utility functions */
 
 
-unsigned CopyStream(StreamPtr from, StreamPtr to)
+unsigned CopyStream(Stream *from, Stream *to)
 {
     enum { BUFSIZE = 8192 };
     char buffer[BUFSIZE];
@@ -117,7 +160,7 @@ unsigned CopyStream(StreamPtr from, StreamPtr to)
     return 0;
 }
 
-unsigned CopyStream(SeekableStreamPtr from, StreamPtr to)
+unsigned CopyStream(SeekableStream *from, Stream *to)
 {
     SeekableStream::pos64 pos = 0;
     enum { BUFSIZE = 8192 };
@@ -139,7 +182,7 @@ unsigned CopyStream(SeekableStreamPtr from, StreamPtr to)
     return 0;
 }
 
-unsigned DiscardStream(StreamPtr s)
+unsigned DiscardStream(Stream *s)
 {
     enum { BUFSIZE = 8192 };
     char buffer[BUFSIZE];
@@ -169,7 +212,6 @@ int main()
     assert(rc == 0);
 
     TestSeekableStream(msp);
-
     return 0;
 }
 

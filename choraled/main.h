@@ -7,7 +7,7 @@
 #include <sys/syslog.h>
 #endif
 
-namespace util { class PollerInterface; }
+namespace util { class Scheduler; }
 
 namespace choraled {
 
@@ -61,7 +61,7 @@ enum {
 
 extern volatile bool s_exiting;
 extern volatile bool s_rescan;
-extern util::PollerInterface *s_poller;
+extern util::Scheduler *s_poller;
 
 int Main(const Settings*, Complaints*);
 

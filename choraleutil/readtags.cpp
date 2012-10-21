@@ -5,8 +5,9 @@
 #include <sstream>
 #include <iomanip>
 #include <vector>
+#include <stdio.h>
 #include "libutil/worker_thread_pool.h"
-#include <boost/thread/mutex.hpp>
+#include "libutil/http_client.h"
 #include "libutil/trace.h"
 #include "libdbsteam/db.h"
 #include "libmediadb/schema.h"
@@ -67,6 +68,7 @@ int main(int argc, char *argv[])
     }
 
     util::WorkerThreadPool wtp(util::WorkerThreadPool::NORMAL, nthreads);
+    util::http::Client http_client;
     
     db::steam::Database sdb(mediadb::FIELD_COUNT);
     sdb.SetFieldInfo(mediadb::ID, 
@@ -78,7 +80,7 @@ int main(int argc, char *argv[])
     if (!flacdir)
 	flacdir = "";
 
-    db::local::Database ldb(&sdb);
+    db::local::Database ldb(&sdb, &http_client);
 
 #if HAVE_TAGLIB
     db::local::FileScanner ifs(argv[optind], flacdir, &ldb, &wtp);

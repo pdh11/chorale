@@ -126,7 +126,7 @@ typedef char const*         iterator_t;
 typedef tree_match<iterator_t> parse_tree_match_t;
 typedef parse_tree_match_t::tree_iterator iter_t;
 
-static const db::Query::Subexpression Translate(db::QueryPtr qp, 
+static const db::Query::Subexpression Translate(db::Query *qp, 
 						const iter_t& i,
 						unsigned int *collate)
 {
@@ -308,7 +308,7 @@ static const db::Query::Subexpression Translate(db::QueryPtr qp,
     return db::Query::Subexpression();
 }
 
-unsigned int ApplySearchCriteria(db::QueryPtr qp, const std::string& s,
+unsigned int ApplySearchCriteria(db::Query *qp, const std::string& s,
 				 unsigned int *collate)
 {
     upnpd::SearchGrammar sg;
@@ -373,7 +373,7 @@ static void Test(db::Database *db, const char *s)
 
     db::QueryPtr qp = db->CreateQuery();
     unsigned int collatefield;
-    unsigned int rc = upnpd::ApplySearchCriteria(qp, s, &collatefield);
+    unsigned int rc = upnpd::ApplySearchCriteria(qp.get(), s, &collatefield);
     assert(rc == 0);
 }
 

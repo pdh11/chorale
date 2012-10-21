@@ -1,105 +1,77 @@
-#ifndef LIBUTIL_POLL_H
-#define LIBUTIL_POLL_H 1
+#ifndef LIBUTIL_POLLER_CORE_H
+#define LIBUTIL_POLLER_CORE_H 1
 
-#include <time.h>
-#include <boost/intrusive_ptr.hpp>
+#include <vector>
+#include "bind.h"
 #include "pollable.h"
-
-#undef IN
-#undef OUT
+#include "task.h"
 
 struct pollfd;
 
+/* Implementation details and platform-independence support for Poller */
+
 namespace util {
 
-class Callback;
-
-class Timed
+struct PollRecord
 {
-public:
-    virtual ~Timed() {}
-
-    virtual unsigned int OnTimer() = 0;
-};
-
-/** Abstract poller/timer interface, implemented by util::Poller and
- * choraleqt::Poller
- */
-class PollerInterface
-{
-public:
-    virtual ~PollerInterface() {}
-
+    TaskCallback tc;
+    void *internal;
+    util::PollHandle h;
+    unsigned char direction;
     enum { IN = 1, OUT = 2 };
-
-    /** Add a handle to the list being polled for.
-     */
-    virtual void Add(Pollable*, const Callback& callback,
-		     unsigned int direction = IN|OUT) = 0;
-
-    /** Because so many Pollables are CountedPointers, provide an overload.
-     *
-     * Only compiles if T.get() is a subclass of Pollable.
-     */
-    template <class T>
-    void Add(boost::intrusive_ptr<T>& ptr, const Callback& c,
-	     unsigned int d)
-    {
-	Add(ptr.get(), c, d);
-    }
-
-    /** Remove a handle from the list being polled for.
-     */
-    virtual void Remove(Pollable*) = 0;
-
-    /** Adds a new timer. Timers can be single-shot or repeating.
-     *
-     * @param first    The time at which the callback should happen, or 0 for
-     *                 straightaway.
-     * @param repeatms The timer repeat rate in milliseconds, or 0 for single
-     *                 shot.
-     * @param callback The callback.
-     */
-    virtual void Add(time_t first, unsigned int repeatms,
-			  Timed *callback) = 0;
-    virtual void Remove(Timed*) = 0;
-
-    /** Wake the poller up, e.g. from another thread, whatever it's doing.
-     */
-    virtual void Wake() = 0;
+    bool oneshot;
 };
 
-/** Implementation of PollerInterface suitable for the main loop of a thread.
- *
- * For instance, the main loop of the choraled daemon consists only of repeated
- * calls to Poller::Poll().
- */
-class Poller: public PollerInterface
+namespace posix {
+
+class PollerCore
 {
+    pollfd *m_array;
+    size_t m_count;
+
+    util::PollHandle m_waker_fd[2];
+
 public:
-    class Impl;
+    PollerCore();
+    ~PollerCore();
 
-private:
-    Impl *m_impl;
-    
-public:
-    Poller();
-    ~Poller();
-
-    enum { INFINITE_MS = (unsigned int)-1 };
-
-    unsigned Poll(unsigned int timeout_ms);
-
-    // Being a PollerInterface
-    void Add(Pollable*, const Callback& callback, 
-	     unsigned int direction);
-    void Remove(Pollable*);
-
-    void Add(time_t first, unsigned int repeatms, Timed*);
-    void Remove(Timed*);
-
+    unsigned int SetUpArray(const std::vector<PollRecord>*);
+    unsigned int Poll(unsigned int timeout_ms);
+    unsigned int DoCallbacks(std::vector<PollRecord>*, bool valid);
+    void Deleting(PollRecord*) {}
     void Wake();
 };
+
+} // namespace util::posix
+
+namespace win32 {
+
+class PollerCore
+{
+    void **m_array;
+    size_t m_count;
+    int m_which;
+    void *m_which_handle;
+    void *m_wakeup_event;
+
+public:
+    PollerCore();
+    ~PollerCore();
+
+    unsigned int SetUpArray(std::vector<PollRecord>*);
+    unsigned int Poll(unsigned int timeout_ms);
+    unsigned int DoCallbacks(std::vector<PollRecord>*, bool valid);
+    void Deleting(PollRecord*);
+    void Wake();
+};
+
+} // namespace util::win32
+
+#ifdef WIN32
+namespace pollapi = ::util::win32;
+#else
+namespace pollapi = ::util::posix;
+#endif
 
 } // namespace util
 

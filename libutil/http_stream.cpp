@@ -20,14 +20,12 @@ namespace util {
 
 namespace http {
 
-Stream::Stream(const IPEndPoint& ipe, const std::string& host,
-	       const std::string& path,
-	       const char *extra_headers, const char *body)
-    : m_ipe(ipe),
+Stream::Stream(Client *client, const IPEndPoint& ipe, const std::string& host,
+	       const std::string& path)
+    : m_client(client),
+      m_ipe(ipe),
       m_host(host),
       m_path(path),
-      m_extra_headers(extra_headers),
-      m_body(body),
       m_socket(StreamSocket::Create()),
       m_len(0),
       m_need_fetch(true),
@@ -40,8 +38,7 @@ Stream::~Stream()
     LOG(HTTP) << "~hs" << this << "\n";
 }
 
-unsigned Stream::Create(StreamPtr *result, const char *url,
-			const char *extra_headers, const char *body)
+unsigned Stream::Create(StreamPtr *result, Client *client, const char *url)
 {
     std::string host;
     IPEndPoint ipe;
@@ -53,7 +50,7 @@ unsigned Stream::Create(StreamPtr *result, const char *url,
     if (ipe.addr.addr == 0)
 	return ENOENT;
 
-    Stream *stm = new Stream(ipe, host, path, extra_headers, body);
+    Stream *stm = new Stream(client, ipe, host, path);
 
     LOG(HTTP) << "hs" << stm << ": " << url << "\n";
 
@@ -70,13 +67,6 @@ unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
 
     if (!m_need_fetch && pos != m_last_pos)
     {
-	if (m_body) // Don't re-POST
-	{
-	    TRACE << "Oh-oh, not re-POST-ing just because pos (" << pos
-		  << ") != m_last_pos (" << m_last_pos << ")\n";
-	    return EINVAL;
-	}
-
 	m_socket->Close();
 	m_socket->Open();
 	m_need_fetch = true;
@@ -102,11 +92,7 @@ unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
 	    return rc;
 	}
 
-	std::string headers;
-	if (m_body)
-	    headers = "POST";
-	else
-	    headers = "GET";
+	std::string headers = "GET";
 
 	headers += " " + m_path + " HTTP/1.1\r\n";
 
@@ -140,18 +126,7 @@ unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
 	}
 
 	headers += "User-Agent: " PACKAGE_NAME "/" PACKAGE_VERSION "\r\n";
-
-	if (m_body)
-	    headers += (boost::format("Content-Length: %llu\r\n")
-			% (unsigned long long)strlen(m_body)).str();
-
-	if (m_extra_headers)
-	    headers += m_extra_headers;
-
 	headers += "\r\n";
-
-	if (m_body)
-	    headers += m_body;
 
 	rc = m_socket->WriteAll(headers.c_str(), headers.length());
 	if (rc != 0)
@@ -279,9 +254,9 @@ unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
 	if (is_error)
 	{
 	    util::StreamPtr epage = CreatePartialStream(m_socket, clen);
-	    StringStreamPtr ssp = StringStream::Create();
-	    CopyStream(epage, ssp);
-	    TRACE << "HTTP error page: " << ssp->str() << "\n";
+	    StringStream ssp;	    
+	    CopyStream(epage.get(), &ssp);
+	    TRACE << "HTTP error page: " << ssp.str() << "\n";
 	    return EINVAL;
 	}
 
@@ -327,26 +302,29 @@ unsigned Stream::SetLength(pos64 len)
 #ifdef TEST
 
 # include "http_server.h"
-# include "poll.h"
+# include "scheduler.h"
 # include "string_stream.h"
 # include "worker_thread_pool.h"
 
 class FetchTask: public util::Task
 {
     std::string m_url;
+    util::http::Client *m_client;
     std::string m_contents;
-    util::PollerInterface *m_waker;
+    util::Scheduler *m_waker;
     volatile bool m_done;
 
 public:
-    FetchTask(const std::string& url, util::PollerInterface *waker)
-	: m_url(url), m_waker(waker), m_done(false) {}
+    FetchTask(const std::string& url, util::http::Client *client, 
+	      util::Scheduler *waker)
+	: m_url(url), m_client(client), m_waker(waker), m_done(false) {}
 
     unsigned int Run()
     {
 //	TRACE << "Fetcher running\n";
 	util::http::StreamPtr hsp;
-	unsigned int rc = util::http::Stream::Create(&hsp, m_url.c_str());
+	unsigned int rc = util::http::Stream::Create(&hsp, m_client,
+						     m_url.c_str());
 	assert(rc == 0);
 
 	char buf[2048];
@@ -379,9 +357,10 @@ public:
 
 int main(int, char*[])
 {
-    util::Poller poller;
+    util::BackgroundScheduler poller;
     util::WorkerThreadPool wtp(util::WorkerThreadPool::NORMAL);
 
+    util::http::Client wc;
     util::http::Server ws(&poller, &wtp);
 
     unsigned rc = ws.Init();
@@ -395,10 +374,9 @@ int main(int, char*[])
 		       % ws.GetPort()
 	).str();
 
-    FetchTask *ft = new FetchTask(url, &poller);
+    util::CountedPointer<FetchTask> ft(new FetchTask(url, &wc, &poller));
 
-    util::TaskPtr tp(ft);
-    wtp.PushTask(tp);
+    wtp.PushTask(util::Bind<FetchTask,&FetchTask::Run>(ft));
 
     time_t start = time(NULL);
     time_t finish = start+5;

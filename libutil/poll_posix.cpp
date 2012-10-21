@@ -1,6 +1,5 @@
 #include "config.h"
 #include "poll.h"
-#include "poller_core.h"
 #include "trace.h"
 #include "bind.h"
 
@@ -14,6 +13,8 @@
 #include <stdlib.h>
 #include <fcntl.h>
 
+LOG_DECL(POLL);
+
 namespace util {
 
 namespace posix {
@@ -22,13 +23,18 @@ PollerCore::PollerCore()
     : m_array(NULL),
       m_count(0)
 {
+    int rc = pipe(m_waker_fd);
+    if (rc != 0)
+    {
+	TRACE << "Can't pipe\n";
+    }
+    int flags = fcntl(m_waker_fd[0], F_GETFL);
+    fcntl(m_waker_fd[0], F_SETFL, flags | O_NONBLOCK);
 }
 
 unsigned int PollerCore::SetUpArray(const std::vector<PollRecord> *pollables)
 {
-    m_count = pollables->size();
-    if (!m_count)
-	return 0;
+    m_count = pollables->size() + 1;
 
     struct pollfd *newarray = 
 	(struct pollfd*)realloc(m_array, m_count*sizeof(struct pollfd));
@@ -38,15 +44,19 @@ unsigned int PollerCore::SetUpArray(const std::vector<PollRecord> *pollables)
 
     m_array = newarray;
 
-    for (size_t i=0; i<m_count; ++i)
-    {
-	m_array[i].fd = (*pollables)[i].h;
-	short events = 0;
-	unsigned int directions = (*pollables)[i].direction;
+    m_array[0].fd = m_waker_fd[0];
+    m_array[0].events = POLLIN;
+    m_array[0].revents = 0;
 
-	if (directions & PollerInterface::IN)
+    for (size_t i=1; i<m_count; ++i)
+    {
+	m_array[i].fd = (*pollables)[i-1].h;
+	short events = 0;
+	unsigned int directions = (*pollables)[i-1].direction;
+
+	if (directions & PollRecord::IN)
 	    events |= POLLIN;
-	if (directions & PollerInterface::OUT)
+	if (directions & PollRecord::OUT)
 	    events |= POLLOUT;
 //	TRACE << "pc" << this << ": " << i << ". fd " << m_array[i].fd << " events "
 //	      << events << " pollable " << (*pollables)[i].p << "\n";
@@ -59,97 +69,89 @@ unsigned int PollerCore::SetUpArray(const std::vector<PollRecord> *pollables)
 
 unsigned int PollerCore::Poll(unsigned int timeout_ms)
 {
-//    TRACE << "pc" << this << " polling\n"; 
+//    TRACE << "pc" << this << " polling (" << timeout_ms << "ms)\n"; 
     int rc = ::poll(m_array, m_count, (int)timeout_ms);
 //    TRACE << "pc" << this << " polled " << rc << "\n";
-    if (rc < 0)
+    if (rc < 0 && errno != EINTR)
 	return errno;
     return 0;
 }
 
-unsigned int PollerCore::DoCallbacks(const std::vector<PollRecord> *pollables,
+unsigned int PollerCore::DoCallbacks(std::vector<PollRecord> *pollables,
 				     bool array_valid)
 {
     if (!array_valid)
 	return 0; // All Posix pollables are level-triggered
 
-    assert(pollables->size() == m_count);
+    assert(pollables->size() + 1 == m_count);
+
+    if (m_array[0].revents)
+    {
+	LOG(POLL) << "Got wake\n";
+
+	// Wipe up wake-up events
+	enum { COUNT = 16 };
+	char ch[COUNT];
+	for (;;) 
+	{
+	    ssize_t rc = read(m_waker_fd[0], ch, COUNT);
+	    if (rc <= 0)
+		break;
+	}
+    }
  
-//    for (size_t i=0; i<m_count; ++i)
+//    for (size_t i=1; i<m_count; ++i)
 //    {
-//	TRACE << i << ". arrayfd=" << m_array[i].fd << " pollables[i].h="
-//	      << (*pollables)[i].h << " p=" << (*pollables)[i].p << "\n";
+//	TRACE << i << ". arrayfd=" << m_array[i].fd << " pollables[i-1].h="
+//	      << (*pollables)[i-1].h << " p=" << (*pollables)[i-1].p << "\n";
 //    }
 
     /* Care here as "pollables" might get changed as soon as we start making
      * callbacks.
      */
-    std::vector<Callback> callbacks;
-    callbacks.reserve(pollables->size());
+    std::vector<TaskCallback> task_callbacks;
+    task_callbacks.reserve(pollables->size());
 
-    for (size_t i=0; i<m_count; ++i)
+    for (size_t i=1; i<m_count; ++i)
     {
 	if (m_array[i].revents)
 	{
 //	    TRACE << "pc" << this << ": activity on fd " << m_array[i].fd << "\n";
-	    assert((*pollables)[i].h == m_array[i].fd);
-	    callbacks.push_back((*pollables)[i].c);
+	    PollRecord& record = (*pollables)[i-1];
+	    assert(record.h == m_array[i].fd);
+
+	    if (record.oneshot)
+		record.direction = 0; // Mark for deletion
+
+	    if (record.tc)
+		task_callbacks.push_back(record.tc);
 	}
     }
 
-    for (size_t i=0; i<callbacks.size(); ++i)
-	callbacks[i]();
+//    TRACE << "Making " << task_callbacks.size() << " callbacks\n";
+
+    for (size_t i=0; i<task_callbacks.size(); ++i)
+	task_callbacks[i]();
+
+//    TRACE << "Done\n";
 
     return 0;
+}
+
+void PollerCore::Wake()
+{
+//    TRACE << "Wake writes\n";
+    char ch = '*';
+    ssize_t rc = write(m_waker_fd[1], &ch, 1);
+    assert(rc == 1);
+    rc = rc;
 }
 
 PollerCore::~PollerCore()
 {
     free(m_array);
-}
-
-PollWaker::PollWaker(PollerInterface *p)
-{
-    int rc = pipe(m_fd);
-    if (rc != 0)
-    {
-	TRACE << "Can't pipe\n";
-    }
-    int flags = fcntl(m_fd[0], F_GETFL);
-    fcntl(m_fd[0], F_SETFL, flags | O_NONBLOCK);
-
-    p->Add(this, Bind<PollWaker, &PollWaker::OnActivity>(this), 
-	   PollerInterface::IN);
-}
-
-PollWaker::~PollWaker()
-{
-    close(m_fd[0]);
-    close(m_fd[1]);
-}
-
-/** This is level-triggered, we don't want to be woken N times after N calls
- * to Wake().
- */
-unsigned PollWaker::OnActivity()
-{
-    enum { COUNT = 64 };
-    char ch[COUNT];
-    for (;;) 
-    {
-	ssize_t rc = read(m_fd[0], ch, COUNT);
-	if (rc < 0)
-	    return 0;
-    }
-    return 0;
-}
-
-void PollWaker::Wake()
-{
-    char ch = '*';
-    ssize_t rc = write(m_fd[1], &ch, 1);
-    assert(rc == 1);
-    rc = rc;
+    close(m_waker_fd[0]);
+    close(m_waker_fd[1]);
 }
 
 } // namespace util::posix

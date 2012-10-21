@@ -1,10 +1,15 @@
 #include "config.h"
 #include "cddb_service.h"
+#include "libutil/trace.h"
+#include "libutil/counted_pointer.h"
 
 #if HAVE_LIBCDDB
 
+/* For entirely bonkers reason, cddb_conn.h includes netinet/in.h. It
+ * doesn't need to, and on Win32 it plain can't.
+ */
+#undef HAVE_NETINET_IN_H
 #include <cddb/cddb.h>
-#include "libutil/trace.h"
 
 namespace import {
 
@@ -116,4 +121,18 @@ CDDBLookupPtr CDDBService::Lookup(AudioCDPtr cd)
 
 } // namespace import
 
-#endif // HAVE_LIBCDDB
+#else // !HAVE_LIBCDDB
+
+namespace import {
+
+CDDBService::CDDBService() : m_impl(NULL) {}
+CDDBService::~CDDBService() {}
+
+void CDDBService::SetUseProxy(bool) {}
+void CDDBService::SetProxyHost(const std::string&) {}
+void CDDBService::SetProxyPort(unsigned short) {}
+CDDBLookupPtr CDDBService::Lookup(AudioCDPtr) { return CDDBLookupPtr(); }
+
+} // namespace import
+
+#endif // !HAVE_LIBCDDB

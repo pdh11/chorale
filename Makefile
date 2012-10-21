@@ -52,7 +52,7 @@ distclean: clean
 	rm -rf config.*.h Make.config.*-* stamp-h config.log config.status \
 		autom4te.cache libtool.* libtool
 	find . -name diff.txt -exec rm -f \{} \;
-	find . -name map.txt -exec rm -f \{} \;
+	find . -name 'map*.txt' -exec rm -f \{} \;
 	find . -name '*.dep' -exec rm -f \{} \;
 	find . -name '*.o' -exec rm -f \{} \;
 	find . -name '*~' -exec rm -f \{} \;
@@ -139,7 +139,7 @@ SUBDIRS:= \
 	choraleutil \
 	libdb \
 	libdbempeg \
-	libdbinno \
+	libdbisam \
 	libdblocal \
 	libdbmerge \
 	libdbreceiver \
@@ -147,6 +147,7 @@ SUBDIRS:= \
 	libdbupnp \
 	libempeg \
 	libimport \
+	libisam \
 	libmediadb \
 	libmediatree \
 	liboutput \
@@ -161,22 +162,53 @@ libdeps.dot: Makefile
 	echo "digraph G {" > $@
 	for i in $(SUBDIRS) ; do \
 		grep "^#include.*\".*/" $$i/*.{h,cpp} \
-			| fgrep -v choraled.all \
-			| fgrep -v exe.all \
+			| fgrep -v all- \
 			| grep -v ".*include.*$$i" \
 			| sed -e 's,/[^\"]*\", -> ,'  -e s,/[^/]*\",, ; \
 	done | sort | uniq >> $@
-	echo "libdb -> libutil" >> $@
 	echo "}" >> $@
 
-filedeps.dot: Makefile
+# Dependencies among Chorale headers
+headerdeps.dot: Makefile
 	echo "digraph G {" > $@
-	for i in `find . -name '*.h'` ; do \
-		g++ -MP -M $$i -I. 2>/dev/null | grep '^[a-z].*:$$' \
+	for i in `find . -maxdepth 2 -name '*.h'` ; do \
+		g++ -MP -M $$i -I. 2>/dev/null $(QT_CXXFLAGS) \
+			$(TAGLIB_CXXFLAGS) $(HAL_CXXFLAGS) \
+			$(GSTREAMER_CXXFLAGS) $(CXXFLAGS) \
+			| grep '^[a-z].*:$$' \
 			| sed -e 's,^,"'$$i'" -> ",' -e 's,:$$,",' \
 				-e 's,^"./,",' ; \
 	done >> $@
 	echo "}" >> $@
+
+# Dependencies among all Chorale files
+filedeps.dot: Makefile
+	echo "digraph G {" > $@
+	for i in `find . -maxdepth 2 -name '*.h' -o -name '*.cpp'` ; do \
+		g++ -MP -M $$i -I. 2>/dev/null $(QT_CXXFLAGS) \
+			$(TAGLIB_CXXFLAGS) $(HAL_CXXFLAGS) \
+			$(GSTREAMER_CXXFLAGS) $(CXXFLAGS) \
+			| grep '^[a-z].*:$$' \
+			| sed -e 's,^,"'$$i'" -> ",' -e 's,:$$,",' \
+				-e 's,^"./,",' ; \
+	done >> $@
+	echo "}" >> $@
+	scripts/fan $@
+
+# All dependencies including on system headers
+alldeps.dot: Makefile
+	echo "digraph G {" > $@
+	for i in `find . -maxdepth 2 -name '*.h' -o -name '*.cpp'` ; do \
+		g++ -MP -M $$i -I. $(QT_CXXFLAGS) \
+			$(TAGLIB_CXXFLAGS) $(HAL_CXXFLAGS) \
+			$(GSTREAMER_CXXFLAGS) $(CXXFLAGS) \
+			| grep '^[a-z/].*:$$' \
+			| sed -e 's,:$$,,' \
+			| sed -e 's,^,"'$$i'" -> ",' -e 's,$$,",' \
+				-e 's,^"./,",' ; \
+	done >> $@
+	echo "}" >> $@
+	scripts/fan $@
 
 %.gif: %.dot
 	tred $< | dot -Tgif -o $@
@@ -187,7 +219,7 @@ filedeps.dot: Makefile
 
 CLEANS += $(TOP)filedeps.dot $(TOP)libdeps.dot
 
-ALL_HEADERS:=$(shell ls $(TOP)*/*.h | fgrep -v .all- )
+ALL_HEADERS:=$(shell ls $(TOP)*/*.h | fgrep -v all- )
 
 #$(filter-out %/%.all-%, $(wildcard $(TOP)*/*.h))
 
@@ -213,3 +245,6 @@ cppcheck: $(CHECKED_CPPS)
 
 headercount:
 	grep 'TOP.*:' */$(TARGETDIR)/*.lo.dep | wc -l
+
+tests:
+	@find $(TOP) -name '*.cpp.gcov' | $(TOP)scripts/topten

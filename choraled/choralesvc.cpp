@@ -7,7 +7,6 @@
 #include <windows.h>
 #include <stdio.h>
 #include <getopt.h>
-#include <pthread.h>
 #include <shlobj.h>
 #include <stdarg.h>
 #include "cd.h"
@@ -15,7 +14,7 @@
 #include "nfs.h"
 #include "web.h"
 #include "libutil/worker_thread_pool.h"
-#include "libutil/poll.h"
+#include "libutil/scheduler.h"
 #include "libutil/http_client.h"
 #include "libutil/http_server.h"
 #include "libutil/trace.h"
@@ -186,8 +185,6 @@ static const wchar_t REG_ROOT[] = L"SOFTWARE\\chorale.sf.net\\Chorale\\1.0";
 
 void ChoraleService::Impl::Run()
 {
-    pthread_win32_process_attach_np();
-
     std::string mp3root = 
 	util::UTF16ToUTF8(GetRegistryEntry(REG_ROOT, L"mp3root"));
     std::string flacroot = 
@@ -268,8 +265,6 @@ void ChoraleService::Impl::Run()
     Win32Complaints complaints;
 
     choraled::Main(&settings, &complaints);
-
-    pthread_win32_process_detach_np();
 }
 
 
@@ -572,23 +567,6 @@ static void Usage(FILE *f)
 	    LICENCE
 "From " PACKAGE_STRING " built on " __DATE__ ".\n"
 	);
-}
-
-/** GCC 4.3.0 miscompiles the wmemcpy in mingw-runtime-3.14, causing all hell
- * to break loose. Use this, much simpler, wmemcpy instead.
- */
-wchar_t *wmemcpy(wchar_t *dest, const wchar_t *src, size_t n)
-{
-    return (wchar_t*)memcpy(dest, src, n*2);
-}
-
-/** GCC 4.3.0 miscompiles the wmemcpy in mingw-runtime-3.14, causing
- * all hell to break loose. Just in case wmemmove is similarly
- * affected, use this, much simpler, one instead.
- */
-wchar_t *wmemmove(wchar_t *dest, const wchar_t *src, size_t n)
-{
-    return (wchar_t*)memmove(dest, src, n*2);
 }
 
 /* We use main() rather than wmain() because there isn't a wide

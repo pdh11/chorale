@@ -8,20 +8,23 @@
  * typically, the GPL.
  */
 #include "cd_window.h"
+#include "features.h"
 #include "libutil/trace.h"
 #include <qradiobutton.h>
 #include <qlayout.h>
 #include <qlabel.h>
 #include <qspinbox.h>
 #include <qpushbutton.h>
-#include <q3buttongroup.h>
-#include <q3popupmenu.h>
+#include <qbuttongroup.h>
+#include <QMenu>
+#include <QTableWidget>
+#include <QHeaderView>
+#include <QScrollBar>
 #include <qlineedit.h>
 #include <qapplication.h>
 #include <qdesktopwidget.h>
 #include <qcursor.h>
 #include <qstring.h>
-#include "tagtable.h"
 #include "events.h"
 #include "settings.h"
 #include <sstream>
@@ -29,8 +32,21 @@
 #include "libmediadb/schema.h"
 #include "libdb/recordset.h"
 #include <fcntl.h>
+#include <stdio.h>
+
+#if HAVE_CD
 
 namespace choraleqt {
+
+class ImmutableTableItem: public QTableWidgetItem
+{
+public:
+    explicit ImmutableTableItem(const char *s)
+	: QTableWidgetItem(s)
+	{
+	    setFlags(Qt::ItemIsEnabled);
+	}
+};
 
 struct CDWindow::Entry
 {
@@ -92,6 +108,7 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
     QHBoxLayout *toplayout = new QHBoxLayout();//NULL, 0, 6);
 
     QRadioButton *rb1 = new QRadioButton("&Single-artist", this);
+    rb1->setChecked(true);
     toplayout->addWidget(rb1);
 
     QRadioButton *rb2 = new QRadioButton("C&ompilation", this);
@@ -100,11 +117,10 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
     QRadioButton *rb3 = new QRadioButton("&Mixed", this);
     toplayout->addWidget(rb3);
 
-    m_cdtype = new Q3ButtonGroup(this);
-    m_cdtype->insert(rb1, SINGLE_ARTIST);
-    m_cdtype->insert(rb2, COMPILATION);
-    m_cdtype->insert(rb3, MIXED);
-    m_cdtype->setButton(SINGLE_ARTIST);
+    m_cdtype = new QButtonGroup(this);
+    m_cdtype->addButton(rb1, SINGLE_ARTIST);
+    m_cdtype->addButton(rb2, COMPILATION);
+    m_cdtype->addButton(rb3, MIXED);
 
     toplayout->addStretch(10);
 
@@ -116,7 +132,8 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
 
     toplayout->addWidget(new QLabel("Track offset", this));
 
-    m_trackoffset = new QSpinBox(0,99,1,this);
+    m_trackoffset = new QSpinBox(this);
+    m_trackoffset->setRange(0,99);
     toplayout->addWidget(m_trackoffset);
     toplayout->addStretch(10);
 
@@ -130,24 +147,29 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
 
     vlayout->addLayout(toplayout);
 
-    m_table = new TagTable(m_ntracks, (sizeof(columns)/sizeof(*columns)),
-			   this);
+    m_table = new QTableWidget(m_ntracks, (sizeof(columns)/sizeof(*columns)),
+			       this);
     vlayout->addWidget(m_table, 1);
 
     int duration_column = 0;
 
     for (unsigned int i=0; i<(sizeof(columns)/sizeof(*columns)); ++i)
     {
-	m_table->horizontalHeader()->setLabel(i, columns[i].title);
-	if (columns[i].field == 0 || columns[i].field == mediadb::DURATIONMS)
-	    m_table->setColumnReadOnly(i, true);
+	m_table->setHorizontalHeaderItem(i,
+					 new QTableWidgetItem(columns[i].title));
+//	if (columns[i].field == 0 || columns[i].field == mediadb::DURATIONMS)
+//	    m_table->setColumnReadOnly(i, true);
 	if (columns[i].field == 0)
 	    m_progress_column = i;
 	if (columns[i].field == mediadb::DURATIONMS)
 	    duration_column = i;
     }
 
-    m_table->setSorting(false);
+    m_table->setSortingEnabled(false);
+    m_table->setAlternatingRowColors(true);
+    m_table->horizontalHeader()->resizeSection(0, 
+					       m_table->horizontalHeader()->sectionSize(0)*2);
+    m_table->horizontalHeader()->setStretchLastSection(true);
 
     for (unsigned int i=0; i<m_ntracks; ++i)
     {
@@ -161,18 +183,25 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
 	   << std::setw(2) << std::setfill('0')
 	   << (sectors % 75);
 	m_table->setItem(i, duration_column,
-			 new HiddenNumericTableItem(m_table, Q3TableItem::Never,
-						    os.str().c_str(),
-						    sectors));
+			 new ImmutableTableItem(os.str().c_str()));
+	m_table->setItem(i, m_progress_column, new ImmutableTableItem(""));
+
+	for (unsigned int j=0; j<sizeof(columns)/sizeof(*columns); ++j)
+	{
+	    if (j != m_progress_column && j != (unsigned)duration_column)
+		m_table->setItem(i, j, new QTableWidgetItem);
+	}
+	
+	m_table->setRowHeight(i, (QFontInfo(font()).pixelSize() * 5) /4 + 4);
     }
 
     if (cddb)
 	SetUpCDDBStrings(0);
 
-    connect(m_table, SIGNAL(valueChanged(int,int)),
-	    this, SLOT(OnTableValueChanged(int,int)));
+    connect(m_table, SIGNAL(itemChanged(QTableWidgetItem*)),
+	    this, SLOT(OnTableItemChanged(QTableWidgetItem*)));
 
-    QHBoxLayout *blayout = new QHBoxLayout(NULL, 0, 6);
+    QHBoxLayout *blayout = new QHBoxLayout;
     blayout->addStretch(1);
 
 //    QPushButton *cancel = new QPushButton("&Cancel", this);
@@ -184,19 +213,13 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
     blayout->addSpacing(20); // clear of the resize handle
 
     vlayout->addLayout(blayout);
+    vlayout->setSizeConstraint(QLayout::SetMinAndMaxSize);
 
     setSizeGripEnabled(true);
 
     connect(done, SIGNAL(clicked()), this, SLOT(OnDone()));
 
     show();
-    m_cdtype->hide();
-
-    setMaximumHeight( blayout->sizeHint().height()
-		      + toplayout->sizeHint().height()
-		      + m_table->horizontalHeader()->sizeHint().height()
-		      + m_table->horizontalScrollBar()->sizeHint().height()
-		      + m_table->contentsHeight() + 4 + 2*6 + 18 );
 
     size_t newheight = maximumHeight();
     size_t screenheight = QApplication::desktop()->height();
@@ -261,37 +284,23 @@ static QColor ColourFor(const QString& s)
     return Qt::red;
 }
 
-void CDWindow::OnTableValueChanged( int row, int col )
+void CDWindow::OnTableItemChanged(QTableWidgetItem *item)
 {
-    QString value = m_table->text( row, col );
+    if (item->column() == (int)m_progress_column)
+	return;
 
-//    TRACE << "OTVC " << row << "," << col << "\n";
+    QString value = item->text();
 
-    for ( int i=0; ; ++i )
+    QList<QTableWidgetItem*> twil = m_table->selectedItems();
+
+    for (int i=0; i<twil.size(); ++i)
     {
-	Q3TableSelection qts = m_table->selection(i);
-
-	if ( !qts.isActive() )
+	QTableWidgetItem *twi = twil[i];
+	if (twi != item && (twi->flags() & Qt::ItemIsEditable))
 	{
-	    if (!i) // no selection
-		m_table->setItem(row, col,
-				 new ColouredItem(m_table, value,
-						  ColourFor(value)));
-	    break;
+	    twi->setText(value);
+	    twi->setForeground(ColourFor(value));
 	}
-
-	for ( int col = qts.leftCol(); col <= qts.rightCol(); ++col )
-	    for ( int row = qts.topRow(); row <= qts.bottomRow(); ++row )
-	    {
-//		TRACE << "considering " << row << "," << col << "\n";
-		unsigned int field = columns[col].field;
-		if (field != mediadb::DURATIONMS && field != 0) // readonly
-		{
-		    m_table->setItem(row, col,
-				     new ColouredItem(m_table, value,
-						      ColourFor(value)));
-		}
-	    }
     }
 }
 
@@ -304,7 +313,7 @@ std::string CDWindow::QStringToUTF8(const QString& s)
 
 void CDWindow::OnDone()
 {
-    unsigned int cdtype = m_cdtype->selectedId();
+    unsigned int cdtype = m_cdtype->checkedId();
     unsigned int trackoffset = m_trackoffset->value();
 
     switch (cdtype)
@@ -336,7 +345,7 @@ void CDWindow::OnDone()
 	    unsigned int field = columns[j].field;
 	    if (!field)
 		continue;
-	    tags->SetString(field, QStringToUTF8(m_table->text(i, j)));
+	    tags->SetString(field, QStringToUTF8(m_table->item(i,j)->text()));
 	}
 	
 	tags->Commit();
@@ -392,27 +401,36 @@ void CDWindow::customEvent(QEvent *ce)
 	    os << e->rt_percent << "%/"
 	       << e->et1_percent << "%/"
 	       << e->et2_percent << "%";
-	    m_table->setText(track, m_progress_column, os.str().c_str());
+	    m_table->item(track,m_progress_column)->setText(os.str().c_str());
 	}
     }
 }
 
 void CDWindow::OnCDDB()
 {
-    Q3PopupMenu qp;
+    QMenu qp;
+
+    std::map<QAction*, unsigned int> actionmap;
     
     for (unsigned int i=0; i<m_cddb->discs.size(); ++i)
     {
 	std::string item = m_cddb->discs[i].title + " by "
 	    + m_cddb->discs[i].artist;
-	qp.insertItem(QString::fromUtf8(item.c_str()), i);
+	QAction *action = qp.addAction(QString::fromUtf8(item.c_str()));
+	actionmap[action] = i;
     }
-    qp.insertSeparator();
-    qp.insertItem("None of the above", 1000);
+    qp.addSeparator();
+    actionmap[qp.addAction("None of the above")] = 1000;
 
-    int rc = qp.exec(QCursor::pos());
-    if (rc >= 0)
-	SetUpCDDBStrings(rc);
+    QAction *chosen = qp.exec();
+    if (chosen)
+    {
+	if (actionmap.find(chosen) != actionmap.end())
+	{
+	    unsigned int which = actionmap[chosen];
+	    SetUpCDDBStrings(which);
+	}
+    }
 }
 
 void CDWindow::SetUpCDDBStrings(unsigned int which)
@@ -430,7 +448,7 @@ void CDWindow::SetUpCDDBStrings(unsigned int which)
 		    || field == mediadb::GENRE
 		    || field == mediadb::YEAR
 		    || field == mediadb::COMMENT)
-		    m_table->setText(i, j, "");
+		    m_table->item(i,j)->setText("");
 	    }
 	}
 	m_albumname->setText("");
@@ -450,22 +468,23 @@ void CDWindow::SetUpCDDBStrings(unsigned int which)
 	    for (unsigned int j=0; j<NUM_COLUMNS; ++j)
 	    {
 		unsigned int field = columns[j].field;
+		QTableWidgetItem *item = m_table->item(i,j);
 		switch (field)
 		{
 		case mediadb::GENRE:
-		    m_table->setText(i, j, QString::fromUtf8(f->genre.c_str()));
+		    item->setText(QString::fromUtf8(f->genre.c_str()));
 		    break;
 		case mediadb::YEAR:
-		    m_table->setText(i, j, year);
+		    item->setText(year);
 		    break;
 		case mediadb::TITLE:
-		    m_table->setText(i, j, QString::fromUtf8(t->title.c_str()));
+		    item->setText(QString::fromUtf8(t->title.c_str()));
 		    break;
 		case mediadb::ARTIST:
-		    m_table->setText(i, j, QString::fromUtf8(t->artist.empty() ? f->artist.c_str() : t->artist.c_str()));
+		    item->setText(QString::fromUtf8(t->artist.empty() ? f->artist.c_str() : t->artist.c_str()));
 		    break;
 		case mediadb::COMMENT:
-		    m_table->setText(i, j, QString::fromUtf8(t->comment.empty() ? f->comment.c_str() : t->comment.c_str()));
+		    item->setText(QString::fromUtf8(t->comment.empty() ? f->comment.c_str() : t->comment.c_str()));
 		    break;
 		}
 	    }
@@ -474,3 +493,5 @@ void CDWindow::SetUpCDDBStrings(unsigned int which)
 }
 
 } // namespace choraleqt
+
+#endif // HAVE_CD

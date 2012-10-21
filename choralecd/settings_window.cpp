@@ -13,11 +13,12 @@
 #include <qlayout.h>
 #include <QScrollArea>
 #include <qpushbutton.h>
-#include <q3vbox.h>
 #include <qlineedit.h>
 #include <qlabel.h>
-#include <q3groupbox.h>
 #include <QScrollBar>
+#include <QGroupBox>
+
+namespace choraleqt {
 
 SettingsWindow::SettingsWindow(Settings *settings)
     : QDialog(),
@@ -30,17 +31,17 @@ SettingsWindow::SettingsWindow(Settings *settings)
 
     QScrollArea *view = new QScrollArea(this);
 
-    Q3VBox *box = new Q3VBox;
-    view->setWidget(box);
-    view->setWidgetResizable(true);
-    box->show();
-    view->show();
+    QWidget *scrolled = new QWidget;
+
+    QVBoxLayout *box = new QVBoxLayout;
+
+    box->setSizeConstraint(QLayout::SetMinimumSize);
     
     m_entries.push_back(new SettingsEntryText(box, m_settings, "MP3 folder",
 					      &Settings::SetMP3Root,
 					      &Settings::GetMP3Root));
     
-    m_entries.push_back(new SettingsEntryText(box, m_settings, "FLAC folder",
+    m_entries.push_back(new SettingsEntryText(box, m_settings, "FLAC folder (leave blank for none)",
 					      &Settings::SetFlacRoot,
 					      &Settings::GetFlacRoot));
     
@@ -49,18 +50,20 @@ SettingsWindow::SettingsWindow(Settings *settings)
 					      &Settings::SetUseCDDB,
 					      &Settings::GetUseCDDB));
 
-    m_gb = new Q3GroupBox(1, Qt::Horizontal, "Use HTTP proxy (for CDDB)",
-			  box);
+    m_gb = new QGroupBox("Use HTTP proxy (for CDDB)");
     m_gb->setCheckable(true);
-    m_gb->setInsideMargin(3);
+    QVBoxLayout *innerbox = new QVBoxLayout;
     m_gb->setChecked(m_settings->GetUseHttpProxy());
+    box->addWidget(m_gb);
 
-    m_entries.push_back(new SettingsEntryEndpoint(m_gb, m_settings, 
+    m_entries.push_back(new SettingsEntryEndpoint(innerbox, m_settings, 
 						  &Settings::SetHttpProxyHost,
 						  &Settings::GetHttpProxyHost, 
 						  &Settings::SetHttpProxyPort,
 						  &Settings::GetHttpProxyPort));
+    m_gb->setLayout(innerbox);
 
+#if 0
     m_entries.push_back(new SettingsEntryMap(box, m_settings,
 					     "Aliases for local resources",
 					     NULL, NULL));
@@ -68,9 +71,7 @@ SettingsWindow::SettingsWindow(Settings *settings)
     m_entries.push_back(new SettingsEntryMap(box, m_settings,
 					     "Aliases for network resources",
 					     NULL, NULL));
-
-    QWidget *blank = new QWidget(box);
-    box->setStretchFactor(blank, 100);
+#endif
 
     vert->addWidget(view);
     
@@ -92,7 +93,9 @@ SettingsWindow::SettingsWindow(Settings *settings)
 
     vert->addSpacing(6);
 
-//    view->setResizePolicy(Q3ScrollView::AutoOneFit);
+    scrolled->setLayout(box);
+    view->setWidget(scrolled);
+    view->setWidgetResizable(true);
     setSizeGripEnabled(true);
 
     for (list_t::iterator i = m_entries.begin(); i != m_entries.end(); ++i)
@@ -116,3 +119,5 @@ void SettingsWindow::accept()
 
     QDialog::accept();
 }
+
+} // namespace choraleqt

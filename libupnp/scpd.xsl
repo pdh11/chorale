@@ -119,6 +119,7 @@
 #include &lt;string&gt;
 #include &lt;stdint.h&gt;
 #include &quot;libutil/observable.h&quot;
+#include &quot;libutil/bind.h&quot;
 
 namespace upnp {
 
@@ -384,7 +385,30 @@ void <xsl:value-of select="$class"/>Server::On<xsl:value-of select="name"/>(<xsl
     <xsl:for-each select="//action">
 <xsl:if test="$h or $ch or $sh"><xsl:text>
     </xsl:text></xsl:if>
-    <xsl:if test="$h">virtual </xsl:if>unsigned int <xsl:if test="$cs">
+    <xsl:if test="$h">
+      <xsl:if test="not(argumentList/argument[direction='out'])">
+    typedef util::Callback1&lt;unsigned int&gt;
+        <xsl:value-of select="name"/>Callback;
+      </xsl:if>
+      <xsl:if test="argumentList/argument[direction='out']">
+    struct <xsl:value-of select="name"/>Response {
+<xsl:for-each select="argumentList/argument[direction='out']">
+      <xsl:text>        </xsl:text>
+      <xsl:variable name="type" select="//stateVariable[name=current()/relatedStateVariable]/dataType"/>
+      <xsl:if test="//stateVariable[name=current()/relatedStateVariable]/allowedValueList">
+        <xsl:value-of select="str:replace(current()/relatedStateVariable,'A_ARG_TYPE_','')"/>
+      </xsl:if>
+      <xsl:if test="not(//stateVariable[name=current()/relatedStateVariable]/allowedValueList)">
+      <xsl:call-template name="cpptype">
+        <xsl:with-param name="type" select="$type"/>
+      </xsl:call-template></xsl:if><xsl:text> </xsl:text>
+        <xsl:call-template name="camelcase-to-underscore">
+          <xsl:with-param name="camelcase" select="name"/>
+        </xsl:call-template>;
+</xsl:for-each>    };
+    typedef util::Callback2&lt;unsigned int, const <xsl:value-of select="name"/>Response*&gt; <xsl:value-of select="name"/>Callback;
+
+    </xsl:if>virtual </xsl:if>unsigned int <xsl:if test="$cs">
     <xsl:value-of select="$class"/>Client::</xsl:if><xsl:if test="$s">
     <xsl:value-of select="$class"/>::</xsl:if>
       <xsl:value-of select="name"/>(
@@ -415,7 +439,7 @@ void <xsl:value-of select="$class"/>Server::On<xsl:value-of select="name"/>(<xsl
       <xsl:if test="not(position()=last())">,
       </xsl:if>
     </xsl:for-each>)<xsl:choose>
-    <xsl:when test="$h"><!--<xsl:if test="not(Optional)"> = 0</xsl:if>-->;</xsl:when>
+    <xsl:when test="$h"><!--<xsl:if test="not(Optional)"> = 0</xsl:if>-->; /* Synchronous */</xsl:when>
     <xsl:when test="$ch">;</xsl:when>
     <xsl:when test="$s">
 {

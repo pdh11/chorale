@@ -10,9 +10,11 @@
 #include "libutil/hal.h"
 
 namespace mediadb { class Registry; }
+namespace output { class Registry; }
 namespace output { class URLPlayer; }
 namespace output { class Queue; }
-namespace util { class PollerInterface; }
+namespace output { namespace upnpav { class URLPlayer; } }
+namespace util { class Scheduler; }
 namespace util { namespace http { class Client; } }
 namespace util { namespace http { class Server; } }
 
@@ -35,6 +37,8 @@ public:
 		 output::Queue*, mediadb::Registry*, 
 		 const std::string& tooltip);
     ~OutputWidget();
+
+    output::Queue *GetQueue() { return m_queue; }
     
     // Being a ResourceWidget
     void OnTopButton();
@@ -64,6 +68,20 @@ public:
     void OnDevice(util::hal::DevicePtr dev);
 };
 
+class UpnpOutputWidget: public OutputWidget
+{
+    Q_OBJECT
+    
+    output::upnpav::URLPlayer *m_player;
+    
+public:
+    UpnpOutputWidget(QWidget *parent, const std::string& name, QPixmap,
+		     output::upnpav::URLPlayer*,
+		     output::Queue*, mediadb::Registry*, const std::string&);
+
+    unsigned int OnInitialised(unsigned int error_code);
+};
+
 /** A WidgetFactory which creates OutputWidget items for UPnP media
  * renderers.
  */
@@ -72,14 +90,16 @@ class UpnpOutputWidgetFactory: public WidgetFactory,
 {
     QPixmap *m_pixmap;
     QWidget *m_parent;
-    mediadb::Registry *m_registry;
-    util::PollerInterface *m_poller;
+    mediadb::Registry *m_db_registry;
+    output::Registry *m_output_registry;
+    util::Scheduler *m_poller;
     util::http::Client *m_client;
     util::http::Server *m_server;
 
 public:
     UpnpOutputWidgetFactory(QPixmap*, mediadb::Registry*, 
-			    util::PollerInterface*,
+			    output::Registry*,
+			    util::Scheduler*,
 			    util::http::Client*, util::http::Server*);
 
     // Being a WidgetFactory

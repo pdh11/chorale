@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(chorale, [0.15], pdh@utter.chaos.org.uk)
+AC_INIT(chorale, [0.17], pdh@utter.chaos.org.uk)
 AC_SUBST(PACKAGE_WEBSITE, [http://chorale.sf.net])
 AC_DEFINE_UNQUOTED([PACKAGE_WEBSITE], ["${PACKAGE_WEBSITE}"], [Define to the package's website])
 
@@ -15,11 +15,13 @@ AC_CONFIG_AUX_DIR([autotools])
 
 # Checks for programs.
 AC_PROG_CC
+CFLAGS="-O2" # Override -g
 AC_GNU_SOURCE
 AC_PROG_LIBTOOL
 AC_C_BIGENDIAN
 
 AC_PROG_CXX
+CXXFLAGS="-O2" # Override -g
 AC_SYS_LARGEFILE
 if test "x$ac_cv_sys_file_offset_bits" != "x" -a "x$ac_cv_sys_file_offset_bits" != "xno" -a "x$ac_cv_sys_file_offset_bits" != "xunknown" ; then
   LARGEFILES=-D_FILE_OFFSET_BITS=$ac_cv_sys_file_offset_bits
@@ -100,7 +102,6 @@ PDH_CXX_WARNING([-Wconversion])
 PDH_CXX_WARNING([-Wwrite-strings])
 PDH_CXX_WARNING([-Wpointer-arith])
 #PDH_CXX_WARNING([-Wsign-conversion])
-#PDH_CXX_WARNING([-Wstrict-overflow])
 PDH_CXX_WARNING([-Wnon-virtual-dtor])
 PDH_CXX_WARNING([-Wstrict-overflow=5])
 PDH_CXX_WARNING([-Woverloaded-virtual])
@@ -124,6 +125,8 @@ fi
 
 
 AC_CHECK_TOOL([GCOV], [gcov], [:])
+AC_CHECK_TOOL([SIZE], [size], [:])
+AC_CHECK_TOOL([WINDRES], [windres], [:])
 AC_PATH_PROG(CONVERT, convert, no)
 if test "$CONVERT" = "no"; then
    HAVE_CONVERT="no"
@@ -155,11 +158,13 @@ else
 	VALGRIND_OPTS="$VALGRIND_OPTS --track-origins=yes"
    fi
 fi
+PKG_PROG_PKG_CONFIG
 AC_PROG_INSTALL
 AC_SUBST(HAVE_CONVERT)
 AC_SUBST(HAVE_XSLTPROC)
 AC_SUBST(HAVE_INKSCAPE)
 AC_SUBST(HAVE_VALGRIND)
+AC_SUBST(HAVE_WINDRES)
 AC_SUBST(VALGRIND_OPTS)
 
 
@@ -167,10 +172,10 @@ AC_SUBST(VALGRIND_OPTS)
 
 AC_ARG_WITH([gpl],
 [AS_HELP_STRING([--without-gpl],[Avoid using GPL libraries (e.g. Qt 4.4)])],
-[with_gpl=no],[with_gpl=yes])
+[],[with_gpl=yes])
 AC_ARG_WITH([lgpl],
 [AS_HELP_STRING([--without-lgpl],[Avoid using GPL and LGPL libraries])],
-[with_lgpl=no],[with_lgpl=yes])
+[],[with_lgpl=yes])
 AC_ARG_WITH([libwrap],
 [AS_HELP_STRING([--without-libwrap],[Avoid using libwrap from tcp_wrappers])],
 [],[with_libwrap=yes])
@@ -330,6 +335,38 @@ AC_DEFUN([PDH_CHECK_CDPARANOIA],[
 	[Define to 1 if you have `real' cdparanoia (not libcdio), or to 0 if you don't])
 ])
 
+## Check for Boost.regex and Boost.thread
+#
+AC_DEFUN([PDH_CHECK_BOOST], [
+  AC_MSG_CHECKING([for Boost])
+  if test "$WIN32" = "yes" ; then
+    BOOST_LIBS="-lboost_thread_win32 -lboost_regex"
+  else
+    BOOST_LIBS="-lboost_thread -lboost_regex"
+  fi
+  AC_LANG_PUSH([C++])
+  ok_LIBS=$LIBS
+  LIBS="$LIBS $BOOST_LIBS"
+  AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <boost/thread/mutex.hpp>
+#include <boost/regex.hpp>
+]],
+  [[
+boost::regex rx("*foo*");
+boost::mutex mx;
+
+boost::mutex::scoped_lock lock(mx);
+boost::regex_match("afooa", rx);
+  ]])],
+    [BOOST="yes"],
+    [BOOST="no"])
+  LIBS=$ok_LIBS
+  AC_LANG_POP
+  AC_MSG_RESULT($BOOST)
+  AC_SUBST(BOOST_LIBS)
+])
+
+## Check for InnoDB (NYI)
+#
 AC_DEFUN([PDH_CHECK_INNODB],[
 AC_MSG_CHECKING([for innodb])
 pdh_haveit=0
@@ -381,18 +418,16 @@ if test "x${with_lgpl}" == xno ; then
   disable_lgpl="LGPL"
 fi
 
-PKG_PROG_PKG_CONFIG
-
 # Qt 4.5.0+ is LGPL, earlier Qt is GPL
 QT="no"
 AC_MSG_CHECKING([for Qt])
 if test "x${with_lgpl}" != xno ; then
-PKG_CHECK_EXISTS([QtGui >= 4.5.0 Qt3Support >= 4.5.0 QtCore >= 4.5.0],
+PKG_CHECK_EXISTS([QtGui >= 4.5.0 QtCore >= 4.5.0],
  [QT="yes"
   AC_MSG_RESULT([yes (LGPL)])
  ],[
   if test "x${with_gpl}" != xno ; then
-    PKG_CHECK_EXISTS([QtGui >= 4.2.0 Qt3Support >= 4.2.0 QtCore >= 4.2.0],
+    PKG_CHECK_EXISTS([QtGui >= 4.4.0 QtCore >= 4.4.0],
      [QT="yes"
       AC_MSG_RESULT([yes (GPL)])
      ],[
@@ -407,9 +442,9 @@ else
 fi
 
 if test "${QT}" = "yes" ; then
-  QT_MOC=`pkg-config --variable=moc_location QtGui`
-  QT_CFLAGS=`pkg-config --cflags QtGui Qt3Support QtCore`
-  QT_LIBS=`pkg-config --libs QtGui Qt3Support QtCore`
+  QT_MOC=`$PKG_CONFIG --variable=moc_location QtGui`
+  QT_CFLAGS=`$PKG_CONFIG --cflags QtGui QtCore`
+  QT_LIBS=`$PKG_CONFIG --libs QtGui QtCore`
   AC_SUBST(QT_MOC)
   AC_SUBST(QT_CFLAGS)
   AC_SUBST(QT_LIBS)
@@ -459,15 +494,19 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([
 if test "$pdh_win32" = "yes"; then
   AC_MSG_RESULT([yes])
   WIN32="yes"
+  DOTEXE=".exe"
   # We need at least 0x500 (Win2K) not the default 0x400 (95/NT4)
-  CFLAGS="$CFLAGS -DWINVER=0x500"
-  CXXFLAGS="$CXXFLAGS -DWINVER=0x500"
+  CFLAGS="$CFLAGS -DWINVER=0x500 -DTAGLIB_STATIC"
+  CXXFLAGS="$CXXFLAGS -DWINVER=0x500 -DTAGLIB_STATIC"
 else
   AC_MSG_RESULT([no])
   WIN32="no"
+  DOTEXE=""
 fi
 AC_SUBST(WIN32)
+AC_SUBST(DOTEXE)
 
+PDH_CHECK_BOOST
 PDH_CHECK_INNODB
 PDH_PKGCONFIG(DBUS,      dbus-1,    1.1.1)
 PDH_PKGCONFIG(TAGLIB,    taglib,    1.4,   $disable_lgpl)
@@ -481,17 +520,29 @@ PDH_PKGCONFIG(LIBCDIOP,  libcdio_paranoia, 0.76,  $disable_gpl)
 # NB do NOT use LIBFLAC_CFLAGS/LIBFLACPP_CFLAGS -- they introduce a directory
 # with a bogus <assert.h>.
 
-# ax_boost.m4 is AllPermissive
-AX_BOOST([1.35.0],[BOOST="yes"],[BOOST="no"])
-if test "${ax_cv_boost_thread}${ax_cv_boost_regex}" != "yesyes" ; then
-  BOOST="no"
-fi
 
 # Checks for header files.
-PDH_CHECK_HEADERS_AND_ADD([io.h poll.h errno.h fcntl.h sched.h netdb.h direct.h net/if.h stdint.h stdlib.h unistd.h windows.h pthread.h ws2tcpip.h sys/poll.h sys/time.h sys/stat.h sys/types.h sys/socket.h sys/syslog.h netinet/in.h sys/utsname.h netinet/tcp.h sys/inotify.h sys/resource.h])
+PDH_CHECK_HEADERS_AND_ADD([io.h poll.h errno.h fcntl.h sched.h netdb.h direct.h dirent.h net/if.h stdint.h stdlib.h unistd.h windows.h pthread.h ws2tcpip.h sys/poll.h sys/time.h sys/stat.h sys/types.h sys/socket.h sys/syslog.h netinet/in.h sys/utsname.h netinet/tcp.h sys/inotify.h sys/resource.h])
 PDH_CHECK_HEADERS([linux/unistd.h linux/inotify.h linux/dvb/dmx.h linux/dvb/frontend.h]) # No AND_ADD as they may conflict with libc
 AC_LANG_PUSH([C++])
 PDH_CHECK_HEADER([boost/spirit/include/classic.hpp]) # No AND_ADD as it's C++
+AC_LANG_POP
+
+AC_DEFUN([PDH_CHECK_EXCEPTIONS], [
+  AC_MSG_CHECKING([whether <$1> compiles with -fno-exceptions])
+  pdh_CXXFLAGS=$CXXFLAGS
+  CXXFLAGS="$CXXFLAGS -fno-exceptions"
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <$1>]])],
+    [AC_MSG_RESULT([yes]); AS_TR_SH([EXCEPTIONAL_$1])=""],
+    [AC_MSG_RESULT([no]); AS_TR_SH([EXCEPTIONAL_$1])="yes"])
+  CXXFLAGS=$pdh_CXXFLAGS
+  AC_SUBST(AS_TR_SH([EXCEPTIONAL_$1]))
+])
+
+AC_LANG_PUSH([C++])
+PDH_CHECK_EXCEPTIONS([boost/function.hpp])
+PDH_CHECK_EXCEPTIONS([boost/thread/tss.hpp])
+PDH_CHECK_EXCEPTIONS([boost/thread/mutex.hpp])
 AC_LANG_POP
 
 AC_DEFUN([PDH_CHECK_FUNC], [
@@ -507,7 +558,7 @@ AC_DEFUN([PDH_CHECK_FUNCS], [
 m4_foreach_w([pdh_func], $1, [PDH_CHECK_FUNC(pdh_func)])
 ])
 
-PDH_CHECK_FUNCS([mkdir _wstat _wmkdir mkstemp localtime_r setpriority getaddrinfo inotify_init gettimeofday posix_fadvise FindFirstFileW gethostbyname_r sync_file_range GetFullPathNameW sched_setscheduler])
+PDH_CHECK_FUNCS([pipe mkdir _wstat _wmkdir mkstemp scandir localtime_r setpriority getaddrinfo inotify_init gettimeofday posix_fadvise FindFirstFileW gethostbyname_r sync_file_range GetFullPathNameW sched_setscheduler])
 
 pdh_nr_inotify_init=0
 if test "$ac_cv_func_inotify_init$ac_cv_header_unistd_h" = "noyes"; then
@@ -520,6 +571,65 @@ if test "$ac_cv_func_inotify_init$ac_cv_header_unistd_h" = "noyes"; then
 fi
 AC_DEFINE_UNQUOTED([HAVE_NR_INOTIFY_INIT], $pdh_nr_inotify_init,
       [Define to 1 if you have __NR_inotify_init but not inotify_init(), or to 0 otherwise])
+
+AC_DEFUN([PDH_CHECK_SCANDIR],
+[
+  # This changed between glibc 2.9 and 2.10.1
+  AC_MSG_CHECKING([type of scandir() comparator argument])
+  AC_LANG_PUSH([C++])
+  SCANDIR_COMPARATOR_ARG_T=
+  for i in "const struct dirent**" "struct dirent**" "const void*" "void*" ; do
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <dirent.h>
+    extern int my_compare($i, $i);
+  ]],
+  [[
+    struct dirent **namelist;
+    return scandir("/", &namelist, 0, my_compare);
+  ]])],
+  [
+    SCANDIR_COMPARATOR_ARG_T=$i
+    AC_MSG_RESULT([$i])
+    break;
+  ],[])
+  done
+
+  if test "$SCANDIR_COMPARATOR_ARG_T" == "" ; then
+    AC_MSG_RESULT([n/a])
+    HAVE_SCANDIR=no
+  fi
+  AC_DEFINE_UNQUOTED([SCANDIR_COMPARATOR_ARG_T], $SCANDIR_COMPARATOR_ARG_T,
+    [Type of arguments to fourth argument of scandir])
+  AC_LANG_POP
+])
+
+PDH_CHECK_SCANDIR
+
+
+AC_DEFUN([PDH_CHECK_CONDITION_TIMED_WAIT], [
+  AC_MSG_CHECKING([for boost::condition::timed_wait with interval])
+  AC_LANG_PUSH([C++])
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <boost/thread/condition.hpp>
+#include <boost/thread/mutex.hpp>
+  ]],
+  [[
+    boost::mutex mx;
+    boost::mutex::scoped_lock lock(mx);
+    boost::condition cond;
+    cond.timed_wait(lock, boost::posix_time::seconds(3));
+  ]])],
+  [
+    AC_MSG_RESULT([yes])
+    HAVE_CONDITION_TIMED_WAIT_INTERVAL=1
+  ],
+  [
+    AC_MSG_RESULT([no])
+    HAVE_CONDITION_TIMED_WAIT_INTERVAL=0
+  ])
+  AC_LANG_POP
+  AC_DEFINE_UNQUOTED([HAVE_CONDITION_TIMED_WAIT_INTERVAL],
+		$HAVE_CONDITION_TIMED_WAIT_INTERVAL,
+    [Define to 1 if boost::condition::timed_wait can take a time interval])
+])
 
 AC_DEFUN([PDH_CHECK_LIB], [
 AC_MSG_CHECKING([for -l$1])
@@ -535,7 +645,7 @@ m4_foreach_w([pdh_lib], $1, [ PDH_CHECK_LIB(pdh_lib) ])
 ])
 
 # These libraries are in link order; don't reorder them just to look nice!
-PDH_CHECK_LIBS([pthread ws2_32])
+PDH_CHECK_LIBS([z mpr pthread ws2_32])
 
 AC_CHECK_DECLS([LOG_ERR,LOG_NOTICE,LOG_WARNING],,,[
 #if HAVE_SYS_SYSLOG_H
@@ -572,6 +682,17 @@ AC_TYPE_UINT8_T
 AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
+
+AC_LANG_PUSH([C++])
+AC_CHECK_SIZEOF([boost::mutex],,[[#include <boost/thread/mutex.hpp>]])
+AC_CHECK_SIZEOF([boost::thread],,[[#include <boost/thread/thread.hpp>]])
+AC_CHECK_SIZEOF([boost::condition],,[[#include <boost/thread/condition.hpp>]])
+AC_CHECK_SIZEOF([boost::recursive_mutex],,[[#include <boost/thread/recursive_mutex.hpp>]])
+AC_CHECK_SIZEOF([boost::mutex::scoped_lock],,[[#include <boost/thread/mutex.hpp>]])
+AC_CHECK_SIZEOF([boost::recursive_mutex::scoped_lock],,[[#include <boost/thread/recursive_mutex.hpp>]])
+AC_LANG_POP
+
+PDH_CHECK_CONDITION_TIMED_WAIT
 
 AC_DEFUN([PDH_CHECK_SOCKOPT], [
 AC_MSG_CHECKING([for $1])
@@ -641,7 +762,7 @@ printf "\n"
 pdh_ok=yes
 pdh_fail=no
 if test "${pdh_cd}${LIBCDDB}${QT}${LAME}${LIBFLAC}${GSTREAMER}${DBUS}${HAL}${MPG123}${TAGLIB}${HAVE_CONVERT}${HAVE_XSLTPROC}${HAVE_INKSCAPE}" != "yesyesyesyesyesyesyesyesyesyesyesyesyes" ; then
-test "${QT}" = "yes"        || printf "** Install Qt 4.2.0 or later to build optional choralecd (4.5.0 for LGPL)\n   http://www.troll.no\n"
+test "${QT}" = "yes"        || printf "** Install Qt 4.4.0 or later to build optional choralecd (4.5.0 for LGPL)\n   http://www.troll.no\n"
 test "${LIBFLAC}" = "yes"   || printf "** Install flac 1.1.3 or later to build optional CD support\n   http://flac.sourceforge.net\n"
 test "${LAME}" = "yes"      || printf "** Install Lame 3.96.1 or later to build optional CD support\n   http://lame.sourceforge.net\n"
 test "${pdh_cd}" = "yes"    || printf "** Install cdparanoia 10 or later, or libcdio 0.76 or later to build\n   optional CD support\n   http://www.xiph.org/paranoia/\n   http://www.gnu.org/software/libcdio\n"

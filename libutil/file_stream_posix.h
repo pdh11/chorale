@@ -2,6 +2,7 @@
 #define FILE_STREAM_POSIX_H
 
 #include "file_stream.h"
+#include <boost/noncopyable.hpp>
 
 namespace util {
 
@@ -24,6 +25,8 @@ public:
 		     size_t *pwrote);
     pos64 GetLength();
     unsigned SetLength(pos64);
+
+    PollHandle GetHandle() { return m_fd; }
 };
 
 } // namespace posix

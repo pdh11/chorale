@@ -1,6 +1,5 @@
 #include "config.h"
 #include "poll.h"
-#include "poller_core.h"
 #include "trace.h"
 
 LOG_DECL(POLL);
@@ -20,24 +19,47 @@ PollerCore::PollerCore()
     : m_array(NULL),
       m_count(0),
       m_which(0),
-      m_which_handle(NULL)
+      m_which_handle(NULL),
+      m_wakeup_event(::CreateEvent(NULL, false, false, NULL))
 {
 }
 
-unsigned int PollerCore::SetUpArray(const std::vector<PollRecord> *pollables)
+unsigned int PollerCore::SetUpArray(std::vector<PollRecord> *pollables)
 {
-    m_count = pollables->size();
+    m_count = pollables->size() + 1;
 
-    void **newarray = (void**)realloc(m_array,
-				      pollables->size() * sizeof(void*));
+    void **newarray = (void**)realloc(m_array, m_count * sizeof(void*));
     if (!newarray)
 	return ENOMEM;
     m_array = newarray;
+
+    m_array[0] = m_wakeup_event;
     
-    for (size_t i = 0; i<m_count; ++i)
-	m_array[i] = (*pollables)[i].h;
+    for (size_t i = 1; i<m_count; ++i)
+    {
+	PollRecord& record = (*pollables)[i-1];
+	if (!record.internal)
+	{
+	    record.internal = WSACreateEvent();
+	    if (record.direction == util::PollRecord::IN)
+		WSAEventSelect(record.h, record.internal,
+			       FD_READ | FD_ACCEPT | FD_CLOSE);
+	    else
+		WSAEventSelect(record.h, record.internal, FD_WRITE | FD_CLOSE);
+	}
+	m_array[i] = record.internal;
+    }
 
     return 0;
+}
+
+void PollerCore::Deleting(PollRecord *r)
+{
+    if (r->internal)
+    {
+	WSAEventSelect(r->h, NULL, 0);
+	WSACloseEvent((WSAEVENT)r->internal);
+    }
 }
 
 unsigned int PollerCore::Poll(unsigned int timeout_ms)
@@ -60,67 +82,63 @@ unsigned int PollerCore::Poll(unsigned int timeout_ms)
 //	TRACE << "Poll timed out\n";
 	m_which = -1;
     }
+    else if (rc == WAIT_OBJECT_0)
+    {
+	m_which = -1; // Wake-up call only
+	::ResetEvent(m_wakeup_event);
+    }
     else
     {
-//	TRACE << "Poll returned " << (rc - WAIT_OBJECT_0) << "\n";
-	m_which = rc - WAIT_OBJECT_0;
+//	TRACE << "Poll returned " << (rc - WAIT_OBJECT_0 - 1) << "\n";
+	m_which = rc - WAIT_OBJECT_0 - 1;
 	m_which_handle = m_array[m_which];
     }
 
     return 0;
 }
 
-unsigned int PollerCore::DoCallbacks(const std::vector<PollRecord> *pollables,
+unsigned int PollerCore::DoCallbacks(std::vector<PollRecord> *pollables,
 				     bool valid)
 {
+    if (!valid)
+    {
+//      TRACE << "Warning, pollables changed, searching for handle\n";
+	m_which = -1;
+
+	for (unsigned int i=0; i<pollables->size(); ++i)
+	{
+	    if ((*pollables)[i].internal == m_which_handle)
+	    {
+		m_which = i;
+		break;
+	    }
+	}
+    }
+
     if (m_which == -1)
 	return 0;
     
-    if (valid)
-    {
-//	TRACE << "Making callback " << m_which << "\n";
-	return (*pollables)[m_which].c();
-    }
+//  TRACE << "Making callback " << m_which << "\n";
+    PollRecord& record = (*pollables)[m_which];
+    ::ResetEvent(record.internal);
 
-//    TRACE << "Warning, pollables changed, searching for handle\n";
+    if (record.oneshot)
+	record.direction = 0; // Mark for deletion
 
-    for (unsigned int i=0; i<pollables->size(); ++i)
-    {
-	if ((*pollables)[i].h == m_which_handle)
-	{
-	    return (*pollables)[i].c();
-	}
-    }
+    if (record.tc)
+	record.tc();
     return 0;
+}
+
+void PollerCore::Wake()
+{
+    ::SetEvent(m_wakeup_event);
 }
 
 PollerCore::~PollerCore()
 {
     free(m_array);
-}
-
-PollWaker::PollWaker(PollerInterface *p)
-    : m_event(::CreateEvent(NULL, false, false, NULL))
-{
-    p->Add(this, Bind<PollWaker, &PollWaker::OnActivity>(this),
-	   util::PollerInterface::IN);
-}
-
-PollWaker::~PollWaker()
-{
-    ::CloseHandle(m_event);
-}
-
-unsigned PollWaker::OnActivity()
-{
-//    TRACE << "PollWaker::OnActivity\n";
-    ::ResetEvent(m_event);
-    return 0;
-}
-
-void PollWaker::Wake()
-{
-    ::SetEvent(m_event);
+    ::CloseHandle(m_wakeup_event);
 }
 
 } // namespace util::win32

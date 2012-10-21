@@ -3,8 +3,8 @@
 #include "vfs.h"
 #include "libutil/trace.h"
 #include "libutil/endian.h"
-#include "libutil/poll.h"
 #include <errno.h>
+#include <string.h>
 
 namespace receiverd {
 
@@ -71,12 +71,19 @@ struct Readargs
 
 } // namespace nfs
 
-NFSServer::NFSServer(util::PollerInterface *poller, util::IPFilter *filter,
+util::TaskPtr NFSServer::Create(util::Scheduler *poller, 
+				util::IPFilter *filter, PortMapper *portmap,
+				VFS *vfs)
+{
+    return util::TaskPtr(new NFSServer(poller, filter, portmap, vfs));
+}
+
+NFSServer::NFSServer(util::Scheduler *poller, util::IPFilter *filter,
 		     PortMapper *portmap, VFS *vfs)
-    : m_rpc(PROGRAM_NFS, 2, poller, filter, this),
+    : RPCServer(PROGRAM_NFS, 2, poller, filter),
       m_vfs(vfs)
 {
-    portmap->AddProgram(PROGRAM_NFS, m_rpc.GetPort());
+    portmap->AddProgram(PROGRAM_NFS, GetPort());
 }
 
 unsigned int NFSServer::OnRPC(uint32_t proc, const void *args,
@@ -259,15 +266,17 @@ unsigned int NFSServer::OnRPC(uint32_t proc, const void *args,
 # include "libreceiver/ssdp.h"
 # include "mount.h"
 # include "tarfs.h"
+# include "libutil/scheduler.h"
 # include "libutil/file_stream.h"
 
 int main(int argc, char *argv[])
 {
     if (argc >= 2)
     {
-	util::Poller poller;
-	receiverd::PortMapper pmap(&poller, NULL);
-	receiverd::Mount mountd(&poller, NULL, &pmap);
+	util::BackgroundScheduler poller;
+	receiverd::PortMapperPtr pmap = receiverd::PortMapper::Create(&poller,
+								      NULL);
+	receiverd::Mount::Create(&poller, NULL, pmap.get());
 
 	util::SeekableStreamPtr stm;
 	unsigned int rc = util::OpenFileStream(argv[1], util::READ, &stm);
@@ -279,12 +288,12 @@ int main(int argc, char *argv[])
 
 	receiverd::TarFS tarfs(stm);
 
-	receiverd::NFSServer nfsd(&poller, NULL, &pmap, &tarfs);
+	receiverd::NFSServer::Create(&poller, NULL, pmap.get(), &tarfs);
 
 	receiver::ssdp::Server ssdp(NULL);
 	ssdp.Init(&poller);
 	ssdp.RegisterService(receiver::ssdp::s_uuid_softwareserver, 
-			     pmap.GetPort());
+			     pmap->GetPort());
 
 	while (1)
 	{

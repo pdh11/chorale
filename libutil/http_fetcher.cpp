@@ -2,8 +2,9 @@
 #include "http_client.h"
 #include "trace.h"
 #include "errors.h"
-#include "poll.h"
+#include "scheduler.h"
 #include "file.h"
+#include "counted_pointer.h"
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -12,128 +13,57 @@ namespace util {
 
 namespace http {
 
-class Fetcher::Impl: public Connection::Observer
+class Fetcher::Task: public Connection
 {
     std::map<std::string, std::string> *m_headers;
     unsigned int m_error_code;
-    // Use asynchronous API synchronously by having our own Poller
-    Poller m_poller;
-    ConnectionPtr m_connection;
     bool m_done;
     std::string m_response;
     IPEndPoint m_local_endpoint;
 
-    // Being a util::http::Connection::Observer
-    unsigned OnHttpHeader(const std::string& key, const std::string& value);
-    unsigned OnHttpData();
-    void OnHttpDone(unsigned int error_code);
+    // Being a util::http::Connection
+    unsigned Write(const void *buffer, size_t len, size_t *pwrote);
+    void OnHeader(const std::string& /*key*/, const std::string& /*value*/);
+    void OnEndPoint(const util::IPEndPoint& endpoint);
+    void OnDone(unsigned int error_code);
 
 public:
-    Impl(std::map<std::string, std::string> *headers,
-	 Client *client, 
-	 const std::string& url, 
-	 const char *extra_headers,
-	 const char *body,
-	 const char *verb);
-    ~Impl() {}
+    explicit Task(std::map<std::string, std::string> *headers);
+    ~Task() {}
 
-    unsigned int FetchToString(std::string *presult);
-    IPEndPoint GetLocalEndPoint() { return m_local_endpoint; }
+    bool IsDone() const { return m_done; }
+    IPEndPoint GetLocalEndPoint() const { return m_local_endpoint; }
+    unsigned int GetErrorCode() const { return m_error_code; }
+    const std::string& GetResponse() const { return m_response; }
 };
 
-Fetcher::Impl::Impl(std::map<std::string, std::string> *headers,
-		    Client *client, 
-		    const std::string& url, 
-		    const char *extra_headers,
-		    const char *body,
-		    const char *verb)
+Fetcher::Task::Task(std::map<std::string, std::string> *headers)
     : m_headers(headers),
       m_error_code(0),
       m_done(false)
 {
-    m_connection = client->Connect(&m_poller, this, url,
-				   extra_headers ? extra_headers : "",
-				   body ? body : "",
-				   verb);
-    m_error_code = m_connection->Init();
 }
 
-unsigned int Fetcher::Impl::FetchToString(std::string *presult)
-{
-    *presult = std::string();
-
-    if (m_error_code)
-	return m_error_code;
-
-    time_t start = time(NULL);
-    time_t finish = start+10; // Give it ten seconds
-    time_t now;
-
-    do {
-	now = time(NULL);
-	if (now < finish)
-	{
-//	    TRACE << "hf" << this << ": hc" << m_connection << ": polling\n";
-	    unsigned int rc = m_poller.Poll((unsigned)(finish-now)*1000);
-	    if (rc)
-		return rc;
-	}
-    } while (now < finish && !m_done && !m_error_code);
-
-    if (!m_done)
-    {
-//	TRACE << "hf" << this << ": hc" << m_connection << ": timed out\n";
-    }
-    else
-    {
-//	TRACE << "hf" << this << ": hc" << m_connection << ": done, error code is " << m_error_code
-//	      << " response is '" << m_response << "'\n";
-    }
-
-    m_local_endpoint = m_connection->GetLocalEndPoint();
-
-    if (!m_error_code)
-	*presult = m_response;
-    return m_error_code;
-}
-
-unsigned Fetcher::Impl::OnHttpHeader(const std::string& key, 
-				     const std::string& value)
+void Fetcher::Task::OnHeader(const std::string& key, const std::string& value)
 {
 //    TRACE << "hf" << this << ": " << key << ": " << value << "\n";
     (*m_headers)[key] = value;
+}
+
+void Fetcher::Task::OnEndPoint(const util::IPEndPoint& endpoint)
+{
+    m_local_endpoint = endpoint;
+}
+
+unsigned Fetcher::Task::Write(const void *buffer, size_t len, size_t *pwrote)
+{
+    m_response.append((const char*)buffer, len);
+    *pwrote = len;
     return 0;
 }
 
-unsigned Fetcher::Impl::OnHttpData()
+void Fetcher::Task::OnDone(unsigned int error_code)
 {
-    unsigned int rc;
-    char buffer[1024];
-
-//    TRACE << "In OnHttpData\n";
-
-    do {
-	size_t nread;
-//	TRACE << "Calling Read\n";
-	rc = m_connection->Read(buffer, sizeof(buffer), &nread);
-//	TRACE << "Read returned " << rc << "\n";
-	if (rc == EWOULDBLOCK)
-	    return 0;
-	if (rc)
-	    return rc;
-//	TRACE << "Got " << nread << " bytes\n";
-	if (!nread)
-	    return 0;
-
-	m_response.append(buffer, nread);
-    } while (!m_done);
-
-    return 0;
-}
-
-void Fetcher::Impl::OnHttpDone(unsigned int error_code)
-{
-//    TRACE << "hf" << this << " done (" << error_code << ")\n";
     if (!m_error_code)
 	m_error_code = error_code;
     m_done = true;
@@ -144,23 +74,63 @@ Fetcher::Fetcher(Client *client,
 		 const std::string& url, const char *extra_headers,
 		 const char *body,
 		 const char *verb)
-    : m_impl(new Impl(&m_headers, client, url, extra_headers, body, verb))
+    : m_client(client),
+      m_url(url),
+      m_extra_headers(extra_headers),
+      m_body(body),
+      m_verb(verb)
 {
 }
 
 Fetcher::~Fetcher()
 {
-    delete m_impl;
 }
 
 unsigned int Fetcher::FetchToString(std::string *presult)
 {
-    return m_impl->FetchToString(presult);
-}
+    // Use asynchronous API synchronously by having our own Scheduler
+    BackgroundScheduler scheduler;
 
-IPEndPoint Fetcher::GetLocalEndPoint()
-{
-    return m_impl->GetLocalEndPoint();
+    CountedPointer<Task> ptr(new Task(&m_headers));
+
+    unsigned int rc = m_client->Connect(&scheduler, ptr, m_url,
+					m_extra_headers ? m_extra_headers : "",
+					m_body ? m_body : "", m_verb);
+    if (rc)
+	return rc;
+
+    time_t start = time(NULL);
+    time_t finish = start+10; // Give it ten seconds
+    time_t now;
+
+    do {
+	now = time(NULL);
+	if (now < finish)
+	{
+//	    TRACE << "hf" << this << ": hc" << m_connection << ": polling\n";
+	    rc = scheduler.Poll((unsigned)(finish-now)*1000);
+	    if (rc)
+		return rc;
+	}
+    } while (now < finish && !ptr->IsDone() && !ptr->GetErrorCode());
+    
+    if (!ptr->IsDone())
+    {
+	rc = ptr->GetErrorCode();
+	if (!rc)
+	{
+//	    TRACE << "hf" << this << ": hc" << m_connection << ": timed out\n";
+	    rc = ETIMEDOUT;
+	}
+    }
+    else
+    {
+	m_local_endpoint = ptr->GetLocalEndPoint();
+    }
+
+    if (!rc)
+	*presult = ptr->GetResponse();
+    return rc;
 }
 
 
@@ -227,11 +197,22 @@ std::string ResolveURL(const std::string& base,
     return basehost + util::MakeAbsolutePath(basepath, linkpath);
 }
 
+bool IsHttpURL(const char *url)
+{
+    return !strncmp(url, "http://", 7);
+}
+
 } // namespace http
 
 } // namespace util
 
 #ifdef TEST
+
+# include "scheduler.h"
+# include "http_server.h"
+# include "worker_thread_pool.h"
+# include "string_stream.h"
+# include <boost/format.hpp>
 
 static struct {
     const char *base;
@@ -248,6 +229,18 @@ static struct {
 };
 
 #define COUNTOF(x) (sizeof(x)/sizeof(x[0]))
+
+class EchoContentFactory: public util::http::ContentFactory
+{
+public:
+    bool StreamForPath(const util::http::Request *rq, util::http::Response *rs)
+    {
+	util::StringStreamPtr ssp = util::StringStream::Create();
+	ssp->str() = rq->path;
+	rs->ssp = ssp;
+	return true;
+    }
+};
 
 int main()
 {
@@ -277,6 +270,28 @@ int main()
 //    TRACE << "host=" << host << ", port=" << port << "\n";
     assert(host == "foo.bar");
     assert(port == 2888);
+
+    util::WorkerThreadPool server_threads(util::WorkerThreadPool::NORMAL, 4);
+    util::BackgroundScheduler poller;
+    util::http::Server ws(&poller, &server_threads);
+    server_threads.PushTask(util::SchedulerTask::Create(&poller));
+
+    unsigned rc = ws.Init();
+    assert(rc == 0);
+
+    EchoContentFactory ecf;
+    ws.AddContentFactory("/", &ecf);
+
+    std::string url2 = (boost::format("http://127.0.0.1:%u/zootle/wurdle.html")
+		       % ws.GetPort()
+	).str();
+
+    util::http::Client hc;
+    util::http::Fetcher hf(&hc, url2, "Range: bytes=0-\r\n");
+    std::string contents;
+    rc = hf.FetchToString(&contents);
+    assert(rc == 0);
+    assert(contents == "/zootle/wurdle.html");
 
     return 0;
 }

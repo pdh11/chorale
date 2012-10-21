@@ -14,8 +14,8 @@ namespace db {
 class ReadOnlyRecordset: public Recordset
 {
 public:    
-    unsigned int SetInteger(field_t, uint32_t);
-    unsigned int SetString(field_t, const std::string&);
+    unsigned int SetInteger(unsigned int, uint32_t);
+    unsigned int SetString(unsigned int, const std::string&);
     unsigned int AddRecord();
     unsigned int Commit();
     unsigned int Delete();

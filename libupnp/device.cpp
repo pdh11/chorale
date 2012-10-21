@@ -2,6 +2,7 @@
 #include "device.h"
 #include "server.h"
 #include "libutil/trace.h"
+#include <string.h>
 #include <boost/format.hpp>
 
 namespace upnp {
@@ -10,6 +11,10 @@ Device::Device(const char *device_type)
     : m_server(NULL),
       m_device_type(device_type),
       m_friendly_name(PACKAGE_NAME)
+{
+}
+
+Device::~Device()
 {
 }
 

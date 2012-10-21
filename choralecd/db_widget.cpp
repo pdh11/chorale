@@ -7,7 +7,6 @@
  * are thus subject to the licence under which you obtained Qt:
  * typically, the GPL.
  */
-#include "features.h"
 #include "config.h"
 #include "db_widget.h"
 #include <qlayout.h>
@@ -17,6 +16,7 @@
 #include "libdbreceiver/db.h"
 #include "libdbupnp/db.h"
 #include "libdbempeg/db.h"
+#include "libmediadb/registry.h"
 
 namespace choraleqt {
 
@@ -58,9 +58,16 @@ void ReceiverDBWidgetFactory::CreateWidgets(QWidget *parent)
 
 void ReceiverDBWidgetFactory::OnService(const util::IPEndPoint& ep)
 {
-    db::receiver::Database *thedb = new db::receiver::Database(m_http);
-    thedb->Init(ep);
+    std::string dbname = "receiver:" + ep.ToString();
 
+    db::receiver::Database *thedb = (db::receiver::Database*)m_registry->Get(dbname);
+    if (thedb == NULL)
+    {
+	thedb = new db::receiver::Database(m_http);
+	thedb->Init(ep);
+
+	m_registry->Add(dbname, thedb);
+    }
     (void) new choraleqt::DBWidget(m_parent, "Receiver server", *m_pixmap,
 				   thedb, m_registry);
 }
@@ -72,12 +79,14 @@ void ReceiverDBWidgetFactory::OnService(const util::IPEndPoint& ep)
 UpnpDBWidgetFactory::UpnpDBWidgetFactory(QPixmap *pixmap,
 					 mediadb::Registry *registry,
 					 util::http::Client *client,
-					 util::http::Server *server)
+					 util::http::Server *server,
+					 util::Scheduler *poller)
     : m_pixmap(pixmap),
       m_parent(NULL),
       m_registry(registry),
       m_client(client),
-      m_server(server)
+      m_server(server),
+      m_poller(poller)
 {
 }
 
@@ -89,26 +98,33 @@ void UpnpDBWidgetFactory::CreateWidgets(QWidget *parent)
 void UpnpDBWidgetFactory::OnService(const std::string& url,
 				    const std::string& udn)
 {
-    databases_t::const_iterator i = m_databases.find(udn);
-    if (i == m_databases.end())
+    std::string dbname = "upnpav:" + udn;
+
+    db::upnpav::Database *thedb = (db::upnpav::Database*)m_registry->Get(dbname);
+    if (thedb == NULL)
     {
-	db::upnpav::Database *thedb = new db::upnpav::Database(m_client,
-							       m_server);
+	thedb = new db::upnpav::Database(m_client, m_server, m_poller);
 	thedb->Init(url, udn);
 
-	m_databases[udn] = thedb;
-
-	m_widgets[udn] = new choraleqt::DBWidget(m_parent,
-						 thedb->GetFriendlyName(),
-						 *m_pixmap, thedb, m_registry);
+	m_registry->Add(dbname, thedb);
     }
     else
     {
 	/* Re-Init()-ing updates the URL, in case the port number has changed
 	 */
-	i->second->Init(url, udn);
+	thedb->Init(url, udn);
 	m_widgets[udn]->setEnabled(true);
     }
+
+    widgets_t::const_iterator i = m_widgets.find(udn);
+    if (i == m_widgets.end())
+    {
+	m_widgets[udn] = new choraleqt::DBWidget(m_parent,
+						 thedb->GetFriendlyName(),
+						 *m_pixmap, thedb, m_registry);
+    }
+    else
+	i->second->setEnabled(true);
 }
 
 void UpnpDBWidgetFactory::OnServiceLost(const std::string&, 
@@ -122,7 +138,7 @@ void UpnpDBWidgetFactory::OnServiceLost(const std::string&,
 }
 
 
-        /* UpnpDBWidgetFactory */
+        /* EmpegDBWidgetFactory */
 
 
 EmpegDBWidgetFactory::EmpegDBWidgetFactory(QPixmap *pixmap,

@@ -2,7 +2,9 @@
 #include "libutil/file.h"
 #include "libutil/trace.h"
 #include "playlist_asx.h"
+#include "playlist_pls.h"
 #include "playlist_wpl.h"
+#include "libutil/counted_pointer.h"
 
 #include <vector>
 
@@ -28,6 +30,11 @@ PlaylistPtr Playlist::Create(const std::string& filename)
     else if (ext == "wpl")
     {
 	result = new PlaylistWPL;
+	result->m_impl->filename = filename;
+    }
+    else if (ext == "pls")
+    {
+	result = new PlaylistPLS;
 	result->m_impl->filename = filename;
     }
     else

@@ -23,7 +23,7 @@ enum {
     COMMENT,
     YEAR,
     DURATIONMS,
-    CODEC,
+    CODEC, // Specifically, the audio codec
 
     SIZEBYTES, // 10
     BITSPERSEC,
@@ -46,6 +46,8 @@ enum {
     CHILDREN, ///< {nchildren, child-id, child-id...} as UTF-8 string
     IDHIGH,   ///< High-quality (FLAC) version of the file, or 0
     IDPARENT, ///< (An arbitrary one of) the parent directories of this file
+    VIDEOCODEC,
+    CONTAINER,
 
     FIELD_COUNT
 };
@@ -71,6 +73,7 @@ enum {
     IMAGE,
     VIDEO,
     RADIO,
+    TV,
 
     PENDING, ///< Placeholder for a future recording
 
@@ -83,12 +86,34 @@ enum {
     MP2,
     MP3,
     FLAC,
-    OGGVORBIS,
+    VORBIS,
     WAV,
     PCM,
-    JPEG,
 
     CODEC_COUNT
+};
+
+/** Values of VIDEOCODEC field */
+enum {
+    /* NONE */
+    MPEG2 = 1,
+    MPEG4,   /* MPEG-4 part 2 */
+    H264,    /* MPEG-4 part 10, AVC */
+    FLV,
+
+    VIDEOCODEC_COUNT
+};
+
+/** Values of CONTAINER field */
+enum {
+    /* NONE */
+    OGG = 1,
+    MATROSKA,
+    AVI, 
+    MPEGPS, /* MPEG-1 or -2 program stream */
+    MP4,    /* MPEG-4 part 14 */
+
+    CONTAINER_COUNT
 };
 
 /** Turn the internal representation of a "children" field into a vector.

@@ -3,12 +3,12 @@
 
 #include <sys/stat.h>
 #include <string>
-#include <boost/thread/condition.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/intrusive_ptr.hpp>
+#include "mutex.h"
 
 namespace util
 {
+
+template <class> class CountedPointer;
 
 class TaskQueue;
 
@@ -21,12 +21,19 @@ class DirectoryWalker
 public:
     class Observer;
 
+    /** Values of flags */
+    enum {
+	REPORT_LINKS   = 0x1, // Otherwise, follow them silently
+	ONE_FILESYSTEM = 0x2
+    };
+
 private:
     std::string m_root;
     Observer *m_obs;
     TaskQueue *m_queue;
-    boost::mutex m_mutex;
-    boost::condition m_finished;
+    unsigned int m_flags;
+    util::Mutex m_mutex;
+    util::Condition m_finished;
     unsigned int m_count;
     unsigned int m_error;
     volatile bool m_stop;
@@ -41,7 +48,7 @@ private:
     friend class DirectoryTask;
     friend class SymbolicLinkTask;
 
-    typedef boost::intrusive_ptr<DirectoryTask> DirectoryTaskPtr;
+    typedef util::CountedPointer<DirectoryTask> DirectoryTaskPtr;
 
 public:
 
@@ -63,7 +70,8 @@ public:
 
 	virtual unsigned int OnLeaveDirectory(dircookie cookie,
 					      const std::string& path,
-					      const std::string& leaf) = 0;
+					      const std::string& leaf,
+					      const struct stat *st) = 0;
 
 	virtual unsigned int OnFile(dircookie parent_cookie,
 				    unsigned int index,
@@ -82,7 +90,7 @@ public:
     };
 
     DirectoryWalker(const std::string& root, Observer *obs,
-		    TaskQueue *queue);
+		    TaskQueue *queue, unsigned int flags=0);
 
     void Start();
     void Cancel();

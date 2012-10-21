@@ -2,14 +2,16 @@
 
 #ifndef WIN32
 
-#include "libutil/poll.h"
 #include "libutil/trace.h"
+#include "libutil/counted_pointer.h"
 #include "cd.h"
 #include "main.h"
 #include <stdio.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
 #include <getopt.h>
 #include <sys/syslog.h>
 
@@ -139,19 +141,27 @@ static void daemonise()
 class UnixComplaints: public Complaints
 {
 public:
-    void Complain(int loglevel, const char *format, ...)
-    {
-	va_list args;
-	va_start(args, format);
-	    
-	if (s_daemonised)
-	    vsyslog(loglevel, format, args);
-	else
-	    vfprintf(stderr, format, args);
-	
-	va_end(args);
-    }
+    ~UnixComplaints();
+
+    void Complain(int loglevel, const char *format, ...);
 };
+
+UnixComplaints::~UnixComplaints()
+{
+}
+
+void UnixComplaints::Complain(int loglevel, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+	    
+    if (s_daemonised)
+	vsyslog(loglevel, format, args);
+    else
+	vfprintf(stderr, format, args);
+	
+    va_end(args);
+}
 
 int ParseArgs(int argc, char *argv[], Settings *settings,
 	      Complaints *complaints)

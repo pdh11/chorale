@@ -1,0 +1,3 @@
+// Windows resource file for choralecd
+
+IDI_ICON1	ICON	DISCARDABLE	"../imagery/icon.ico"

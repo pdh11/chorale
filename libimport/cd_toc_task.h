@@ -5,6 +5,7 @@
 #include "cd_drives.h"
 #include "audio_cd.h"
 #include "cddb_service.h"
+#include "libutil/counted_pointer.h"
 
 namespace import {
 
@@ -19,7 +20,7 @@ class CDTocTask: public util::Task
 	: m_drive(drive), m_cddb(cddb) {}
 
 public:
-    typedef boost::intrusive_ptr<CDTocTask> CDTocTaskPtr;
+    typedef util::CountedPointer<CDTocTask> CDTocTaskPtr;
 
     static CDTocTaskPtr Create(CDDrivePtr cd, CDDBService *cddb);
 
@@ -30,7 +31,7 @@ public:
     CDDBLookupPtr GetCDDB() { return m_lookup; }
 };
 
-typedef boost::intrusive_ptr<CDTocTask> CDTocTaskPtr;
+typedef util::CountedPointer<CDTocTask> CDTocTaskPtr;
 
 } // namespace import
 

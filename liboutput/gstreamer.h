@@ -29,6 +29,7 @@ public:
     unsigned int SetNextURL(const std::string&, const std::string&);
 
     unsigned int SetPlayState(output::PlayState);
+    unsigned int Seek(unsigned int ms);
 
     void AddObserver(URLObserver*);
     void RemoveObserver(URLObserver*);

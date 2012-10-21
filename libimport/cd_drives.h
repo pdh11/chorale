@@ -7,6 +7,7 @@
 #include <map>
 #include <string>
 #include "libutil/counted_object.h"
+#include "libutil/counted_pointer.h"
 #include "libutil/observable.h"
 #include "libutil/hal.h"
 
@@ -43,10 +44,10 @@ public:
     /** Attempt to create an AudioCDPtr. Can take several seconds (CD spinup).
      * Fails if no CD, or if no audio tracks.
      */
-    virtual unsigned int GetCD(boost::intrusive_ptr<AudioCD> *result) = 0;
+    virtual unsigned int GetCD(util::CountedPointer<AudioCD> *result) = 0;
 };
 
-typedef boost::intrusive_ptr<CDDrive> CDDrivePtr;
+typedef util::CountedPointer<CDDrive> CDDrivePtr;
 
 class LocalCDDrive: public CDDrive
 {
@@ -69,7 +70,7 @@ public:
     bool DiscPresent() const;
     unsigned int Eject();
     util::TaskQueue *GetTaskQueue();
-    unsigned int GetCD(boost::intrusive_ptr<AudioCD> *result);
+    unsigned int GetCD(util::CountedPointer<AudioCD> *result);
 };
 
 class CDDrives: public util::hal::DeviceObserver
@@ -84,6 +85,7 @@ public:
      * to use static information.
      */
     explicit CDDrives(util::hal::Context *hal = NULL);
+    ~CDDrives();
 
     void Refresh();
 

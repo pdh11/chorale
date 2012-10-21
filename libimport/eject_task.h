@@ -4,6 +4,7 @@
 #include "libutil/task.h"
 #include <string>
 #include "cd_drives.h"
+#include "libutil/counted_pointer.h"
 
 namespace import {
 
@@ -15,13 +16,16 @@ class EjectTask: public util::Task
     CDDrivePtr m_cd;
     explicit EjectTask(CDDrivePtr cd) : m_cd(cd) {}
 
-public:
-    static util::TaskPtr Create(CDDrivePtr cd)
-    {
-	return util::TaskPtr(new EjectTask(cd));
-    }
-
     unsigned int Run();
+
+    typedef util::CountedPointer<EjectTask> EjectTaskPtr;
+
+public:
+    static util::TaskCallback Create(CDDrivePtr cd)
+    {
+	EjectTaskPtr ejp(new EjectTask(cd));
+	return util::Bind<EjectTask,&EjectTask::Run>(ejp);
+    }
 };
 
 } // namespace import

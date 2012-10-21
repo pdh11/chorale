@@ -4,6 +4,7 @@
 #include "libutil/memory_stream.h"
 #include "libutil/multi_stream.h"
 #include "libutil/trace.h"
+#include <time.h>
 #include "audio_cd.h"
 
 namespace import {
@@ -88,10 +89,10 @@ unsigned int RippingTask::Run()
     ms->CreateOutput(&pcmformp3);
 
     m_etp1->SetInputStream(pcmforflac, pcmsize);
-    m_encode_queue->PushTask(m_etp1);
+    m_encode_queue->PushTask(util::Bind<EncodingTask,&EncodingTask::Run>(m_etp1));
 
     m_etp2->SetInputStream(pcmformp3, pcmsize);
-    m_encode_queue->PushTask(m_etp2);
+    m_encode_queue->PushTask(util::Bind<EncodingTask,&EncodingTask::Run>(m_etp2));
 
     util::StreamPtr cdstream = m_cd->GetTrackStream(m_track);
     if (!cdstream)

@@ -12,11 +12,11 @@
 #include "libimport/cd_drives.h"
 #include "libimport/cd_toc_task.h"
 
-class Settings;
-
 namespace util { class TaskQueue; }
 
 namespace choraleqt {
+
+class Settings;
 
 /** A progress dialog for initial CD reading (otherwise, there's a
  * noticeable delay).

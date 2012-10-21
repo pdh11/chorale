@@ -3,10 +3,11 @@
 
 #include <string>
 #include <list>
+#include "libutil/counted_pointer.h"
 
 namespace util {
 
-class PollerInterface;
+class Scheduler;
 
 /** Classes for interacting with the D-Bus IPC mechanism, used by HAL.
  */
@@ -30,11 +31,12 @@ public:
 
 class Connection
 {
-    class Impl;
-    Impl *m_impl;
+    class Task;
+    typedef util::CountedPointer<Task> TaskPtr;
+    TaskPtr m_task;
 
 public:
-    explicit Connection(util::PollerInterface *poller);
+    explicit Connection(util::Scheduler *poller);
     ~Connection();
 
     enum {

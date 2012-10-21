@@ -7,7 +7,7 @@
 
 namespace util { namespace http { class Client; } }
 namespace util { namespace http { class Server; } }
-namespace util { class PollerInterface; }
+namespace util { class Scheduler; }
 
 namespace upnp {
 
@@ -33,7 +33,7 @@ class Server: public upnp::soap::InfoSource
     void FireEvent(Service*, const char *variable, const std::string& value);
 
 public:
-    Server(util::PollerInterface*, util::http::Client*, util::http::Server*, 
+    Server(util::Scheduler*, util::http::Client*, util::http::Server*, 
 	   ssdp::Responder*);
     ~Server();
 

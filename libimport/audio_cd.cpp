@@ -4,6 +4,8 @@
 #if HAVE_LIBCDIOP || HAVE_PARANOIA
 
 #include "libutil/trace.h"
+#include "libutil/counted_pointer.h"
+
 #if HAVE_PARANOIA
 // Oh joy, not C++-compatible
 #define private c_private

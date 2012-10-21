@@ -16,32 +16,44 @@
 #include "libutil/dbus.h"
 #include "libutil/http_client.h"
 #include "libutil/http_server.h"
-#include "libutil/poll_thread.h"
+#include "libutil/scheduler.h"
 #include "libutil/trace.h"
 #include "libutil/worker_thread_pool.h"
+#include "libuiqt/scheduler.h"
 #include "libmediadb/registry.h"
-#include "poller.h"
+#include "libmediadb/db.h"
+#include "liboutput/registry.h"
 #include "cd_widget.h"
 #include "db_widget.h"
 #include "output_widget.h"
 #include <memory>
+#include <iostream>
 
-#include "imagery/cd.xpm"
+#include "imagery/cddrive.xpm"
 #include "imagery/empeg.xpm"
 //# include "imagery/folder.xpm"
 #include "imagery/network.xpm"
 #include "imagery/output.xpm"
 
-int main(int argc, char *argv[])
+namespace choraleqt {
+
+int Main(int argc, char *argv[])
 {
     QApplication app( argc, argv );
+#ifdef WIN32
+    /** The System font comes up blank in Wine for some reason, so we use this
+     * font instead.
+     */
+    app.setFont(QFont("Verdana", 8, QFont::Normal));
+#endif
 
-    Settings settings;
+    choraleqt::Settings settings;
     util::WorkerThreadPool cpu_pool(util::WorkerThreadPool::LOW);
     util::WorkerThreadPool disk_pool(util::WorkerThreadPool::NORMAL, 32);
 
-    choraleqt::Poller fg_poller;
-    util::PollThread bg_poller;
+    ui::qt::Scheduler fg_poller;
+    util::BackgroundScheduler bg_poller;
+    disk_pool.PushTask(util::SchedulerTask::Create(&bg_poller));
 
     util::hal::Context *halp = NULL;
 #if HAVE_HAL
@@ -64,20 +76,19 @@ int main(int argc, char *argv[])
     std::auto_ptr<choraleqt::MainWindow> mainwin(
 	new choraleqt::MainWindow(&settings, &cpu_pool, &disk_pool) );
 
-    app.setMainWidget(mainwin.get());
-
-    QPixmap cd_pixmap((const char**)cd_xpm);
+    QPixmap cd_pixmap((const char**)cddrive_xpm);
 #if HAVE_CD
     choraleqt::CDWidgetFactory cwf(&cd_pixmap, &cds, &settings, &cpu_pool,
 				   &disk_pool);
     mainwin->AddWidgetFactory(&cwf);
 #endif
 
-    mediadb::Registry registry;
+    mediadb::Registry db_registry;
+    output::Registry output_registry;
 
     QPixmap output_pixmap((const char**)output_xpm);
 #if HAVE_LIBOUTPUT
-    choraleqt::OutputWidgetFactory owf(&output_pixmap, halp, &registry);
+    choraleqt::OutputWidgetFactory owf(&output_pixmap, halp, &db_registry);
     mainwin->AddWidgetFactory(&owf);
 #endif
 
@@ -86,7 +97,8 @@ int main(int argc, char *argv[])
     http_server.Init();
 
     upnp::ssdp::Responder uclient(&fg_poller, NULL);
-    choraleqt::UpnpOutputWidgetFactory uowf(&output_pixmap, &registry,
+    choraleqt::UpnpOutputWidgetFactory uowf(&output_pixmap, &db_registry,
+					    &output_registry,
 					    &fg_poller, &http_client,
 					    &http_server);
     mainwin->AddWidgetFactory(&uowf);
@@ -95,26 +107,29 @@ int main(int argc, char *argv[])
 //    TRACE << "uc.init done\n";
 
     QPixmap network_pixmap((const char**)network_xpm);
-    choraleqt::ReceiverDBWidgetFactory rdbwf(&network_pixmap, &registry,
+    choraleqt::ReceiverDBWidgetFactory rdbwf(&network_pixmap, &db_registry,
 					     &http_client);
     mainwin->AddWidgetFactory(&rdbwf);
 
     receiver::ssdp::Client client;
     client.Init(&fg_poller, receiver::ssdp::s_uuid_musicserver, &rdbwf);
 
-    choraleqt::UpnpDBWidgetFactory udbwf(&network_pixmap, &registry,
-					 &http_client, &http_server);
+    choraleqt::UpnpDBWidgetFactory udbwf(&network_pixmap, &db_registry,
+					 &http_client, &http_server,
+					 &fg_poller);
     mainwin->AddWidgetFactory(&udbwf);
     uclient.Search(upnp::s_service_type_content_directory, &udbwf);
 
+#if HAVE_CD
     choraleqt::UpnpCDWidgetFactory ucdwf(&cd_pixmap, &settings, &cpu_pool,
 					 &disk_pool, &http_client,
-					 &http_server);
+					 &http_server, &fg_poller);
     mainwin->AddWidgetFactory(&ucdwf);
     uclient.Search(upnp::s_service_type_optical_drive, &ucdwf);
+#endif
 
     QPixmap empeg_pixmap((const char**)empeg_xpm);
-    choraleqt::EmpegDBWidgetFactory edbwf(&empeg_pixmap, &registry,
+    choraleqt::EmpegDBWidgetFactory edbwf(&empeg_pixmap, &db_registry,
 					  &http_server);
     mainwin->AddWidgetFactory(&edbwf);
 
@@ -124,7 +139,16 @@ int main(int argc, char *argv[])
     mainwin->show();
     int rc = app.exec();
 
+    bg_poller.Shutdown();
+
     return rc;
+}
+
+} // namespace choraleqt
+
+int main(int argc, char *argv[])
+{
+    return choraleqt::Main(argc, argv);
 }
 
 /** @mainpage

@@ -2,6 +2,7 @@
 #include "tags.h"
 #include "tags_flac.h"
 #include "tags_mp3.h"
+#include "tags_mutex.h"
 #include "libutil/file.h"
 #include <errno.h>
 #include "libmediadb/schema.h"
@@ -17,22 +18,56 @@
 
 namespace import {
 
-TagsPtr Tags::Create(const std::string& filename)
+Tags::Tags()
+    : m_impl(NULL)
+{
+}
+
+Tags::~Tags()
+{
+    if (m_impl)
+	delete m_impl;
+}
+
+unsigned int Tags::Open(const std::string& filename)
 {
     std::string ext = util::GetExtension(filename.c_str());
 
     if (ext == "mp3" || ext == "mp2")
-	return TagsPtr(new mp3::Tags(filename));
+    {
+	m_impl = new mp3::Tags(filename);
+    }
+    else if (ext == "flac")
+    {
+	m_impl = new flac::Tags(filename);
+    }
+    else
+	return EINVAL;
 
-    if (ext == "flac")
-	return TagsPtr(new flac::Tags(filename));
-
-    return TagsPtr(new Tags(filename));
+    return 0;
 }
 
-unsigned Tags::Read(db::RecordsetPtr rs)
+unsigned int Tags::Read(db::Recordset *rs)
 {
-    boost::mutex::scoped_lock lock(s_taglib_mutex);
+    if (!m_impl)
+	return EINVAL;
+    return m_impl->Read(rs);
+}
+
+unsigned int Tags::Write(const db::Recordset *rs)
+{
+    if (!m_impl)
+	return EINVAL;
+    return m_impl->Write(rs);
+}
+
+
+        /* Tags::Impl */
+
+
+unsigned Tags::Impl::Read(db::Recordset *rs)
+{
+    util::Mutex::Lock lock(s_taglib_mutex);
 
     TagLib::FileRef fr(m_filename.c_str());
 
@@ -78,19 +113,7 @@ unsigned Tags::Read(db::RecordsetPtr rs)
     return 0;
 }
 
-unsigned Tags::Write(db::RecordsetPtr)
-{
-    // Default is to give up
-    return EINVAL;
-}
-
-unsigned WriteTags(const std::string& filename, db::RecordsetPtr tags)
-{
-    TagsPtr tp = Tags::Create(filename);
-    return tp->Write(tags);
-}
-
-boost::mutex s_taglib_mutex;
+util::Mutex s_taglib_mutex;
 
 } // namespace import
 

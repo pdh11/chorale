@@ -16,6 +16,10 @@
 #endif
 #include "libutil/task.h"
 #include "libutil/worker_thread_pool.h"
+#include "libutil/counted_pointer.h"
+#if HAVE_WINDOWS_H
+#include <windows.h>
+#endif
 
 namespace import {
 
@@ -25,6 +29,10 @@ namespace import {
 
 CDDrives::CDDrives(util::hal::Context *hal)
     : m_hal(hal)
+{
+}
+
+CDDrives::~CDDrives()
 {
 }
 

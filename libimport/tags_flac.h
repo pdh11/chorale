@@ -10,13 +10,13 @@ namespace import {
  */
 namespace flac {
 
-class Tags: public import::Tags
+class Tags: public import::Tags::Impl
 {
 public:
-    Tags(const std::string& filename): import::Tags(filename) {}
+    Tags(const std::string& filename): import::Tags::Impl(filename) {}
 
     // Being a Tags
-    unsigned Write(db::RecordsetPtr);
+    unsigned Write(const db::Recordset*);
 
     // No Read() -- use the default one for now
 };

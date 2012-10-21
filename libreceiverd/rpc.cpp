@@ -3,7 +3,7 @@
 #include "rpc.h"
 #include "libutil/trace.h"
 #include "libutil/endian.h"
-#include "libutil/poll.h"
+#include "libutil/scheduler.h"
 #include "libutil/bind.h"
 #include "libutil/ip_filter.h"
 
@@ -14,20 +14,19 @@ namespace receiverd {
 unsigned char RPCServer::sm_buf[9000];
 
 RPCServer::RPCServer(uint32_t program_number, uint32_t version,
-		     util::PollerInterface *poller, util::IPFilter *filter,
-		     RPCObserver *observer)
+		     util::Scheduler *poller, util::IPFilter *filter)
     : m_program_number(program_number),
       m_version(version),
-      m_filter(filter),
-      m_observer(observer)
+      m_poller(poller),
+      m_filter(filter)
 {
     m_socket.SetNonBlocking(true);
     util::IPEndPoint ipe = { util::IPAddress::ANY, 0 };
     m_socket.Bind(ipe);
 
-    poller->Add(&m_socket, 
-		util::Bind<RPCServer, &RPCServer::OnActivity>(this), 
-		util::PollerInterface::IN);
+    poller->WaitForReadable(
+	util::Bind<RPCServer, &RPCServer::Run>(RPCServerPtr(this)), 
+	&m_socket, false);
 }
 
 unsigned short RPCServer::GetPort()
@@ -36,7 +35,7 @@ unsigned short RPCServer::GetPort()
     return ipe.port;
 }
 
-unsigned int RPCServer::OnActivity()
+unsigned int RPCServer::Run()
 {
     for (;;)
     {
@@ -105,11 +104,11 @@ unsigned int RPCServer::OnActivity()
 	    continue;
 
 	size_t tosend;
-	rc = m_observer->OnRPC(cpu_to_be32(buf.call->proc),
-			       args_ptr,
-			       nread - header_size,
-			       buf.success+1,
-			       &tosend);
+	rc = OnRPC(cpu_to_be32(buf.call->proc),
+		   args_ptr,
+		   nread - header_size,
+		   buf.success+1,
+		   &tosend);
 	if (rc == 0)
 	{
 	    buf.success->reply_stat = cpu_to_be32(rpc::MSG_ACCEPTED);
@@ -122,7 +121,7 @@ unsigned int RPCServer::OnActivity()
     }
 }
 
-std::string RPCObserver::String(uint32_t *lenptr, size_t maxlen)
+std::string String(uint32_t *lenptr, size_t maxlen)
 {
     size_t len = be32_to_cpu(*lenptr);
     if (len > maxlen)

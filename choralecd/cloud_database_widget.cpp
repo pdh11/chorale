@@ -21,7 +21,7 @@ DatabaseWidget::DatabaseWidget(Window *parent, mediadb::Registry *registry,
 			      dir_xpm)),
       m_file_pixmap(ShadeImage(parent->Foreground(), parent->Background(),
 			      file_xpm)),
-      m_browse(new choraleqt::BrowseWidget(this, registry->IndexForDB(db),
+      m_browse(new choraleqt::BrowseWidget(this, registry->GetIndex(db),
 					   &m_dir_pixmap, &m_file_pixmap))
 {
     m_tree->setModel(&m_model);

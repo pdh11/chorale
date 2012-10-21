@@ -13,7 +13,7 @@ include $(TOP)Make.common
 
 LIBDBRECEIVER_OBJS:=$(LOBJS)
 
-libdbreceiver:=$(TOP)$(DIR)$(TARGETDIR)libdbreceiver.la
+libdbreceiver:=$(TOP)$(DIR)$(TARGETDIR)libdbreceiver.a
 
 receiverscan:=$(TOP)$(DIR)receiverscan
 RECEIVERSCAN_OBJS:=$(TOP)$(DIR)$(TARGETDIR)receiverscan.lo

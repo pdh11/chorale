@@ -1,5 +1,5 @@
 #include "partial_stream.h"
-#include "string_stream.h"
+#include "counted_pointer.h"
 #include "trace.h"
 #include <errno.h>
 
@@ -25,7 +25,7 @@ public:
     pos64 GetLength();
     unsigned SetLength(pos64);
 
-    util::PollHandle GetReadHandle() { return m_stream->GetReadHandle(); }
+    util::PollHandle GetHandle() { return m_stream->GetHandle(); }
 };
 
 PartialSeekableStream::PartialSeekableStream(SeekableStreamPtr s, pos64 begin,
@@ -79,7 +79,7 @@ public:
     unsigned Read(void *buffer, size_t len, size_t *pread);
     unsigned Write(const void *buffer, size_t len, size_t *pwrote);
 
-    util::PollHandle GetReadHandle() { return m_stream->GetReadHandle(); }
+    util::PollHandle GetHandle() { return m_stream->GetHandle(); }
 };
 
 PartialStream::PartialStream(StreamPtr s, unsigned long long length)
@@ -135,6 +135,8 @@ SeekableStreamPtr CreatePartialStream(SeekableStreamPtr s,
 
 #ifdef TEST
 
+# include "string_stream.h"
+
 int main(int, char*[])
 {
     util::StringStreamPtr ss1 = util::StringStream::Create();
@@ -144,7 +146,7 @@ int main(int, char*[])
 
     util::StringStreamPtr ss2 = util::StringStream::Create();
 
-    unsigned int rc = CopyStream(ps, ss2);
+    unsigned int rc = CopyStream(ps.get(), ss2.get());
 
 //    TRACE << "Expect 'EFGH', got '" << ss2->str() << "'\n";
 

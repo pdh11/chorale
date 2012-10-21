@@ -16,7 +16,10 @@ protected:
 
 public:
     virtual ~Playlist();
+
+    /** Number of entries */
     size_t GetLength() const;
+
     std::string GetEntry(size_t index) const; // 0-based, returns full path
     std::string GetFilename() const;
     
@@ -25,12 +28,12 @@ public:
 
     virtual unsigned int Load() = 0;
     virtual unsigned int Save() = 0;
-    typedef boost::intrusive_ptr<Playlist> PlaylistPtr;
+    typedef util::CountedPointer<Playlist> PlaylistPtr;
 
     static PlaylistPtr Create(const std::string& filename);
 };
 
-typedef boost::intrusive_ptr<Playlist> PlaylistPtr;
+typedef util::CountedPointer<Playlist> PlaylistPtr;
 
 } // namespace import
 

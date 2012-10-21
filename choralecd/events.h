@@ -6,12 +6,29 @@
 
 enum {
     EVENT_PROGRESS = QEvent::User,
-    EVENT_DISCOVERY,
     EVENT_TIMECODE,
     EVENT_PLAYSTATE
 };
 
-namespace util { class Task; }
+/*
+template <class T>
+class CustomEvent: public QEvent
+{
+    static uint16_t sm_event_type;
+
+public:
+    static uint16_t EventType()
+    {
+	if (!sm_event_type)
+	    sm_event_type = QEvent::registerEventType();
+	return sm_event_type;
+    }
+
+    CustomEvent(): QEvent(EventType()) {}
+
+    T m_data;
+};
+*/
 
 /** For marshalling an import::RippingControlObserver */
 class ProgressEvent: public QEvent

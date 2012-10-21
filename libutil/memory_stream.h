@@ -2,8 +2,11 @@
 #define MEMORY_STREAM_H
 
 #include "stream.h"
+#include <boost/noncopyable.hpp>
 
 namespace util {
+
+template <class T> class CountedPointer;
 
 /** A SeekableStream kept entirely in memory.
  *
@@ -18,7 +21,7 @@ class MemoryStream: public SeekableStream, private boost::noncopyable
     ~MemoryStream();
 
 public:
-    typedef boost::intrusive_ptr<MemoryStream> MemoryStreamPtr;
+    typedef util::CountedPointer<MemoryStream> MemoryStreamPtr;
 
     static unsigned Create(MemoryStreamPtr*, size_t sizeHint = 0);
 
@@ -30,7 +33,7 @@ public:
     unsigned SetLength(pos64);
 };
 
-typedef boost::intrusive_ptr<MemoryStream> MemoryStreamPtr;
+typedef util::CountedPointer<MemoryStream> MemoryStreamPtr;
 
 } // namespace util
 

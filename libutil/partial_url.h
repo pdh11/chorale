@@ -1,7 +1,7 @@
 #ifndef LIBUTIL_PARTIAL_URL_H
 #define LIBUTIL_PARTIAL_URL_H 1
 
-#include "socket.h"
+#include "ip.h"
 
 namespace util {
 
@@ -20,7 +20,7 @@ public:
     {
     }
 
-    std::string Resolve(IPAddress ip)
+    std::string Resolve(IPAddress ip) const
     {
 	IPEndPoint ipe;
 	ipe.addr = ip;

@@ -11,13 +11,33 @@
 #include <qmenubar.h>
 #include <qapplication.h>
 #include <qstatusbar.h>
-#include <q3vbox.h>
+#include <QVBoxLayout>
 #include <sstream>
 #include "settings_window.h"
 #include "widget_factory.h"
 #include "libutil/task.h"
 
 namespace choraleqt {
+
+VBoxWidget::VBoxWidget(QWidget *parent)
+    : QWidget(parent),
+      m_layout(this)
+{
+    m_layout.setSpacing(0);
+    m_layout.setContentsMargins(0,0,0,0);
+}
+
+void VBoxWidget::childEvent(QChildEvent *ce)
+{
+    if (ce->child()->isWidgetType())
+    {
+	QWidget *w = (QWidget*)ce->child();
+	if (ce->added())
+	    m_layout.addWidget(w);
+	else if (ce->removed())
+	    m_layout.removeWidget(w);
+    }
+}
 
 MainWindow::MainWindow(Settings *settings, util::TaskQueue *cpu_queue,
 		       util::TaskQueue *disk_queue)
@@ -35,9 +55,7 @@ MainWindow::MainWindow(Settings *settings, util::TaskQueue *cpu_queue,
 
     statusBar()->message("");
 
-    m_view = new Q3VBox(this);
-
-    setCentralWidget(m_view);
+    setCentralWidget(&m_view);
     setCaption("choralecd");
 
     startTimer(1000);
@@ -45,7 +63,7 @@ MainWindow::MainWindow(Settings *settings, util::TaskQueue *cpu_queue,
 
 void MainWindow::AddWidgetFactory(WidgetFactory *wf)
 {
-    wf->CreateWidgets(m_view);
+    wf->CreateWidgets(&m_view);
 }
 
 void MainWindow::timerEvent(QTimerEvent*)

@@ -1,6 +1,6 @@
 TOP?=../
 DIR:=libupnpd/
-SRCS:=\
+SRCS:= \
 	avtransport.cpp \
 	content_directory.cpp \
 	media_renderer.cpp \
@@ -9,6 +9,7 @@ SRCS:=\
 	search.cpp
 
 TEST_SRCS:= \
+	avtransport.cpp \
 	content_directory.cpp \
 	search.cpp
 
@@ -18,10 +19,11 @@ all: all-libupnpd
 
 include $(TOP)Make.common
 
+LIBUPNPD_DIR:=$(TOP)$(DIR)
 LIBUPNPD_OBJS:=$(LOBJS)
 LIBUPNPD_TESTS:=$(TESTS)
 
-libupnpd:=$(TOP)$(DIR)$(TARGETDIR)libupnpd.la
+libupnpd:=$(TOP)$(DIR)$(TARGETDIR)libupnpd.a
 
 all-libupnpd: $(libupnpd)
 
@@ -47,7 +49,12 @@ ifeq ($(libdbsteam),)
 include $(TOP)libdbsteam/Makefile
 endif
 
-$(LIBUPNPD_TESTS) : TEST_LIBS += $(TAGLIB_LIBS) $(BOOST_LIBS) $(LIBS)
+$(LIBUPNPD_DIR)$(TARGETDIR)search%: CXXFLAGS += -fexceptions -UBOOST_NO_EXCEPTIONS
+
+$(LIBUPNPD_TESTS) : TEST_LIBS += $(libupnpd) $(libdbupnp) $(libdbsteam) \
+		$(libdblocal) $(libimport) \
+		$(libmediadb) $(libupnp) $(libdb) $(libutil) \
+		$(TAGLIB_LIBS) $(BOOST_LIBS) $(LIBS)
 
 $(LIBUPNPD_TESTS) : $(libupnpd) $(libdbupnp) $(libdbsteam) \
 		$(libdblocal) $(libimport) \

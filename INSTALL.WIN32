@@ -105,6 +105,28 @@ Native compilation, whether with Mingw32 or MSVC, has not been tried
 -- but might work. Patches are welcome.
 
 
+Installing Qt for mingw32 cross-compiler
+----------------------------------------
+
+Download qt-win-opensource-x.y.z.exe and run it under Wine. Pick an
+install dir (I used /usr/i586-mingw32/qt) and let it install. When it
+asks for a mingw installation, give it your cross-compiler's root
+directory (in my case, /usr/i586-mingw32); it'll whinge, but let you
+ignore the whinge and install anyway (do so).
+
+You then need to arrange for Qt's pkgconfig files to be available to
+the cross-compiler (the Win32 Qt doesn't have pkgconfig files). To do
+this, issue the following commands (as root):
+
+   # cd /usr/lib/pkgconfig     # Or wherever your existing QtCore.pc is
+   # for i in Qt*.pc ; do sed \
+		-e 's,^prefix=.*,prefix=/usr/i586-mingw32/qt,' \
+		-e 's,-I.*/include,-I/usr/i586-mingw32/qt/include,' \
+		-e 's,-l[^ ]*,&4,' \
+	< $i > /usr/i586-mingw32/lib/pkgconfig/$i ; done
+   # cp /usr/i586-mingw32/qt/bin/*.dll /usr/lib/wine/
+
+
 Uninstalling Chorale for Windows
 --------------------------------
 

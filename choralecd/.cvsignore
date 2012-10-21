@@ -4,3 +4,5 @@ cloud
 .libs
 db.xml
 obj-*
+all-*.h
+map-*.txt

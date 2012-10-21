@@ -74,7 +74,7 @@ class Database: public mediadb::Database,
     unsigned int m_search_caps;
 
 public:
-    Database(util::http::Client*, util::http::Server*);
+    Database(util::http::Client*, util::http::Server*, util::Scheduler*);
     ~Database();
 
     unsigned Init(const std::string& url, const std::string& udn);

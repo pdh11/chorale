@@ -227,6 +227,7 @@ feature provided by your editor.
 			<dataType>string</dataType>
 			<allowedValueList>
 				<allowedValue>TRACK_NR</allowedValue>
+                                <allowedValue>ABS_TIME</allowedValue>
 			</allowedValueList>
 		</stateVariable>
 

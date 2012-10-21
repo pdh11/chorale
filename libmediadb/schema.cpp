@@ -1,6 +1,7 @@
 #include "schema.h"
 #include "libutil/trace.h"
 #include <assert.h>
+#include <stdint.h>
 
 namespace mediadb {
 

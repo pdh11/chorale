@@ -9,6 +9,7 @@
 #include "libutil/cpus.h"
 #include "libutil/trace.h"
 #include "libutil/file.h"
+#include "libutil/http_client.h"
 #include <boost/format.hpp>
 #include <getopt.h>
 
@@ -63,7 +64,8 @@ static const char *const typemap[] = {
     "illegal",
     "illegal",
     "illegal",
-    "illegal"
+    "illegal",
+    "illegal",
 };
 
 enum { NTYPES = sizeof(typemap)/sizeof(typemap[0]) };
@@ -77,8 +79,7 @@ static const char *const codecmap[] = {
     "flac",
     "vorbis",
     "wav",
-    "pcm",
-    "jpeg"
+    "pcm"
 };
 
 enum { NCODECS = sizeof(codecmap)/sizeof(codecmap[0]) };
@@ -294,7 +295,8 @@ int main(int argc, char *argv[])
 
     util::WorkerThreadPool wtp(util::WorkerThreadPool::NORMAL, nthreads);
 
-    db::local::Database ldb(&sdb);
+    util::http::Client http_client;
+    db::local::Database ldb(&sdb, &http_client);
 
 #if HAVE_TAGLIB
     db::local::FileScanner ifs(mediaroot, flacroot, &ldb, &wtp);

@@ -1,3 +1,43 @@
+2009-Oct-18: Version 0.17 released; changes since 0.16:
+
+	* libutil: paper-bag bug in util::Compare (forced pull of 0.16)
+	* libutil: Scheduler, like Poller but owns the tasks it waits on
+	* libutil: use native threads, not pthreads, on Win32
+	* libutil: make HTTP server use Stream (not BufferSink), cleans up code
+	* libupnp: asynchronous API
+	* libdb: const-correctness for Recordset
+	* libmediadb: more forgiving DIDL parsing
+	* libtv: record DVB as MPEG PS (not MPEG TS)
+	* choralecd: reduce reliance on Qt3Support (not quite eliminated)
+	* choralecd: use asynchronous API for initial UPnP output connect
+	
+2009-Jul-19: Version 0.16 [not, in fact] released; changes since 0.15:
+
+	* choralecd: compile on Win32
+	* choralecd: better set-list window with drag-and-drop reorder
+	* libdblocal: internet radio support
+	* libtv: cope with audio PES stream IDs other than 0xC0
+	* libimport: PLS playlist support
+	* liboutput: use GstPlayBin2 if available (gapless, allegedly)
+	* liboutput: bipartite shuffle support
+	* libupnpd: seek support in AVTransport
+	* libutil: better support for Unicode filenames on Win32
+	* libutil: stream caching for http::Server
+	* libutil: case-insensitive sorting of filenames
+	* libutil: better Canonicalise for Win32 pathnames
+	* libutil: fixes for glibc 2.10.1
+	* libutil: wrap boost/mutex.hpp, see http://pdh11.blogspot.com
+	* libutil: use homemade counted pointer, not boost::intrusive_ptr
+	* libutil: wrappers for ISO file API to pretend Win32 is UTF-8
+	* libutil: move WSAAsyncSelect guff from Socket to Poller
+	* libutil: util::Compare for caseless accentless comparisons
+	* scripts/topten: name and shame the least-test-suite-covered files
+	* Make.common: don't gather GCOV statistics from Win32 (doesn't work)
+	* Make.common: fixes for gold
+	* Make.common: compile with -fno-exceptions where possible
+	* configure: deal with --with-[l]gpl=yes correctly
+	296 files changed, 9264 insertions, 2658 deletions
+
 2009-May-01: Version 0.15 released; changes since 0.14:
 
 	* choralecd: separate UI code from ripping-control code

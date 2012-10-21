@@ -7,7 +7,9 @@
 #include "libdblocal/db.h"
 #include "libdb/recordset.h"
 #include "libutil/trace.h"
+#include "libutil/http_client.h"
 #include <getopt.h>
+#include <stdio.h>
 
 void Usage(FILE *f)
 {
@@ -57,9 +59,10 @@ int main(int argc, char *argv[])
 	db::RecordsetPtr rs = sdb.CreateRecordset();
 	rs->AddRecord();
 	
-	import::TagsPtr tags = import::Tags::Create(argv[i]);
-	
-	unsigned int rc = tags->Read(rs);
+	import::Tags tags;
+	unsigned int rc = tags.Open(argv[i]);
+	if (rc == 0)
+	    rc = tags.Read(rs.get());
 	if (rc == 0)
 	{
 	    rs->SetInteger(mediadb::TYPE, mediadb::TUNE);
@@ -73,26 +76,38 @@ int main(int argc, char *argv[])
 	}
     }
 
-    db::local::Database ldb(&sdb);
+    util::http::Client http_client;
+    db::local::Database ldb(&sdb, &http_client);
 #endif
 
 #if HAVE_GSTREAMER
     output::gstreamer::URLPlayer gp;
 
-    sleep(6);
+    unsigned int rc = gp.Init();
+    if (rc)
+    {
+	TRACE << "Can't init gstreamer: " << rc << "\n";
+	return 1;
+    }
 
-    gp.SetURL(std::string("file://") + argv[optind], "");
-    gp.SetPlayState(output::PLAY);
-
-    while (1)
-    {}
-
+#if HAVE_TAGLIB
     output::Queue queue(&gp);
     for (int i = optind; i<argc; ++i)
     {
 	queue.Add(&ldb, 0x100 + i);
     }
+
     queue.SetPlayState(output::PLAY);
+#else
+    gp.SetURL(std::string("file://") + argv[optind], "");
+    if (argv[optind+1])
+	gp.SetNextURL(std::string("file://") + argv[optind+1], "");
+    gp.SetPlayState(output::PLAY);
+#endif
+
+    while (1)
+    {}
+
 #else
     fprintf(stderr, "No playback available -- GStreamer not found\n");
 #endif

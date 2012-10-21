@@ -2,7 +2,8 @@
 #define LIBDBRECEIVER_DB_H 1
 
 #include "libmediadb/db.h"
-#include "libutil/socket.h"
+#include "libutil/ip.h"
+#include "libutil/stream.h"
 #include <set>
 #include <map>
 
@@ -43,6 +44,7 @@ class Database: public mediadb::Database
 
 public:
     explicit Database(util::http::Client *http);
+    ~Database();
 
     unsigned int Init(const util::IPEndPoint&);
 

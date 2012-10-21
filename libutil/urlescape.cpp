@@ -2,6 +2,7 @@
 #include "libutil/trace.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 namespace util {
 

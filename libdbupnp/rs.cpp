@@ -23,7 +23,7 @@ Recordset::Recordset(Database *parent)
 {
 }
 
-uint32_t Recordset::GetInteger(field_t which)
+uint32_t Recordset::GetInteger(field_t which) const
 {
     if (which == mediadb::ID)
 	return m_id;
@@ -43,7 +43,7 @@ uint32_t Recordset::GetInteger(field_t which)
     return m_freers->GetInteger(which);
 }
 
-std::string Recordset::GetString(field_t which)
+std::string Recordset::GetString(field_t which) const
 {
     if (IsEOF())
 	return std::string();
@@ -67,7 +67,7 @@ std::string Recordset::GetString(field_t which)
     return m_freers->GetString(which);
 }
 
-void Recordset::GetTags()
+void Recordset::GetTags() const
 {
     if (!m_freers)
 	m_freers = db::FreeRecordset::Create();
@@ -90,7 +90,7 @@ void Recordset::GetTags()
     m_got_what |= GOT_TAGS|GOT_BASIC;
 }
 
-void Recordset::GetChildren()
+void Recordset::GetChildren() const
 {
     if (!m_freers)
 	m_freers = db::FreeRecordset::Create();
@@ -210,7 +210,7 @@ void RecordsetOne::MoveNext()
 	m_freers = NULL;
 }
 
-bool RecordsetOne::IsEOF()
+bool RecordsetOne::IsEOF() const
 {
     return m_id == 0;
 }
@@ -304,7 +304,7 @@ unsigned int CollateRecordset::GetSome()
     return 0;
 }
 
-bool CollateRecordset::IsEOF()
+bool CollateRecordset::IsEOF() const
 {
     return m_start + m_index == m_total;
 }
@@ -319,14 +319,14 @@ void CollateRecordset::MoveNext()
     }
 }
 
-std::string CollateRecordset::GetString(field_t)
+std::string CollateRecordset::GetString(field_t) const
 {
     if (IsEOF())
 	return std::string();
     return m_items[m_index];
 }
 
-uint32_t CollateRecordset::GetInteger(field_t)
+uint32_t CollateRecordset::GetInteger(field_t) const
 {
     TRACE << "Warning, GetInteger on collation not implemented\n";
     return 0;
@@ -414,7 +414,7 @@ void SearchRecordset::SelectThisItem()
     m_got_what = GOT_BASIC;
 }
 
-bool SearchRecordset::IsEOF()
+bool SearchRecordset::IsEOF() const
 {
     return m_start + m_index == m_total;
 }

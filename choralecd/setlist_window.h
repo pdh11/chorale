@@ -3,6 +3,8 @@
 
 #include <QDialog>
 #include "liboutput/queue.h"
+#include "setlist_model.h"
+#include <QTableView>
 
 class QLCDNumber;
 class QPushButton;
@@ -12,8 +14,6 @@ namespace mediadb { class Registry; }
 
 namespace choraleqt {
 
-class TagTable;
-
 /** A top-level window representing the set-list, or running-order, for an
  * audio output.
  */
@@ -22,10 +22,12 @@ class SetlistWindow: public QDialog, public output::QueueObserver
     Q_OBJECT
 
     output::Queue *m_queue;
-    mediadb::Registry *m_registry;
     QLCDNumber *m_timecode;
     QHBoxLayout *m_toplayout;
-    TagTable *m_table;
+
+    SetlistModel m_model;
+    QTableView m_table_view;
+
     QPushButton *m_play_button;
     QPushButton *m_pause_button;
     QPushButton *m_stop_button;
@@ -40,9 +42,8 @@ public:
     SetlistWindow(output::Queue*, mediadb::Registry*);
     ~SetlistWindow();
 
-    void dragEnterEvent(QDragEnterEvent*);
-    void dropEvent(QDropEvent*);
     void customEvent(QEvent*);
+    void keyPressEvent(QKeyEvent*);
 
     // Being a output::QueueObserver
     void OnTimeCode(unsigned int index, unsigned int sec);
@@ -54,6 +55,7 @@ public slots:
     void Stop();
     void Rewind();
     void FastForward();
+    void SetShuffle(bool);
 };
 
 } // namespace choraleqt

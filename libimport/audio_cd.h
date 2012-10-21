@@ -3,6 +3,7 @@
 
 #include "libutil/counted_object.h"
 #include <vector>
+#include <string>
 #include "libutil/stream.h"
 
 namespace import {
@@ -46,7 +47,7 @@ public:
     virtual util::SeekableStreamPtr GetTrackStream(unsigned int track) = 0;
 };
 
-typedef boost::intrusive_ptr<AudioCD> AudioCDPtr;
+typedef util::CountedPointer<AudioCD> AudioCDPtr;
 
 class LocalAudioCD: public AudioCD
 {

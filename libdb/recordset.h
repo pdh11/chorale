@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <string>
 #include "libutil/counted_object.h"
-#include "db.h"
 
 namespace db {
 
@@ -18,13 +17,13 @@ class Recordset: public util::CountedObject<>
 {
 public:
     virtual ~Recordset() {}
-    virtual bool IsEOF() = 0;
+    virtual bool IsEOF() const = 0;
 
-    virtual uint32_t GetInteger(field_t which) = 0;
-    virtual std::string GetString(field_t which) = 0;
+    virtual uint32_t GetInteger(unsigned int which) const = 0;
+    virtual std::string GetString(unsigned int which) const = 0;
 
-    virtual unsigned int SetInteger(field_t which, uint32_t value) = 0;
-    virtual unsigned int SetString(field_t which,
+    virtual unsigned int SetInteger(unsigned int which, uint32_t value) = 0;
+    virtual unsigned int SetString(unsigned int which,
 				   const std::string& value) = 0;
 
     virtual void MoveNext() = 0;

@@ -5,14 +5,27 @@
 
 #include <qmainwindow.h>
 #include <qpixmap.h>
+#include <QVBoxLayout>
 
-class Settings;
 namespace util { class TaskQueue; }
-class Q3VBox;
 
 /** Classes for Qt-based UIs for Chorale applications
  */
 namespace choraleqt {
+
+class Settings;
+
+class VBoxWidget: public QWidget
+{
+    Q_OBJECT
+
+    QVBoxLayout m_layout;
+
+    void childEvent(QChildEvent*);
+
+public:
+    VBoxWidget(QWidget *parent);
+};
 
 class WidgetFactory;
 
@@ -32,7 +45,7 @@ class MainWindow: public QMainWindow
     util::TaskQueue *m_cpu_queue;
     util::TaskQueue *m_disk_queue;
 
-    Q3VBox *m_view;
+    VBoxWidget m_view;
     size_t m_encode_tasks;
 
     void timerEvent(QTimerEvent*);

@@ -16,7 +16,7 @@ AllocateID::AllocateID(db::Database *thedb)
 
 unsigned int AllocateID::Allocate()
 {
-    boost::mutex::scoped_lock lock(m_mutex);
+    util::Mutex::Lock lock(m_mutex);
 
     if (m_gap_begin == m_gap_end)
     {

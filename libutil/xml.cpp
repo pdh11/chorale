@@ -2,6 +2,7 @@
 #include "xmlescape.h"
 #include "trace.h"
 #include "stream_test.h"
+#include "errors.h"
 #include <string.h>
 #include <list>
 
@@ -45,32 +46,22 @@ unsigned int SaxParser::Parse(util::StreamPtr s)
     }
 }
 
-unsigned int SaxParser::OnBuffer(util::BufferPtr p)
+unsigned int SaxParser::WriteAll(const void *buffer, size_t len)
 {
-//    TRACE << "I think I've got a buffer, size " << (p ? p->actual_len : 0)
-//	  << " used " << p.start << "--" << (p.start+p.len) << "\n";
-
-    do {
-	if (m_buffered < BUFSIZE && !m_eof)
+    while (len)
+    {
+	if (m_buffered < BUFSIZE)
 	{
-	    if (p)
-	    {
-		size_t size = std::min((size_t)p.len,
-				       BUFSIZE - m_buffered);
-		memcpy(m_buffer + m_buffered, (char*)p->data + p.start, size);
-		p.start += (util::bufsize_t)size;
-		p.len -= (util::bufsize_t)size;
-		m_buffered += size;
-		if (p.len == 0)
-		    p.reset(NULL);
-	    }
-	    else
-		m_eof = true;
+	    size_t lump = std::min(len, BUFSIZE - m_buffered);
+	    memcpy(m_buffer + m_buffered, (char*)buffer, lump);
+	    m_buffered += lump;
+	    len -= lump;
+	    buffer = (const void*)((const char*)buffer + lump);
 	}
 
 	m_buffer[m_buffered] = '\0';
 	Parse();
-    } while (p);
+    }
 
     return 0;
 }

@@ -6,7 +6,9 @@
 #include "libdb/recordset.h"
 #include "libutil/trace.h"
 #include "libutil/file.h"
+#include "libutil/errors.h"
 #include <sstream>
+#include <map>
 
 #if HAVE_LIBFLAC
 #include <FLAC/stream_encoder.h>
@@ -54,7 +56,7 @@ unsigned int EncodingTaskFlac::Run()
     ok = FLAC__metadata_object_seektable_template_sort(md[0], true);
 
     {
-	boost::mutex::scoped_lock lock(m_rename_mutex);
+	util::Mutex::Lock lock(m_rename_mutex);
 	if (!m_rename_filename.empty())
 	{
 	    m_output_filename = m_rename_filename;
@@ -162,14 +164,16 @@ unsigned int EncodingTaskFlac::Run()
     FLAC__stream_encoder_delete(enc);
 
     {
-	boost::mutex::scoped_lock lock(m_rename_mutex);
+	util::Mutex::Lock lock(m_rename_mutex);
 	m_rename_stage = LATE;
 	if (!m_rename_filename.empty())
 	{
 	    util::RenameWithMkdir(m_output_filename.c_str(), 
 				  m_rename_filename.c_str());
 //	    TRACE << "Tag point 2\n";
-	    import::WriteTags(m_rename_filename, m_rename_tags);
+	    import::Tags tags;
+	    tags.Open(m_rename_filename);
+	    tags.Write(m_rename_tags.get());
 	    m_rename_filename.clear();
 	}
     }

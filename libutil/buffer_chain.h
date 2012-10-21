@@ -2,10 +2,12 @@
 #define LIBUTIL_BUFFER_CHAIN_H
 
 #include "counted_object.h"
+#include "counted_pointer.h"
 #include "bind.h"
 #include "not_thread_safe.h"
 #include "trace.h"
-#include <boost/intrusive/list.hpp>
+#include <stdlib.h>
+#include <stdint.h>
 
 namespace util {
 
@@ -22,13 +24,13 @@ struct Buffer: public CountedObject<NoLocking>
     ~Buffer() { free(data); }
 };
 
-struct BufferPtr: public boost::intrusive_ptr<Buffer>
+struct BufferPtr: public util::CountedPointer<Buffer>
 {
     bufsize_t start;
     bufsize_t len;
 
     explicit BufferPtr(Buffer *b)
-	: boost::intrusive_ptr<Buffer>(b),
+	: util::CountedPointer<Buffer>(b),
 	  start(0), 
 	  len(b ? b->actual_len : 0)
     {}
@@ -41,6 +43,7 @@ public:
     BufferPtr AllocateBuffer(bufsize_t rq);
 };
 
+#if 0
 /** A Gate is like a single-thread condition variable.
  *
  * It can be waited-on, and later opened (waiter released).
@@ -69,15 +72,16 @@ public:
      */
     bool Activate();
 };
+#endif
 
 class BufferSink: public CountedObject<>
 {
-    Gate m_sink_gate;
+//    Gate m_sink_gate;
 
 public:
     virtual ~BufferSink() {}
 
-    Gate& SinkGate() { return m_sink_gate; }
+//    Gate& SinkGate() { return m_sink_gate; }
     virtual unsigned int OnBuffer(BufferPtr) = 0;
 };
 

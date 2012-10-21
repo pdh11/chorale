@@ -7,6 +7,7 @@
 class QWidget;
 class QPixmap;
 class QPushButton;
+class QLabel;
 
 namespace choraleqt {
 
@@ -17,6 +18,7 @@ class ResourceWidget: public QFrame
     Q_OBJECT
     
     std::string m_label;
+    QLabel *m_label_widget;
     QPushButton *m_top;
     QPushButton *m_bottom;
     
@@ -26,6 +28,8 @@ public:
 		   const std::string& tooltip = std::string());
     void EnableTop(bool enabled);
     void EnableBottom(bool enabled);
+
+    void SetLabel(const std::string&);
 
 public slots:
     virtual void OnTopButton() = 0;

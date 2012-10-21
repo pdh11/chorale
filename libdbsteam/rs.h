@@ -25,9 +25,9 @@ protected:
 public:
     explicit Recordset(Database *db);
 
-    bool IsEOF();
-    uint32_t GetInteger(field_t which);
-    std::string GetString(field_t which);
+    bool IsEOF() const;
+    uint32_t GetInteger(field_t which) const;
+    std::string GetString(field_t which) const;
 
     unsigned int SetString(field_t which, const std::string&);
     unsigned int SetInteger(field_t which, uint32_t);
@@ -66,11 +66,11 @@ class CollateRecordset: public ReadOnlyRecordset
 			Database::stringindex_t::const_iterator end);
 
 public:
-    CollateRecordset(Database*, field_t field, QueryPtr);
+    CollateRecordset(Database*, field_t field, db::steam::QueryPtr);
     
-    bool IsEOF();
-    uint32_t GetInteger(field_t which);
-    std::string GetString(field_t which);
+    bool IsEOF() const;
+    uint32_t GetInteger(field_t which) const;
+    std::string GetString(field_t which) const;
     void MoveNext();
 };
 

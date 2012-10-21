@@ -5,19 +5,23 @@
 #include "libutil/hal.h"
 #include "libutil/dbus.h"
 #include "libutil/bind.h"
-#include "libutil/poll.h"
-#include "libutil/poll_thread.h"
+#include "libutil/scheduler.h"
 #include "libutil/http_client.h"
 #include "libutil/http_server.h"
 #include "libutil/worker_thread_pool.h"
 #include "libmediadb/registry.h"
+#include "libmediadb/db.h"
 #include "liboutput/gstreamer.h"
 #include "liboutput/upnpav.h"
 #include "liboutput/queue.h"
 #include "libupnp/ssdp.h"
-#include "poller.h"
+#include "libuiqt/scheduler.h"
 #include "cloud_upnp_databases.h"
-#include <QtGui>
+#include <QApplication>
+#include <QListView>
+#include <QResizeEvent>
+#include <QPainter>
+#include <set>
 
 #include "imagery/network.xpm"
 #include "imagery/cd.xpm"
@@ -49,7 +53,7 @@ QueueListModel::QueueListModel(output::Queue *queue)
 
 int QueueListModel::rowCount(const QModelIndex&) const
 {
-    return (int)(m_queue->end() - m_queue->begin());
+    return m_queue->Count();
 }
 
 QVariant QueueListModel::data(const QModelIndex& i, int) const
@@ -132,6 +136,7 @@ unsigned int Output::OnSelect()
     return 0;
 }
 
+#if HAVE_HAL
 class LocalOutputs: public util::hal::DeviceObserver
 {
     Window *m_parent;
@@ -211,6 +216,7 @@ void LocalOutputs::OnDevice(util::hal::DevicePtr dev)
     me.onselect = util::Bind<Output, &Output::OnSelect>(out);
     m_parent->AppendMenuEntry(me);
 }
+#endif
 
 int Main(int argc, char *argv[])
 {
@@ -226,9 +232,10 @@ int Main(int argc, char *argv[])
 
     cloud::Window mainwindow(fg,bg);
 
-    choraleqt::Poller fg_poller;
-    util::PollThread bg_poller;
+    ui::qt::Scheduler fg_poller;
+    util::BackgroundScheduler bg_poller;
     util::WorkerThreadPool disk_pool(util::WorkerThreadPool::NORMAL, 32);
+    disk_pool.PushTask(util::SchedulerTask::Create(&bg_poller));
 
     util::hal::Context *halp = NULL;
 #if HAVE_HAL
@@ -247,7 +254,7 @@ int Main(int argc, char *argv[])
     mediadb::Registry registry;
 
     QPixmap output_pixmap((const char**)output_xpm);
-#if HAVE_LIBOUTPUT
+#if HAVE_LIBOUTPUT && HAVE_HAL
     cloud::LocalOutputs owf(&mainwindow, halp, &registry);
 #endif
 
@@ -260,7 +267,7 @@ int Main(int argc, char *argv[])
     QPixmap network_pixmap(ShadeImage(fg, bg, network_xpm));
 
     cloud::UpnpDatabases udb(&mainwindow, &network_pixmap, &uclient, &registry,
-			     &http_client, &http_server);
+			     &http_client, &http_server, &fg_poller);
 
     mainwindow.show();
     return app.exec();

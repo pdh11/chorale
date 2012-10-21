@@ -44,12 +44,14 @@ UpnpDatabases::UpnpDatabases(Window *parent, QPixmap *pixmap,
 			     upnp::ssdp::Responder *ssdp, 
 			     mediadb::Registry *registry, 
 			     util::http::Client *client,
-			     util::http::Server *server)
+			     util::http::Server *server,
+			     util::Scheduler *poller)
     : m_parent(parent),
       m_pixmap(pixmap),
       m_registry(registry),
       m_client(client),
-      m_server(server)
+      m_server(server),
+      m_poller(poller)
 {
     ssdp->Search(upnp::s_service_type_content_directory, this);
 }
@@ -57,10 +59,11 @@ UpnpDatabases::UpnpDatabases(Window *parent, QPixmap *pixmap,
 void UpnpDatabases::OnService(const std::string& url,
 			      const std::string& udn)
 {
-    db::upnpav::Database *thedb = new db::upnpav::Database(m_client, m_server);
+    db::upnpav::Database *thedb = new db::upnpav::Database(m_client, m_server,
+							   m_poller);
     thedb->Init(url, udn);
     TRACE << "udn=" << udn << "\n";
-    m_registry->NameDatabase(thedb, "upnp:" + udn);
+    m_registry->Add("upnp:" + udn, thedb);
     UpnpDatabase *db = new UpnpDatabase(m_parent, m_registry, thedb);
 
     MenuEntry me;

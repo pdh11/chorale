@@ -8,7 +8,6 @@ namespace upnpd { class OpticalDriveDevice; }
 namespace import { class CDContentFactory; }
 namespace util { namespace http { class Server; } }
 namespace util { namespace hal { class Context; } }
-namespace upnp { class Device; }
 namespace upnp { class Server; }
 
 #ifdef WIN32

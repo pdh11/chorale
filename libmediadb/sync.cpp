@@ -7,7 +7,9 @@
 #include "libutil/file.h"
 #include "libutil/trace.h"
 #include "libutil/stream.h"
+#include "libutil/errors.h"
 #include <time.h>
+#include <string.h>
 #if HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -615,7 +617,7 @@ unsigned int Synchroniser::AddTune(unsigned int srcid,
     uint64_t usec = (((uint64_t)tv.tv_sec) * 1000000) + tv.tv_usec;
 #endif
 	    
-    rc = util::CopyStream(ssps, sspd);
+    rc = util::CopyStream(ssps.get(), sspd.get());
     if (rc)
     {
 	TRACE << "CopyStream failed " << rc << "\n";
@@ -628,12 +630,12 @@ unsigned int Synchroniser::AddTune(unsigned int srcid,
 
     if (usec)
     {
-	uint64_t bps = (len * 1000000ull) / usec;
-	TRACE << (usec/1000000) << "s " << bps << "bps "
-	      << (bps/1024) << "Kps\n";
+//	uint64_t bps = (len * 1000000ull) / usec;
+//	TRACE << (usec/1000000) << "s " << bps << "bps "
+//	      << (bps/1024) << "Kps\n";
     }
-    else
-	TRACE << "Infinity bps\n";
+//    else
+//	TRACE << "Infinity bps\n";
 #endif
 
     return 0;

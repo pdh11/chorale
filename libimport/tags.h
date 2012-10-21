@@ -4,9 +4,8 @@
 #define IMPORT_TAGS_H
 
 #include <string>
-#include "libdb/db.h"
-#include <boost/thread/mutex.hpp>
-#include "libutil/counted_object.h"
+
+namespace db { class Recordset; }
 
 /** Classes for reading media files and their metadata.
  *
@@ -14,31 +13,33 @@
  */
 namespace import {
 
-class Tags: public util::CountedObject<>
+class Tags
 {
-protected:
-    std::string m_filename;
-
-    Tags(const std::string& filename) : m_filename(filename) {}
 public:
-    virtual ~Tags() {}
-    virtual unsigned Read(db::RecordsetPtr);
-    virtual unsigned Write(db::RecordsetPtr);
+    class Impl
+    {
+    protected:
+	std::string m_filename;
+    public:
+	Impl(const std::string& filename) : m_filename(filename) {}
+	virtual ~Impl() {}
 
-    typedef ::boost::intrusive_ptr<Tags> Pointer;
+	virtual unsigned int Read(db::Recordset*);
+	virtual unsigned int Write(const db::Recordset*) = 0;
+    };
 
-    static Pointer Create(const std::string& filename);
+private:
+    Impl *m_impl;
+
+public:
+    Tags();
+    ~Tags();
+
+    unsigned Open(const std::string& filename);
+
+    unsigned Read(db::Recordset*);
+    unsigned Write(const db::Recordset*);
 };
-
-typedef Tags::Pointer TagsPtr;
-
-unsigned ReadTags(const std::string& filename, db::RecordsetPtr tags);
-unsigned WriteTags(const std::string& filename, db::RecordsetPtr tags);
-
-/** This shouldn't be necessary, but TagLib's string operations aren't
- * thread-safe.
- */
-extern boost::mutex s_taglib_mutex;
 
 } // namespace import
 

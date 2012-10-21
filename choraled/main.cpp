@@ -4,7 +4,7 @@
 #include "libutil/hal.h"
 #include "libutil/http_client.h"
 #include "libutil/http_server.h"
-#include "libutil/poll.h"
+#include "libutil/scheduler.h"
 #include "libutil/trace.h"
 #include "libutil/worker_thread_pool.h"
 #include "liboutput/gstreamer.h"
@@ -27,12 +27,16 @@
 #include "nfs.h"
 #include "web.h"
 #include <signal.h>
+#if HAVE_WS2TCPIP_H
+#include <ws2tcpip.h>  /* For gethostname */
+#endif
+
 
 namespace choraled {
 
 volatile bool s_exiting = false;
 volatile bool s_rescan = false;
-util::PollerInterface *s_poller = NULL;
+util::Scheduler *s_poller = NULL;
 
 static void SignalHandler(int sig)
 {
@@ -112,9 +116,10 @@ int Main(const Settings *settings, Complaints *complaints)
 
     
     db::merge::Database mergedb;
+    util::http::Client wc;
 
 #if HAVE_TAGLIB
-    LocalDatabase localdb;
+    LocalDatabase localdb(&wc);
     if (settings->flags & LOCAL_DB)
     {
 	localdb.Init(settings->media_root, settings->flac_root, &wtp_low,
@@ -123,8 +128,9 @@ int Main(const Settings *settings, Complaints *complaints)
     }
 #endif
 
-    util::Poller poller;
-    util::TaskPoller tp_real_time(&poller, &wtp_real_time);
+    util::BackgroundScheduler poller;
+    util::BackgroundScheduler tp_real_time;
+    wtp_real_time.PushTask(util::SchedulerTask::Create(&tp_real_time));
 
 #if HAVE_LIBWRAP
     choraled::IPFilter ipf;
@@ -244,7 +250,6 @@ int Main(const Settings *settings, Complaints *complaints)
 	TRACE << "Receiver service started\n";
     }
 
-    util::http::Client wc;
     receiver::ssdp::Client pseudossdp_client;
     ReceiverAssimilator ras(&wc, &mergedb);
     if (settings->flags & ASSIMILATE_RECEIVER)
@@ -333,7 +338,7 @@ int Main(const Settings *settings, Complaints *complaints)
 
     while (!s_exiting)
     {
-	poller.Poll(util::Poller::INFINITE_MS);
+	poller.Poll(util::BackgroundScheduler::INFINITE_MS);
 	if (s_rescan && !s_exiting)
 	{
 	    s_rescan = false;

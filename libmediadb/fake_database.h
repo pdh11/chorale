@@ -8,6 +8,7 @@
 # include "schema.h"
 # include "libdbsteam/db.h"
 # include "libutil/string_stream.h"
+# include <boost/format.hpp>
 
 namespace mediadb {
 
@@ -42,7 +43,10 @@ public:
     db::QueryPtr CreateQuery() { return m_db.CreateQuery(); }
 
     // Being a mediadb::Database
-    std::string GetURL(unsigned int) { return ""; }
+    std::string GetURL(unsigned int fid)
+    {
+	return (boost::format("test:%u") % fid).str();
+    }
 
     util::SeekableStreamPtr OpenRead(unsigned int)
     {

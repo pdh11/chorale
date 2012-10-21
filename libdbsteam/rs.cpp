@@ -17,7 +17,7 @@ Recordset::Recordset(Database *db)
 	m_eof = true;
     else
     {
-	boost::recursive_mutex::scoped_lock lock(m_db->m_mutex);
+	util::RecursiveMutex::Lock lock(m_db->m_mutex);
 	m_record = m_db->m_data.begin()->first;
     }
 }
@@ -30,17 +30,17 @@ void Recordset::SetRecordNumber(unsigned int which)
     m_eof = false;
 }
 
-bool Recordset::IsEOF()
+bool Recordset::IsEOF() const
 {
     return m_eof;
 }
 
-uint32_t Recordset::GetInteger(field_t which)
+uint32_t Recordset::GetInteger(field_t which) const
 {
     if (m_eof)
 	return 0;
 
-    boost::recursive_mutex::scoped_lock lock(m_db->m_mutex);
+    util::RecursiveMutex::Lock lock(m_db->m_mutex);
 
     Database::records_t::iterator i = m_db->m_data.find(m_record);
     if (i == m_db->m_data.end())
@@ -56,12 +56,12 @@ uint32_t Recordset::GetInteger(field_t which)
     return 0;
 }
 
-std::string Recordset::GetString(field_t which)
+std::string Recordset::GetString(field_t which) const
 {
     if (m_eof)
 	return "";
 
-    boost::recursive_mutex::scoped_lock lock(m_db->m_mutex);
+    util::RecursiveMutex::Lock lock(m_db->m_mutex);
 
     Database::records_t::iterator i = m_db->m_data.find(m_record);
     if (i == m_db->m_data.end())
@@ -86,7 +86,7 @@ unsigned int Recordset::SetString(field_t which, const std::string& s)
 	return ENOENT;
     }
 
-    boost::recursive_mutex::scoped_lock lock(m_db->m_mutex);
+    util::RecursiveMutex::Lock lock(m_db->m_mutex);
 
     Database::records_t::iterator i = m_db->m_data.find(m_record);
     if (i == m_db->m_data.end())
@@ -155,7 +155,7 @@ unsigned int Recordset::SetInteger(field_t which, uint32_t n)
     if (m_eof)
 	return ENOENT;
 
-    boost::recursive_mutex::scoped_lock lock(m_db->m_mutex);
+    util::RecursiveMutex::Lock lock(m_db->m_mutex);
 
     Database::records_t::iterator i = m_db->m_data.find(m_record);
     if (i == m_db->m_data.end())
@@ -204,7 +204,7 @@ unsigned int Recordset::AddRecord()
 {
 //    TRACE << "Adding record " << m_db->m_next_recno << "\n";
 
-    boost::recursive_mutex::scoped_lock lock(m_db->m_mutex);
+    util::RecursiveMutex::Lock lock(m_db->m_mutex);
 
     m_record = m_db->m_next_recno;
     m_db->m_data[m_db->m_next_recno++].resize(m_db->m_nfields);
@@ -223,7 +223,7 @@ unsigned int Recordset::Delete()
 	return ENOENT;
 
     {
-	boost::recursive_mutex::scoped_lock lock(m_db->m_mutex);
+	util::RecursiveMutex::Lock lock(m_db->m_mutex);
 
 	Database::records_t::iterator iter = m_db->m_data.find(m_record);
 	if (iter == m_db->m_data.end())
@@ -312,7 +312,7 @@ IndexedRecordset::IndexedRecordset(Database *db, field_t field, uint32_t intval)
       m_intval(intval),
       m_subrecno(0)
 {
-    boost::recursive_mutex::scoped_lock lock(db->m_mutex);
+    util::RecursiveMutex::Lock lock(db->m_mutex);
     Database::intindex_t& the_index = db->m_intindexes[field];
     Database::intindex_t::const_iterator i = the_index.find(intval);
     if (i == the_index.end())
@@ -335,7 +335,7 @@ IndexedRecordset::IndexedRecordset(Database *db, field_t field,
       m_intval(0),
       m_subrecno(0)
 {
-    boost::recursive_mutex::scoped_lock lock(db->m_mutex);
+    util::RecursiveMutex::Lock lock(db->m_mutex);
     Database::stringindex_t& the_index = db->m_stringindexes[field];
     Database::stringindex_t::const_iterator i = the_index.find(stringval);
     if (i == the_index.end())
@@ -354,7 +354,7 @@ void IndexedRecordset::MoveNext()
     if (m_eof)
 	return;
 
-    boost::recursive_mutex::scoped_lock lock(m_db->m_mutex);
+    util::RecursiveMutex::Lock lock(m_db->m_mutex);
     if (m_is_int)
     {
 	Database::intindex_t& the_index = m_db->m_intindexes[m_field];
@@ -411,7 +411,7 @@ OrderedRecordset::OrderedRecordset(Database *db, field_t field)
       m_intval(0),
       m_subrecno(0)
 {
-    boost::recursive_mutex::scoped_lock lock(db->m_mutex);
+    util::RecursiveMutex::Lock lock(db->m_mutex);
     m_is_int = ((db->m_fields[field].flags & FIELD_TYPEMASK)
 		== FIELD_INT);
     if (m_is_int)
@@ -449,7 +449,7 @@ void OrderedRecordset::MoveNext()
     if (m_eof)
 	return;
 
-    boost::recursive_mutex::scoped_lock lock(m_db->m_mutex);
+    util::RecursiveMutex::Lock lock(m_db->m_mutex);
     if (m_is_int)
     {
 	Database::intindex_t& the_index = m_db->m_intindexes[m_field];
@@ -532,7 +532,7 @@ CollateRecordset::CollateRecordset(Database *db, field_t field, QueryPtr query)
       m_query(query), 
       m_rs(db, QueryPtr())
 {
-    boost::recursive_mutex::scoped_lock lock(m_parent->m_mutex);
+    util::RecursiveMutex::Lock lock(m_parent->m_mutex);
     m_is_int = ((m_parent->m_fields[field].flags & FIELD_TYPEMASK)
 		== FIELD_INT);
     if (m_is_int)
@@ -599,17 +599,17 @@ void CollateRecordset::MoveUntilValid(Database::stringindex_t::const_iterator i,
     }
 }
 
-bool CollateRecordset::IsEOF() 
+bool CollateRecordset::IsEOF() const
 {
     return m_eof; 
 }
 
-uint32_t CollateRecordset::GetInteger(field_t)
+uint32_t CollateRecordset::GetInteger(field_t) const
 {
     return m_intvalue;
 }
 
-std::string CollateRecordset::GetString(field_t)
+std::string CollateRecordset::GetString(field_t) const
 {
     return m_strvalue; 
 }
@@ -619,7 +619,7 @@ void CollateRecordset::MoveNext()
     if (m_eof)
 	return;
 
-    boost::recursive_mutex::scoped_lock lock(m_parent->m_mutex);
+    util::RecursiveMutex::Lock lock(m_parent->m_mutex);
     if (m_is_int)
     {
 	const Database::intindex_t& index = m_parent->m_intindexes[m_field];

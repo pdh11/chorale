@@ -3,6 +3,7 @@
 
 #include "libutil/counted_object.h"
 #include <vector>
+#include <stdint.h>
 #include "node.h"
 
 namespace db { class Database; }

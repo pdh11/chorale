@@ -4,9 +4,9 @@
 
 namespace choraled {
 
-LocalDatabase::LocalDatabase()
+LocalDatabase::LocalDatabase(util::http::Client *client)
     : m_sdb(mediadb::FIELD_COUNT),
-      m_ldb(&m_sdb)
+      m_ldb(&m_sdb, client)
 {
     m_sdb.SetFieldInfo(mediadb::ID, 
 		     db::steam::FIELD_INT|db::steam::FIELD_INDEXED);
@@ -26,6 +26,10 @@ LocalDatabase::LocalDatabase()
 		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
     m_sdb.SetFieldInfo(mediadb::MOOD,
 		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
+}
+
+LocalDatabase::~LocalDatabase()
+{
 }
 
 unsigned int LocalDatabase::Init(const std::string& loroot,

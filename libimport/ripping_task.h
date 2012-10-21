@@ -2,6 +2,7 @@
 #define RIPPING_TASK_H
 
 #include "libutil/task.h"
+#include "libutil/counted_pointer.h"
 #include "audio_cd.h"
 #include "encoding_task.h"
 
@@ -23,7 +24,7 @@ class RippingTask: public util::Task
     ~RippingTask();
 
 public:
-    typedef boost::intrusive_ptr<RippingTask> RippingTaskPtr;
+    typedef util::CountedPointer<RippingTask> RippingTaskPtr;
 
     static RippingTaskPtr Create(AudioCDPtr cd, unsigned int track,
 				 const std::string& filename,
@@ -34,7 +35,7 @@ public:
     unsigned int Run();
 };
 
-typedef boost::intrusive_ptr<RippingTask> RippingTaskPtr;
+typedef util::CountedPointer<RippingTask> RippingTaskPtr;
 
 } // namespace import
 

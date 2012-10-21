@@ -16,7 +16,7 @@ include $(TOP)Make.common
 LIBRECEIVER_OBJS:=$(LOBJS)
 LIBRECEIVER_TESTS:=$(TESTS)
 
-libreceiver:=$(TOP)$(DIR)$(TARGETDIR)libreceiver.la
+libreceiver:=$(TOP)$(DIR)$(TARGETDIR)libreceiver.a
 
 all-libreceiver: $(libreceiver)
 
@@ -27,7 +27,7 @@ ifeq ($(libutil),)
 include $(TOP)libutil/Makefile
 endif
 
-$(LIBRECEIVER_TESTS) : TEST_LIBS+= $(BOOST_LIBS) $(LIBS)
+$(LIBRECEIVER_TESTS) : TEST_LIBS+= $(libutil) $(BOOST_LIBS) $(LIBS)
 
 $(LIBRECEIVER_TESTS) : $(libreceiver) $(libutil)
 

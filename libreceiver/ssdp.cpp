@@ -1,15 +1,15 @@
 #include "ssdp.h"
 #include "config.h"
-#include "libutil/poll.h"
+#include "libutil/scheduler.h"
 #include "libutil/bind.h"
 #include "libutil/socket.h"
 #include "libutil/trace.h"
 #include "libutil/ip_filter.h"
 #include "libutil/ip_config.h"
-#include <boost/thread/mutex.hpp>
 #include <boost/format.hpp>
 #include <map>
 #include <sstream>
+#include <string.h>
 #if HAVE_NET_IF_H
 #include <net/if.h>
 #elif HAVE_WS2TCPIP_H
@@ -23,10 +23,10 @@ namespace receiver {
 
 namespace ssdp {
 
-const char *s_uuid_softwareserver = 
+const char s_uuid_softwareserver[] = 
     "upnp:uuid:1D274DB1-F053-11d3-BF72-0050DA689B2F";
 
-const char *s_uuid_musicserver = 
+const char s_uuid_musicserver[] = 
     "upnp:uuid:1D274DB0-F053-11d3-BF72-0050DA689B2F";
 
 /** Receivers expect their pseudo-SSDP server on port 21075. This port is not
@@ -41,7 +41,7 @@ enum { PORT = 21075 };
         /* Server */
 
 
-class Server::Impl
+class Server::Task: public util::Task
 {
     util::IPFilter *m_filter;
     util::DatagramSocket m_socket;
@@ -54,47 +54,47 @@ class Server::Impl
 
     typedef std::map<std::string, Service> services_t;
 
-    boost::mutex m_mutex;
+    util::Mutex m_mutex;
     services_t m_services;
 
 public:
-    Impl(util::IPFilter *ip_filter) : m_filter(ip_filter) {}
+    Task(util::IPFilter *ip_filter) : m_filter(ip_filter) {}
 
-    unsigned Init(util::PollerInterface *poller);
+    unsigned Init(util::Scheduler *poller);
     void RegisterService(const char *uuid, unsigned short service_port,
 			 const char *service_host);
     
-    // being a Pollable
-    unsigned OnActivity();
+    unsigned Run();
 };
 
-unsigned Server::Impl::Init(util::PollerInterface *poller)
+unsigned Server::Task::Init(util::Scheduler *poller)
 {
     util::IPEndPoint ep = { util::IPAddress::ANY, PORT };
     unsigned rc = m_socket.Bind(ep);
     if (rc == 0)
 	m_socket.SetNonBlocking(true);
     if (rc == 0)
-	poller->Add(&m_socket, util::Bind<Impl, &Impl::OnActivity>(this),
-		    util::Poller::IN);
+	poller->WaitForReadable(
+	    util::Bind<Task,&Task::Run>(TaskPtr(this)), &m_socket,
+	    false);
 
-    TRACE << "Server init returned " << rc << "\n";
+//    TRACE << "Server init returned " << rc << "\n";
 
     return rc;
 }
 
-void Server::Impl::RegisterService(const char *uuid,
+void Server::Task::RegisterService(const char *uuid,
 				   unsigned short service_port,
 				   const char *service_host)
 {
-    boost::mutex::scoped_lock lock(m_mutex);
+    util::Mutex::Lock lock(m_mutex);
     Service svc;
     svc.port = service_port;
     svc.host = service_host;
     m_services[uuid] = svc;
 }
 
-unsigned Server::Impl::OnActivity()
+unsigned Server::Task::Run()
 {
     char buffer[1500];
     
@@ -121,11 +121,11 @@ unsigned Server::Impl::OnActivity()
     
     *lf = 0;
     
-    TRACE << "Server: " << buffer << "\n";
+//    TRACE << "Server: " << buffer << "\n";
 
     std::string reply;
     {
-	boost::mutex::scoped_lock lock(m_mutex);
+	util::Mutex::Lock lock(m_mutex);
 	services_t::const_iterator i = m_services.find(std::string(buffer));
 
 	if (i == m_services.end())
@@ -138,59 +138,59 @@ unsigned Server::Impl::OnActivity()
 	reply = os.str();
     }
 
-    TRACE << "Reply: " << reply;
+//    TRACE << "Reply: " << reply;
 
-    return m_socket.Write(reply.c_str(), reply.length(), client);
+    m_socket.Write(reply.c_str(), reply.length(), client);
+    return 0;
 }
 
 Server::Server(util::IPFilter *filter)
-    : m_impl(new Impl(filter))
+    : m_task(new Task(filter))
 {
 }
 
 Server::~Server()
 {
-    delete m_impl;
+//    delete m_task;
 }
 
-unsigned Server::Init(util::PollerInterface *p)
+unsigned Server::Init(util::Scheduler *p)
 {
-    return m_impl->Init(p);
+    return m_task->Init(p);
 }
 
 void Server::RegisterService(const char *uuid, unsigned short service_port,
 			     const char *service_host)
 {
-    m_impl->RegisterService(uuid, service_port, service_host);
+    m_task->RegisterService(uuid, service_port, service_host);
 }
 
 
         /* Client */
 
 
-class Client::Impl
+class Client::Task: public util::Task
 {
     util::DatagramSocket m_socket;
     Client::Callback *m_callback;
 
 public:
-    Impl() : m_callback(NULL) {}
+    Task() : m_callback(NULL) {}
 
-    unsigned Init(util::PollerInterface*, const char *uuid, Callback*);
-
-    // being a Pollable
-    unsigned OnActivity();
+    unsigned Init(util::Scheduler*, const char *uuid, Callback*);
+    unsigned Run();
 };
 
-unsigned Client::Impl::Init(util::PollerInterface *poller,
+unsigned Client::Task::Init(util::Scheduler *poller,
 			    const char *uuid, Callback *cb)
 {
     unsigned rc = m_socket.EnableBroadcast(true);
     if (rc == 0)
 	m_socket.SetNonBlocking(true);
     if (rc == 0)
-	poller->Add(&m_socket, util::Bind<Impl, &Impl::OnActivity>(this),
-		    util::Poller::IN);
+	poller->WaitForReadable(
+	    util::Bind<Task, &Task::Run>(TaskPtr(this)), &m_socket,
+	    false);
 
     m_callback = cb;
     std::string request = uuid;
@@ -216,7 +216,7 @@ unsigned Client::Impl::Init(util::PollerInterface *poller,
     return 0;
 }
 
-unsigned Client::Impl::OnActivity()
+unsigned Client::Task::Run()
 {
     char buffer[1500];   
     size_t nread;
@@ -250,24 +250,22 @@ unsigned Client::Impl::OnActivity()
     {
 	TRACE << "ssdp didn't like it\n";
     }
-
     return 0;
 }
 
 Client::Client()
-    : m_impl(new Impl)
+    : m_task(new Task)
 {
 }
 
 Client::~Client()
 {
-    delete m_impl;
 }
 
-unsigned Client::Init(util::PollerInterface *p, const char *uuid,
+unsigned Client::Init(util::Scheduler *p, const char *uuid,
 		      Callback *cb)
 {
-    return m_impl->Init(p, uuid, cb);
+    return m_task->Init(p, uuid, cb);
 }
 
 } // namespace ssdp
@@ -276,6 +274,20 @@ unsigned Client::Init(util::PollerInterface *p, const char *uuid,
 
 #ifdef TEST
 
+class TestCallback: public receiver::ssdp::Client::Callback
+{
+public:
+    TestCallback() : m_ok(false) {}
+
+    void OnService(const util::IPEndPoint&)
+    {
+//	TRACE << "Service on " << ep.ToString() << "\n";
+	m_ok = true;
+    }
+
+    bool m_ok;
+};
+
 int main()
 {
     util::DatagramSocket tx;
@@ -283,10 +295,10 @@ int main()
     util::IPEndPoint ep = { util::IPAddress::ANY, 0 };
     rx.Bind(ep);
     ep = rx.GetLocalEndPoint();
-    TRACE << "Got port " << ep.port << "\n";
+//    TRACE << "Got port " << ep.port << "\n";
     tx.EnableBroadcast(true);
     ep.addr = util::IPAddress::ALL;
-    TRACE << "Sending 'test0' to " << ep.addr.ToString() << "\n";
+//    TRACE << "Sending 'test0' to " << ep.addr.ToString() << "\n";
     tx.Write("test0", ep);
 
     util::IPConfig::Interfaces interface_list;
@@ -302,14 +314,14 @@ int main()
 	{
 	    ep.addr = i->broadcast;
 	    std::string message = (boost::format("test%u") % ++j).str();
-	    TRACE << "Sending '" << message << "'to " << ep.addr.ToString() << "\n";
+//	    TRACE << "Sending '" << message << "'to " << ep.addr.ToString() << "\n";
 	    tx.Write(message, ep);
 	}
 	else
 	{
-	    TRACE << "Interface " << i->address.ToString()
-		  << " not broadcastable (addr " << i->broadcast.ToString()
-		  << ")\n";
+//	    TRACE << "Interface " << i->address.ToString()
+//		  << " not broadcastable (addr " << i->broadcast.ToString()
+//		  << ")\n";
 	}
     }
     std::string s;
@@ -323,11 +335,35 @@ int main()
 	rc = rx.Read(&s, &wasfrom, &wasto);
 	if (rc != 0)
 	{
-	    TRACE << "Read failed, rc=" << rc << "\n";
+//	    TRACE << "Read failed, rc=" << rc << "\n";
 	}
 	assert(rc == 0);
 	TRACE << s << " from " << wasfrom.ToString() << " to " << wasto.ToString() << "\n";
     }
+
+    util::BackgroundScheduler poller;
+    receiver::ssdp::Server server(NULL);
+    unsigned rc = server.Init(&poller);
+    assert(rc == 0);
+    
+    server.RegisterService("test.uuid", 69);
+
+    receiver::ssdp::Client client;
+    TestCallback tc;
+    rc = client.Init(&poller, "test.uuid", &tc);
+
+    time_t end = ::time(NULL) + 5;
+
+    for(;;)
+    {
+	long long sec = end - ::time(NULL);
+	if (sec < 0 || tc.m_ok)
+	    break;
+	poller.Poll((unsigned)sec * 1000);
+    }
+
+    assert(tc.m_ok);
+
     return 0;
 }
 

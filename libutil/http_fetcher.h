@@ -3,10 +3,9 @@
 
 #include <string>
 #include <map>
+#include "ip.h"
 
 namespace util {
-
-class IPEndPoint;
 
 namespace http {
 
@@ -16,10 +15,16 @@ class Client;
  */
 class Fetcher
 {
-    std::map<std::string, std::string> m_headers;
+    Client *m_client;
+    std::string m_url;
+    const char *m_extra_headers;
+    const char *m_body;
+    const char *m_verb;
 
-    class Impl;
-    Impl *m_impl;
+    std::map<std::string, std::string> m_headers;
+    IPEndPoint m_local_endpoint;
+
+    class Task;
 
 public:
     Fetcher(Client *client,
@@ -33,14 +38,14 @@ public:
 
     std::string GetHeader(const std::string& name)
     {
-	return m_headers[name]; // @bug case-sensitive
+	return m_headers[name]; /// @bug case-sensitive
     }
 
-    /** Returns the local IP address used to contact the server.
+    /** Returns the local IP address which was used to contact the server.
      *
      * This is mainly useful on multi-homed hosts.
      */
-    IPEndPoint GetLocalEndPoint();
+    IPEndPoint GetLocalEndPoint() const { return m_local_endpoint; }
 };
 
 std::string ResolveURL(const std::string& base, const std::string& link);
@@ -50,6 +55,9 @@ void ParseURL(const std::string& url, std::string *host,
 
 void ParseHost(const std::string& hostpart, unsigned short default_port,
 	       std::string *hostname, unsigned short *port);
+
+bool IsHttpURL(const char*);
+inline bool IsHttpURL(const std::string& s) { return IsHttpURL(s.c_str()); }
 
 } // namespace http
 

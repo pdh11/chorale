@@ -9,6 +9,7 @@
 #include "libutil/trace.h"
 #include "libutil/formatter.h"
 #include "libmediadb/schema.h"
+#include <stdio.h>
 
 namespace import {
 
@@ -65,7 +66,7 @@ RippingControl::RippingControl(import::CDDrivePtr drive, import::AudioCDPtr cd,
 					m_disk_queue);
 	m_tracks[i].rtp = rtp;
 	rtp->SetObserver(this);
-	drive->GetTaskQueue()->PushTask(rtp);
+	drive->GetTaskQueue()->PushTask(util::Bind<RippingTask,&RippingTask::Run>(rtp));
 	TRACE << "Pushed task for track " << i << "/" << m_ntracks << "\n";
     }
     drive->GetTaskQueue()->PushTask(import::EjectTask::Create(drive));
@@ -90,11 +91,11 @@ void RippingControl::OnProgress(const util::Task *task, unsigned num,
     unsigned int type = PROGRESS_NONE;
     for (unsigned int i=0; i<m_ntracks; ++i)
     {
-	if (task == m_tracks[i].etp_flac.get())
+	if (m_tracks[i].etp_flac && task == m_tracks[i].etp_flac.get())
 	    type = PROGRESS_FLAC;
-	else if (task == m_tracks[i].etp_mp3.get())
+	else if (m_tracks[i].etp_mp3 && task == m_tracks[i].etp_mp3.get())
 	    type = PROGRESS_MP3;
-	else if (task == m_tracks[i].rtp.get())
+	else if (m_tracks[i].rtp && task == m_tracks[i].rtp.get())
 	{
 	    type = PROGRESS_RIP;
 	    if (num == denom)
@@ -203,10 +204,12 @@ unsigned int RippingControl::Done()
 	pp->Save();
     }
 
+#ifndef WIN32
     std::string link = m_mp3_root + "/New Albums/" + 
 	util::ProtectLeafname(album_title);
     util::MkdirParents(link.c_str());
-    util::posix::MakeRelativeLink(link, m_mp3_root + "/" + album_filename);
+    util::posix::MakeRelativeLink(link, m_mp3_root + album_filename);
+#endif
 
     return 0;
 }

@@ -89,6 +89,8 @@ int Scanf64(const char *input, const char *format, uint64_t *arg1,
 
 #ifdef TEST
 
+# include <assert.h>
+
 void Test1(const char *input, const char *format, 
 	   int res_expect, uint64_t arg1_expect)
 {

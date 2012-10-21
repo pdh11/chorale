@@ -18,6 +18,8 @@
 #define PROXYPORT "proxy/port"
 #define DEFAULT_DATABASE "startup/db"
 
+namespace choraleqt {
+
 Settings::Settings()
     : m_qs(QSettings::UserScope, "chorale.sf.net", "choralecd")
 {
@@ -105,3 +107,5 @@ void Settings::SetDefaultDatabase(const std::string& s)
 {
     m_qs.writeEntry(DEFAULT_DATABASE, QString::fromUtf8(s.c_str()));
 }
+
+} // namespace choraleqt

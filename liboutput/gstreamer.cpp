@@ -6,11 +6,9 @@
 #include <gst/gst.h>
 #include "libutil/trace.h"
 #include "libutil/observable.h"
-#include <boost/thread/thread.hpp>
-#include <boost/thread/condition.hpp>
-#include <boost/function.hpp>
+#include "libutil/mutex.h"
+#include "libutil/bind.h"
 #include <boost/format.hpp>
-#include <boost/bind.hpp>
 
 namespace output {
 
@@ -54,20 +52,21 @@ class URLPlayer::Impl: public util::Observable<URLObserver>
     GstElement *m_play;
     GstBus *m_bus;
 
-    boost::mutex m_mutex;
-    boost::condition m_cstarted;
+    util::Mutex m_mutex;
+    util::Condition m_cstarted;
     std::string m_url;
     std::string m_next_url;
     GstState m_last_state;
     unsigned int m_last_timecode_sec;
     bool m_async_state_change;
+    bool m_got_early_warning;
 
     volatile bool m_started;
     volatile bool m_exiting;
 
-    boost::thread m_thread;
+    util::Thread m_thread;
 
-    void Run();
+    unsigned int Run();
 
     static gboolean StaticBusCallback(GstBus*, GstMessage*, gpointer);
     gboolean OnBusCallback(GstBus*, GstMessage*);
@@ -78,6 +77,9 @@ class URLPlayer::Impl: public util::Observable<URLObserver>
     static gboolean StaticStartup(gpointer);
     gboolean OnStartup();
 
+    static void StaticAboutToFinishCallback(GstElement*, gpointer);
+    bool OnAboutToFinish(GstElement*);
+
 public:
     Impl(int card, int device);
     ~Impl();
@@ -85,6 +87,7 @@ public:
     unsigned int SetURL(const std::string&);
     unsigned int SetNextURL(const std::string&);
     unsigned int SetPlayState(output::PlayState);
+    unsigned int Seek(unsigned int ms);
 };
 
 URLPlayer::Impl::Impl(int card, int device)
@@ -97,9 +100,10 @@ URLPlayer::Impl::Impl(int card, int device)
       m_last_state(GST_STATE_NULL),
       m_last_timecode_sec(UINT_MAX),
       m_async_state_change(false),
+      m_got_early_warning(false),
       m_started(false),
       m_exiting(false),
-      m_thread(boost::bind(&Impl::Run, this))
+      m_thread(util::Bind<Impl,&Impl::Run>(this))
 {
     if (!g_thread_supported())
     {
@@ -129,7 +133,7 @@ URLPlayer::Impl::~Impl()
     if (m_loop)
 	g_main_loop_quit(m_loop);
     TRACE << "URLPlayer::~Impl joining\n";
-    m_thread.join();
+    m_thread.Join();
     TRACE << "URLPlayer::~Impl joined\n";
 }
 
@@ -142,18 +146,22 @@ gboolean URLPlayer::Impl::StaticStartup(gpointer data)
 /* GStreamer crashes if we call gst_element_factory_make from two threads
  * simultaneously.
  */
-static boost::mutex gstreamer_unnecessarily_not_re_entrant;
+static util::Mutex gstreamer_unnecessarily_not_re_entrant;
 
 gboolean URLPlayer::Impl::OnStartup()
 {
     {
-	boost::mutex::scoped_lock lock(gstreamer_unnecessarily_not_re_entrant);
+	util::Mutex::Lock lock(gstreamer_unnecessarily_not_re_entrant);
     
-
-	m_play = gst_element_factory_make("playbin", "play");
+	/** If it exists, playbin2 is newer and better than playbin */
+//	m_play = gst_element_factory_make("playbin2", "play");
 	if (!m_play)
 	{
-	    TRACE << "Oh-oh, no playbin\n";
+	    m_play = gst_element_factory_make("playbin", "play");
+	    if (!m_play)
+	    {
+		TRACE << "Oh-oh, no playbin\n";
+	    }
 	}
 
 	GstElement *alsasink = NULL;
@@ -179,18 +187,24 @@ gboolean URLPlayer::Impl::OnStartup()
 	g_source_set_callback(src, (GSourceFunc)&StaticBusCallback, this, 
 			      NULL);
 	g_source_attach(src, m_context);
+
+	gulong rc = g_signal_connect(m_play, "about-to-finish",
+				     G_CALLBACK(&StaticAboutToFinishCallback),
+				     this);
+
+	TRACE << "g_signal_connect returned " << rc << "\n";
     }
 
     {
-	boost::mutex::scoped_lock lock(m_mutex);
+	util::Mutex::Lock lock(m_mutex);
 	m_started = true;
-	m_cstarted.notify_all();
+	m_cstarted.NotifyAll();
     }
 
     return false; // Don't call me again
 }
 
-void URLPlayer::Impl::Run()
+unsigned int URLPlayer::Impl::Run()
 {
     TRACE << "starting\n";
 
@@ -218,7 +232,7 @@ void URLPlayer::Impl::Run()
     
     /* also clean up */
     {
-	boost::mutex::scoped_lock lock(gstreamer_unnecessarily_not_re_entrant);
+	util::Mutex::Lock lock(gstreamer_unnecessarily_not_re_entrant);
     
 	gst_element_set_state(m_play, GST_STATE_NULL);
 	gst_object_unref(GST_OBJECT(m_bus));
@@ -234,24 +248,31 @@ void URLPlayer::Impl::Run()
     }
 
     TRACE << "now falling off thread\n";
+    return 0;
 }
 
 unsigned int URLPlayer::Impl::SetURL(const std::string& url)
 {
     {
-	boost::mutex::scoped_lock lock(m_mutex);
+	util::Mutex::Lock lock(m_mutex);
 	m_url = url.c_str(); // Deep copy for thread-safety
 	m_next_url.clear();
 
 	if (!m_started)
 	{
 	    TRACE << "Waiting for start\n";
-	    m_cstarted.wait(lock);
+	    m_cstarted.Wait(lock, 60);
 	}
     }
-//    TRACE << "Calling g_object_set(" << m_url << ") on " << m_play << "\n";
+    TRACE << "Setting ready\n";
+    bool playing = m_last_state == GST_STATE_PLAYING;
+    if (playing)
+	gst_element_set_state(m_play, GST_STATE_READY);
+    TRACE << "Calling g_object_set(" << m_url << ") on " << m_play << "\n";
     g_object_set(G_OBJECT(m_play), "uri", m_url.c_str(), NULL);
-//    TRACE << "g_object_set returned\n";
+    TRACE << "g_object_set returned\n";
+    if (playing)
+	gst_element_set_state(m_play, GST_STATE_PLAYING);
     Fire(&URLObserver::OnURL, m_url);
 
     return 0;
@@ -259,7 +280,7 @@ unsigned int URLPlayer::Impl::SetURL(const std::string& url)
 
 unsigned int URLPlayer::Impl::SetNextURL(const std::string& url)
 {
-    boost::mutex::scoped_lock lock(m_mutex);
+    util::Mutex::Lock lock(m_mutex);
     m_next_url = url.c_str(); // Deep copy for thread-safety
     return 0;
 }
@@ -267,11 +288,11 @@ unsigned int URLPlayer::Impl::SetNextURL(const std::string& url)
 unsigned int URLPlayer::Impl::SetPlayState(output::PlayState state)
 {
     {
-	boost::mutex::scoped_lock lock(m_mutex);
+	util::Mutex::Lock lock(m_mutex);
 	if (!m_started)
 	{
 	    TRACE << "Waiting for start again\n";
-	    m_cstarted.wait(lock);
+	    m_cstarted.Wait(lock, 60);
 	}
     }
     switch (state)
@@ -298,12 +319,64 @@ unsigned int URLPlayer::Impl::SetPlayState(output::PlayState state)
     return 0;
 }
 
+unsigned int URLPlayer::Impl::Seek(unsigned int ms)
+{
+    gint64 ns = ((gint64)ms) * 1000000;
+    gst_element_seek(m_play, 1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH,
+		     GST_SEEK_TYPE_SET, ns, GST_SEEK_TYPE_NONE, 0);
+    return 0;
+}
+
 gboolean URLPlayer::Impl::StaticBusCallback(GstBus *bus, GstMessage *message,
 					    gpointer data)
 {
 //    TRACE << "sbc(" << bus << "," << message << "," << data << ")\n";
     Impl *impl = (Impl*)data;
     return impl->OnBusCallback(bus, message);
+}
+
+void URLPlayer::Impl::StaticAboutToFinishCallback(GstElement *playbin,
+						  gpointer data)
+{
+    Impl *impl = (Impl*)data;
+    impl->m_got_early_warning = true;
+    impl->OnAboutToFinish(playbin);
+}
+
+/** Returns true if carrying on
+ */
+bool URLPlayer::Impl::OnAboutToFinish(GstElement*)
+{
+    TRACE << "Wooo about to finish\n";
+
+    std::string url;
+    {
+	TRACE << "Taking lock\n";
+	util::Mutex::Lock lock(m_mutex);
+	if (!m_next_url.empty())
+	{
+	    url = m_url = m_next_url;
+	    m_next_url.clear();
+	}
+	TRACE << "Releasing lock\n";
+    }
+
+    if (url.empty())
+    {
+	TRACE << "Done (stopping)\n";
+	return false;
+    }
+
+    TRACE << "Calling ready\n";
+    gst_element_set_state(m_play, GST_STATE_READY);
+    TRACE << "Calling objectset\n";
+    g_object_set(G_OBJECT(m_play), "uri", url.c_str(), NULL);
+    TRACE << "Calling play\n";
+    gst_element_set_state(m_play, GST_STATE_PLAYING);
+    TRACE << "Calling fire\n";
+    Fire(&URLObserver::OnURL, m_url);
+    TRACE << "Done (continuing)\n";
+    return true;
 }
 
 #if 0
@@ -317,6 +390,18 @@ gboolean URLPlayer::Impl::OnBusCallback(GstBus*, GstMessage* message)
 {
     switch (GST_MESSAGE_TYPE(message)) 
     {
+    case GST_MESSAGE_WARNING:
+    {
+	GError *err;
+	gchar *debug;
+	
+	gst_message_parse_warning(message, &err, &debug);
+	TRACE << "URLPlayer Warning: " << (const char*)err->message << "(" << (const char*)debug << ")\n";
+	g_error_free(err);
+	g_free(debug);
+	break;
+    }
+
     case GST_MESSAGE_ERROR:
     {
 	GError *err;
@@ -324,8 +409,8 @@ gboolean URLPlayer::Impl::OnBusCallback(GstBus*, GstMessage* message)
 	
 	gst_message_parse_error (message, &err, &debug);
 	TRACE << "URLPlayer Error: " << err->message << "\n";
-	g_error_free (err);
-	g_free (debug);
+	g_error_free(err);
+	g_free(debug);
 	gst_element_set_state(m_play, GST_STATE_NULL);
 	break;
     }
@@ -333,38 +418,20 @@ gboolean URLPlayer::Impl::OnBusCallback(GstBus*, GstMessage* message)
     case GST_MESSAGE_EOS:
 	TRACE << "*** eos\n";
 
-	if (!m_exiting)
+	if (!m_exiting) 
 	{
-	    std::string url;
-	    {
-//		TRACE << "Taking lock\n";
-		boost::mutex::scoped_lock lock(m_mutex);
-		if (!m_next_url.empty())
-		{
-		    url = m_url = m_next_url;
-		    m_next_url.clear();
-		}
-//		TRACE << "Releasing lock\n";
-	    }
+	    bool still_playing = false;
 
-	    if (!url.empty())
+	    if (!m_got_early_warning)
+		still_playing = OnAboutToFinish(NULL);
+	    
+	    if (!still_playing)
 	    {
-//		TRACE << "Calling setstate\n";
+		TRACE << "Calling setstate(ready)\n";
 		gst_element_set_state(m_play, GST_STATE_READY);
-//		TRACE << "Calling objectset\n";
-		g_object_set(G_OBJECT(m_play), "uri", url.c_str(), NULL);
-//		TRACE << "Calling fire\n";
-		Fire(&URLObserver::OnURL, m_url);
-//		TRACE << "Calling setps\n";
-		SetPlayState(PLAY);
-	    }
-	    else
-	    {
-		gst_element_set_state(m_play, GST_STATE_READY);
-		Fire(&URLObserver::OnPlayState, STOP);
+		TRACE << "Done\n";
 		m_last_state = GST_STATE_READY;
 	    }
-//	    TRACE << "Done\n";
 	}
 	break;
 
@@ -503,6 +570,14 @@ unsigned int URLPlayer::SetPlayState(PlayState st)
 	return EINVAL;
 
     return m_impl->SetPlayState(st);
+}
+
+unsigned int URLPlayer::Seek(unsigned int ms)
+{
+    if (!m_impl)
+	return EINVAL;
+
+    return m_impl->Seek(ms);
 }
 
 void URLPlayer::AddObserver(URLObserver *obs)

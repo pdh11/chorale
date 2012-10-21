@@ -1,5 +1,7 @@
 #include "cd_content_factory.h"
+#include "libutil/counted_pointer.h"
 #include <boost/format.hpp>
+#include <stdio.h>
 
 namespace import {
 

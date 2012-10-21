@@ -31,7 +31,7 @@ EncodingTask::~EncodingTask()
 void EncodingTask::RenameAndTag(const std::string& new_filename,
 				db::RecordsetPtr tags, util::TaskQueue *queue)
 {
-    boost::mutex::scoped_lock lock(m_rename_mutex);
+    util::Mutex::Lock lock(m_rename_mutex);
     if (m_rename_stage == LATE)
     {
 	queue->PushTask(TagRenameTask::Create(m_output_filename, new_filename,

@@ -71,14 +71,14 @@ class UpnpDBWidgetFactory: public WidgetFactory,
     mediadb::Registry *m_registry;
     util::http::Client *m_client;
     util::http::Server *m_server;
-    typedef std::map<std::string, db::upnpav::Database*> databases_t;
-    databases_t m_databases;
+    util::Scheduler *m_poller;
     typedef std::map<std::string, DBWidget*> widgets_t;
     widgets_t m_widgets;
 
 public:
     UpnpDBWidgetFactory(QPixmap*, mediadb::Registry *m_registry,
-			util::http::Client*, util::http::Server*);
+			util::http::Client*, util::http::Server*,
+			util::Scheduler *poller);
     
     // Being a WidgetFactory
     void CreateWidgets(QWidget *parent);

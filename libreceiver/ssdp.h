@@ -4,9 +4,10 @@
 #define LIBRECEIVER_SSDP_H 1
 
 #include <boost/utility.hpp>
+#include "libutil/counted_pointer.h"
 
 namespace util { class IPEndPoint; }
-namespace util { class PollerInterface; }
+namespace util { class Scheduler; }
 namespace util { class IPFilter; }
 
 namespace receiver {
@@ -22,14 +23,15 @@ namespace ssdp {
  */
 class Server: public boost::noncopyable
 {
-    class Impl;
-    Impl *m_impl;
+    class Task;
+    typedef util::CountedPointer<Task> TaskPtr;
+    TaskPtr m_task;
 
 public:
     explicit Server(util::IPFilter*);
     ~Server();
 
-    unsigned Init(util::PollerInterface*);
+    unsigned Init(util::Scheduler*);
 
     /** Advertise a service on the network.
      *
@@ -45,14 +47,15 @@ public:
 
 /** Empeg-style pseudo-SSDP client, looks for services on the network.
  *
- * Calls you back on the PollerInterface's thread, whichever that is.
+ * Calls you back on the Scheduler's thread, whichever that is.
  *
  * Because the wire protocol is so limited, you need a Client per service.
  */
 class Client: public boost::noncopyable
 {
-    class Impl;
-    Impl *m_impl;
+    class Task;
+    typedef util::CountedPointer<Task> TaskPtr;
+    TaskPtr m_task;
 
 public:
     Client();
@@ -66,16 +69,16 @@ public:
 	virtual void OnService(const util::IPEndPoint&) = 0;
     };
 
-    unsigned Init(util::PollerInterface*, const char *uuid, Callback*);
+    unsigned Init(util::Scheduler*, const char *uuid, Callback*);
 };
 
 /** UUID for the Rio Receiver software (NFS) service.
  */
-extern const char *s_uuid_softwareserver;
+extern const char s_uuid_softwareserver[];
 
 /** UUID for the Rio Receiver music (HTTP) service.
  */
-extern const char *s_uuid_musicserver;
+extern const char s_uuid_musicserver[];
 
 } // namespace ssdp
 

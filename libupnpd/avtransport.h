@@ -9,7 +9,8 @@ namespace upnpd {
 /** Actual implementation of upnp::AVTransport2 base class in terms of an
  * output::URLPlayer.
  */
-class AVTransportImpl: public upnp::AVTransport2, public output::URLObserver
+class AVTransportImpl: public upnp::AVTransport2,
+		       public output::URLObserver
 {
     output::URLPlayer *m_player;
     output::PlayState m_state;
@@ -38,6 +39,8 @@ public:
     unsigned int Stop(uint32_t InstanceID);
     unsigned int Play(uint32_t InstanceID, TransportPlaySpeed Speed);
     unsigned int Pause(uint32_t InstanceID);
+    unsigned int Seek(uint32_t instance_id, SeekMode unit, 
+		      const std::string& target);
     unsigned int GetPositionInfo(uint32_t instance_id,
 				 uint32_t *track,
 				 std::string *track_duration,

@@ -3,8 +3,9 @@
 
 #include <string>
 #include <list>
+#include <stdlib.h>
 #include "stream.h"
-#include "buffer_chain.h"
+#include "counted_pointer.h"
 
 /** Classes for XML support
  *
@@ -33,7 +34,7 @@ public:
  * for parsing Windows ASX playlist files -- they look a bit like XML
  * but aren't really.
  */
-class SaxParser: public util::BufferSink
+class SaxParser
 {
     SaxParserObserver *m_observer;
 
@@ -63,8 +64,7 @@ public:
     explicit SaxParser(SaxParserObserver *observer);
 
     unsigned int Parse(util::StreamPtr);
-
-    unsigned int OnBuffer(util::BufferPtr);
+    unsigned int WriteAll(const void *buffer, size_t len);
 };
 
 class NullSelector;

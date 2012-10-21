@@ -1,9 +1,7 @@
 #ifndef LIBUTIL_OBSERVABLE_H
 #define LIBUTIL_OBSERVABLE_H 1
 
-#include <boost/bind.hpp>
 #include <list>
-#include <functional>
 #include <assert.h>
 #include "locking.h"
 
@@ -30,8 +28,30 @@ protected:
 	}
     }
 
-    template <typename F>
-    void Apply(F f) { if (m_observer) f(m_observer); }
+    class Iterator
+    {
+	Observer *m_observer;
+    public:
+	explicit Iterator(Observer *observer) : m_observer(observer) {}
+
+	Observer *operator*() { return m_observer; }
+	void operator++() { m_observer = NULL; }
+
+	bool operator==(const Iterator& other)
+	{
+	    return !m_observer && !other.m_observer; 
+	}
+
+	bool operator!=(const Iterator& other)
+	{
+	    return m_observer || other.m_observer; 
+	}
+    };
+
+    typedef Iterator const_iterator;
+
+    const_iterator begin() const { return Iterator(m_observer); }
+    const_iterator end() const { return Iterator(NULL); }
 };
 
 /** Storage policy: list of observers
@@ -44,7 +64,7 @@ class ObserverList
 
 public:
     ObserverList() {}
-    
+
 protected:
     void AddObserver(Observer *obs)
     {
@@ -56,14 +76,10 @@ protected:
 	m_observers.remove(obs);
     }
 
-    template <typename F>
-    void Apply(F f)
-    {
-	for (typename observers_t::const_iterator i = m_observers.begin();
-	     i != m_observers.end();
-	     ++i)
-	    f(*i);
-    }
+    typedef typename observers_t::const_iterator const_iterator;
+
+    const_iterator begin() const { return m_observers.begin(); }
+    const_iterator end() const { return m_observers.end(); }
 };
 
 /** Base class that encapsulates telling observer classes what's going on.
@@ -79,65 +95,79 @@ template <class Observer, template<class Obs> class StoragePolicy=ObserverList,
 	  class LockingPolicy=PerObjectLocking>
 class Observable: private StoragePolicy<Observer>, private LockingPolicy
 {
+    typedef StoragePolicy<Observer> Storage;
+    typedef typename Storage::const_iterator const_iterator;
+    typedef typename LockingPolicy::Lock Lock;
+    
+    const_iterator begin() { return Storage::begin(); }
+    const_iterator end() { return Storage::end(); }
+
 public:
     void AddObserver(Observer *obs)
     {
-	typename LockingPolicy::Lock lock(this);
-	StoragePolicy<Observer>::AddObserver(obs);
+	Lock lock(this);
+	Storage::AddObserver(obs);
     }
 
     void RemoveObserver(Observer *obs)
     {
-	typename LockingPolicy::Lock lock(this);
-	StoragePolicy<Observer>::RemoveObserver(obs);
+	Lock lock(this);
+	Storage::RemoveObserver(obs);
     }
 
     template <typename T1, typename T2, typename T3, typename T4>
     void Fire(void (Observer::*fn)(T1, T2, T3, T4), T1 t1, T2 t2, T3 t3, T4 t4)
     {
-	typename LockingPolicy::Lock lock(this);
-	StoragePolicy<Observer>::Apply(boost::bind(fn, _1, t1, t2, t3, t4));
+	Lock lock(this);
+	for (const_iterator i = begin(); i != end(); ++i)
+	    ((*i)->*fn)(t1, t2, t3, t4);
     }
 
     template <typename T1, typename T2, typename T3>
     void Fire(void (Observer::*fn)(T1, T2, T3), T1 t1, T2 t2, T3 t3)
     {
-	typename LockingPolicy::Lock lock(this);
-	StoragePolicy<Observer>::Apply(boost::bind(fn, _1, t1, t2, t3));
+	Lock lock(this);
+	for (const_iterator i = begin(); i != end(); ++i)
+	    ((*i)->*fn)(t1, t2, t3);
     }
 
     template <typename T1, typename T2>
     void Fire(void (Observer::*fn)(T1, T2), T1 t1, T2 t2)
     {
-	typename LockingPolicy::Lock lock(this);
-	StoragePolicy<Observer>::Apply(boost::bind(fn, _1, t1, t2));
+	Lock lock(this);
+	for (const_iterator i = begin(); i != end(); ++i)
+	    ((*i)->*fn)(t1, t2);
     }
 
     template <typename T1, typename T2>
     void Fire(void (Observer::*fn)(T1, const T2&), T1 t1, const T2& t2)
     {
-	typename LockingPolicy::Lock lock(this);
-	StoragePolicy<Observer>::Apply(boost::bind(fn, _1, t1, boost::cref(t2)));
+	Lock lock(this);
+	for (const_iterator i = begin(); i != end(); ++i)
+	    ((*i)->*fn)(t1, t2);
     }
 
     template <typename T>
     void Fire(void (Observer::*fn)(T), T t)
     {
-	typename LockingPolicy::Lock lock(this);
-	StoragePolicy<Observer>::Apply(boost::bind(fn, _1, t));
+	Lock lock(this);
+	for (const_iterator i = begin(); i != end(); ++i)
+	    ((*i)->*fn)(t);
     }
 
     template <typename T>
     void Fire(void (Observer::*fn)(const T&), const T& t)
     {
-	typename LockingPolicy::Lock lock(this);
-	StoragePolicy<Observer>::Apply(boost::bind(fn, _1, boost::cref(t)));
+	Lock lock(this);
+	for (const_iterator i = begin(); i != end(); ++i)
+	    ((*i)->*fn)(t);
     }
 
     void Fire(void (Observer::*fn)(void))
     {
-	typename LockingPolicy::Lock lock(this);
-	StoragePolicy<Observer>::Apply(boost::mem_fn(fn));
+	Lock lock(this);
+	for (const_iterator i = begin(); i != end(); ++i)
+	    ((*i)->*fn)();
     }
 };
 

@@ -1,8 +1,9 @@
 #include "multi_stream.h"
 #include "trace.h"
+#include "counted_pointer.h"
+#include "mutex.h"
 #include <errno.h>
 #include <string.h>
-#include <boost/thread/condition.hpp>
 #include <algorithm>
 
 namespace util {
@@ -20,8 +21,8 @@ class MultiStream::Impl
 
     SeekableStream::pos64 m_outputposes[MAX_OP];
 
-    boost::mutex m_mutex;
-    boost::condition m_moredata;
+    util::Mutex m_mutex;
+    util::Condition m_moredata;
 
     unsigned OutputRead(void *buffer, size_t len, size_t *pread, unsigned ix);
 
@@ -89,11 +90,11 @@ unsigned MultiStream::Impl::OutputRead(void *buffer, size_t len,
 	return 0;
     }
 
-    boost::mutex::scoped_lock lock(m_mutex);
+    util::Mutex::Lock lock(m_mutex);
 
     while (m_outputposes[ix] == m_inputpos)
     {
-	m_moredata.wait(lock);
+	m_moredata.Wait(lock, 60);
     }
 
     SeekableStream::pos64 offset = m_inputpos - m_outputposes[ix];
@@ -118,13 +119,13 @@ unsigned MultiStream::Impl::Write(const void *buffer, size_t len,
 	return 0;
     }
 
-    boost::mutex::scoped_lock lock(m_mutex);
+    util::Mutex::Lock lock(m_mutex);
     
     unsigned rc = m_stm->WriteAt(buffer, m_inputpos, len, pwrote);
     if (rc)
 	return rc;
     m_inputpos += *pwrote;
-    m_moredata.notify_all();
+    m_moredata.NotifyAll();
     return 0;
 }
 

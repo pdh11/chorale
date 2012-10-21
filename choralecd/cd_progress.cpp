@@ -8,12 +8,15 @@
  * typically, the GPL.
  */
 #include "cd_progress.h"
+#include "features.h"
 #include "cd_window.h"
 #include "events.h"
 #include "settings.h"
 #include "libutil/trace.h"
 #include <qapplication.h>
 #include <qmessagebox.h>
+
+#if HAVE_CD
 
 namespace choraleqt {
 
@@ -39,7 +42,7 @@ CDProgress::CDProgress(import::CDDrivePtr drive, const Settings *settings,
 
     m_task = import::CDTocTask::Create(drive, &m_cddb);
     m_task->SetObserver(this);
-    drive->GetTaskQueue()->PushTask(m_task);
+    drive->GetTaskQueue()->PushTask(util::Bind<import::CDTocTask,&import::CDTocTask::Run>(m_task));
 }
 
 CDProgress::~CDProgress()
@@ -97,3 +100,5 @@ void CDProgress::customEvent(QEvent *ce)
 }
 
 } // namespace choraleqt
+
+#endif

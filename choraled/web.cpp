@@ -1,6 +1,5 @@
 #include "web.h"
 #include "config.h"
-#include <pthread.h>
 #include "libutil/trace.h"
 #include "libutil/string_stream.h"
 #include "libutil/urlescape.h"
@@ -9,6 +8,9 @@
 #include "libmediadb/schema.h"
 #include <time.h>
 #include <boost/format.hpp>
+#if HAVE_WS2TCPIP_H
+#include <ws2tcpip.h>  /* For gethostname */
+#endif
 
 #define HAVE_DVB (HAVE_LINUX_DVB_DMX_H && HAVE_LINUX_DVB_FRONTEND_H)
 

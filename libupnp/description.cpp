@@ -3,6 +3,7 @@
 #include "libutil/xml.h"
 #include "libutil/trace.h"
 #include "libutil/http_fetcher.h"
+#include "libutil/errors.h"
 
 namespace upnp {
 

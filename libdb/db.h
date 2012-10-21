@@ -6,7 +6,7 @@
 #ifndef DB_DB_H
 #define DB_DB_H
 
-#include <boost/intrusive_ptr.hpp>
+#include "libutil/counted_pointer.h"
 
 /** Interface classes for a generic database abstraction.
  *
@@ -17,10 +17,10 @@ namespace db {
 typedef unsigned int field_t;
 
 class Recordset;
-typedef ::boost::intrusive_ptr<Recordset> RecordsetPtr;
+typedef util::CountedPointer<Recordset> RecordsetPtr;
 
 class Query;
-typedef ::boost::intrusive_ptr<Query> QueryPtr;
+typedef util::CountedPointer<Query> QueryPtr;
 
 /** Models a (flatfile) database.
  *

@@ -1,7 +1,7 @@
 #ifndef LIBUTIL_TCP_WRAPPERS_H
 #define LIBUTIL_TCP_WRAPPERS_H 1
 
-#include "socket.h"
+#include "ip.h"
 #include "locking.h"
 #include <map>
 #include <time.h>
@@ -24,6 +24,7 @@ class TcpWrappers: public PerClassLocking<TcpWrappers>
 
 public:
     explicit TcpWrappers(const char *daemon);
+    ~TcpWrappers();
 
     bool Allowed(IPAddress client);
 };

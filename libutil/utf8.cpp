@@ -1,187 +1,201 @@
 #include "utf8.h"
 #include "trace.h"
+#include <string.h>
+#include <stdlib.h>
 
 namespace util {
 
 #undef BOM
 #undef ERROR
 
-enum { BOM = 0xFEFF, ERROR = 0xFFFD };
+static const utf32_t ERROR = 0xFFFD;
+static const utf32_t BOM   = 0xFEFF;
 
-std::string UTF32ToUTF8(const utf32_t *s)
+static inline bool Cont(unsigned char c) { return ((c & 0xC0) == 0x80); }
+
+
+        /* GetChar */
+
+
+template<>
+utf32_t GetChar(const utf32_t **const ppt)
 {
-    std::string result;
-    result.reserve(64); // guess
+    return *(*ppt)++;
+}
 
-    if (*s == BOM)
-	++s;
-    
-    while (*s)
+template<>
+utf32_t GetChar(const utf16_t **const ppt)
+{
+    utf32_t ch = *(*ppt)++;
+    if (ch >= 0xD800 && ch < 0xDC00) // Surrogate-pair
     {
-	uint32_t ch = *s++;
-
-	if (ch < 0x80)
-	    result += (char)ch;
-	else if (ch < 0x800)
+	utf32_t ch2 = **ppt;
+	if (ch2 >= 0xDC00 && ch2 < 0xE000)
 	{
-	    result += (char)(0xC0 + (ch>>6));
-	    result += (char)(0x80 + (ch & 0x3F));
-	}
-	else if (ch < 0x10000)
-	{
-	    result += (char)(0xE0 + (ch>>12));
-	    result += (char)(0x80 + ((ch>>6) & 0x3F));
-	    result += (char)(0x80 + (ch & 0x3F));
+	    ch = 0x10000 + ((ch & 0x3FF) << 10);
+	    ch += (ch2 & 0x3FF);
+	    ++(*ppt);
 	}
 	else
+	    return ERROR;
+    }
+    return ch;
+}
+
+template<>
+utf32_t GetChar(const char **const ptr)
+{
+    unsigned char c = *(*ptr)++;
+    utf32_t wc;
+
+    if (c < 0x80)
+    {
+	return c;
+    }
+    if ((c & 0xC0) == 0x80)
+    {
+	return ERROR; // Continuation character (error)
+    }
+    if ((c & 0xE0) == 0xC0)
+    {
+	if (Cont(**ptr))
 	{
-	    result += (char)(0xF0 + (ch>>18));
-	    result += (char)(0x80 + ((ch>>12) & 0x3F));
-	    result += (char)(0x80 + ((ch>>6) & 0x3F));
-	    result += (char)(0x80 + (ch & 0x3F));
+	    wc = ((c & 0x1F) << 6)
+		+ (**ptr & 0x3F);
+	    ++(*ptr);
+
+	    return (wc < 0x80) ? ERROR : wc;
 	}
+	return ERROR;
+    }
+    if ((c & 0xF0) == 0xE0)
+    {
+	if (Cont(**ptr) && Cont((*ptr)[1]))
+	{
+	    wc = ((c & 0xF) << 12)
+		+ ((**ptr & 0x3F)<<6)
+		+ ((*ptr)[1] & 0x3F);
+	    (*ptr) += 2;
+
+	    return (wc < 0x800) ? ERROR : wc;
+	}
+	return ERROR;
+    }
+    if ((c & 0xF8) == 0xF0)
+    {
+	if (Cont(**ptr) && Cont((*ptr)[1]) && Cont((*ptr)[2]))
+	{
+	    wc = ((c & 0xF) << 18)
+		+ ((**ptr & 0x3F)<<12)
+		+ (((*ptr)[1] & 0x3F)<<6)
+		+ ((*ptr)[2] & 0x3F);
+	    (*ptr) += 3;
+
+	    return (wc < 0x10000) ? ERROR : wc;
+	}
+    }
+    return ERROR;
+}
+
+
+        /* PutChar */
+
+
+template<class T>
+static inline void PutChar(utf32_t ch, std::basic_string<T> *s);
+
+template<>
+void PutChar(utf32_t ch, utf32string *s)
+{
+    (*s) += ch;
+}
+
+template<>
+void PutChar(utf32_t ch, utf16string *s)
+{
+    if (ch >= 0x10000)
+    {
+	utf32_t surrogate0 = 0xD800 + ((ch - 0x10000) >> 10);
+	utf32_t surrogate1 = 0xDC00 + ((ch - 0x10000) & 0x3FF);
+	(*s) += (utf16_t)surrogate0;
+	(*s) += (utf16_t)surrogate1;
+    }
+    else
+	(*s) += (utf16_t)ch;
+}
+
+template<>
+void PutChar(utf32_t ch, std::string *s)
+{
+    if (ch < 0x80)
+	(*s) += (char)ch;
+    else if (ch < 0x800)
+    {
+	(*s) += (char)(0xC0 + (ch>>6));
+	(*s) += (char)(0x80 + (ch & 0x3F));
+    }
+    else if (ch < 0x10000)
+    {
+	(*s) += (char)(0xE0 + (ch>>12));
+	(*s) += (char)(0x80 + ((ch>>6) & 0x3F));
+	(*s) += (char)(0x80 + (ch & 0x3F));
+    }
+    else
+    {
+	(*s) += (char)(0xF0 + (ch>>18));
+	(*s) += (char)(0x80 + ((ch>>12) & 0x3F));
+	(*s) += (char)(0x80 + ((ch>>6) & 0x3F));
+	(*s) += (char)(0x80 + (ch & 0x3F));
+    }
+}
+
+
+        /* Actual conversions */
+
+
+template <class X, class Y>
+std::basic_string<X> Convert(const Y *s)
+{
+    std::basic_string<X> result;
+    result.reserve(64); // guess
+    bool last_error = false;
+    
+    for (;;)
+    {
+	utf32_t ch = GetChar(&s);
+	if (!ch)
+	    break;
+
+	if (ch == BOM)
+	    continue;
+
+	if (ch != ERROR || !last_error)
+	    PutChar(ch, &result);
+
+	last_error = (ch == ERROR);
     }
 
     return result;
+}
+
+std::string UTF32ToUTF8(const utf32_t *s)
+{
+    return Convert<char>(s);
 }
 
 std::string UTF16ToUTF8(const utf16_t *s)
 {
-    std::string result;
-    result.reserve(64); // guess
-
-    if (*s == BOM)
-	++s;
-    
-    while (*s)
-    {
-	uint32_t ch = *s++;
-
-	if (ch < 0x80)
-	    result += (char)ch;
-	else if (ch < 0x800)
-	{
-	    result += (char)(0xC0 + (ch>>6));
-	    result += (char)(0x80 + (ch & 0x3F));
-	}
-	else
-	{
-	    if (ch >= 0xD800 && ch < 0xDC00) // Surrogate-pair
-	    {
-		if (*s >= 0xDC00 && *s < 0xE000)
-		{
-		    ch = 0x10000 + ((ch & 0x3FF) << 10);
-		    ch += (*s & 0x3FF);
-		    ++s;
-		}
-	    }
-	    if (ch < 0x10000)
-	    {
-		result += (char)(0xE0 + (ch>>12));
-		result += (char)(0x80 + ((ch>>6) & 0x3F));
-		result += (char)(0x80 + (ch & 0x3F));
-	    }
-	    else
-	    {
-		result += (char)(0xF0 + (ch>>18));
-		result += (char)(0x80 + ((ch>>12) & 0x3F));
-		result += (char)(0x80 + ((ch>>6) & 0x3F));
-		result += (char)(0x80 + (ch & 0x3F));
-	    }
-	}
-    }
-
-    return result;
+    return Convert<char>(s);
 }
-
-static inline bool Cont(unsigned char c) { return ((c & 0xC0) == 0x80); }
 
 utf16string UTF8ToUTF16(const char *s)
 {
-    utf16string result;
-    result.reserve(64);
-    bool last_error = false;
+    return Convert<utf16_t>(s);
+}
 
-    const unsigned char *ptr = (const unsigned char*)s;
-
-    while (*ptr)
-    {
-	unsigned char c = *ptr++;
-	uint32_t wc;
-
-	if (c < 0x80)
-	{
-	    wc = c;
-	}
-	else if ((c & 0xC0) == 0x80)
-	{
-	    wc = ERROR; // Continuation character (error)
-	}
-	else if ((c & 0xE0) == 0xC0)
-	{
-	    if (Cont(*ptr))
-	    {
-		wc = ((c & 0x1F) << 6)
-		    + (*ptr & 0x3F);
-		++ptr;
-
-		if (wc < 0x80)
-		    wc = ERROR;
-	    }
-	    else
-		wc = ERROR;
-	}
-	else if ((c & 0xF0) == 0xE0)
-	{
-	    if (Cont(*ptr) && Cont(ptr[1]))
-	    {
-		wc = ((c & 0xF) << 12)
-		    + ((*ptr & 0x3F)<<6)
-		    + (ptr[1] & 0x3F);
-		ptr += 2;
-
-		if (wc < 0x800)
-		    wc = ERROR;
-	    }
-	    else
-		wc = ERROR;
-	}
-	else if ((c & 0xF8) == 0xF0)
-	{
-	    if (Cont(*ptr) && Cont(ptr[1]) && Cont(ptr[2]))
-	    {
-		wc = ((c & 0xF) << 18)
-		    + ((*ptr & 0x3F)<<12)
-		    + ((ptr[1] & 0x3F)<<6)
-		    + (ptr[2] & 0x3F);
-		ptr += 3;
-		if (wc < 0x10000)
-		    wc = ERROR;
-	    }
-	    else
-		wc = ERROR;
-	}
-	else
-	    wc = ERROR;
-
-//	TRACE << "c=" << c << " wc=" << wc << "\n";
-
-	if (wc != ERROR || !last_error)
-	{
-	    if (wc >= 0x10000)
-	    {
-		uint32_t surrogate0 = 0xD800 + ((wc - 0x10000) >> 10);
-		uint32_t surrogate1 = 0xDC00 + ((wc - 0x10000) & 0x3FF);
-		result += (utf16_t)surrogate0;
-		result += (utf16_t)surrogate1;
-	    }
-	    else
-		result += (utf16_t)wc;
-	}
-	last_error = (wc == ERROR);
-    }
-
-    return result;
+utf32string UTF8ToUTF32(const char *s)
+{
+    return Convert<utf32_t>(s);
 }
 
 std::string LocalEncodingToUTF8(const char *local_string)
@@ -199,11 +213,30 @@ std::string LocalEncodingToUTF8(const char *local_string)
     return WideToUTF8(ws);
 }
 
+std::string UTF8ToLocalEncoding(const char *utf8_string)
+{
+    std::wstring ws;
+    UTF8ToWide(utf8_string, &ws);
+
+    size_t len_bytes = wcstombs(NULL, ws.c_str(), 0);
+
+    if (len_bytes == (size_t)-1)
+	return utf8_string;
+
+    std::string s;
+    s.resize(len_bytes);
+
+    wcstombs(&s[0], ws.c_str(), len_bytes+1);
+
+    return s;
+}
+
 } // namespace util
 
 #ifdef TEST
 
-#include <assert.h>
+# include <assert.h>
+# include <algorithm>
 
 const util::utf16_t test1[] = { 'f', 'o', 'o', 0 };
 const util::utf16_t test2[] = { 'b', 'e', 'y', 'o', 'n', 'c', 0xE9, 0 };
@@ -232,6 +265,13 @@ int main()
 	util::utf16string utf16 = tests[i].utf16;
 	assert(util::UTF8ToUTF16(utf8) == utf16);
 	assert(util::UTF16ToUTF8(utf16) == utf8);
+
+	util::utf32string utf32;
+	std::copy(utf16.begin(), utf16.end(), 
+		  std::back_insert_iterator<util::utf32string>(utf32));
+
+	assert(util::UTF8ToUTF32(utf8) == utf32);
+	assert(util::UTF32ToUTF8(utf32) == utf8);
     }
 
     return 0;

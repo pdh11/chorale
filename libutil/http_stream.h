@@ -3,40 +3,45 @@
 
 #include "socket.h"
 #include "stream.h"
+#include "counted_pointer.h"
 #include <string>
 
 namespace util {
 
 namespace http {
 
+class Client;
+
+/** A SeekableStream representing a remote HTTP resource.
+ *
+ * Note that util::http::Connection is a stream (not seekable)
+ * representing the result of a single HTTP transaction; http::Stream
+ * is seekable and can and will end up using several HTTP transactions
+ * internally to do its work.
+ */
 class Stream: public util::SeekableStream
 {
+    Client *m_client;
     IPEndPoint m_ipe;
     std::string m_host;
     std::string m_path;
-    const char *m_extra_headers;
-    const char *m_body;
     StreamSocketPtr m_socket;
     pos64 m_len;
     bool m_need_fetch;
     pos64 m_last_pos;
 
-    Stream(const IPEndPoint& ipe, const std::string& host,
-	   const std::string& path,
-	   const char *extra_headers, const char *body);
+    Stream(Client *client, const IPEndPoint& ipe, const std::string& host,
+	   const std::string& path);
 
 public:
     ~Stream();
 
-    typedef boost::intrusive_ptr< ::util::http::Stream> StreamPtr;
+    typedef util::CountedPointer< ::util::http::Stream> StreamPtr;
 
-    static unsigned Create(StreamPtr*, const char *url,
-			   const char *extra_headers = NULL,
-			   const char *body = NULL);
+    static unsigned Create(StreamPtr*, Client *client, const char *url);
 
     // Being a Pollable
-    PollHandle GetReadHandle() { return m_socket->GetReadHandle(); }
-    PollHandle GetWriteHandle() { return m_socket->GetWriteHandle(); }
+    PollHandle GetHandle() { return m_socket->GetHandle(); }
 
     // Being a SeekableStream
     unsigned ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread);
@@ -46,7 +51,7 @@ public:
     unsigned SetLength(pos64);
 };
 
-typedef boost::intrusive_ptr<Stream> StreamPtr;
+typedef util::CountedPointer<Stream> StreamPtr;
 
 } // namespace http
 

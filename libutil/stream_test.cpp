@@ -19,6 +19,15 @@ void TestSeekableStream(SeekableStreamPtr msp)
 
     msp->Seek(0);
 
+    for (unsigned int i=0; i<614400; ++i)
+    {
+	unsigned int j = (i * 37) ^ 0x6c503e21;
+	rc = msp->WriteAllAt(&j, i*sizeof(j), sizeof(j));
+	assert(rc == 0);
+    }
+
+    assert(msp->GetLength() == 614400 * sizeof(unsigned int));
+
     for (unsigned int i=0; i<1024; ++i)
     {
 	unsigned int ii = i ^ 0x13b;
@@ -53,6 +62,32 @@ void TestSeekableStream(SeekableStreamPtr msp)
     rc = msp->Write(NULL, 0, &nwrote);
     assert(rc == 0);
     assert(nwrote == 0);
+    
+    msp->SetLength(0);
+    assert(msp->Tell() == 0);
+    rc = msp->WriteString("foo\nbar");
+    assert(rc == 0);
+    rc = msp->WriteAll(&rc, 1); // write a 0 byte
+    assert(rc == 0);
+    rc = msp->WriteString("wurdle");
+    assert(rc == 0);
+    msp->Seek(0);
+    std::string line;
+    rc = msp->ReadLine(&line);
+    assert(rc == 0);
+    assert(line == "foo");
+    rc = msp->ReadLine(&line);
+    assert(rc == 0);
+    assert(line == "bar");
+    rc = msp->ReadLine(&line);
+    assert(rc == 0);
+    assert(line == "wurdle");
+    assert(msp->Tell() == msp->GetLength());
+
+    msp->Seek(0);
+    rc = DiscardStream(msp.get());
+    assert(rc == 0);
+    assert(msp->Tell() == msp->GetLength());
 }
 
 } // namespace util

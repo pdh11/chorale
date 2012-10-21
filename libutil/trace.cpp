@@ -1,19 +1,22 @@
+#define __STDC_CONSTANT_MACROS
 #include "trace.h"
+#include <stdint.h>
 #include "config.h"
 #include "utf8.h"
-#include <boost/thread/mutex.hpp>
 #include <boost/thread/tss.hpp>
 #include <boost/format.hpp>
 #include <stdarg.h>
+#include <string.h>
 #include <sys/time.h>
-#include <pthread.h>
+#include <errno.h>
+#include <stdio.h>
 
 namespace util {
 
 class ThreadID
 {
     static boost::thread_specific_ptr<unsigned int> sm_ptr;
-    static boost::mutex sm_mutex;
+    static util::Mutex sm_mutex;
     static unsigned int sm_next_id;
 
 public:
@@ -26,7 +29,7 @@ unsigned int ThreadID::Get()
     if (ptr)
 	return *ptr;
 
-    boost::mutex::scoped_lock lock(sm_mutex);
+    util::Mutex::Lock lock(sm_mutex);
     ptr = sm_ptr.get(); // Double-checked locking pattern
     if (ptr)
 	return *ptr;
@@ -37,10 +40,10 @@ unsigned int ThreadID::Get()
 }
 
 boost::thread_specific_ptr<unsigned int> ThreadID::sm_ptr;
-boost::mutex ThreadID::sm_mutex;
+util::Mutex ThreadID::sm_mutex;
 unsigned int ThreadID::sm_next_id = 0;
 
-boost::mutex Tracer::sm_mutex;
+Mutex Tracer::sm_mutex;
 
 static FILE *s_logfile = NULL;
 
@@ -222,6 +225,15 @@ const Tracer& operator<<(const Tracer& n, const wchar_t* ws)
     return n << s;
 }
 
+const Tracer& operator<<(const Tracer& n, wchar_t* ws)
+{
+    if (!ws)
+	return n << "NULL";
+
+    std::string s = util::WideToUTF8(ws);
+    return n << s;
+}
+
 const Tracer& operator<<(const Tracer& n, const std::wstring& ws)
 {
     return n << ws.c_str();
@@ -246,3 +258,64 @@ const Tracer& operator<<(const Tracer& n, long long ll)
 }
 
 } // namespace util
+
+#ifdef TEST
+
+#include <set>
+#include <vector>
+#include <map>
+#include <list>
+
+struct CaselessCompare
+{
+    bool operator()(const std::string& s1, const std::string& s2) const
+    {
+	return strcasecmp(s1.c_str(), s2.c_str()) < 0;
+    }
+};
+
+int main()
+{
+    bool b = false;
+    char c = 'a';
+    signed char sc = -3;
+    unsigned char uc = 200;
+    short ss = -257;
+    unsigned short us = 40000;
+    int si = -80000;
+    unsigned int ui =        3000000000u;
+    long sl = -80001;
+    unsigned long ul =       3000000001u;
+    int64_t  sll =  INT64_C(-5000000000);
+    uint64_t ull = UINT64_C( 5000000000);
+
+    std::string s = "X";
+    std::wstring ws = L"Y";
+
+    std::set<int> is;
+    std::map<int, int> iim;
+    std::vector<int> iv;
+    std::list<int> il;
+
+    std::map<int, std::set<int> > iism;
+    std::vector<std::map<int, std::set<int> > > iismv;
+    std::list<std::vector<std::map<int, std::set<int> > > > iismvl;
+
+    std::map<std::string, std::string, CaselessCompare> sscm;
+
+    TRACE << b << " "
+	  << c << " " << sc << " " << uc << " "
+	  << ss << " " << us << " "
+	  << si << " " << ui << " "
+	  << sl << " " << ul << " "
+	  << sll << " " << ull << " "
+	  << s << " " << ws << " "
+	  << s.c_str() << " " << ws.c_str() << " "
+	  << is << " " << iim << " " << iv << " "
+	  << iism << " " << iismv << " " << iismvl;
+    TRACE << sscm;
+
+    return 0;
+}
+
+#endif

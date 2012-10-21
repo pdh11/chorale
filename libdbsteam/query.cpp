@@ -40,7 +40,7 @@ db::RecordsetPtr Query::Execute()
 	}
 	return db::RecordsetPtr(new CollateRecordset(m_db,
 						     *m_collateby.begin(),
-						     this));
+						     db::steam::QueryPtr(this)));
     }
 
     if (!m_orderby.empty())
@@ -65,7 +65,7 @@ db::RecordsetPtr Query::Execute()
 	// else fall through
     }
 
-    return db::RecordsetPtr(new SimpleRecordset(m_db, this));
+    return db::RecordsetPtr(new SimpleRecordset(m_db, QueryPtr(this)));
 }
 
 bool Query::Match(db::Recordset *rs)

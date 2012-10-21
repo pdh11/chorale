@@ -18,9 +18,9 @@ protected:
 public:
     explicit DelegatingRecordset(db::RecordsetPtr rs) : m_rs(rs) {}
 
-    bool IsEOF();
-    uint32_t GetInteger(field_t which);
-    std::string GetString(field_t which);
+    bool IsEOF() const;
+    uint32_t GetInteger(field_t which) const;
+    std::string GetString(field_t which) const;
     unsigned int SetInteger(field_t which, uint32_t value);
     unsigned int SetString(field_t which, const std::string& value);
     void MoveNext();

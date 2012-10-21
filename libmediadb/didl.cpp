@@ -7,6 +7,7 @@
 #include "libutil/xmlescape.h"
 #include "libutil/xml.h"
 #include "libutil/string_stream.h"
+#include "libutil/http_client.h"
 #include <boost/format.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
@@ -100,6 +101,10 @@ MetadataList Parse(const std::string& xml)
     return results;
 }
 
+static bool prefixeq(const std::string& s, const char *prefix)
+{
+    return !strncmp(s.c_str(), prefix, strlen(prefix));
+}
 
 unsigned int ToRecord(const Metadata& md, db::RecordsetPtr rs)
 {
@@ -131,13 +136,17 @@ unsigned int ToRecord(const Metadata& md, db::RecordsetPtr rs)
 	    if (i->content == "object.container.storageFolder"
 		|| i->content == "object.container")
 		type = mediadb::DIR;
-	    else if (i->content == "object.item.audioItem.musicTrack")
-		type = mediadb::TUNE;
 	    else if (i->content == "object.item.audioItem.audioBroadcast")
 		type = mediadb::RADIO;
+	    else if (prefixeq(i->content, "object.item.audioItem"))
+		type = mediadb::TUNE;
+	    else if (i->content == "object.item.videoItem.videoBroadcast")
+		type = mediadb::TV;
+	    else if (prefixeq(i->content, "object.item.videoItem"))
+		type = mediadb::VIDEO;
 	    else if (i->content == "object.container.playlistContainer")
 		type = mediadb::PLAYLIST;
-	    else if (!strncmp(i->content.c_str(), "object.container.", 17))
+	    else if (prefixeq(i->content, "object.container"))
 		type = mediadb::DIR;
 	    else
 		TRACE << "Unknown class '" << i->content << "'\n";
@@ -151,6 +160,7 @@ unsigned int ToRecord(const Metadata& md, db::RecordsetPtr rs)
 	    if (ci != i->attributes.end())
 	    {
 		unsigned int codec = mediadb::NONE;
+//		unsigned int container = mediadb::NONE;
 
 		/* Split the protocol-info into fields for testing, as there
 		 * may be pointless DLNA blithering in the fourth field.
@@ -172,39 +182,44 @@ unsigned int ToRecord(const Metadata& md, db::RecordsetPtr rs)
 			codec = mediadb::WAV;
 		    else if (mime == "audio/L16")
 			codec = mediadb::PCM;
-		    else if (mime == "application/ogg")
-			codec = mediadb::OGGVORBIS;
+		    else if (mime == "application/ogg" || mime == "audio/ogg")
+			codec = mediadb::VORBIS;
 
-		    if (codec != mediadb::NONE)
-		    {
-			map_codec_to_url[codec] = i->content;
-			ci = i->attributes.find("size");
+		    /** Carry on even if we haven't found one, as it's possible
+		     * that client and server both understand some format that
+		     * we don't (in which case codec is NONE).
+		     */
+		    map_codec_to_url[codec] = i->content;
+		    ci = i->attributes.find("size");
 			
-			if (ci != i->attributes.end())
-			    map_codec_to_size[codec]
-				= (uint32_t)strtoul(ci->second.c_str(), NULL, 10);
+		    if (ci != i->attributes.end())
+			map_codec_to_size[codec]
+			    = (uint32_t)strtoul(ci->second.c_str(), NULL, 10);
 
-			// We kind-of assume that duration is
-			// independent of codec
-			ci = i->attributes.find("duration");
-			if (ci != i->attributes.end())
+		    // We kind-of assume that duration is
+		    // independent of codec
+		    ci = i->attributes.find("duration");
+		    if (ci != i->attributes.end())
+		    {
+			unsigned int h=0, m=0, s=0, f=0;
+			if (sscanf(ci->second.c_str(), "%u:%u:%u.%u", 
+				   &h, &m, &s, &f) == 4
+			    || sscanf(ci->second.c_str(), "%u:%u:%u",
+				      &h, &m, &s) == 3
+			    || sscanf(ci->second.c_str(), "%u:%u.%u",
+				      &m, &s, &f) == 3
+			    || sscanf(ci->second.c_str(), "%u:%u",
+				      &m, &s) == 2)
 			{
-			    unsigned int h=0, m=0, s=0, f=0;
-			    if (sscanf(ci->second.c_str(), "%u:%u:%u.%u", 
-				       &h, &m, &s, &f) == 4
-				|| sscanf(ci->second.c_str(), "%u:%u:%u",
-					  &h, &m, &s) == 3
-				|| sscanf(ci->second.c_str(), "%u:%u.%u",
-					  &m, &s, &f) == 3
-				|| sscanf(ci->second.c_str(), "%u:%u",
-					  &m, &s) == 2)
-			    {
-				unsigned int ms
-				    = h*3600*1000 + m*60*1000 + s*1000 + f * 10;
-				rs->SetInteger(mediadb::DURATIONMS, ms);
-			    }
+			    unsigned int ms
+				= h*3600*1000 + m*60*1000 + s*1000 + f * 10;
+			    rs->SetInteger(mediadb::DURATIONMS, ms);
 			}
 		    }
+		}
+		else
+		{
+		    TRACE << "Don't like protocolInfo:\n" << i->attributes;
 		}
 	    }
 	    else
@@ -222,7 +237,8 @@ unsigned int ToRecord(const Metadata& md, db::RecordsetPtr rs)
 	mediadb::WAV,
 	mediadb::PCM,
 	mediadb::MP3,
-	mediadb::OGGVORBIS
+	mediadb::VORBIS,
+	mediadb::NONE,
     };
 
     if (map_codec_to_url.empty())
@@ -298,7 +314,7 @@ static std::string ResItem(mediadb::Database *db, db::RecordsetPtr rs,
 	case mediadb::FLAC:
 	    mimetype = "audio/x-flac";
 	    break;
-	case mediadb::OGGVORBIS:
+	case mediadb::VORBIS:
 	    mimetype = "application/ogg";
 	    break;
 	case mediadb::PCM:
@@ -313,7 +329,21 @@ static std::string ResItem(mediadb::Database *db, db::RecordsetPtr rs,
 	mimetype = "image/jpeg";
 	break;
     case mediadb::VIDEO:
-	mimetype = "video/mpeg";
+	switch (rs->GetInteger(mediadb::CONTAINER))
+	{
+	case mediadb::MP4:
+	    mimetype = "video/mp4";
+	    break;
+	case mediadb::MPEGPS:
+	    mimetype = "video/mpeg";
+	    break;
+	case mediadb::OGG:
+	    mimetype = "video/ogg";
+	    break;
+	case mediadb::MATROSKA:
+	    mimetype = "video/x-matroska";
+	    break;
+	}
 	break;
     default:
 	break;
@@ -342,12 +372,12 @@ static std::string ResItem(mediadb::Database *db, db::RecordsetPtr rs,
 	result += mimetype;
 	result += ":*\"";
     }
-    if (filter & RES_SIZE)
+    if ((filter & RES_SIZE) && type != mediadb::RADIO)
     {
 	result += (boost::format(" size=\"%u\"")
 		   % rs->GetInteger(mediadb::SIZEBYTES)).str();
     }
-    if (filter & RES_DURATION)
+    if ((filter & RES_DURATION) && type != mediadb::RADIO)
     {
 	unsigned int durationms = rs->GetInteger(mediadb::DURATIONMS);
 	result += (boost::format(" duration=\"%u:%02u:%02u.00\"")
@@ -447,6 +477,12 @@ std::string FromRecord(mediadb::Database *db, db::RecordsetPtr rs,
 	    break;
 	case mediadb::IMAGE:
 	    upnpclass = "object.item.imageItem.photo";
+	    break;
+	case mediadb::TV:
+	    upnpclass = "object.item.videoItem.videoBroadcast";
+	    break;
+	case mediadb::VIDEO:
+	    upnpclass = "object.item.videoItem";
 	    break;
 	case mediadb::FILE:
 	    upnpclass = "object.item";
@@ -707,7 +743,8 @@ int main(int, char**)
 
     mediadb::ReadXML(&sdb, SRCROOT "/libmediadb/example.xml");
 
-    db::local::Database mdb(&sdb);
+    util::http::Client client;
+    db::local::Database mdb(&sdb, &client);
 
     db::QueryPtr qp = mdb.CreateQuery();
     qp->Where(qp->Restrict(mediadb::ID, db::EQ, 377));

@@ -2,9 +2,9 @@
 #include "trace.h"
 #include "worker_thread_pool.h"
 #include "cpus.h"
-#include <boost/thread/xtime.hpp>
-#include <boost/thread.hpp>
-#include <boost/bind.hpp>
+#include "counted_pointer.h"
+#include "mutex.h"
+#include "bind.h"
 #include <unistd.h>
 #include <math.h>
 #include <iostream>
@@ -17,6 +17,9 @@
 #if HAVE_SCHED_H
 #include <sched.h>
 #endif
+#if HAVE_WINDOWS_H
+#include <windows.h>
+#endif
 
 namespace util {
 
@@ -28,23 +31,23 @@ class WorkerThread
 {
     WorkerThreadPool *m_owner;
     WorkerThreadPool::Priority m_priority;
-    boost::thread m_thread;
+    Thread m_thread;
     
 public:
     WorkerThread(WorkerThreadPool *owner, WorkerThreadPool::Priority p) 
 	: m_owner(owner),
 	  m_priority(p),
-	  m_thread(boost::bind(&WorkerThread::Run, this))
+	  m_thread(Bind<WorkerThread,&WorkerThread::Run>(this))
 	{}
 
     ~WorkerThread()
     {
     }
 
-    void Run();
+    unsigned int Run();
 };
 
-void WorkerThread::Run()
+unsigned int WorkerThread::Run()
 {
     if (m_priority == WorkerThreadPool::LOW)
     {
@@ -68,7 +71,10 @@ void WorkerThread::Run()
 	int rc = sched_setscheduler(0, SCHED_RR, &param);
 	if (rc<0)
 	{
-	    TRACE << "Becoming real-time failed, errno " << errno << "\n";
+	    if (errno != EPERM)
+	    {
+		TRACE << "Becoming real-time failed, errno " << errno << "\n";
+	    }
 # if HAVE_SETPRIORITY
 	    setpriority(PRIO_PROCESS, 0, -15);
 # endif
@@ -84,14 +90,14 @@ void WorkerThread::Run()
 
     for (;;)
     {
-	TaskPtr p = m_owner->PopTaskOrQuit(this);
-	if (!p)
+	TaskCallback cb = m_owner->PopTaskOrQuit(this);
+	if (!cb)
 	{
 //	    TRACE << "No task, quitting\n";
-	    return;
+	    return 0;
 	}
 
-	p->Run();
+	cb();
     }
 }
 
@@ -107,7 +113,7 @@ WorkerThreadPool::WorkerThreadPool(Priority p, unsigned int n)
 
 void WorkerThreadPool::SuggestNewThread()
 {
-    boost::mutex::scoped_lock lock(m_mutex);
+    util::Mutex::Lock lock(m_mutex);
     if (m_threads.size() >= m_max_threads)
     {
 //	TRACE << "Max " << m_max_threads << " threads, holding\n";
@@ -127,44 +133,44 @@ void WorkerThreadPool::Shutdown()
 {
     m_max_threads = 0; // Stop new ones being created
 
+    util::Mutex::Lock lock(m_mutex);
 //    TRACE << "wtp" << this << " Shutdown pushing\n";
     for (unsigned int i=0; i<m_threads.size(); ++i)
-	m_queue.PushTask(TaskPtr());
+	m_queue.PushTask(TaskCallback());
 //    TRACE << "Shutdown waiting\n";
-    boost::mutex::scoped_lock lock(m_mutex);
     while (!m_threads.empty())
     {
-	m_threads_empty.wait(lock);
+	m_threads_empty.Wait(lock, 60);
     }
 //    TRACE << "Shutdown done\n";
 }
 
-void WorkerThreadPool::PushTask(TaskPtr t)
+void WorkerThreadPool::PushTask(const TaskCallback& cb)
 {
     if (m_max_threads == 0) // Shutting down
 	return;
 
     if (!m_queue.AnyWaiting())
 	SuggestNewThread();
-    m_queue.PushTask(t);
+    m_queue.PushTask(cb);
 }
 
-TaskPtr WorkerThreadPool::PopTaskOrQuit(WorkerThread *wt)
+TaskCallback WorkerThreadPool::PopTaskOrQuit(WorkerThread *wt)
 {
-    TaskPtr p = PopTask(10);
-    if (!p)
+    TaskCallback cb = PopTask(10);
+    if (!cb)
     {
-	boost::mutex::scoped_lock lock(m_mutex);
+	util::Mutex::Lock lock(m_mutex);
 	m_threads.remove(wt);
 	delete wt;
 //	TRACE << "-Now " << m_threads.size() << " threads\n";
 	if (m_threads.empty())
-	    m_threads_empty.notify_all();
+	    m_threads_empty.NotifyAll();
     }
-    return p;
+    return cb;
 }
 
-TaskPtr WorkerThreadPool::PopTask(unsigned int timeout_sec)
+TaskCallback WorkerThreadPool::PopTask(unsigned int timeout_sec)
 {
     return m_queue.PopTask(timeout_sec);
 }
@@ -174,13 +180,13 @@ bool WorkerThreadPool::AnyWaiting()
     if (m_queue.AnyWaiting())
 	return true;
 
-    boost::mutex::scoped_lock lock(m_mutex);
+    util::Mutex::Lock lock(m_mutex);
     return m_threads.size() < m_max_threads;
 }
 
 size_t WorkerThreadPool::Count()
 {
-    boost::mutex::scoped_lock lock(m_mutex);
+    util::Mutex::Lock lock(m_mutex);
     return m_queue.Count() + m_threads.size();
 }
 
@@ -193,48 +199,131 @@ SimpleTaskQueue::SimpleTaskQueue()
 {
 }
 
-void SimpleTaskQueue::PushTask(TaskPtr t)
+void SimpleTaskQueue::PushTask(const TaskCallback& cb)
 {
-    boost::mutex::scoped_lock lock(m_deque_mutex);
-    m_deque.push_back(t);
-    m_dequenotempty.notify_one();
+    util::Mutex::Lock lock(m_deque_mutex);
+    m_deque.push_back(cb);
+    m_dequenotempty.NotifyOne();
 }
 
-TaskPtr SimpleTaskQueue::PopTask(unsigned int timeout_sec)
+TaskCallback SimpleTaskQueue::PopTask(unsigned int timeout_sec)
 {
-    boost::mutex::scoped_lock lock(m_deque_mutex);
+    util::Mutex::Lock lock(m_deque_mutex);
 
     ++m_waiting;
     while (m_deque.empty())
     {
 //	TRACE << m_waiting << " waiting\n";
-	boost::xtime wakeup;
-	boost::xtime_get(&wakeup, boost::TIME_UTC);
-	wakeup.sec += timeout_sec;
-	bool ret = m_dequenotempty.timed_wait(lock, wakeup);
+	bool ret = m_dequenotempty.Wait(lock, timeout_sec);
 //	TRACE << "waited " << ret << "\n";
 	if (!ret)
 	    break;
     }
     --m_waiting;
     if (m_deque.empty())
-	return TaskPtr();
+	return TaskCallback();
 
-    TaskPtr result = m_deque.front();
+    TaskCallback result = m_deque.front();
     m_deque.pop_front();
     return result;
 }
 
 bool SimpleTaskQueue::AnyWaiting()
 {
-    boost::mutex::scoped_lock lock(m_deque_mutex);
+    util::Mutex::Lock lock(m_deque_mutex);
     return m_waiting > m_deque.size();
 }
 
 size_t SimpleTaskQueue::Count()
 {
-    boost::mutex::scoped_lock lock(m_deque_mutex);
+    util::Mutex::Lock lock(m_deque_mutex);
     return m_deque.size() - m_waiting;
 }
 
 } // namespace util
+
+#ifdef TEST
+
+
+static util::Mutex s_mx;
+static unsigned int s_created = 0, s_destroyed = 0, s_run = 0;
+
+
+class Snooze: public util::Task
+{
+public:
+    Snooze();
+    ~Snooze();
+
+    unsigned int Run();
+};
+
+Snooze::Snooze()
+{
+    util::Mutex::Lock lock(s_mx);
+    ++s_created;
+}
+
+Snooze::~Snooze()
+{
+    util::Mutex::Lock lock(s_mx);
+    ++s_destroyed;
+}
+
+unsigned int Snooze::Run()
+{
+//    TRACE << "In run\n";
+#ifdef WIN32
+    Sleep(1000);
+#else
+    sleep(1);
+#endif
+//    TRACE << "Trying to lock\n";
+    util::Mutex::Lock lock(s_mx);
+    ++s_run;
+//    TRACE << "Completed\n";
+    return 0;
+}
+
+typedef util::CountedPointer<Snooze> SnoozePtr;
+
+void Test2(util::WorkerThreadPool::Priority p, unsigned int n)
+{
+    s_created = s_destroyed = s_run = 0;
+
+    util::WorkerThreadPool wtp(p, n);
+
+//    TRACE << "Created, pushing\n";
+
+    for (unsigned int i=0; i<n*2; ++i)
+    {
+	wtp.PushTask(util::Bind<Snooze,&Snooze::Run>(SnoozePtr(new Snooze)));
+    }
+
+//    TRACE << "Shutting down\n";
+
+    wtp.Shutdown();
+
+//    TRACE << "Shutdown complete\n";
+
+    assert(s_created == s_destroyed);
+
+//    TRACE << "Test(" << n << ") done\n";
+}
+
+void Test(util::WorkerThreadPool::Priority p)
+{
+    Test2(p, 4);
+    Test2(p, 1);
+    Test2(p, 10);
+    Test2(p, 100);
+}
+
+int main()
+{
+    Test(util::WorkerThreadPool::LOW);
+    Test(util::WorkerThreadPool::NORMAL);
+    Test(util::WorkerThreadPool::HIGH);
+}
+
+#endif

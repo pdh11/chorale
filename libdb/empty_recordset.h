@@ -8,10 +8,10 @@ namespace db {
 class EmptyRecordset: public ReadOnlyRecordset
 {
 public:
-    bool IsEOF() { return true; }
+    bool IsEOF() const { return true; }
     void MoveNext() {}
-    uint32_t GetInteger(field_t) { return 0; }
-    std::string GetString(field_t) { return std::string(); }
+    uint32_t GetInteger(unsigned int) const { return 0; }
+    std::string GetString(unsigned int) const { return std::string(); }
 };
 
 } // namespace db

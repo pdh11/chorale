@@ -12,12 +12,12 @@ class StringStream: public SeekableStream
 {
     std::string m_string;
 
+public:    
     StringStream();
     explicit StringStream(const std::string&);
     ~StringStream();
 
-public:    
-    typedef boost::intrusive_ptr<StringStream> StringStreamPtr;
+    typedef util::CountedPointer<StringStream> StringStreamPtr;
 
     static StringStreamPtr Create();
     static StringStreamPtr Create(const std::string&);
@@ -32,7 +32,7 @@ public:
     std::string& str() { return m_string; }
 };
 
-typedef boost::intrusive_ptr<StringStream> StringStreamPtr;
+typedef util::CountedPointer<StringStream> StringStreamPtr;
 
 } // namespace util
 

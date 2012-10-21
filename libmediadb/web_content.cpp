@@ -3,6 +3,7 @@
 #include "db.h"
 #include "schema.h"
 #include "libdb/query.h"
+#include <stdio.h>
 
 namespace mediadb {
 
@@ -12,7 +13,7 @@ bool WebContent::StreamForPath(const util::http::Request *rq,
     unsigned int dbid, id;
     if (sscanf(rq->path.c_str(), "/dbcontent/%x/%x", &dbid, &id) == 2)
     {
-	mediadb::Database *db = m_registry->DBForIndex(dbid);
+	mediadb::Database *db = m_registry->Get(dbid);
 	if (db)
 	{
 	    db::QueryPtr qp = db->CreateQuery();
@@ -26,7 +27,7 @@ bool WebContent::StreamForPath(const util::http::Request *rq,
 		case mediadb::MP2: rs->content_type = "audio/x-mp2"; break;
 		case mediadb::MP3: rs->content_type = "audio/mpeg"; break;
 		case mediadb::FLAC: rs->content_type = "audio/x-flac"; break;
-		case mediadb::OGGVORBIS: rs->content_type = "application/ogg"; break;
+		case mediadb::VORBIS: rs->content_type = "application/ogg"; break;
 		case mediadb::PCM: rs->content_type = "audio/L16"; break;
 		}
 		return true;

@@ -1,6 +1,8 @@
 #include "peeking_line_reader.h"
 #include "socket.h"
 #include "trace.h"
+#include "errors.h"
+#include <string.h>
 #include <boost/format.hpp>
 #include <boost/tokenizer.hpp>
 

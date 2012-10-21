@@ -1,10 +1,14 @@
 #include "config.h"
 #include "xml.h"
+#include "libdb/db.h"
 #include "libdb/recordset.h"
 #include "schema.h"
 #include <string>
+#include <set>
+#include <map>
 #include <boost/static_assert.hpp>
 #include "libutil/trace.h"
+#include "libutil/errors.h"
 #include "libutil/file_stream.h"
 #include "libutil/xml.h"
 #include "libutil/xmlescape.h"
@@ -43,6 +47,8 @@ static const char *const tagmap[] = {
     "children",
     "idhigh",
     "idparent",
+    "videocodec",
+    "container"
 };
 
 enum { NTAGS = sizeof(tagmap)/sizeof(tagmap[0]) };
@@ -59,6 +65,7 @@ static const char *const typemap[] = {
     "image",
     "video",
     "radio",
+    "tv",
     "pending"
 };
 
@@ -73,13 +80,37 @@ static const char *const codecmap[] = {
     "flac",
     "vorbis",
     "wav",
-    "pcm",
-    "jpeg"
+    "pcm"
 };
 
 enum { NCODECS = sizeof(codecmap)/sizeof(codecmap[0]) };
 
 BOOST_STATIC_ASSERT((int)NCODECS == (int)mediadb::CODEC_COUNT);
+
+static const char *const videocodecmap[] = {
+    "",
+    "mpeg2",
+    "mpeg4",
+    "h264",
+    "flv"
+};
+
+enum { NVIDEOCODECS = sizeof(videocodecmap)/sizeof(videocodecmap[0]) };
+
+BOOST_STATIC_ASSERT((int)NVIDEOCODECS == (int)mediadb::VIDEOCODEC_COUNT);
+
+static const char *const containermap[] = {
+    "",
+    "ogg",
+    "matroska",
+    "avi",
+    "mpegps",
+    "mp4"
+};
+
+enum { NCONTAINERS = sizeof(containermap)/sizeof(containermap[0]) };
+
+BOOST_STATIC_ASSERT((int)NCONTAINERS == (int)mediadb::CONTAINER_COUNT);
 
 unsigned int WriteXML(db::Database *db, unsigned int schema, ::FILE *f)
 {
@@ -113,6 +144,12 @@ unsigned int WriteXML(db::Database *db, unsigned int schema, ::FILE *f)
 		break;
 	    case mediadb::CODEC:
 		value = codecmap[rs->GetInteger(i)];
+		break;
+	    case mediadb::VIDEOCODEC:
+		value = videocodecmap[rs->GetInteger(i)];
+		break;
+	    case mediadb::CONTAINER:
+		value = containermap[rs->GetInteger(i)];
 		break;
 	    case mediadb::CHILDREN:
 		value = rs->GetString(i);

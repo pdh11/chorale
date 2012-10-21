@@ -8,6 +8,8 @@
 #include "libutil/stream.h"
 #include "libutil/urlescape.h"
 #include "libreceiver/tags.h"
+#include <limits.h>
+#include <stdio.h>
 #include <sstream>
 #include <algorithm>
 #include <boost/format.hpp>
@@ -93,6 +95,28 @@ void StreamAddChildren(util::StringStreamPtr s, int receiver_tag,
     StreamAddString(s, receiver_tag, playlist);
 }
 
+#if 0
+static void TraceTags(const std::string& s)
+{
+    const char *ptr = s.c_str();
+    const char *end = ptr + s.length();
+
+    printf("Tags:\n");
+
+    while (ptr < end)
+    {
+	unsigned char tag = *ptr++;
+	printf("<%02x>", tag);
+	if (tag == 0xFF)
+	    break;
+	unsigned char len = *ptr++;
+	printf("%.*s\n", len, ptr);
+	ptr += len;
+    }
+    printf("\n");
+}
+#endif
+
 util::SeekableStreamPtr TagsStream(mediadb::Database *db, unsigned int id)
 {
     db::QueryPtr qp = db->CreateQuery();
@@ -115,6 +139,15 @@ util::SeekableStreamPtr TagsStream(mediadb::Database *db, unsigned int id)
     case mediadb::PLAYLIST:
     case mediadb::DIR:
 	type = "playlist";
+	break;
+    case mediadb::IMAGE:
+	type = "image";
+	break;
+    case mediadb::VIDEO:
+	type = "video";
+	break;
+    case mediadb::FILE:
+	type = "unknown";
 	break;
     }
     StreamAddString(ss, receiver::TYPE, type);
@@ -154,7 +187,11 @@ util::SeekableStreamPtr TagsStream(mediadb::Database *db, unsigned int id)
 
     unsigned char term = 0xFF;
     ss->str() += (char)term;
+
+//    TraceTags(ss->str());
+
     ss->Seek(0);
+
 /*
     unsigned int len = (unsigned int)ss->GetLength();
     TRACE << "response " << len << " bytes:\n";
@@ -169,6 +206,7 @@ util::SeekableStreamPtr TagsStream(mediadb::Database *db, unsigned int id)
     printf("\n");
     ss->Seek(0);
 */
+
     return ss;
 }
 
@@ -422,10 +460,11 @@ void GetContentStream(mediadb::Database *db, unsigned int id,
 	    if (!chtype)
 		continue; // Don't offer images or videos
 
-	    /** Radio stations are available in MP2 or WAV. Real Rio Receivers
-	     * can't play either.
+	    unsigned int codec = rs->GetInteger(mediadb::CODEC);
+
+	    /** Real Rio Receivers can only play MP3 (and WMA).
 	     */
-	    if (type == mediadb::RADIO && !is_utf8)
+	    if (!is_utf8 && (chtype == 'T' && codec != mediadb::MP3))
 		continue;
 
 	    /** If client understands UTF-8, it understands FLAC. So
@@ -471,14 +510,17 @@ void GetContentStream(mediadb::Database *db, unsigned int id,
 
     // Must be a file then
     rsp->ssp = db->OpenRead(id);
-    rsp->length = rs->GetInteger(mediadb::SIZEBYTES);
+    if (type == mediadb::RADIO)
+	rsp->length = INT_MAX; // Not UINT_MAX as Receivers can't handle that
+    else
+	rsp->length = rs->GetInteger(mediadb::SIZEBYTES);
 
     switch (rs->GetInteger(mediadb::CODEC))
     {
     case mediadb::MP2: rsp->content_type = "audio/x-mp2"; break;
     case mediadb::MP3: rsp->content_type = "audio/mpeg"; break;
     case mediadb::FLAC: rsp->content_type = "audio/x-flac"; break;
-    case mediadb::OGGVORBIS: rsp->content_type = "application/ogg"; break;
+    case mediadb::VORBIS: rsp->content_type = "application/ogg"; break;
     case mediadb::PCM: rsp->content_type = "audio/L16"; break;
     case mediadb::WAV: rsp->content_type = "audio/x-wav"; break;
     }
@@ -660,7 +702,7 @@ bool ContentFactory::StreamForPath(const util::http::Request *rq,
 # include "libmediadb/schema.h"
 # include "libdblocal/db.h"
 # include "libdbmerge/db.h"
-# include "libutil/buffer_chain.h"
+# include "libutil/http_client.h"
 
 static const struct {
     const char *url;
@@ -885,7 +927,7 @@ void DoTests(mediadb::Database *mdb)
 	assert(found);
 	
 	util::StringStreamPtr ss = util::StringStream::Create();
-	util::CopyStream(rs.ssp, ss);
+	util::CopyStream(rs.ssp.get(), ss.get());
 
 	if (ss->str() != tests[i].result)
 	{
@@ -908,7 +950,7 @@ void DoTests(mediadb::Database *mdb)
 	assert(found);
 	
 	util::StringStreamPtr ss = util::StringStream::Create();
-	util::CopyStream(rs.ssp, ss);
+	util::CopyStream(rs.ssp.get(), ss.get());
 
 	std::string expected(tests2[i].result, tests2[i].resultsize);
 
@@ -942,7 +984,8 @@ int main()
 
     mediadb::ReadXML(&sdb, SRCROOT "/libmediadb/example.xml");
 
-    db::local::Database mdb(&sdb);
+    util::http::Client client;
+    db::local::Database mdb(&sdb, &client);
     DoTests(&mdb);
 
     db::merge::Database mergedb;

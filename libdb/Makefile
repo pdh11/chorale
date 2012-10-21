@@ -12,7 +12,7 @@ all: all-db
 
 include $(TOP)Make.common
 
-libdb:=$(TOP)$(DIR)$(TARGETDIR)libdb.la
+libdb:=$(TOP)$(DIR)$(TARGETDIR)libdb.a
 
 all-db: $(libdb)
 

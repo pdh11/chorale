@@ -2,7 +2,9 @@
 #include "config.h"
 #include "trace.h"
 #include "bind.h"
-#include "poll.h"
+#include "scheduler.h"
+#include "task.h"
+#include "pollable.h"
 #include <map>
 #include <list>
 #include <errno.h>
@@ -20,27 +22,27 @@ namespace dbus {
 
 class WatchPollable: public util::Pollable
 {
-    DBusWatch *m_watch;
+    int m_fd;
 
 public:
-    WatchPollable(DBusWatch *watch) : m_watch(watch) {}
+    WatchPollable() : m_fd(-1) {}
+
+    void SetHandle(int fd) { m_fd = fd; }
 
     // Being a Pollable
-    PollHandle GetReadHandle()  { return dbus_watch_get_unix_fd(m_watch); }
-    PollHandle GetWriteHandle() { return dbus_watch_get_unix_fd(m_watch); }
+    PollHandle GetHandle() { return m_fd; }
 };
 
-static void DeleteWatchPollable(void *p) { delete (WatchPollable*)p; }
+
+        /* Connection::Task */
 
 
-        /* Connection::Impl */
-
-
-class Connection::Impl
+class Connection::Task: public util::Task
 {
-    util::PollerInterface *m_poller;
+    util::Scheduler *m_poller;
     DBusError m_err;
     DBusConnection *m_conn;
+    WatchPollable m_pollable;
 
     typedef std::map<std::string, SignalObserver*> map_t;
     map_t m_map;
@@ -63,12 +65,13 @@ class Connection::Impl
     DBusHandlerResult OnHandleMessage(DBusConnection*, DBusMessage*);
     void OnWakeupMain();
 
-    /** Being a util::Pollable */
-    unsigned OnActivity();
+    unsigned Run();
+
+    typedef CountedPointer<Task> TaskPtr;
 
 public:
-    Impl(util::PollerInterface *poller);
-    ~Impl();
+    Task(util::Scheduler *poller);
+    ~Task();
 
     unsigned int Connect(unsigned int bus);
     unsigned int AddSignalObserver(const std::string& interface,
@@ -77,19 +80,19 @@ public:
     void *GetUnderlyingConnection() { return (void*)m_conn; }
 };
 
-Connection::Impl::Impl(util::PollerInterface *poller)
+Connection::Task::Task(util::Scheduler *poller)
     : m_poller(poller),
       m_conn(NULL)
 {
     dbus_error_init(&m_err);
 }
 
-Connection::Impl::~Impl()
+Connection::Task::~Task()
 {
     // Don't close the connection -- it belongs to libdbus not us
 }
 
-unsigned int Connection::Impl::Connect(unsigned int bus)
+unsigned int Connection::Task::Connect(unsigned int bus)
 {
     m_conn = dbus_bus_get(bus == SESSION ? DBUS_BUS_SESSION : DBUS_BUS_SYSTEM,
 			  &m_err);
@@ -109,107 +112,78 @@ unsigned int Connection::Impl::Connect(unsigned int bus)
     return 0;
 }
 
-dbus_bool_t Connection::Impl::StaticAddWatch(DBusWatch *watch, void *handle)
+dbus_bool_t Connection::Task::StaticAddWatch(DBusWatch *watch, void *handle)
 {
-    Connection::Impl *self = (Connection::Impl*)handle;
+    Connection::Task *self = (Connection::Task*)handle;
     return self->OnAddWatch(watch);
 }
 
-void Connection::Impl::StaticRemoveWatch(DBusWatch *watch, void *handle)
+void Connection::Task::StaticRemoveWatch(DBusWatch *watch, void *handle)
 {
-    Connection::Impl *self = (Connection::Impl*)handle;
+    Connection::Task *self = (Connection::Task*)handle;
     self->OnRemoveWatch(watch);
 }
 
-void Connection::Impl::StaticWatchToggled(DBusWatch *watch, void *handle)
+void Connection::Task::StaticWatchToggled(DBusWatch *watch, void *handle)
 {
-    Connection::Impl *self = (Connection::Impl*)handle;
+    Connection::Task *self = (Connection::Task*)handle;
     self->OnWatchToggled(watch);
 }
 
-DBusHandlerResult Connection::Impl::StaticHandleMessage(DBusConnection *conn,
+DBusHandlerResult Connection::Task::StaticHandleMessage(DBusConnection *conn,
 							DBusMessage *msg,
 							void *handle)
 {
-    Connection::Impl *self = (Connection::Impl*)handle;
+    Connection::Task *self = (Connection::Task*)handle;
     return self->OnHandleMessage(conn, msg);
 }
 
-void Connection::Impl::StaticWakeupMain(void *handle)
+void Connection::Task::StaticWakeupMain(void *handle)
 {
-    Connection::Impl *self = (Connection::Impl*)handle;
+    Connection::Task *self = (Connection::Task*)handle;
     return self->OnWakeupMain();
 }
 
-dbus_bool_t Connection::Impl::OnAddWatch(DBusWatch *watch)
+dbus_bool_t Connection::Task::OnAddWatch(DBusWatch *watch)
 {
-//    TRACE << "addwatch fd=" << dbus_watch_get_fd(watch)
+//    TRACE << "addwatch fd=" << dbus_watch_get_unix_fd(watch)
 //	  << " flags=" << dbus_watch_get_flags(watch)
 //	  << " enabled=" << dbus_watch_get_enabled(watch) << "\n";
+    
+    if (m_pollable.GetHandle() == -1)
+	m_pollable.SetHandle(dbus_watch_get_unix_fd(watch));
+
     m_watches.push_back(watch);
-    if (dbus_watch_get_enabled(watch))
-    {
-	WatchPollable *wp = (WatchPollable*)dbus_watch_get_data(watch);
-	if (!wp)
-	{
-	    wp = new WatchPollable(watch);
-	    dbus_watch_set_data(watch, wp, DeleteWatchPollable);
-	}
-	unsigned int direction = 0;
-	unsigned int watchflags = dbus_watch_get_flags(watch);
-	if (watchflags & DBUS_WATCH_READABLE)
-	    direction |= util::PollerInterface::IN;
-	if (watchflags & DBUS_WATCH_WRITABLE)
-	    direction |= util::PollerInterface::OUT;
-	m_poller->Add(wp, util::Bind<Impl, &Impl::OnActivity>(this), 
-		      direction);
-    }
+    
+    OnWatchToggled(watch); // Sets up waitforread/write
     return true;
 }
 
-void Connection::Impl::OnRemoveWatch(DBusWatch *watch)
+void Connection::Task::OnWatchToggled(DBusWatch *watch)
 {
-    TRACE << "removewatch\n";
-    m_watches.remove(watch);
-
-    WatchPollable *wp = (WatchPollable*)dbus_watch_get_data(watch);
-    if (wp)
-    {
-	delete wp;
-	dbus_watch_set_data(watch, NULL, DeleteWatchPollable);
-	m_poller->Remove(wp);
-    }
-}
-
-void Connection::Impl::OnWatchToggled(DBusWatch *watch)
-{
-    TRACE << "togglewatch\n";
-
-    WatchPollable *wp = (WatchPollable*)dbus_watch_get_data(watch);
+//    TRACE << "togglewatch fd=" << dbus_watch_get_unix_fd(watch)
+//	  << " flags=" << dbus_watch_get_flags(watch)
+//	  << " enabled=" << dbus_watch_get_enabled(watch) << "\n";
+    
     if (dbus_watch_get_enabled(watch))
     {
-	if (!wp)
-	{
-	    wp = new WatchPollable(watch);
-	    dbus_watch_set_data(watch, wp, DeleteWatchPollable);
-	}
-	unsigned int direction = 0;
 	unsigned int watchflags = dbus_watch_get_flags(watch);
 	if (watchflags & DBUS_WATCH_READABLE)
-	    direction |= util::PollerInterface::IN;
-	if (watchflags & DBUS_WATCH_WRITABLE)
-	    direction |= util::PollerInterface::OUT;
-	m_poller->Add(wp, util::Bind<Impl, &Impl::OnActivity>(this),
-			    direction);
-    }
-    else
-    {
-	if (wp)
-	    m_poller->Remove(wp);
+	    m_poller->WaitForReadable(
+		Bind<Task,&Task::Run>(TaskPtr(this)), &m_pollable);
+	else
+	    if (watchflags & DBUS_WATCH_WRITABLE)
+		m_poller->WaitForWritable(
+		    Bind<Task,&Task::Run>(TaskPtr(this)), &m_pollable);
     }
 }
 
-DBusHandlerResult Connection::Impl::OnHandleMessage(DBusConnection*,
+void Connection::Task::OnRemoveWatch(DBusWatch *watch)
+{
+    m_watches.remove(watch);
+}
+
+DBusHandlerResult Connection::Task::OnHandleMessage(DBusConnection*,
 						    DBusMessage *msg)
 {
 //    TRACE << "woot, got message\n";
@@ -242,13 +216,13 @@ DBusHandlerResult Connection::Impl::OnHandleMessage(DBusConnection*,
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
-void Connection::Impl::OnWakeupMain()
+void Connection::Task::OnWakeupMain()
 {
 //    TRACE << "wakeup\n";
     m_poller->Wake();
 }
 
-unsigned int Connection::Impl::OnActivity()
+unsigned int Connection::Task::Run()
 {
 //    TRACE << "dbus activity\n";
     for (watches_t::const_iterator i = m_watches.begin();
@@ -256,18 +230,21 @@ unsigned int Connection::Impl::OnActivity()
 	 ++i)
     {
 	if (dbus_watch_get_enabled(*i))
+	{
 	    dbus_watch_handle(*i, 3);
+	    OnWatchToggled(*i);
+	}
     }
 
     while (dbus_connection_dispatch(m_conn) == DBUS_DISPATCH_DATA_REMAINS)
     {
 	/* skip */
-    }
+    }    
 
     return 0;
 }
 
-unsigned int Connection::Impl::AddSignalObserver(const std::string& interface,
+unsigned int Connection::Task::AddSignalObserver(const std::string& interface,
 						 SignalObserver *obs)
 {
     m_map[interface] = obs;
@@ -286,30 +263,29 @@ unsigned int Connection::Impl::AddSignalObserver(const std::string& interface,
         /* Connection itself */
 
 
-Connection::Connection(util::PollerInterface *poller)
-    : m_impl(new Impl(poller))
+Connection::Connection(util::Scheduler *poller)
+    : m_task(new Task(poller))
 {
 }
 
 Connection::~Connection()
 {
-    delete m_impl;
 }
 
 unsigned int Connection::Connect(unsigned int bus)
 {
-    return m_impl->Connect(bus);
+    return m_task->Connect(bus);
 }
 
 unsigned int Connection::AddSignalObserver(const std::string& interface,
 					   SignalObserver *obs)
 {
-    return m_impl->AddSignalObserver(interface, obs);
+    return m_task->AddSignalObserver(interface, obs);
 }
 
 void *Connection::GetUnderlyingConnection()
 {
-    return m_impl->GetUnderlyingConnection();
+    return m_task->GetUnderlyingConnection();
 }
 
 } // namespace dbus
@@ -332,7 +308,7 @@ public:
 int main()
 {
 #if HAVE_DBUS
-    util::Poller poller;
+    util::BackgroundScheduler poller;
     util::dbus::Connection conn(&poller);
     unsigned int rc = conn.Connect(util::dbus::Connection::SYSTEM);
 

@@ -1,9 +1,11 @@
 #include "config.h"
 #include "tags_mp3.h"
+#include "tags_mutex.h"
 #include "libutil/trace.h"
 #include "libutil/file.h"
 #include "libdb/recordset.h"
 #include "libmediadb/schema.h"
+#include <stdio.h>
 
 #if HAVE_TAGLIB
 
@@ -43,8 +45,10 @@ static const struct
 
 enum { NUM_TAGS = sizeof(tagmap)/sizeof(tagmap[0]) };
 
-unsigned Tags::Write(db::RecordsetPtr tags)
+unsigned Tags::Write(const db::Recordset *tags)
 {
+    util::Mutex::Lock lock(s_taglib_mutex);
+
 //    TRACE << "Opening '" << m_filename << "'\n";
 
     TagLib::MPEG::File tff(m_filename.c_str());
@@ -89,9 +93,9 @@ static std::string safe(const TagLib::String& s)
     return s.to8Bit(true);
 }
 
-unsigned Tags::Read(db::RecordsetPtr tags)
+unsigned Tags::Read(db::Recordset *tags)
 {
-    boost::mutex::scoped_lock lock(s_taglib_mutex);
+    util::Mutex::Lock lock(s_taglib_mutex);
 
     TagLib::MPEG::File tff(m_filename.c_str());
 

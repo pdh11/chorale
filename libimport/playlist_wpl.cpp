@@ -45,6 +45,7 @@ unsigned int PlaylistWPL::Load()
 
 unsigned int PlaylistWPL::Save()
 {
+    /// @bug Filename is UTF-8 on Windows
     FILE *f = fopen(GetFilename().c_str(), "w+");
     if (!f)
     {

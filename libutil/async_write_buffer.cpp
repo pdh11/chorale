@@ -1,12 +1,13 @@
 #include "async_write_buffer.h"
 #include <errno.h>
 #include <string.h>
-#include <boost/thread/condition.hpp>
+#include <stdint.h>
 #include "task.h"
 #include "worker_thread_pool.h"
 #include "memory_stream.h"
 #include "file_stream.h"
 #include "stream_test.h"
+#include "mutex.h"
 #include "trace.h"
 
 namespace util {
@@ -14,6 +15,7 @@ namespace util {
 class AsyncWriteBuffer::Impl
 {
     class Task;
+    typedef CountedPointer<Task> TaskPtr;
 
     friend class AsyncWriteBuffer;
 
@@ -22,8 +24,8 @@ class AsyncWriteBuffer::Impl
     SeekableStreamPtr m_stream;
     TaskQueue *m_queue;
 
-    boost::mutex m_mutex;
-    boost::condition m_buffree;
+    util::Mutex m_mutex;
+    util::Condition m_buffree;
     bool m_busy[2];
 
     /** Which buffer we're currently filling
@@ -32,7 +34,7 @@ class AsyncWriteBuffer::Impl
 
     size_t m_bufpos; // How much of the currently-filling buffer is filled
     unsigned char *m_buf[2];
-    TaskPtr m_writetask[2];
+    CountedPointer<Task> m_writetask[2];
     uint64_t m_buffer_offset[2]; // Offset in the destination file of buffers
     uint64_t m_current_buffer_offset; // Offset in the destination file of curently-filling buffer
     unsigned int m_error;
@@ -59,8 +61,9 @@ public:
     unsigned int Run();
 };
 
-TaskPtr AsyncWriteBuffer::Impl::Task::Create(AsyncWriteBuffer::Impl *parent,
-					     int which)
+CountedPointer<AsyncWriteBuffer::Impl::Task>
+AsyncWriteBuffer::Impl::Task::Create(AsyncWriteBuffer::Impl *parent,
+				     int which)
 {
     return TaskPtr(new AsyncWriteBuffer::Impl::Task(parent,which));
 }
@@ -86,9 +89,9 @@ unsigned int AsyncWriteBuffer::Impl::Task::Run()
 //	else
 //	    TRACE << "Async Wrote\n";
 
-    boost::mutex::scoped_lock lock(m_parent->m_mutex);
+    util::Mutex::Lock lock(m_parent->m_mutex);
     m_parent->m_busy[m_which] = false;
-    m_parent->m_buffree.notify_one();
+    m_parent->m_buffree.NotifyOne();
     return 0;
 }
 
@@ -112,10 +115,10 @@ void AsyncWriteBuffer::Impl::SynchronousFlush()
 {
     // Wait for tasks
     {
-	boost::mutex::scoped_lock lock(m_mutex);
+	util::Mutex::Lock lock(m_mutex);
 
 	while (m_busy[0] || m_busy[1])
-	    m_buffree.wait(lock);
+	    m_buffree.Wait(lock, 60);
     }
 
     // Anything left, write synchronously
@@ -154,7 +157,7 @@ unsigned AsyncWriteBuffer::Create(SeekableStreamPtr backingstream,
 				  TaskQueue *queue,
 				  StreamPtr *result)
 {
-    *result = StreamPtr(new AsyncWriteBuffer(backingstream, queue));
+    *result = new AsyncWriteBuffer(backingstream, queue);
     return 0;
 }
 
@@ -167,15 +170,21 @@ unsigned AsyncWriteBuffer::Write(const void *buffer, size_t len,
     return m_impl->Write(buffer, len, pwrote);
 }
 
+class FooTask: public Task
+{
+public:
+    unsigned Run();
+};
+
 unsigned AsyncWriteBuffer::Impl::Write(const void *buffer, size_t len, 
 				 size_t *pwrote)
 {
     if (m_bufpos == 0)
     {
-	boost::mutex::scoped_lock lock(m_mutex);
+	util::Mutex::Lock lock(m_mutex);
 
 	while (m_busy[0] && m_busy[1])
-	    m_buffree.wait(lock);
+	    m_buffree.Wait(lock, 60);
 
 	if (!m_busy[0])
 	    m_filling = 0;
@@ -196,7 +205,7 @@ unsigned AsyncWriteBuffer::Impl::Write(const void *buffer, size_t len,
 	m_busy[m_filling] = true;
 	m_buffer_offset[m_filling] = m_current_buffer_offset;
 	m_current_buffer_offset += m_bufpos;
-	m_queue->PushTask(m_writetask[m_filling]);
+	m_queue->PushTask(Bind<Task,&Task::Run>(m_writetask[m_filling]));
 	m_bufpos = 0;
     }
     return 0;

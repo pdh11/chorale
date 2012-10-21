@@ -1,9 +1,8 @@
 #ifndef UPNP_DEVICE_H
 #define UPNP_DEVICE_H 1
 
-#include <set>
-#include <map>
 #include <string>
+#include <vector>
 #include "soap.h"
 #include "libutil/observable.h"
 
@@ -37,7 +36,7 @@ class Device
 
 public:
     explicit Device(const char *deviceType);
-    virtual ~Device() {}
+    virtual ~Device();
 
     unsigned int Init(Server*, const std::string& resource);
 

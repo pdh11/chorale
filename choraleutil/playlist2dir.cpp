@@ -1,6 +1,7 @@
 #include "config.h"
 #include "libimport/playlist.h"
 #include "libutil/file.h"
+#include "libutil/counted_pointer.h"
 #include <getopt.h>
 #include <stdlib.h>
 #include <sys/stat.h>

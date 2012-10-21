@@ -5,30 +5,35 @@
 #include "libutil/ip_filter.h"
 #include "libutil/line_reader.h"
 #include "libutil/partial_url.h"
-#include "libutil/poll.h"
+#include "libutil/scheduler.h"
 #include "libutil/bind.h"
 #include "libutil/socket.h"
 #include "libutil/string_stream.h"
 #include "libutil/trace.h"
+#include "libutil/errors.h"
 #if HAVE_NET_IF_H
 #include <net/if.h>
 #elif HAVE_WS2TCPIP_H
 #include <ws2tcpip.h>
 #endif
-#include <boost/thread/mutex.hpp>
 #include <list>
 #include <map>
+#include <set>
+#include <string.h>
+#include <stdlib.h>
 
 #undef IN
 #undef OUT
+
+LOG_DECL(SSDP);
 
 namespace upnp {
 
 namespace ssdp {
 
-class Responder::Impl: public util::Timed
+class Responder::Task: public util::Task
 {
-    util::PollerInterface *m_poller;
+    util::Scheduler *m_scheduler;
     util::IPFilter *m_filter;
 
     typedef std::map<std::string, Callback*> map_t;
@@ -46,8 +51,9 @@ class Responder::Impl: public util::Timed
 
     class Advertisement;
     friend class Advertisement;
+    typedef util::CountedPointer<Advertisement> AdvertisementPtr;
 
-    typedef std::list<Advertisement*> adverts_t;
+    typedef std::list<AdvertisementPtr> adverts_t;
 
     /** List of Advertisement objects
      */
@@ -58,9 +64,15 @@ class Responder::Impl: public util::Timed
 
     void SendSearch(const char *uuid);
 
+    unsigned OnMulticastActivity();
+    unsigned OnSearchActivity();
+    unsigned OnPacket(const std::string& packet,
+		      util::IPEndPoint wasfrom,
+		      util::IPAddress wasto);
+
 public:
-    Impl(util::PollerInterface*, util::IPFilter*);
-    ~Impl();
+    Task(util::Scheduler*, util::IPFilter*);
+    ~Task();
 
     unsigned Search(const char *uuid, Callback*);
 
@@ -68,15 +80,14 @@ public:
 		       const std::string& unique_device_name,
 		       const util::PartialURL *url);
 
-    unsigned OnActivity();
+    unsigned Run() { return 0; } // Delete me once Task::Run goes away
 
-    // Being a Timed
-    unsigned OnTimer();
+    void Shutdown();
 };
 
-class Responder::Impl::Advertisement: public util::Timed
+class Responder::Task::Advertisement: public util::Task
 {
-    util::PollerInterface *m_poller;
+    util::Scheduler *m_scheduler;
     util::IPFilter *m_filter;
     util::DatagramSocket *m_socket;
     std::string m_service_type;
@@ -87,13 +98,13 @@ class Responder::Impl::Advertisement: public util::Timed
     unsigned int m_cycle;
     
 public:
-    Advertisement(util::PollerInterface *poller,
+    Advertisement(util::Scheduler *scheduler,
 		  util::IPFilter *filter,
 		  util::DatagramSocket *socket,
 		  const std::string& service_type,
 		  const std::string& unique_device_name,
 		  const util::PartialURL *partial_url)
-	: m_poller(poller),
+	: m_scheduler(scheduler),
 	  m_filter(filter),
 	  m_socket(socket),
 	  m_service_type(service_type),
@@ -101,15 +112,13 @@ public:
 	  m_partial_url(*partial_url),
 	  m_cycle(0)
     {
-	m_poller->Add(0,
-		      84 + (rand() & 15),
-		      this);
+	m_scheduler->Wait(
+	    util::Bind<Advertisement,&Advertisement::OnTimer>(AdvertisementPtr(this)),
+	    0, 84 + (rand() & 15));
     }
 
     ~Advertisement()
     {
-	SendNotify(false);
-	m_poller->Remove(this);
     }
 
     void SendNotify(bool alive=true);
@@ -121,26 +130,35 @@ public:
      * @param type Service type to claim to be (i.e. the version searched-for)
      */
     void SendReply(const util::IPEndPoint& them,
-		   util::IPAddress us, const std::string& type);
+		   util::IPAddress us, const std::string& type) const;
 
-    const std::string& GetServiceType() { return m_service_type; }
+    const std::string& GetServiceType() const { return m_service_type; }
 
     /** An advertisement matches a search if either they're exactly the same,
      * or the search is for an earlier version number of the same service.
      */
-    bool MatchServiceType(const std::string& search);
+    bool MatchServiceType(const std::string& search) const;
 
-    // Being a Timed
     unsigned OnTimer();
+
+    unsigned Run() { return 0; } // Delete me once Task::Run goes away
+
+    void Shutdown();
 };
 
-unsigned Responder::Impl::Advertisement::OnTimer()
+unsigned Responder::Task::Advertisement::OnTimer()
 {
     SendNotify();
     return 0;
 }
 
-void Responder::Impl::Advertisement::SendNotify(bool alive)
+void Responder::Task::Advertisement::Shutdown()
+{
+    m_scheduler->Remove(AdvertisementPtr(this));
+    SendNotify(false);
+}
+
+void Responder::Task::Advertisement::SendNotify(bool alive)
 {
     /** We need to send the advert out with different URLs on different
      * interfaces.
@@ -184,7 +202,7 @@ void Responder::Impl::Advertisement::SendNotify(bool alive)
 	    ipe.port = 1900;
 	    m_socket->Write(message, ipe);
 
-//	    TRACE << "Sending from " << i->address.ToString() << "\n" << message;
+	    LOG(SSDP) << "Sending from " << i->address.ToString() << "\n" << message;
 	}
     }
 
@@ -192,16 +210,17 @@ void Responder::Impl::Advertisement::SendNotify(bool alive)
     if (m_cycle == 3)
     {
 	m_cycle = 0;
-	m_poller->Remove(this);
-	m_poller->Add(time(NULL) + 800*1000,
-		      84 + (rand() & 15),
-		      this);
+	m_scheduler->Remove(util::TaskPtr(this));
+	m_scheduler->Wait(
+	    util::Bind<Advertisement,&Advertisement::OnTimer>(AdvertisementPtr(this)),
+	    time(NULL) + 800*1000,
+	    84 + (rand() & 15));
     }
 }
 
-void Responder::Impl::Advertisement::SendReply(const util::IPEndPoint& them,
+void Responder::Task::Advertisement::SendReply(const util::IPEndPoint& them,
 					       util::IPAddress us,
-					       const std::string& service_type)
+					       const std::string& service_type) const
 {
     std::string usn = service_type.empty()
 	? m_unique_device_name
@@ -217,14 +236,14 @@ void Responder::Impl::Advertisement::SendReply(const util::IPEndPoint& them,
 	"USN: " + usn + "\r\n"
 	"\r\n";
 
-//    TRACE << "replying to " << them.ToString() << ":\n" << message << "\n";
+    LOG(SSDP) << "replying to " << them.ToString() << ":\n" << message << "\n";
 
     m_socket->Write(message, them);
 }
 
-bool Responder::Impl::Advertisement::MatchServiceType(const std::string& search)
+bool Responder::Task::Advertisement::MatchServiceType(const std::string& search) const
 {
-//    TRACE << search << " vs " << m_service_type << "\n";
+    LOG(SSDP) << search << " vs " << m_service_type << "\n";
 
     if (search == m_service_type)
     {
@@ -261,21 +280,21 @@ bool Responder::Impl::Advertisement::MatchServiceType(const std::string& search)
 }
 
 
-        /* Responder::Impl::Impl */
+        /* Responder::Task::Task */
 
 
-Responder::Impl::Impl(util::PollerInterface *poller, util::IPFilter *filter)
-    : m_poller(poller),
+Responder::Task::Task(util::Scheduler *scheduler, util::IPFilter *filter)
+    : m_scheduler(scheduler),
       m_filter(filter)
 {
     m_multicast_socket.SetNonBlocking(true);
     m_search_socket.SetNonBlocking(true);
-    poller->Add(&m_multicast_socket,
-		util::Bind<Impl, &Impl::OnActivity>(this),
-		util::PollerInterface::IN);
-    poller->Add(&m_search_socket,
-		util::Bind<Impl, &Impl::OnActivity>(this),
-		util::PollerInterface::IN);
+    scheduler->WaitForReadable(
+	util::Bind<Task, &Task::OnMulticastActivity>(TaskPtr(this)),
+	&m_multicast_socket, false);
+    scheduler->WaitForReadable(
+	util::Bind<Task, &Task::OnSearchActivity>(TaskPtr(this)),
+	&m_search_socket, false);
 
     util::IPEndPoint ipe;
     ipe.addr = util::IPAddress::ANY;
@@ -304,23 +323,23 @@ Responder::Impl::Impl(util::PollerInterface *poller, util::IPFilter *filter)
     }
 }
 
-Responder::Impl::~Impl()
+Responder::Task::~Task()
 {
-    m_poller->Remove(&m_search_socket);
-    m_poller->Remove(&m_multicast_socket);
-
-    while (!m_adverts.empty())
-    {
-	Advertisement *ad = *m_adverts.begin();
-	m_adverts.erase(m_adverts.begin());
-	delete ad;
-    }
 }
 
-unsigned Responder::Impl::OnActivity()
+void Responder::Task::Shutdown()
 {
-//    TRACE << "Activity\n";
+    for (adverts_t::iterator i = m_adverts.begin();
+	 i != m_adverts.end();
+	 ++i)
+    {
+	(*i)->Shutdown();
+    }	
+    m_scheduler->Remove(util::TaskPtr(this));
+}
 
+unsigned Responder::Task::OnMulticastActivity()
+{
     for (;;)
     {
 	std::string packet;
@@ -328,133 +347,155 @@ unsigned Responder::Impl::OnActivity()
 	util::IPAddress wasto;
 
 	unsigned rc = m_multicast_socket.Read(&packet, &wasfrom, &wasto);
-	if (rc != 0 || packet.empty())
-	    rc = m_search_socket.Read(&packet, &wasfrom, &wasto);
-	if (rc != 0 || packet.empty())
+	if (rc == 0)
+	    OnPacket(packet, wasfrom, wasto);
+	else if (rc != EWOULDBLOCK)
+	    return rc;
+	else
 	    return 0;
+    }
+}
 
-	if (m_filter
-	    && m_filter->CheckAccess(wasfrom.addr) == util::IPFilter::DENY)
-	    continue;
+unsigned Responder::Task::OnSearchActivity()
+{
+    for (;;)
+    {
+	std::string packet;
+	util::IPEndPoint wasfrom;
+	util::IPAddress wasto;
 
-//	TRACE << packet;
-//	TRACE << "wasto: " << wasto.ToString() << "\n";
+	unsigned rc = m_search_socket.Read(&packet, &wasfrom, &wasto);
+	if (rc == 0)
+	    OnPacket(packet, wasfrom, wasto);
+	else if (rc != EWOULDBLOCK)
+	    return rc;
+	else
+	    return 0;
+    }
+}
 
-	util::StringStreamPtr ssp = util::StringStream::Create(packet);
 
-	// SSDP packets look like HTTP headers
-	util::GreedyLineReader glr(ssp);
-	util::http::Parser hh(&glr);
-	std::string verb, path;
-	rc = hh.GetRequestLine(&verb, &path, NULL);
+unsigned Responder::Task::OnPacket(const std::string& packet, 
+				   util::IPEndPoint wasfrom,
+				   util::IPAddress wasto)
+{
+    if (m_filter
+	&& m_filter->CheckAccess(wasfrom.addr) == util::IPFilter::DENY)
+	return 0;
 
-	if (rc)
-	{
-	    TRACE << "Don't like SSDP header\n" << packet << "\n";
-	    continue;
-	}
+    LOG(SSDP) << packet;
+    LOG(SSDP) << "wasto: " << wasto.ToString() << "\n";
 
-	if (verb == "NOTIFY" || path == "200")
-	{
-	    std::string service, location, udn;
-	    bool byebye = false;
+    util::StringStreamPtr ssp = util::StringStream::Create(packet);
 
-	    std::string key, value;
-	    do {
-		rc = hh.GetHeaderLine(&key, &value);
+    // SSDP packets look like HTTP headers
+    util::GreedyLineReader glr(ssp);
+    util::http::Parser hh(&glr);
+    std::string verb, path;
+    unsigned int rc = hh.GetRequestLine(&verb, &path, NULL);
 
-		if (!strcasecmp(key.c_str(), "ST")
-		    || !strcasecmp(key.c_str(), "NT"))
-		{
-		    if (!value.empty())
-			service = value;
-		}
-		else if (!strcasecmp(key.c_str(), "Location"))
-		    location = value;
-		else if (!strcasecmp(key.c_str(), "USN"))
-		{
-		    // We're meant to parse the USN to find the UDN
-		    std::string::size_type colons = value.find("::");
-		    if (colons != std::string::npos)
-			udn.assign(value, 0, colons);
-		}
-		else if (!strcasecmp(key.c_str(), "NTS"))
-		{
-		    if (value == "ssdp:byebye")
-			byebye = true;
-		}
-	    } while (!key.empty());
+    if (rc)
+    {
+	TRACE << "Don't like SSDP header\n" << packet << "\n";
+	return 0;
+    }
+
+    if (verb == "NOTIFY" || path == "200")
+    {
+	std::string service, location, udn;
+	bool byebye = false;
+	
+	std::string key, value;
+	do {
+	    rc = hh.GetHeaderLine(&key, &value);
+
+	    if (!strcasecmp(key.c_str(), "ST")
+		|| !strcasecmp(key.c_str(), "NT"))
+	    {
+		if (!value.empty())
+		    service = value;
+	    }
+	    else if (!strcasecmp(key.c_str(), "Location"))
+		location = value;
+	    else if (!strcasecmp(key.c_str(), "USN"))
+	    {
+		// We're meant to parse the USN to find the UDN
+		std::string::size_type colons = value.find("::");
+		if (colons != std::string::npos)
+		    udn.assign(value, 0, colons);
+	    }
+	    else if (!strcasecmp(key.c_str(), "NTS"))
+	    {
+		if (value == "ssdp:byebye")
+		    byebye = true;
+	    }
+	} while (!key.empty());
 
 //	    TRACE << (verb == "NOTIFY" ? "notify" : "reply") << " from " << wasfrom.ToString() << " to "
 //		  << wasto.ToString() << ": " << service << "\n";
 
-	    if (!service.empty() && !location.empty() && !udn.empty())
-	    {
+	if (!service.empty() && !location.empty() && !udn.empty())
+	{
 //		TRACE << "Service " << service << " found at '"
 //		      << location << "' in id '" << udn << "'\n";
 
-		if (m_map.find(service) != m_map.end())
+	    if (m_map.find(service) != m_map.end())
+	    {
+		pair_t us = std::make_pair(udn, service);
+		
+		if (byebye)
 		{
-		    pair_t us = std::make_pair(udn, service);
-
-		    if (byebye)
+		    if (m_set.find(us) != m_set.end())
 		    {
-			if (m_set.find(us) != m_set.end())
-			{
-			    m_set.erase(us);
-			    m_map[service]->OnServiceLost(location, udn);
-			}
+			m_set.erase(us);
+			m_map[service]->OnServiceLost(location, udn);
 		    }
-		    else
+		}
+		else
+		{
+		    if (m_set.find(us) == m_set.end())
 		    {
-			if (m_set.find(us) == m_set.end())
-			{
-			    m_set.insert(us);
-			    m_map[service]->OnService(location, udn);
-			}
+			m_set.insert(us);
+			m_map[service]->OnService(location, udn);
 		    }
 		}
 	    }
 	}
-	else if (verb == "M-SEARCH")
-	{
-	    std::string key, value;
-	    std::string service_type, search_id;
-	    do {
-		rc = hh.GetHeaderLine(&key, &value);
-		if (!strcasecmp(key.c_str(), "ST"))
-		    service_type = value;
-	    } while (!key.empty());
-
-//	    TRACE << "search from " << wasfrom.ToString() << " to "
-//		  << wasto.ToString() << ": " << service_type << "\n";
-
-	    for (adverts_t::const_iterator i = m_adverts.begin();
-		 i != m_adverts.end();
-		 ++i)
-	    {
-		/** 
-		 * @todo Check we advertise everything we should (UPnP-DA p21)
-		 */
-		if (service_type == "ssdp:all")
-		    (*i)->SendReply(wasfrom, wasto, (*i)->GetServiceType());
-		else if ((*i)->MatchServiceType(service_type))
-		    (*i)->SendReply(wasfrom, wasto, service_type);
-	    }	   
-	}
-	else
-	{
-	    TRACE << "Didn't like SSDP verb " << verb << "\n";
-	}
     }
-}
+    else if (verb == "M-SEARCH")
+    {
+	std::string key, value;
+	std::string service_type, search_id;
+	do {
+	    rc = hh.GetHeaderLine(&key, &value);
+	    if (!strcasecmp(key.c_str(), "ST"))
+		service_type = value;
+	} while (!key.empty());
 
-unsigned Responder::Impl::OnTimer()
-{
+	LOG(SSDP) << "search from " << wasfrom.ToString() << " to "
+		  << wasto.ToString() << ": " << service_type << "\n";
+
+	for (adverts_t::const_iterator i = m_adverts.begin();
+	     i != m_adverts.end();
+	     ++i)
+	{
+	    /** 
+	     * @todo Check we advertise everything we should (UPnP-DA p21)
+	     */
+	    if (service_type == "ssdp:all")
+		(*i)->SendReply(wasfrom, wasto, (*i)->GetServiceType());
+	    else if ((*i)->MatchServiceType(service_type))
+		(*i)->SendReply(wasfrom, wasto, service_type);
+	}	   
+    }
+    else
+    {
+	TRACE << "Didn't like SSDP verb " << verb << "\n";
+    }
     return 0;
 }
 
-unsigned Responder::Impl::Search(const char *uuid, Callback *cb)
+unsigned Responder::Task::Search(const char *uuid, Callback *cb)
 {
     {
 //	boost::mutex::scoped_lock lock(m_mutex);
@@ -464,7 +505,7 @@ unsigned Responder::Impl::Search(const char *uuid, Callback *cb)
     return 0;
 }
 
-void Responder::Impl::SendSearch(const char *uuid)
+void Responder::Task::SendSearch(const char *uuid)
 {
     util::IPConfig::Interfaces interface_list;
     
@@ -498,16 +539,16 @@ void Responder::Impl::SendSearch(const char *uuid)
     }
 }
 
-unsigned Responder::Impl::Advertise(const std::string& service_type,
+unsigned Responder::Task::Advertise(const std::string& service_type,
 				    const std::string& unique_device_name,
 				    const util::PartialURL *url)
 {
-    m_adverts.push_back(new Advertisement(m_poller,
-					  m_filter,
-					  &m_search_socket,
-					  service_type,
-					  unique_device_name,
-					  url));
+    m_adverts.push_back(AdvertisementPtr(new Advertisement(m_scheduler,
+							   m_filter,
+							   &m_search_socket,
+							   service_type,
+							   unique_device_name,
+							   url)));
     return 0;
 }
 
@@ -515,26 +556,27 @@ unsigned Responder::Impl::Advertise(const std::string& service_type,
         /* Responder itself */
 
 
-Responder::Responder(util::PollerInterface *poller, util::IPFilter *filter)
-    : m_impl(new Impl(poller, filter))
+Responder::Responder(util::Scheduler *scheduler, util::IPFilter *filter)
+    : m_task(new Task(scheduler, filter))
 {
 }
 
 Responder::~Responder()
 {
-    delete m_impl;
+    m_task->Shutdown();
+    m_task.reset(NULL);
 }
 
 unsigned Responder::Search(const char *uuid, Callback *cb)
 {
-    return m_impl->Search(uuid, cb);
+    return m_task->Search(uuid, cb);
 }
 
 unsigned Responder::Advertise(const std::string& service_type,
 			      const std::string& unique_device_name,
 			      const util::PartialURL *url)
 {
-    return m_impl->Advertise(service_type, unique_device_name, url);
+    return m_task->Advertise(service_type, unique_device_name, url);
 }
 
 
@@ -582,6 +624,8 @@ const char s_service_type_connection_manager[] =
 
 #ifdef TEST
 
+std::map<std::string, std::string> g_map;
+
 class MyCallback: public upnp::ssdp::Responder::Callback
 {
 public:
@@ -590,12 +634,13 @@ public:
 
 void MyCallback::OnService(const std::string& url, const std::string& udn)
 {
-    TRACE << "udn " << udn << " at url " << url << "\n";
+//    TRACE << "udn " << udn << " at url " << url << "\n";
+    g_map[udn] = url;
 }
 
 int main()
 {
-    util::Poller poller;
+    util::BackgroundScheduler poller;
     upnp::ssdp::Responder client(&poller, NULL);
     MyCallback cb;
     client.Search(upnp::s_service_type_content_directory, &cb);
@@ -607,12 +652,15 @@ int main()
 		     "uuid:00-00-00-00",
 		     &purl);
 
-    time_t t = time(NULL) + 5;
+    time_t t = time(NULL);
 
-    while (time(NULL) < t)
+    while ((time(NULL) - t) < 5)
     {
 	poller.Poll(1000);
     }
+
+    std::string url = g_map["uuid:00-00-00-00"];
+    assert(!url.empty());
 
     return 0;
 }

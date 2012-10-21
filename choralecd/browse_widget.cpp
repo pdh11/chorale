@@ -12,7 +12,6 @@
 #include "libmediadb/schema.h"
 #include "libdb/recordset.h"
 #include <qcursor.h>
-#include <q3cstring.h>
 #include <QMouseEvent>
 #include <QDrag>
 

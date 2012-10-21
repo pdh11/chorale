@@ -6,9 +6,7 @@ CFLAGS     := @CFLAGS@   @LARGEFILES@ -I@abs_top_builddir@ -DCONFIG_ARCH_H=\"con
 CXXFLAGS   := @CXXFLAGS@ @LARGEFILES@ -I@abs_top_builddir@ -DCONFIG_ARCH_H=\"config.@TARGET@.h\"
 LDFLAGS    := @LDFLAGS@
 
-#BOOST_CXXFLAGS := @BOOST_CPPFLAGS@
-#BOOST_LDFLAGS  := @BOOST_LDFLAGS@
-BOOST_LIBS     := @BOOST_LDFLAGS@ @BOOST_THREAD_LIB@ @BOOST_REGEX_LIB@
+BOOST_LIBS     := @BOOST_LIBS@
 
 HAVE_CONVERT := @HAVE_CONVERT@
 CONVERT := @CONVERT@
@@ -73,6 +71,7 @@ HAVE_XSLTPROC   := @HAVE_XSLTPROC@
 XSLTPROC        := @XSLTPROC@
 
 WIN32           := @WIN32@
+DOTEXE          := @DOTEXE@
 
 SRCROOT:=@abs_srcdir@
 top_builddir:=@abs_top_builddir@
@@ -81,14 +80,20 @@ INSTALL:=@INSTALL@
 LIBTOOL:=@LIBTOOL@
 CC:=@CC@
 CXX:=@CXX@
+WINDRES:=@WINDRES@
 GCOV:=@GCOV@
 LIBS:=@LIBS@
 LIBWRAP:=@LIBWRAP@
 FINAL:=@FINAL@
 STRIP:=@STRIP@
+SIZE:=@SIZE@
 
 HAVE_VALGRIND:=@HAVE_VALGRIND@
 VALGRIND_OPTS:=@VALGRIND_OPTS@
+
+EXCEPTIONAL_boost_function_hpp=@EXCEPTIONAL_boost_function_hpp@
+EXCEPTIONAL_boost_thread_tss_hpp=@EXCEPTIONAL_boost_thread_tss_hpp@
+EXCEPTIONAL_boost_thread_mutex_hpp=@EXCEPTIONAL_boost_thread_mutex_hpp@
 
 # Overridable on 'make' command line, see Autoconf manual 4.7.2
 prefix=@prefix@

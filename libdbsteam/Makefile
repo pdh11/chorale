@@ -19,7 +19,7 @@ include $(TOP)Make.common
 DBSTEAM_OBJS:=$(LOBJS)
 DBSTEAM_TESTS:=$(TESTS)
 
-libdbsteam:=$(TOP)$(DIR)$(TARGETDIR)libdbsteam.la
+libdbsteam:=$(TOP)$(DIR)$(TARGETDIR)libdbsteam.a
 
 all-dbsteam: $(libdbsteam)
 
@@ -31,11 +31,11 @@ endif
 ifeq ($(libdb),)
 include $(TOP)libdb/Makefile
 endif
-ifeq ($(libimport),)
-include $(TOP)libimport/Makefile
-endif
+#ifeq ($(libimport),)
+#include $(TOP)libimport/Makefile
+#endif
 
-$(DBSTEAM_TESTS) : TEST_LIBS += $(BOOST_LIBS)
+$(DBSTEAM_TESTS) : TEST_LIBS += $(libdbsteam) $(libdb) $(libutil) $(BOOST_LIBS)
 
 $(DBSTEAM_TESTS) : $(libdbsteam) $(libimport) $(libdb) $(libutil)
 

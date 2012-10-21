@@ -3,6 +3,7 @@
 #include "libutil/trace.h"
 #include "libutil/endian.h"
 #include <errno.h>
+#include <string.h>
 
 namespace receiverd {
 
@@ -16,11 +17,17 @@ struct FHStatus
 
 } // namespace mountprog
 
-Mount::Mount(util::PollerInterface *poller, util::IPFilter *filter,
-	     PortMapper *portmap)
-    : m_rpc(PROGRAM_MOUNT, 1, poller, filter, this)
+util::TaskPtr Mount::Create(util::Scheduler *scheduler,
+			    util::IPFilter *filter, PortMapper *mapper)
 {
-    portmap->AddProgram(PROGRAM_MOUNT, m_rpc.GetPort());
+    return util::TaskPtr(new Mount(scheduler, filter, mapper));
+}
+
+Mount::Mount(util::Scheduler *poller, util::IPFilter *filter,
+	     PortMapper *portmap)
+    : RPCServer(PROGRAM_MOUNT, 1, poller, filter)
+{
+    portmap->AddProgram(PROGRAM_MOUNT, GetPort());
 }
 
 unsigned int Mount::OnRPC(uint32_t proc, const void*,

@@ -8,14 +8,15 @@
 #include "libimport/ripping_control.h"
 
 namespace util { class TaskQueue; }
-class Settings;
-class Q3ButtonGroup;
+class QButtonGroup;
 class QSpinBox;
 class QLineEdit;
+class QTableWidget;
+class QTableWidgetItem;
 
 namespace choraleqt {
 
-class TagTable;
+class Settings;
 
 /** The top-level ripping and tagging window for an audio CD.
  */
@@ -35,10 +36,10 @@ class CDWindow: public QDialog, public import::RippingControlObserver
         COMPILATION,
         MIXED
     };
-    Q3ButtonGroup *m_cdtype;
+    QButtonGroup *m_cdtype;
     QLineEdit *m_albumname;
     QSpinBox *m_trackoffset;
-    TagTable *m_table;
+    QTableWidget *m_table;
     unsigned int m_progress_column;
     import::CDDBLookupPtr m_cddb;
 
@@ -60,7 +61,7 @@ public:
 public slots:
     void OnDone();
     void OnCDDB();
-    void OnTableValueChanged(int,int);
+    void OnTableItemChanged(QTableWidgetItem*);
 };
 
 } // namespace choraleqt

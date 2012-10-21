@@ -30,7 +30,7 @@ public:
     db::RecordsetPtr Execute();
 };
 
-typedef ::boost::intrusive_ptr<Query> QueryPtr;
+typedef util::CountedPointer<db::steam::Query> QueryPtr;
 
 } // namespace steam
 
