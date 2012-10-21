@@ -3,6 +3,7 @@
 
 #include <vector>
 #include "bind.h"
+#include "poll.h"
 
 /* Implementation details and platform-independence support for Poller */
 

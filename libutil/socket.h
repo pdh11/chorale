@@ -7,6 +7,7 @@
 #include <boost/noncopyable.hpp>
 #include "stream.h"
 #include "config.h"
+#include "trace.h"
 
 namespace util {
 
@@ -50,6 +51,7 @@ protected:
     int m_fd;
     void *m_event;
     enum { NONE, READ, WRITE } m_event_type;
+
     /** Timeout for synchronous operations */
     unsigned int m_timeout_ms;
 
@@ -103,6 +105,10 @@ public:
      */
     unsigned GetReadable(size_t *preadable);
 
+    /** Is the socket writable (e.g. has nonblocking connect succeeded?)
+     */
+    bool IsWritable();
+
     // Being a Stream
     unsigned Read(void *buffer, size_t len, size_t *pread);
     unsigned Write(const void *buffer, size_t len, size_t *pwrote);
@@ -112,7 +118,22 @@ public:
      * Clients which deal with EWOULDBLOCK themselves can use 0.
      */
     void SetTimeoutMS(unsigned int ms) { m_timeout_ms = ms; }
+
+    friend const Tracer& operator<<(const Tracer& n, const Socket* s);
+    friend const Tracer& operator<<(const Tracer& n, const Socket& s);
 };
+
+inline const Tracer& operator<<(const Tracer& n, const Socket* s)
+{
+    n << "sock" << s->m_fd;
+    return n;
+}
+
+inline const Tracer& operator<<(const Tracer& n, const Socket& s)
+{
+    n << "sock" << s.m_fd;
+    return n;
+}
 
 /** UDP socket
  *
@@ -164,6 +185,14 @@ public:
     unsigned Open();
 
     unsigned SetCork(bool corked);
+
+    /** TCP half-close: we will read no more from this socket
+     */
+    unsigned ShutdownRead();
+
+    /** TCP half-close: we will write no more to this socket
+     */
+    unsigned ShutdownWrite();
 };
 
 typedef boost::intrusive_ptr<StreamSocket> StreamSocketPtr;

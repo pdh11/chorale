@@ -2,6 +2,7 @@
 #define LIBUTIL_ENDIAN_H 1
 
 #include "config.h"
+#include <stdint.h>
 
 inline uint32_t swab32(uint32_t x)
 {

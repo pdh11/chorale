@@ -23,6 +23,11 @@ void intrusive_ptr_release(util::CountedObject<LockingPolicy> *o)
 /* Explicit instantiations (note "template" not "template<>") */
 
 template 
+void intrusive_ptr_add_ref<util::PerObjectRecursiveLocking>(util::CountedObject<util::PerObjectRecursiveLocking>*);
+template 
+void intrusive_ptr_release<util::PerObjectRecursiveLocking>(util::CountedObject<util::PerObjectRecursiveLocking>*);
+
+template 
 void intrusive_ptr_add_ref<util::PerObjectLocking>(util::CountedObject<util::PerObjectLocking>*);
 template 
 void intrusive_ptr_release<util::PerObjectLocking>(util::CountedObject<util::PerObjectLocking>*);

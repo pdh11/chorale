@@ -4,9 +4,9 @@
 #include <string>
 #include <map>
 
-#include "socket.h"
-
 namespace util {
+
+class IPEndPoint;
 
 namespace http {
 

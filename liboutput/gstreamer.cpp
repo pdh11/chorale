@@ -1,7 +1,7 @@
 #include "config.h"
 #include "gstreamer.h"
 
-#ifdef HAVE_GSTREAMER
+#if HAVE_GSTREAMER
 
 #include <gst/gst.h>
 #include "libutil/trace.h"

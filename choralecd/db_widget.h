@@ -3,6 +3,7 @@
 #ifndef DB_WIDGET_H
 #define DB_WIDGET_H
 
+#include <map>
 #include "widget_factory.h"
 #include "resource_widget.h"
 #include "libreceiver/ssdp.h"
@@ -13,6 +14,8 @@ namespace mediadb { class Database; }
 namespace mediadb { class Registry; }
 namespace util { namespace http { class Client; } }
 namespace util { namespace http { class Server; } }
+
+namespace db { namespace upnpav { class Database; } }
 
 namespace choraleqt {
 
@@ -29,6 +32,8 @@ class DBWidget: public ResourceWidget
 public:
     DBWidget(QWidget *parent, const std::string& name, QPixmap,
 	     mediadb::Database*, mediadb::Registry *registry);
+
+    void Enable(bool enabled);
 
     // Being a ResourceWidget
     void OnTopButton();
@@ -66,6 +71,10 @@ class UpnpDBWidgetFactory: public WidgetFactory,
     mediadb::Registry *m_registry;
     util::http::Client *m_client;
     util::http::Server *m_server;
+    typedef std::map<std::string, db::upnpav::Database*> databases_t;
+    databases_t m_databases;
+    typedef std::map<std::string, DBWidget*> widgets_t;
+    widgets_t m_widgets;
 
 public:
     UpnpDBWidgetFactory(QPixmap*, mediadb::Registry *m_registry,
@@ -76,6 +85,7 @@ public:
 
     // Being a upnp::ssdp::Responder::Callback
     void OnService(const std::string& url, const std::string& udn);
+    void OnServiceLost(const std::string& url, const std::string& udn);
 };
 
 /** A WidgetFactory which creates DBWidget items for Empeg car-players.

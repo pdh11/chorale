@@ -13,9 +13,14 @@
 #include "socket.h"
 #include "errors.h"
 #include "string_stream.h"
+#include "peeking_line_reader.h"
 #include "trace.h"
+#include "scanf64.h"
 #include "worker_thread_pool.h"
 #include <sys/stat.h>
+#if HAVE_SYS_UTSNAME_H
+#include <sys/utsname.h>
+#endif
 #include <fcntl.h>
 #include <errno.h>
 #include <boost/format.hpp>
@@ -24,9 +29,20 @@
 #undef IN
 #undef OUT
 
+LOG_DECL(HTTP);
+LOG_DECL(HTTP_SERVER);
+
 namespace util {
 
 namespace http {
+
+void Response::Clear()
+{
+    body_sink.reset(NULL);
+    content_type = NULL;
+    length = 0;
+    ssp.reset(NULL);
+}
 
 /** Per-socket HTTP server subtask
  */
@@ -53,14 +69,15 @@ class Server::Task: public util::PollableTask
     struct {
 	bool closing;
 	bool do_range;
-	unsigned long long range_min;
-	unsigned long long range_max;
-	unsigned long long post_body_length;
+	uint64_t range_min;
+	uint64_t range_max;
+	uint64_t post_body_length;
+	uint64_t total_written;
 
 	void Clear()
         {
 	    closing = do_range = false; 
-	    post_body_length = 0;
+	    range_min = range_max = post_body_length = total_written = 0;
 	}
     } m_entity;
 
@@ -91,8 +108,9 @@ Server::Task::Task(Server *parent, StreamSocketPtr client)
       m_buffer_fill(0),
       m_state(CHECKING)
 {
-//    TRACE << "st" << this << ": accepted fd "
-//	  << client->GetReadHandle() << "\n";
+    LOG(HTTP_SERVER)
+	<< "st" << this << ": accepted fd "
+	<< client << "\n";
     m_socket->SetNonBlocking(true);
     m_socket->SetTimeoutMS(0);
     m_rq.Clear();
@@ -109,8 +127,10 @@ unsigned int Server::Task::Run()
 {
     if (!m_socket->IsOpen())
 	return 0;
-//    TRACE << "In WSTR with live socket " << m_socket->GetReadHandle()
-//	  << " state " << m_state << "\n";
+
+    LOG(HTTP_SERVER) << "In WSTR with live socket "
+		     << m_socket << " state " << m_state
+		     << "\n";
 
     unsigned int rc;
 
@@ -131,27 +151,36 @@ unsigned int Server::Task::Run()
 	/* fall through */
 
     case WAITING:
-	rc = m_parser.GetRequestLine(&m_rq.verb, &m_rq.path, NULL);
+    {
+	std::string version;
+
+	rc = m_parser.GetRequestLine(&m_rq.verb, &m_rq.path, &version);
 	if (rc == EWOULDBLOCK)
 	{
-//	    TRACE << "st" << this << " going idle waiting for request " << m_socket->GetReadHandle() << "\n";
+//	    TRACE << "st" << this << " going idle waiting for request " << m_socket << "\n";
 	    WaitForReadable(m_socket);
 	    return 0;
 	}
 	if (rc)
 	{
-//	    TRACE << (void*)this << " unreadable " << rc
-//		  << " (request " << m_count << ")\n";
+	    LOG(HTTP_SERVER) << "hs" << this << " " << m_socket
+			     << " unreadable " << rc << " (request "
+			     << m_count << ")\n";
 	    return rc;
 	}
 
-//	TRACE << "Got request " << m_rq.verb << " " << m_rq.path << "\n";
+	LOG(HTTP) << "Got request " << m_rq.verb << " " << m_rq.path << " "
+		  << version << "\n";
 
 	++m_count;
 	m_entity.Clear();
+
+	if (version == "HTTP/1.0")
+	    m_entity.closing = true;
+
 	m_state = RECV_HEADERS;
 	/* fall through */
-
+    }
     case RECV_HEADERS:
 	for (;;)
 	{
@@ -159,35 +188,46 @@ unsigned int Server::Task::Run()
 	    rc = m_parser.GetHeaderLine(&key, &value);
 	    if (rc == EWOULDBLOCK)
 	    {
-//		TRACE << "Going idle waiting for header " << m_socket->GetReadHandle() << "\n";
+//		TRACE << "Going idle waiting for header " << m_socket << "\n";
 		WaitForReadable(m_socket);
 		return 0;
 	    }
 	    if (rc)
 		return rc;
 
-//	    TRACE << "Got header '" << key << "' = '" << value << "'\n";
+	    LOG(HTTP) << "Got header '" << key << "' = '" << value << "'\n";
+
+	    if (key.empty())
+		break;
 
 	    if (!strcasecmp(key.c_str(), "Connection"))
 	    {
 		if (!strcasecmp(value.c_str(), "Close"))
 		    m_entity.closing = true;
+		else if (!strcasecmp(value.c_str(), "Keep-Alive"))
+		    m_entity.closing = false;
 	    }
 	    else if (!strcasecmp(key.c_str(), "Range"))
 	    {
-		if (sscanf(value.c_str(), "bytes=%llu-%llu", 
-			   &m_entity.range_min,
-			   &m_entity.range_max) == 2)
+		if (util::Scanf64(value.c_str(), "bytes=%llu-%llu",
+				  &m_entity.range_min,
+				  &m_entity.range_max) == 2)
 		{
 		    m_entity.do_range = true;
 		    ++m_entity.range_max; // HTTP is inc/inc; we want inc/exc
+
+		    LOG(HTTP_SERVER) << "Range: " << m_entity.range_min
+				     << "-" << m_entity.range_max << "\n";
 		}
-		else if (sscanf(value.c_str(), "bytes=%llu-", 
-				&m_entity.range_min) == 1)
+		else if (util::Scanf64(value.c_str(), "bytes=%llu-", 
+				       &m_entity.range_min) == 1)
 		{
 		    m_entity.do_range = true;
 		    m_entity.range_max = (unsigned long long)-1; 
 		    // Will be clipped against len later
+
+		    LOG(HTTP_SERVER) << "Range: " << m_entity.range_min
+				     << "-end\n";
 		}
 		else
 		    TRACE << "Don't like range request '" << value
@@ -197,8 +237,8 @@ unsigned int Server::Task::Run()
 		m_rq.refresh = true;
 	    else if (!strcasecmp(key.c_str(), "Content-Length"))
 	    {
-		unsigned long long clen;
-		if (sscanf(value.c_str(), "%llu", &clen) == 1)
+		uint64_t clen;
+		if (util::Scanf64(value.c_str(), "%llu", &clen) == 1)
 		{
 		    m_entity.post_body_length = clen;
 //		    TRACE << "clen " << clen << "\n";
@@ -210,9 +250,6 @@ unsigned int Server::Task::Run()
 	    }	    
 	    else
 		m_rq.headers[key] = value;
-
-	    if (key.empty())
-		break;
 	}
 	
 	if (m_entity.post_body_length)
@@ -292,8 +329,18 @@ unsigned int Server::Task::Run()
 	    m_headers = "HTTP/1.1 206 OK But A Bit Partial\r\n";
 	else
 	    m_headers = "HTTP/1.1 200 OK\r\n";
+	
+	time_t now = ::time(NULL);
+	struct tm bdtime = *gmtime(&now);
 
-	m_headers += "Server: " PACKAGE_NAME "/" PACKAGE_VERSION "\r\n";
+	char timebuf[40];
+	// 0123456789012345678901234567890123456789
+	// Date: Mon, 02 Jun 1982 00:00:00 GMT..
+	strftime(timebuf, sizeof(timebuf),
+		 "Date: %a, %d %b %Y %H:%M:%S GMT\r\n", &bdtime);
+	m_headers += timebuf;
+
+	m_headers += m_parent->GetServerHeader();
 	m_headers += "Accept-Ranges: bytes\r\n";
 	m_headers += "Content-Type: ";
 	    
@@ -312,14 +359,20 @@ unsigned int Server::Task::Run()
 
 	if (m_rs.ssp)
 	{
-	    len = m_rs.ssp->GetLength();
+	    len = m_rs.length ? m_rs.length : m_rs.ssp->GetLength();
 
 	    if (m_entity.do_range)
 	    {
+		LOG(HTTP_SERVER) << "Clipping range " << m_entity.range_min
+				 << "-" << m_entity.range_max
+				 << " against len " << len << "\n";
 		if (m_entity.range_min > len)
 		    m_entity.range_min = len;
 		if (m_entity.range_max > len)
 		    m_entity.range_max = len;
+
+		LOG(HTTP_SERVER) << "Clipped range " << m_entity.range_min
+				 << "-" << m_entity.range_max << "\n";
 
 		/* This form of the Content-Range header is completely
 		 * bogus (the '=' should be whitespace), but is what
@@ -347,7 +400,7 @@ unsigned int Server::Task::Run()
 	m_headers += (boost::format("Content-Length: %llu\r\n") % len).str();
 	m_headers += "\r\n";
 
-//	TRACE << "Response headers:\n" << m_headers;
+	LOG(HTTP) << "Response headers:\n" << m_headers;
 
 //	TRACE << "st" << this << ": len=" << len << "\n";
 
@@ -381,7 +434,7 @@ unsigned int Server::Task::Run()
 
     case SEND_BODY:
 
-	if (m_rs.ssp)
+	if (m_rs.ssp && m_rq.verb != "HEAD")
 	{
 	    if (!m_buffer)
 	    {
@@ -409,9 +462,15 @@ unsigned int Server::Task::Run()
 				TRACE << "st" << this << ": ** Problem, non-pollable stream returned EWOULDBLOCK\n";
 				return rc;
 			    }
-//			    TRACE << "Waiting for body readability\n";
+			    LOG(HTTP) << "Waiting for body readability\n";
 			    WaitForReadable(m_rs.ssp);
 			    return 0;
+			}
+
+			if (rc != EWOULDBLOCK)
+			{
+			    TRACE << "Body error " << rc << "\n";
+			    return rc;
 			}
 		    }
 		    else
@@ -425,17 +484,24 @@ unsigned int Server::Task::Run()
 		if (eof && !m_buffer_fill)
 		    break;
 
-//		TRACE << "Attempting to write " << m_buffer_fill << "\n";
+		LOG(HTTP_SERVER) << "Attempting to write " << m_buffer_fill
+				 << "\n";
 		size_t nwrote = 0;
 
 		rc = m_socket->Write(m_buffer.get(), m_buffer_fill, 
 				     &nwrote);
-//		TRACE << "st" << this << ": write returned " << rc << " nwrote=" << nwrote << "\n";
+		LOG(HTTP_SERVER) << "st" << this << ": " << m_socket
+				 << " write returned " << rc
+				 << " nwrote=" << nwrote << "\n";
+
+		m_entity.total_written += nwrote;
+
 		if (rc)
 		{
 		    if (rc == EWOULDBLOCK)
 		    {
-//			TRACE << "Waiting for body writability" << m_socket->GetWriteHandle() << "\n";
+			LOG(HTTP_SERVER) << "Waiting for body writability "
+					 << m_socket << "\n";
 			WaitForWritable(m_socket);
 			return 0;
 		    }
@@ -454,16 +520,21 @@ unsigned int Server::Task::Run()
 	    } while (!eof || m_buffer_fill);
 
 	    m_buffer.reset(NULL);
+
+	    LOG(HTTP) << "st" << this << ": wrote stream, "
+		      << m_entity.total_written << " bytes\n";
 	}
 	else
 	{
-//	    TRACE << "st" << this << ": 404\n";
+	    LOG(HTTP) << "st" << this << ": no body\n";
 	}
 
-//	TRACE << "st" << this << ": wrote stream\n";
-
 	if (m_entity.closing)
+	{
+	    LOG(HTTP) << "st" << this << " closing connection now\n";
+	    m_socket->Close();
 	    return 0;
+	}
 
         m_rq.Clear();
 	m_rs.Clear();
@@ -472,7 +543,8 @@ unsigned int Server::Task::Run()
 
 	m_state = WAITING;
 	
-//	TRACE << "st" << this << ": going idle waiting for next request " << m_socket->GetReadHandle() << "\n";
+	LOG(HTTP) << "st" << this << ": going idle waiting for next request "
+		  << m_socket << "\n";
 	WaitForReadable(m_socket);
 	return 0;
 
@@ -497,12 +569,33 @@ Server::Server(util::PollerInterface *poller,
       m_port(0),
       m_task_poller(poller, m_thread_pool)
 {
+#ifdef WIN32
+    OSVERSIONINFO osvi;
+    memset(&osvi, '\0', sizeof(osvi));
+    osvi.dwOSVersionInfoSize = sizeof(osvi);
+    GetVersionEx(&osvi);
+
+    m_server_header = (boost::format("Server: Windows/%u.%u UPNP/1.0 " 
+				     PACKAGE_NAME "/" PACKAGE_VERSION "\r\n"
+			   ) % osvi.dwMajorVersion % osvi.dwMinorVersion).str();
+
+#else
+    struct utsname ubuf;
+
+    uname(&ubuf);
+
+    m_server_header = (boost::format("Server: %s/%s UPNP/1.0 " 
+				     PACKAGE_NAME "/" PACKAGE_VERSION "\r\n"
+			   ) % ubuf.sysname % ubuf.release).str();
+#endif
+
+    LOG(HTTP_SERVER) << m_server_header;
 }
 
 Server::~Server()
 {
     m_poller->Remove(m_server_socket.get());
-//    TRACE << "~Server\n";
+    LOG(HTTP_SERVER) << "~Server\n";
 }
 
 unsigned Server::Init(unsigned short port)
@@ -597,7 +690,7 @@ bool FileContentFactory::StreamForPath(const Request *rq, Response *rs)
     struct stat st;
     if (stat(path2.c_str(), &st) < 0)
     {
-	TRACE << "Resolved file '" << path2 << "' not found\n";
+	LOG(HTTP) << "Resolved file '" << path2 << "' not found\n";
 	return false;
     }
 
@@ -616,7 +709,7 @@ bool FileContentFactory::StreamForPath(const Request *rq, Response *rs)
 	return false;
     }
 
-//    TRACE << "Path '" << rq->path << "' is file '" << path2 << "'\n";
+    LOG(HTTP) << "Path '" << rq->path << "' is file '" << path2 << "'\n";
     return true;
 }
 
@@ -644,7 +737,7 @@ public:
     unsigned int Run()
     {
 //	TRACE << "Fetcher " << m_which << " running\n";
-	util::http::Fetcher hc(m_client, m_url);
+	util::http::Fetcher hc(m_client, m_url, "Range: bytes=0-\r\n");
 //	TRACE << "hf" << &hc << " is fetcher " << m_which << "\n";
 	unsigned int rc = hc.FetchToString(&m_contents);
 	assert(rc == 0);
@@ -675,17 +768,18 @@ public:
 int main(int, char*[])
 {
     util::ThreadUser tu;
-
     util::Poller poller;
 
-    enum { NUM_CLIENTS = 20 };
+    enum { NUM_CLIENTS = 100,
+	   NUM_THREADS = 50     // Note Wine (maybe Windows too) can't select() on more than 64 fds
+    };
 
-    util::WorkerThreadPool threads(util::WorkerThreadPool::NORMAL, 4);
+    util::WorkerThreadPool server_threads(util::WorkerThreadPool::NORMAL, 4);
     util::WorkerThreadPool client_threads(util::WorkerThreadPool::NORMAL,
-					  NUM_CLIENTS);
+					  NUM_THREADS);
 
     util::http::Client hc;
-    util::http::Server ws(&poller, &threads);
+    util::http::Server ws(&poller, &server_threads);
 
     unsigned rc = ws.Init();
 
@@ -718,8 +812,24 @@ int main(int, char*[])
 	if (now < finish)
 	{
 //	    TRACE << "polling for " << (finish-now)*1000 << "ms\n";
-	    poller.Poll((unsigned)(finish-now)*1000);
+	    rc = poller.Poll((unsigned)(finish-now)*1000);
+	    if (rc)
+	    {
+		TRACE << "Poll failed (" << rc << ")\n";
+		exit(1);
+	    }
 	}
+
+	unsigned int done = 0;
+	for (unsigned int i=0; i<NUM_CLIENTS; ++i)
+	{
+	    FetchTask *ft = fetches[i];
+	    if (ft->IsDone())
+		++done;
+	}
+	if (done == NUM_CLIENTS)
+	    break;
+
     } while (now < finish);
 
     for (unsigned int i=0; i<NUM_CLIENTS; ++i)

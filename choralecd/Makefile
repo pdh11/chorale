@@ -59,11 +59,26 @@ CHORALECD_DIR:=$(DIR)
 $(TOP)$(DIR)% : CXXFLAGS += $(BOOST_CXXFLAGS) $(QT_CXXFLAGS) \
 		$(TAGLIB_CXXFLAGS) -Wno-shadow
 
+ifeq ($(libutil),)
+include $(TOP)libutil/Makefile
+endif
 ifeq ($(libdb),)
 include $(TOP)libdb/Makefile
 endif
+ifeq ($(libempeg),)
+include $(TOP)libempeg/Makefile
+endif
+ifeq ($(libreceiver),)
+include $(TOP)libreceiver/Makefile
+endif
+ifeq ($(libupnp),)
+include $(TOP)libupnp/Makefile
+endif
 ifeq ($(libmediadb),)
 include $(TOP)libmediadb/Makefile
+endif
+ifeq ($(libdbempeg),)
+include $(TOP)libdbempeg/Makefile
 endif
 ifeq ($(libdbreceiver),)
 include $(TOP)libdbreceiver/Makefile
@@ -71,26 +86,14 @@ endif
 ifeq ($(libdbupnp),)
 include $(TOP)libdbupnp/Makefile
 endif
-ifeq ($(libmediatree),)
-include $(TOP)libmediatree/Makefile
-endif
-ifeq ($(libreceiver),)
-include $(TOP)libreceiver/Makefile
-endif
-ifeq ($(liboutput),)
-include $(TOP)liboutput/Makefile
-endif
 ifeq ($(libimport),)
 include $(TOP)libimport/Makefile
 endif
-ifeq ($(libdbempeg),)
-include $(TOP)libdbempeg/Makefile
+ifeq ($(libmediatree),)
+include $(TOP)libmediatree/Makefile
 endif
-ifeq ($(libempeg),)
-include $(TOP)libempeg/Makefile
-endif
-ifeq ($(libutil),)
-include $(TOP)libutil/Makefile
+ifeq ($(liboutput),)
+include $(TOP)liboutput/Makefile
 endif
 ifeq ($(imagery),)
 include $(TOP)imagery/Makefile
@@ -120,6 +123,31 @@ $(choralecd): $(libchoralecd) $(libutil) $(libimport) $(libdbreceiver) \
 		$(LIBFLAC_LIBS) $(TAGLIB_LIBS) $(BOOST_LIBS) $(QT_LIBS) \
 		$(LAME_LIBS) \
 		$(GSTREAMER_LIBS) $(HAL_LIBS) -Wl,-Map,$@.map.txt
+ifneq ($(FINAL),no)
+	@mv $@ $@-libs
+	@grep ^$(TOP)[a-z].*\.a\( $@.map.txt | sed -e 's,/obj-.*[\(],/,' -e 's,.o[\)],.cpp",' -e 's,^,#include ",' | grep -v tcp_wrappers_c.c | sort \
+		 > $@.all-$(FULLTARGET).h
+	$(CC_PRE)libtool --tag=CXX --mode=compile --silent \
+		$(CXX) $(CXXFLAGS) -I$(TOP). \
+		-include $@.all-$(FULLTARGET).h \
+		-c $(TOP)choralecd/choralecd.cpp \
+		-o $(TOP)choralecd/$(TARGETDIR)all-cpp.lo \
+		-fwhole-program $(BOOST_CXXFLAGS) \
+		$(TAGLIB_CXXFLAGS) \
+		$(DBUS_CXXFLAGS) $(HAL_CXXFLAGS) $(GSTREAMER_CXXFLAGS)
+	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
+		$(CXX) -o $@ $(TOP)choralecd/$(TARGETDIR)all-cpp.lo \
+		-Wl,-Map,map2.txt \
+		$(libchoralecd) \
+		$(libmediatree) $(libdbupnp) $(libimport) $(libdbempeg) \
+		$(libdbreceiver) $(liboutput) $(libupnp) $(libmediadb) \
+		$(libdbsteam) $(libdb) $(libreceiver) $(libempeg) $(libupnp) \
+		$(libutil) -Wl,--as-needed $(PARANOIA_LIBS) \
+		$(LIBCDIOP_LIBS) $(LIBCDDB_LIBS) \
+		$(LIBFLAC_LIBS) $(TAGLIB_LIBS) $(BOOST_LIBS) $(QT_LIBS) \
+		$(LAME_LIBS) \
+		$(GSTREAMER_LIBS) $(HAL_LIBS)
+endif
 	@echo $@: `ldd $@ | wc -l` shared libraries | fmt
 
 $(cloud): $(libchoralecd) $(libutil) $(libimport) $(libdbreceiver) \

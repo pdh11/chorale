@@ -1,5 +1,6 @@
-#include "cd_drives.h"
 #include "config.h"
+#include "cd_drives.h"
+#include "audio_cd.h"
 #include "libutil/trace.h"
 #include <unistd.h>
 #include <fcntl.h>
@@ -7,7 +8,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#ifdef HAVE_LIBCDIOP
+#if HAVE_LIBCDIOP && !HAVE_PARANOIA
 #include <cdio/cdio.h>
 #else
 #include <linux/cdrom.h>
@@ -233,7 +234,7 @@ unsigned int LocalCDDrive::Eject()
 {
     TRACE << "Ejecting " << GetDevice() << "\n";
 
-#ifdef HAVE_LIBCDIOP
+#if HAVE_LIBCDIOP && !HAVE_PARANOIA
     cdio_eject_media_drive(GetDevice().c_str());
     return 0;
 #else

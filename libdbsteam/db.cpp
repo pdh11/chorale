@@ -17,7 +17,7 @@ Database::Database(field_t nfields)
 
 db::RecordsetPtr Database::CreateRecordset()
 {
-    return db::RecordsetPtr(new SimpleRecordset(this));
+    return db::RecordsetPtr(new SimpleRecordset(this, QueryPtr()));
 }
 
 db::QueryPtr Database::CreateQuery()

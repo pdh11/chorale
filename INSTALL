@@ -72,6 +72,20 @@ Using the tracing support (by running "choraled -d <your-args>")
 should be very helpful if you need to report a problem with choraled.
 
 
+Republishing Receiver servers as UPnP
+-------------------------------------
+
+Chorale 0.15 and later is capable of republishing, or gatewaying, an
+existing Receiver server (such as a Rio Central) to UPnP clients (such
+as Roku Soundbridge or Sony Playstation 3). To do this, use the
+"--assimilate-receiver" option when starting choraled.
+
+As the Receiver protocol only allows for one server per network, using
+"--assimilate-receiver" disables Chorale's own Receiver server. (If
+you supply a music-directory too, Chorale will merge the two sources
+of music and supply the UPnP client with the combination.)
+
+
 Rio Receiver service from Linux/Unix
 ------------------------------------
 

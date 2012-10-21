@@ -11,6 +11,7 @@ SRCS:= \
 	file_stream.cpp \
 	file_stream_posix.cpp \
 	file_stream_win32.cpp \
+	formatter.cpp \
 	hal.cpp \
 	http_client.cpp \
 	http_fetcher.cpp \
@@ -29,6 +30,7 @@ SRCS:= \
 	pollable_task.cpp \
 	poll_thread.cpp \
 	quote_escape.cpp \
+	scanf64.cpp \
 	sliding_buffer_stream.cpp \
 	socket.cpp \
 	stream.cpp \
@@ -51,6 +53,7 @@ TEST_SRCS:= \
 	diff.cpp \
 	file.cpp \
 	file_stream_posix.cpp \
+	formatter.cpp \
 	hal.cpp \
 	http_client.cpp \
 	http_fetcher.cpp \
@@ -63,6 +66,7 @@ TEST_SRCS:= \
 	poll.cpp \
 	pollable_task.cpp \
 	quote_escape.cpp \
+	scanf64.cpp \
 	sliding_buffer_stream.cpp \
 	stream.cpp \
 	string_stream.cpp \

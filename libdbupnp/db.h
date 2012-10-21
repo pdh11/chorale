@@ -39,7 +39,7 @@ namespace upnpav {
 class Database: public mediadb::Database,
 		private util::PerObjectRecursiveLocking
 {
-    upnp::Client m_upnp;
+    upnp::DeviceClient m_device_client;
     upnp::ContentDirectory3Client m_contentdirectory;
 
     typedef std::map<unsigned int, std::string> idmap_t;

@@ -4,6 +4,7 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <stdio.h>
 #include <sstream>
 #include <iomanip>
 

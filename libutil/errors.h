@@ -7,6 +7,10 @@
 
 enum {
     EDUMMY = 6000, // So that this still compiles if we have them all
+
+#ifndef HAVE_EINVAL
+    EINVAL,
+#endif
 #ifndef HAVE_EISCONN
     EISCONN,
 #endif

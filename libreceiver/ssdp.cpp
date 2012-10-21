@@ -10,9 +10,9 @@
 #include <boost/format.hpp>
 #include <map>
 #include <sstream>
-#ifdef HAVE_NET_IF_H
+#if HAVE_NET_IF_H
 #include <net/if.h>
-#elif defined(HAVE_WS2TCPIP_H)
+#elif HAVE_WS2TCPIP_H
 #include <ws2tcpip.h>
 #endif
 
@@ -320,7 +320,12 @@ int main()
 	unsigned int rc = rx.WaitForRead(2000);
 	if (rc)
 	    break;
-	rx.Read(&s, &wasfrom, &wasto);
+	rc = rx.Read(&s, &wasfrom, &wasto);
+	if (rc != 0)
+	{
+	    TRACE << "Read failed, rc=" << rc << "\n";
+	}
+	assert(rc == 0);
 	TRACE << s << " from " << wasfrom.ToString() << " to " << wasto.ToString() << "\n";
     }
     return 0;

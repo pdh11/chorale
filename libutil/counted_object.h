@@ -19,7 +19,7 @@ void intrusive_ptr_release(util::CountedObject<LP>*);
 namespace util {
 
 template <class LockingPolicy=PerObjectLocking>
-class CountedObject: private LockingPolicy
+class CountedObject: public LockingPolicy
 {
     unsigned int m_refcount;
 public:

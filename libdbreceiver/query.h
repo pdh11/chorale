@@ -1,7 +1,7 @@
 #ifndef LIBDBRECEIVER_QUERY_H
 #define LIBDBRECEIVER_QUERY_H 1
 
-#include "libdb/db.h"
+#include "libdb/query.h"
 #include <list>
 #include <string>
 

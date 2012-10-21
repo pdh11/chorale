@@ -1,16 +1,16 @@
 #include "web.h"
 #include "config.h"
+#include <pthread.h>
 #include "libutil/trace.h"
 #include "libutil/string_stream.h"
 #include "libutil/urlescape.h"
+#include "libdb/query.h"
 #include "libmediadb/db.h"
 #include "libmediadb/schema.h"
 #include <time.h>
 #include <boost/format.hpp>
 
-#if defined(HAVE_LINUX_DVB_DMX_H) && defined(HAVE_LINUX_DVB_FRONTEND_H)
-#define HAVE_DVB 1
-#endif
+#define HAVE_DVB (HAVE_LINUX_DVB_DMX_H && HAVE_LINUX_DVB_FRONTEND_H)
 
 RootContentFactory::RootContentFactory(mediadb::Database *db)
     : m_db(db)
@@ -61,7 +61,7 @@ util::SeekableStreamPtr RootContentFactory::HomePageStream()
 
     char hostname[256];
     hostname[0] = '\0';
-    gethostname(hostname, sizeof(hostname));
+    ::gethostname(hostname, sizeof(hostname));
     char *dot = strchr(hostname, '.');
     if (dot && dot > hostname)
 	*dot = '\0';
@@ -76,7 +76,7 @@ util::SeekableStreamPtr RootContentFactory::HomePageStream()
     ss->str() += hostname;
     ss->str() += "</div>";
 
-#ifdef HAVE_DVB
+#if HAVE_DVB
     // TV/Radio listings
 
     ss->str() += "<table border=0 cellpadding=2 cellspacing=0><tr><th colspan=9 class=head>TV and radio listings</th></tr>"
@@ -227,7 +227,7 @@ util::SeekableStreamPtr RootContentFactory::HomePageStream()
 bool RootContentFactory::StreamForPath(const util::http::Request *rq, 
 				       util::http::Response *rs)
 {
-    TRACE << "Path '" << rq->path << "'\n";
+//    TRACE << "Path '" << rq->path << "'\n";
     if (rq->path == "/")
     {
 	rs->ssp = HomePageStream();

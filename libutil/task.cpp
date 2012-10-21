@@ -11,20 +11,20 @@ Task::Task()
 
 void Task::SetObserver(TaskObserver *obs)
 {
-    boost::mutex::scoped_lock lock(m_observer_mutex);
+    Lock lock(this);
     m_observer = obs;
 }
 
 void Task::FireProgress(unsigned num, unsigned denom)
 {
-    boost::mutex::scoped_lock lock(m_observer_mutex);
+    Lock lock(this);
     if (m_observer)
 	m_observer->OnProgress(this, num, denom);
 }
 
 void Task::FireError(unsigned int e)
 {
-    boost::mutex::scoped_lock lock(m_observer_mutex);
+    Lock lock(this);
     if (m_observer)
 	m_observer->OnError(this, e);
 }

@@ -70,7 +70,7 @@ public:
     bool Activate();
 };
 
-class BufferSink
+class BufferSink: public CountedObject<>
 {
     Gate m_sink_gate;
 

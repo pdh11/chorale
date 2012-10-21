@@ -9,13 +9,14 @@
 #include "libutil/counted_object.h"
 #include "libutil/observable.h"
 #include "libutil/hal.h"
-#include "audio_cd.h"
 
 namespace util { class TaskQueue; }
 
 namespace util { namespace hal { class Context; } }
 
 namespace import {
+
+class AudioCD;
 
 class CDDrives;
 
@@ -42,7 +43,7 @@ public:
     /** Attempt to create an AudioCDPtr. Can take several seconds (CD spinup).
      * Fails if no CD, or if no audio tracks.
      */
-    virtual unsigned int GetCD(AudioCDPtr *result) = 0;
+    virtual unsigned int GetCD(boost::intrusive_ptr<AudioCD> *result) = 0;
 };
 
 typedef boost::intrusive_ptr<CDDrive> CDDrivePtr;
@@ -68,7 +69,7 @@ public:
     bool DiscPresent() const;
     unsigned int Eject();
     util::TaskQueue *GetTaskQueue();
-    unsigned int GetCD(AudioCDPtr *result);
+    unsigned int GetCD(boost::intrusive_ptr<AudioCD> *result);
 };
 
 class CDDrives: public util::hal::DeviceObserver

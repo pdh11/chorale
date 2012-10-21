@@ -19,11 +19,11 @@ FileStream::FileStream()
 {
 }
 
-unsigned FileStream::Open(const char *filename, FileMode mode)
+unsigned FileStream::Open(const char *filename, unsigned int mode)
 {
     unsigned access = 0, disposition = 0, fanda = 0;
 
-    switch (mode)
+    switch (mode & TYPE_MASK)
     {
     case READ:
 	access = GENERIC_READ;
@@ -47,14 +47,20 @@ unsigned FileStream::Open(const char *filename, FileMode mode)
 	break;
     }
 
-    /** @todo CreateFileW(utf8toutf16(...)...) */
-    m_fd = CreateFileA(filename, access, FILE_SHARE_READ|FILE_SHARE_WRITE,
-		      NULL, disposition, fanda, NULL);
+    if (mode & SEQUENTIAL)
+	fanda |= FILE_FLAG_SEQUENTIAL_SCAN;
+
+    utf16string wfilename = UTF8ToUTF16(filename);
+
+    m_fd = CreateFileW(wfilename.c_str(), access,
+		       FILE_SHARE_READ|FILE_SHARE_WRITE,
+		       NULL, disposition, fanda, NULL);
 
     if (m_fd == INVALID_HANDLE_VALUE)
     {
-	TRACE << "Can't open file\n";
-	return GetLastError();
+	TRACE << "Can't open file '" << filename << "' (" << GetLastError()
+	      << ")\n";
+	return ENOENT;
     }
 
     return 0;

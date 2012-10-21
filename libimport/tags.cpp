@@ -5,11 +5,12 @@
 #include "libutil/file.h"
 #include <errno.h>
 #include "libmediadb/schema.h"
+#include "libdb/recordset.h"
 #include <sys/stat.h>
 
 #undef CTIME
 
-#ifdef HAVE_TAGLIB
+#if HAVE_TAGLIB
 
 #include <fileref.h>
 #include <tag.h>

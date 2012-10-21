@@ -10,25 +10,16 @@
 #include "features.h"
 #include <qapplication.h>
 #include <qpixmap.h>
-#include <QPlastiqueStyle>
-#include <QCleanlooksStyle>
 #include "main_window.h"
 #include "settings.h"
 #include "config.h"
-#include "libutil/cpus.h"
 #include "libutil/dbus.h"
-#include "libutil/hal.h"
 #include "libutil/http_client.h"
 #include "libutil/http_server.h"
 #include "libutil/poll_thread.h"
 #include "libutil/trace.h"
 #include "libutil/worker_thread_pool.h"
-#include "libimport/cd_drives.h"
-#include "libreceiver/ssdp.h"
-#include "libdbreceiver/db.h"
-#include "libempeg/discovery.h"
 #include "libmediadb/registry.h"
-#include "libupnp/ssdp.h"
 #include "poller.h"
 #include "cd_widget.h"
 #include "db_widget.h"
@@ -37,7 +28,7 @@
 
 #include "imagery/cd.xpm"
 #include "imagery/empeg.xpm"
-#include "imagery/folder.xpm"
+//# include "imagery/folder.xpm"
 #include "imagery/network.xpm"
 #include "imagery/output.xpm"
 
@@ -53,7 +44,7 @@ int main(int argc, char *argv[])
     util::PollThread bg_poller;
 
     util::hal::Context *halp = NULL;
-#ifdef HAVE_HAL
+#if HAVE_HAL
     util::dbus::Connection dbusc(&fg_poller);
     unsigned int res = dbusc.Connect(util::dbus::Connection::SYSTEM);
     if (res)
@@ -66,7 +57,7 @@ int main(int argc, char *argv[])
 	halp = &halc;
 #endif
 
-#ifdef HAVE_CD
+#if HAVE_CD
     import::CDDrives cds(halp);
 #endif
 
@@ -76,7 +67,7 @@ int main(int argc, char *argv[])
     app.setMainWidget(mainwin.get());
 
     QPixmap cd_pixmap((const char**)cd_xpm);
-#ifdef HAVE_CD
+#if HAVE_CD
     choraleqt::CDWidgetFactory cwf(&cd_pixmap, &cds, &settings, &cpu_pool,
 				   &disk_pool);
     mainwin->AddWidgetFactory(&cwf);
@@ -85,7 +76,7 @@ int main(int argc, char *argv[])
     mediadb::Registry registry;
 
     QPixmap output_pixmap((const char**)output_xpm);
-#ifdef HAVE_LIBOUTPUT
+#if HAVE_LIBOUTPUT
     choraleqt::OutputWidgetFactory owf(&output_pixmap, halp, &registry);
     mainwin->AddWidgetFactory(&owf);
 #endif
@@ -127,8 +118,8 @@ int main(int argc, char *argv[])
 					  &http_server);
     mainwin->AddWidgetFactory(&edbwf);
 
-    empeg::Discovery edisc;
-    edisc.Init(&fg_poller, &edbwf);
+//    empeg::Discovery edisc;
+//    edisc.Init(&fg_poller, &edbwf);
 
     mainwin->show();
     int rc = app.exec();
@@ -252,6 +243,14 @@ digraph G {
  * single place with a complete list of all the portable APIs, and (b)
  * discourages writers of portable code from using the non-portable
  * APIs in namespaces win32 and posix.)
+ *
+ * @li Optimisation and -fwhole-program. When configured with
+ * --enable-final, the entire Chorale daemon is compiled as a single
+ * C++ translation unit (by @e automatically figuring out which
+ * Chorale library objects are used, and then #include'ing all their
+ * sources instead).  This reduces the size of the final binary by
+ * about 20% on both ia32 and amd64, at the expense of vast memory
+ * usage during compilation.
  *
  * @li Unicode is the One True God, and UTF-8 is His prophet. Native
  * Win32 applications use UTF-16 to interface to the filesystem

@@ -4,6 +4,7 @@
 #include <map>
 #include <string>
 #include <list>
+#include <stdint.h>
 
 /** Classes implementing UPnP.
  */

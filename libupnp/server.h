@@ -18,7 +18,7 @@ class Service;
 
 /** A UPnP server.
  *
- * The devices announced by this serve are supplied as subclasses of
+ * The devices announced by this server are supplied as subclasses of
  * upnp::Device, which themselves contain subclasses of upnp::Service.
  */
 class Server: public upnp::soap::InfoSource

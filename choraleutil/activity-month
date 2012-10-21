@@ -1,0 +1,17 @@
+#!/usr/bin/python
+
+import time;
+import datetime;
+import os;
+import sys;
+
+for i in range(0, 10000):
+    initial = datetime.date(2006 + (i/12), (i%12)+1, 1)
+    final = datetime.date(2006 + ((i+1)/12), ((i+1)%12)+1, 1)
+    cmd = "cvs -q diff -N -D %u-%u-%u -D %u-%u-%u | diffstat | tail -n 1 | awk -- '{ print $4+$6}'" % (initial.year, initial.month, initial.day, final.year, final.month, final.day)
+    infile = os.popen(cmd, "r")
+    n = int(infile.read())
+    print "%04u-%u-%u %u" % (initial.year, initial.month, initial.day, n)
+    sys.stdout.flush()
+    if final > datetime.date.today():
+        break

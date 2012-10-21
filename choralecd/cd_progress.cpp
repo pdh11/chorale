@@ -56,11 +56,14 @@ void CDProgress::OnCancel()
     close();
 }
 
-void CDProgress::OnProgress(const util::Task *task, 
+void CDProgress::OnProgress(const util::Task *task,
 			    unsigned num, unsigned denom)
 {
-    // Called on wrong thread
-    QApplication::postEvent(this, new ProgressEvent(task, num, denom));
+    if (task == m_task.get())
+    {
+	// Called on wrong thread
+	QApplication::postEvent(this, new ProgressEvent(0, 0, num, denom));
+    }
 }
 
 void CDProgress::customEvent(QEvent *ce)
@@ -68,29 +71,26 @@ void CDProgress::customEvent(QEvent *ce)
     if ((int)ce->type() == EVENT_PROGRESS)
     {
 	ProgressEvent *pe = (ProgressEvent*)ce;
-	const util::Task *task = pe->GetTask();
-	if (task == m_task.get())
-	{
-	    setValue(pe->GetNum());
-	    setMaximum(pe->GetDenom());
 
-	    if (pe->GetNum() == pe->GetDenom())
+	setValue(pe->GetNum());
+	setMaximum(pe->GetDenom());
+
+	if (pe->GetNum() == pe->GetDenom())
+	{
+	    // Done
+	    if (m_task->IsValid())
 	    {
-		// Done
-		if (m_task->IsValid())
-		{
-		    (void)new CDWindow(m_drive, m_task->GetCD(), 
-				       m_task->GetCDDB(), m_settings, 
-				       m_cpu_queue, m_disk_queue);
-		    close(); // does "delete this", no more member usage!
-		}
-		else
-		{
-		    close(); // does "delete this", no more member usage!
-		    QMessageBox::warning(NULL, "choralecd",
-					 "No audio CD found",
-					 "Cancel");
-		}
+		(void)new CDWindow(m_drive, m_task->GetCD(), 
+				   m_task->GetCDDB(), m_settings, 
+				   m_cpu_queue, m_disk_queue);
+		close(); // does "delete this", no more member usage!
+	    }
+	    else
+	    {
+		close(); // does "delete this", no more member usage!
+		QMessageBox::warning(NULL, "choralecd",
+				     "No audio CD found",
+				     "Cancel");
 	    }
 	}
     }

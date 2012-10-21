@@ -28,4 +28,7 @@
 #define ATTRIBUTE_WARNUNUSED
 #endif
 
+// In GCC 3.0 et seq
+#define ATTRIBUTE_PRINTF(X,Y) ATTRIBUTE((format(printf, X, Y)))
+
 #endif

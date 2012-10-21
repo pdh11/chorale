@@ -6,7 +6,7 @@
 #include "observable.h"
 #include <errno.h>
 
-#ifdef HAVE_HAL
+#if HAVE_HAL
 
 #include <libhal.h>
 #include <dbus/dbus.h>
@@ -218,7 +218,7 @@ unsigned int Device::GetInt(const char *key)
 
 #ifdef TEST
 
-#ifdef HAVE_HAL
+#if HAVE_HAL
 
 class CDObserver: public util::hal::DeviceObserver
 {
@@ -269,7 +269,7 @@ void DVBObserver::OnDevice(util::hal::DevicePtr dev)
 
 int main()
 {
-#ifdef HAVE_HAL
+#if HAVE_HAL
     util::Poller poller;
     util::dbus::Connection conn(&poller);
     unsigned int rc = conn.Connect(util::dbus::Connection::SYSTEM);

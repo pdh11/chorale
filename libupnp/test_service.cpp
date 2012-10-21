@@ -4,6 +4,7 @@
 #include "libutil/http_client.h"
 #include "libutil/http_server.h"
 #include "libutil/trace.h"
+#include "libutil/worker_thread_pool.h"
 #include "server.h"
 #include "ssdp.h"
 #include <boost/format.hpp>
@@ -128,12 +129,12 @@ int main()
     std::string descurl = (boost::format("http://127.0.0.1:%u/upnp/description.xml")
 			      % ws.GetPort()).str();
 
-    upnp::Client client(&wc, &ws);
+    upnp::DeviceClient client(&wc, &ws);
     rc = client.Init(descurl, dev.GetUDN());
     assert(rc == 0);
 
-    upnp::TestServiceClient tsc;
-    rc = tsc.Init(&client, s_test_service_id);
+    upnp::TestServiceClient tsc(&client, s_test_service_id);
+    rc = tsc.Init();
     assert(rc == 0);
 
     DoTest(&tsc);

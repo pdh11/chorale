@@ -22,7 +22,7 @@ class Root: public Node
     std::vector<NodePtr> m_children;
     
 public:
-    virtual ~Root() {}
+    ~Root();
 
     static NodePtr Create(db::Database*);
 

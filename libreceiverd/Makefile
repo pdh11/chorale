@@ -40,6 +40,9 @@ endif
 ifeq ($(libdbsteam),)
 include $(TOP)libdbsteam/Makefile
 endif
+ifeq ($(libdbmerge),)
+include $(TOP)libdbmerge/Makefile
+endif
 ifeq ($(libreceiver),)
 include $(TOP)libreceiver/Makefile
 endif
@@ -48,6 +51,7 @@ $(LIBRECEIVERD_TESTS) : TEST_LIBS += $(TAGLIB_LIBS) $(BOOST_LIBS) \
 	$(DBUS_LIBS) $(HAL_LIBS) $(LIBS)
 
 $(LIBRECEIVERD_TESTS) : $(libreceiverd) $(libreceiver) $(libdbsteam) \
+		$(libdbmerge) \
 		$(libdblocal) $(libimport) $(libmediadb) $(libdb) $(libutil)
 
 $(libreceiverd): $(LIBRECEIVERD_OBJS)

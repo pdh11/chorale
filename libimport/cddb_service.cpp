@@ -1,7 +1,7 @@
 #include "config.h"
 #include "cddb_service.h"
 
-#ifdef HAVE_LIBCDDB
+#if HAVE_LIBCDDB
 
 #include <cddb/cddb.h>
 #include "libutil/trace.h"

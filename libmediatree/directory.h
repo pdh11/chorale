@@ -20,7 +20,7 @@ class Directory: public Node
     std::vector<NodePtr> m_children;
     
 public:
-    virtual ~Directory() {}
+    virtual ~Directory();
 
     static NodePtr Create(db::Database*, unsigned int id);
     static NodePtr Create(db::Database*, unsigned int id, db::RecordsetPtr);

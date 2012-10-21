@@ -9,6 +9,7 @@
 #include "libutil/poll_thread.h"
 #include "libutil/http_client.h"
 #include "libutil/http_server.h"
+#include "libutil/worker_thread_pool.h"
 #include "libmediadb/registry.h"
 #include "liboutput/gstreamer.h"
 #include "liboutput/upnpav.h"
@@ -230,7 +231,7 @@ int Main(int argc, char *argv[])
     util::WorkerThreadPool disk_pool(util::WorkerThreadPool::NORMAL, 32);
 
     util::hal::Context *halp = NULL;
-#ifdef HAVE_HAL
+#if HAVE_HAL
     util::dbus::Connection dbusc(&fg_poller);
     unsigned int res = dbusc.Connect(util::dbus::Connection::SYSTEM);
     if (res)
@@ -246,7 +247,7 @@ int Main(int argc, char *argv[])
     mediadb::Registry registry;
 
     QPixmap output_pixmap((const char**)output_xpm);
-#ifdef HAVE_LIBOUTPUT
+#if HAVE_LIBOUTPUT
     cloud::LocalOutputs owf(&mainwindow, halp, &registry);
 #endif
 

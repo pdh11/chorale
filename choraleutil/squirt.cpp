@@ -2,6 +2,7 @@
 #include "libdbsteam/db.h"
 #include "libdblocal/file_scanner.h"
 #include "libdblocal/db.h"
+#include "libdb/query.h"
 #include "libmediadb/schema.h"
 #include "libmediadb/xml.h"
 #include "libutil/worker_thread_pool.h"
@@ -295,7 +296,7 @@ int main(int argc, char *argv[])
 
     db::local::Database ldb(&sdb);
 
-#ifdef HAVE_TAGLIB
+#if HAVE_TAGLIB
     db::local::FileScanner ifs(mediaroot, flacroot, &ldb, &wtp);
 
     ifs.Scan();

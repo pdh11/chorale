@@ -3,7 +3,7 @@
 
 #include "config.h"
 
-#ifdef HAVE_PTHREAD_H
+#if HAVE_PTHREAD_H
 #include <pthread.h>
 #endif
 

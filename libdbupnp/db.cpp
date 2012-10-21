@@ -16,7 +16,9 @@ namespace upnpav {
 
 Database::Database(util::http::Client *client,
 		   util::http::Server *server)
-    : m_upnp(client, server),
+    : m_device_client(client, server),
+      m_contentdirectory(&m_device_client, 
+			 upnp::s_service_id_content_directory),
       m_nextid(0x110),
       m_search_caps(0)
 {
@@ -28,11 +30,13 @@ Database::~Database()
 
 unsigned Database::Init(const std::string& url, const std::string& udn)
 {
-    unsigned int rc = m_upnp.Init(url, udn);
-    if (rc != 0)
+    unsigned int rc = m_device_client.Init(url, udn);
+    if (rc)
 	return rc;
 
-    m_contentdirectory.Init(&m_upnp, upnp::s_service_id_content_directory);
+    rc = m_contentdirectory.Init();
+    if (rc)
+	return rc;
 
     {
 	Lock lock(this);
@@ -84,7 +88,7 @@ unsigned Database::Init(const std::string& url, const std::string& udn)
 
 const std::string& Database::GetFriendlyName() const
 {
-    return m_upnp.GetDescription().GetFriendlyName();
+    return m_device_client.GetFriendlyName();
 }
 
 db::RecordsetPtr Database::CreateRecordset()
@@ -153,6 +157,7 @@ std::string Database::ObjectIdForId(unsigned int id)
 # include "libutil/poll.h"
 # include "libutil/http_client.h"
 # include "libutil/http_server.h"
+# include "libutil/worker_thread_pool.h"
 # include "libmediadb/schema.h"
 
 class MyCallback: public upnp::ssdp::Responder::Callback

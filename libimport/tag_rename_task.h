@@ -15,9 +15,7 @@ class TagRenameTask: public util::Task
     db::RecordsetPtr m_tags;
 
     TagRenameTask(const std::string& oldname, const std::string& newname,
-		  db::RecordsetPtr tags)
-	: m_oldname(oldname), m_newname(newname), m_tags(tags) {}
-
+		  db::RecordsetPtr tags);
 public:
     static util::TaskPtr Create(const std::string& oldname, 
 				const std::string& newname, 

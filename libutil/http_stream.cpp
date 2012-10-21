@@ -7,10 +7,14 @@
 #include "string_stream.h"
 #include "trace.h"
 #include "errors.h"
+#include "scanf64.h"
+#include "peeking_line_reader.h"
 #include <errno.h>
 #include <string.h>
 #include <boost/format.hpp>
 #include <boost/tokenizer.hpp>
+
+LOG_DECL(HTTP);
 
 namespace util {
 
@@ -33,6 +37,7 @@ Stream::Stream(const IPEndPoint& ipe, const std::string& host,
 
 Stream::~Stream()
 {
+    LOG(HTTP) << "~hs" << this << "\n";
 }
 
 unsigned Stream::Create(StreamPtr *result, const char *url,
@@ -48,8 +53,11 @@ unsigned Stream::Create(StreamPtr *result, const char *url,
     if (ipe.addr.addr == 0)
 	return ENOENT;
 
-    *result = StreamPtr(new Stream(ipe, host, path, extra_headers,
-				   body));
+    Stream *stm = new Stream(ipe, host, path, extra_headers, body);
+
+    LOG(HTTP) << "hs" << stm << ": " << url << "\n";
+
+    *result = StreamPtr(stm);
 
     return 0;
 }
@@ -57,6 +65,8 @@ unsigned Stream::Create(StreamPtr *result, const char *url,
 unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
 {
     /** @todo Isn't thread-safe like the other ReadAt's. Add a mutex. */
+
+    LOG(HTTP) << "hs" << this << ".ReadAt(" << pos << ",+" << len << ")\n";
 
     if (!m_need_fetch && pos != m_last_pos)
     {
@@ -83,9 +93,14 @@ unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
     {
 	m_socket->SetNonBlocking(false);
 
+	LOG(HTTP) << "hs" << this << ": synchronous connect\n";
+
 	unsigned int rc = m_socket->Connect(m_ipe);
 	if (rc != 0)
+	{
+	    LOG(HTTP) << "hs" << this << " can't connect: " << rc << "\n";
 	    return rc;
+	}
 
 	std::string headers;
 	if (m_body)
@@ -98,8 +113,31 @@ unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
 	headers += "Host: " + m_host + "\r\n";
 
 	if (pos)
-	    headers += (boost::format("Range: bytes=%llu-\r\n")
-			% (unsigned long long)pos).str();
+	{
+	    if (m_len)
+		headers += (boost::format("Range: bytes=%llu-%llu\r\n")
+			    % (unsigned long long)pos
+			    % (unsigned long long)(m_len-1) ).str();
+	    else
+	    {
+		/* This is a bit nasty. Some "traditional" Receiver
+		 * servers (in particular, Jupiter) don't like
+		 * one-ended ranges. All such servers are on the
+		 * "traditional" Receiver port of 12078; all such
+		 * servers don't deal with >4GB files anyway. They do,
+		 * however, deal with clipping large ranges to the
+		 * actual size.
+		 */
+		if (m_ipe.port == 12078)
+		    headers += (boost::format(
+				    "Range: bytes=%llu-4294967295\r\n")
+				% (unsigned long long)pos).str();
+		else
+		    headers += (boost::format(
+				    "Range: bytes=%llu-\r\n")
+				% (unsigned long long)pos).str();
+	    }
+	}
 
 	headers += "User-Agent: " PACKAGE_NAME "/" PACKAGE_VERSION "\r\n";
 
@@ -122,17 +160,18 @@ unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
 	    return rc;
 	}
 
-//	TRACE << "Sent headers:\n" << headers;
-	rc = m_socket->SetNonBlocking(true);
+	LOG(HTTP) << "hs" << this << " sent headers:\n" << headers;
 
-	util::PeekingLineReader lr(m_socket);
-	http::Parser hp(&lr);
+	rc = m_socket->SetNonBlocking(true);
 
 	if (rc != 0)
 	{
 	    TRACE << "Can't set non-blocking: " << rc << "\n";
 	    return rc;
 	}
+
+	util::PeekingLineReader lr(m_socket);
+	http::Parser hp(&lr);
 
 	bool is_error = false;
 
@@ -142,7 +181,7 @@ unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
 
 	    rc = hp.GetResponseLine(&httpcode, NULL);
 
-//	    TRACE << "GetResponseLine returned " << rc << "\n";
+	    LOG(HTTP) << "GetResponseLine returned " << rc << "\n";
 	    
 	    if (rc == 0)
 	    {
@@ -159,7 +198,8 @@ unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
 		rc = m_socket->WaitForRead(5000);
 		if (rc != 0)
 		{
-		    TRACE << "Socket won't come ready " << rc << "\n";
+		    TRACE << "hs" << this << " socket won't come ready "
+			  << rc << "\n";
 		    return rc;
 		}
 	    }
@@ -168,35 +208,56 @@ unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
 	m_socket->SetNonBlocking(false);
 
 	bool got_range = false;
-	unsigned long long clen = 0;
+	uint64_t clen = 0;
 
 	for (;;)
 	{
 	    std::string key, value;
+
 	    rc = hp.GetHeaderLine(&key, &value);
+
+	    // Note that PeekingLineReader uses ReadPeek which doesn't use
+	    // the internal timeout.
+	    if (rc == EWOULDBLOCK)
+	    {
+		rc = m_socket->WaitForRead(5000);
+		if (rc != 0)
+		{
+		    TRACE << "hs" << this
+			  << " socket won't come ready in headers "
+			  << rc << "\n";
+		    return rc;
+		}
+		continue;
+	    }
+
 	    if (rc)
 	    {
 		TRACE << "GetHeaderLine says " << rc << ", bailing\n";
 		return rc;
 	    }
 
+	    if (key.empty())
+		break;
+
+	    LOG(HTTP) << "hs" << this << " " << key << ": " << value << "\n";
+
 	    if (!strcasecmp(key.c_str(), "Content-Range"))
 	    {
-		unsigned long long rmin, rmax, elen = 0;
+		uint64_t rmin, rmax, elen = 0;
 
 		/* HTTP/1.1 says "Content-Range: bytes X-Y/Z"
 		 * but traditional Receiver servers send
 		 * "Content-Range: bytes=X-Y"
 		 */
-
-		if (sscanf(value.c_str(), "bytes %llu-%llu/%llu",
-			   &rmin, &rmax, &elen) == 3
-		    || sscanf(value.c_str(), "bytes=%llu-%llu/%llu",
-			      &rmin, &rmax, &elen) == 3
-		    || sscanf(value.c_str(), "bytes %llu-%llu",
-			      &rmin, &rmax) == 2
-		    || sscanf(value.c_str(), "bytes=%llu-%llu",
-			      &rmin, &rmax) == 2)
+		if (util::Scanf64(value.c_str(), "bytes %llu-%llu/%llu",
+				  &rmin, &rmax, &elen) == 3
+		    || util::Scanf64(value.c_str(), "bytes=%llu-%llu/%llu",
+				     &rmin, &rmax, &elen) == 3
+		    || util::Scanf64(value.c_str(), "bytes %llu-%llu",
+				     &rmin, &rmax) == 2
+		    || util::Scanf64(value.c_str(), "bytes=%llu-%llu",
+				     &rmin, &rmax) == 2)
 		{
 		    if (elen)
 			m_len = elen;
@@ -208,10 +269,8 @@ unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
 	    }
 	    else if (!strcasecmp(key.c_str(), "Content-Length"))
 	    {
-		sscanf(value.c_str(), "%llu", &clen);
+		util::Scanf64(value.c_str(), "%llu", &clen);
 	    }
-	    else if (key.empty())
-		break;
 	}
 
 	if (!got_range)
@@ -232,8 +291,17 @@ unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
     }
 	
     unsigned int rc = m_socket->Read(buffer, len, pread);
+
     if (!rc)
+    {
 	m_last_pos += *pread;
+	LOG(HTTP) << "hs" << this << " socket read " << *pread << " bytes\n";
+    }
+    else
+    {
+	LOG(HTTP) << "hs" << this << " socket read error " << rc << "\n";
+    }
+
     return rc;
 }
 
@@ -244,7 +312,13 @@ unsigned Stream::WriteAt(const void*, pos64, size_t, size_t*)
 
 SeekableStream::pos64 Stream::GetLength() { return m_len; }
 
-unsigned Stream::SetLength(pos64) { return EPERM; }
+unsigned Stream::SetLength(pos64 len) 
+{
+    if (m_len && m_len != len)
+	return EPERM;
+    m_len = len;
+    return 0;
+}
 
 } // namespace http
 

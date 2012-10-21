@@ -20,7 +20,7 @@ namespace upnpav {
 class URLPlayer: public output::URLPlayer, public upnp::AVTransport2Observer,
 		 public util::Observable<URLObserver>, public util::Timed
 {
-    upnp::Client m_upnp;
+    upnp::DeviceClient m_device_client;
     upnp::AVTransport2Client m_avtransport;
     upnp::ConnectionManager2Client m_connectionmanager;
     PlayState m_state;

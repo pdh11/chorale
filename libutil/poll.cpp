@@ -12,6 +12,8 @@
 #include <assert.h>
 #include "trace.h"
 
+LOG_DECL(POLL);
+
 namespace util {
 
 using pollapi::PollerCore;
@@ -129,12 +131,16 @@ void Poller::Impl::Add(Pollable *p, const Callback& callback,
 void Poller::Impl::Remove(Pollable *p)
 {
     Lock lock(this);
+
+    LOG(POLL) << "Remove pollable " << p << "\n";
+
     for (pollables_t::iterator i = m_pollables.begin();
 	 i != m_pollables.end();
 	 ++i)
     {
 	if (i->p == p)
 	{
+	    LOG(POLL) << "Found pollable, erasing\n";
 	    m_pollables.erase(i);
 	    break;
 	}
@@ -201,8 +207,6 @@ unsigned Poller::Impl::Poll(unsigned int timeout_ms)
     }
 
     unsigned int rc = m_core.Poll(timeout_ms);
-
-//    TRACE << "polled " << rc << "\n";
 
     if (rc != 0)
 	return rc;

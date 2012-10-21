@@ -1,9 +1,8 @@
 #ifndef LIBDBRECEIVER_RS_H
 #define LIBDBRECEIVER_RS_H 1
 
-#include "libdb/db.h"
+#include "libdb/query.h"
 #include "libdb/readonly_rs.h"
-#include "query.h"
 #include <list>
 #include <string>
 #include <vector>

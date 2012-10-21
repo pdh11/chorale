@@ -21,7 +21,7 @@ class Results: public Node
     std::vector<NodePtr> m_children;
     
 public:
-    virtual ~Results() {}
+    ~Results();
 
     static NodePtr Create(db::Database*, int field, const std::string& value);
 

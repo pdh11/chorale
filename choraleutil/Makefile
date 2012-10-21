@@ -19,8 +19,10 @@ playlist2dir:=$(TOP)$(DIR)playlist2dir
 PLAYLIST2DIR_OBJS:=$(TOP)$(DIR)$(TARGETDIR)playlist2dir.lo
 endif
 
+ifneq ($(TAGLIB),no)
 protocoltool:=$(TOP)$(DIR)protocoltool
 PROTOCOLTOOL_OBJS:=$(TOP)$(DIR)$(TARGETDIR)protocoltool.lo
+endif
 
 readtags:=$(TOP)$(DIR)readtags
 READTAGS_OBJS:=$(TOP)$(DIR)$(TARGETDIR)readtags.lo
@@ -52,23 +54,23 @@ endif
 ifeq ($(libempeg),)
 include $(TOP)libempeg/Makefile
 endif
-ifeq ($(libdbempeg),)
-include $(TOP)libdbempeg/Makefile
+ifeq ($(libdbsteam),)
+include $(TOP)libdbsteam/Makefile
 endif
 ifeq ($(libmediadb),)
 include $(TOP)libmediadb/Makefile
 endif
-ifeq ($(libdbsteam),)
-include $(TOP)libdbsteam/Makefile
-endif
-ifeq ($(libdblocal),)
-include $(TOP)libdblocal/Makefile
+ifeq ($(libdbempeg),)
+include $(TOP)libdbempeg/Makefile
 endif
 ifeq ($(libimport),)
 include $(TOP)libimport/Makefile
 endif
 ifeq ($(liboutput),)
 include $(TOP)liboutput/Makefile
+endif
+ifeq ($(libdblocal),)
+include $(TOP)libdblocal/Makefile
 endif
 
 $(play): $(PLAY_OBJS) $(liboutput) $(libdb) $(libutil) \
@@ -93,6 +95,7 @@ $(protocoltool): $(PROTOCOLTOOL_OBJS) \
 		$(libdbempeg) $(libdblocal) $(libimport) \
 		$(libmediadb) $(libdbsteam) $(libdb) $(libempeg) $(libutil) \
 		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS)
+	$(STRIP) $@
 
 $(playlist2dir): $(PLAYLIST2DIR_OBJS) $(libimport) $(libutil)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \

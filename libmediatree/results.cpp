@@ -1,7 +1,7 @@
 #include "results.h"
 #include "directory.h"
 #include "node_enumerator.h"
-#include "libdb/db.h"
+#include "libdb/query.h"
 #include "libmediadb/schema.h"
 #include "libdb/free_rs.h"
 
@@ -14,6 +14,10 @@ Results::Results(db::Database *thedb, int field, const std::string& value)
       m_info(db::FreeRecordset::Create())
 {
     m_info->SetString(mediadb::TITLE, value);
+}
+
+Results::~Results()
+{
 }
 
 NodePtr Results::Create(db::Database *thedb, int field, 

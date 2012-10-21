@@ -1,3 +1,33 @@
+2009-May-01: Version 0.15 released; changes since 0.14:
+
+	* choralecd: separate UI code from ripping-control code
+	* choraled: unified code Win32/Linux, many new features in Win32
+	* choraled: --assimilate-receiver
+	* choraled: understand more formats in MediaRenderer
+	* choraled: deal with non-ASCII install and music paths in choralesvc
+	* choraled: now works out itself what licence it's under and tells you
+	* choraleutil, libutil: compilation fixes for GCC 4.4.0
+	* protocoltool: understand Jupiters better
+	* libimport: slow down ripping if errors are occurring
+	* libdbreceiver: fixes for "traditional" receiver servers eg jupiter
+	* libmediadb: proxy HTTP access, don't point clients at origin server
+	* libdbsteam: query-lifetime fixes (seen as receiver service crashes)
+	* libupnp: hopefully-final fix for multihomed hosts
+	* libupnp: saner client API that deals with reappearing on changed port
+	* libupnp: pay more attention to content-types (text/xml)
+	* libutil: SEQUENTIAL flag for file writes
+	* libutil: logging API that's driveable by environment variables
+	* libutil: ignore hidden files on Windows
+	* libutil: filename manipulation now understands backslash on Windows
+	* libutil: canonicalise Windows filenames to forward slash
+	* libutil: select for FD_CLOSE'd sockets on Windows
+	* libutil: http::Server now understands HEAD requests
+	* libutil: Scanf64 to work around Mingw scanf/printf %llu severe fail
+	* Makefile: allow "make headercheck" for header file quality check
+	* Makefile: install XML files on Win32
+	* configure: make all HAVE_xyz tests "#if" rather than "#ifdef"
+	195 files changed, 4946 insertions, 2035 deletions
+	
 2009-Mar-05: Version 0.14 released; changes since 0.13:
 
 	* configure, COPYING: new Qt versions are LGPL

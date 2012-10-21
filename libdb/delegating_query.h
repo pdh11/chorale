@@ -1,7 +1,7 @@
 #ifndef LIBDB_DELEGATING_QUERY_H
 #define LIBDB_DELEGATING_QUERY_H 1
 
-#include "db.h"
+#include "query.h"
 
 namespace db {
 

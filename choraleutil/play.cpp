@@ -5,6 +5,7 @@
 #include "libdbsteam/db.h"
 #include "libmediadb/schema.h"
 #include "libdblocal/db.h"
+#include "libdb/recordset.h"
 #include "libutil/trace.h"
 #include <getopt.h>
 
@@ -48,7 +49,7 @@ int main(int argc, char *argv[])
 	return 1;
     }
 
-#ifdef HAVE_TAGLIB
+#if HAVE_TAGLIB
     db::steam::Database sdb(mediadb::FIELD_COUNT);
 
     for (int i=optind; i<argc; ++i)
@@ -75,7 +76,7 @@ int main(int argc, char *argv[])
     db::local::Database ldb(&sdb);
 #endif
 
-#ifdef HAVE_GSTREAMER
+#if HAVE_GSTREAMER
     output::gstreamer::URLPlayer gp;
 
     sleep(6);

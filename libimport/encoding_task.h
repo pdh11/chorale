@@ -29,12 +29,7 @@ protected:
     std::string m_rename_filename;
     db::RecordsetPtr m_rename_tags;
 
-    explicit EncodingTask(const std::string& output_filename)
-	: m_input_size(0),
-	  m_output_filename(output_filename), 
-	  m_rename_stage(EARLY)
-    {}
-
+    explicit EncodingTask(const std::string& output_filename);
     ~EncodingTask();
 
 public:

@@ -20,7 +20,7 @@ class Query: public Node
     std::vector<NodePtr> m_children;
     
 public:
-    virtual ~Query() {}
+    ~Query();
 
     static NodePtr Create(db::Database*, int field, const std::string& name);
 

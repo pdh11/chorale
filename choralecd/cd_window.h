@@ -5,7 +5,7 @@
 #include "libimport/audio_cd.h"
 #include "libimport/cd_drives.h"
 #include "libimport/cddb_service.h"
-#include "libutil/task.h"
+#include "libimport/ripping_control.h"
 
 namespace util { class TaskQueue; }
 class Settings;
@@ -19,21 +19,16 @@ class TagTable;
 
 /** The top-level ripping and tagging window for an audio CD.
  */
-class CDWindow: public QDialog, public util::TaskObserver
+class CDWindow: public QDialog, public import::RippingControlObserver
 {
     Q_OBJECT
 
     struct Entry;
 
-    const Settings *m_settings;
-    util::TaskQueue *m_cpu_queue;
-    util::TaskQueue *m_disk_queue;
+    import::RippingControl m_rip;
 
     unsigned m_ntracks;
     Entry *m_entries;
-
-    /** For "Album 1", "Album 2" etc */
-    static unsigned int sm_index;
 
     enum {
         SINGLE_ARTIST,
@@ -59,8 +54,8 @@ public:
 
     void customEvent(QEvent*);
 
-    // Being a TaskObserver
-    void OnProgress(const util::Task*,unsigned,unsigned);
+    // Being a RippingControlObserver
+    void OnProgress(unsigned,unsigned,unsigned,unsigned);
 
 public slots:
     void OnDone();

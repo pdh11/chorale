@@ -2,7 +2,7 @@
 #ifndef DBSTEAM_QUERY_H
 #define DBSTEAM_QUERY_H 1
 
-#include "libdb/db.h"
+#include "libdb/query.h"
 #include <boost/regex.hpp>
 #include <map>
 
@@ -29,6 +29,8 @@ public:
     // Being a db::QueryImpl
     db::RecordsetPtr Execute();
 };
+
+typedef ::boost::intrusive_ptr<Query> QueryPtr;
 
 } // namespace steam
 

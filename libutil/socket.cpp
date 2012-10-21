@@ -34,6 +34,8 @@ typedef int socklen_t;
 #undef IN
 #undef OUT
 
+LOG_DECL(HTTP);
+
 namespace util {
 
 static const struct {
@@ -43,6 +45,9 @@ static const struct {
 
 #if defined(EAGAIN)
     { EAGAIN, EWOULDBLOCK },
+#endif
+#if defined(WSAEINVAL)
+    { WSAEINVAL, EINVAL },
 #endif
 #if defined(WSAEISCONN)
     { WSAEISCONN, EISCONN },
@@ -132,10 +137,11 @@ Socket::~Socket()
 PollHandle Socket::GetReadHandle()
 {
 #ifdef WIN32
+//    TRACE << "GetReadHandle\n";
     if (!m_event)
-	m_event = CreateEvent(NULL, false, false, NULL);
+	m_event = WSACreateEvent();
     if (m_event_type != READ)
-	WSAEventSelect(m_fd, m_event, FD_READ | FD_ACCEPT);
+	WSAEventSelect(m_fd, m_event, FD_READ | FD_ACCEPT | FD_CLOSE);
     m_event_type = READ;
     return m_event;
 #else
@@ -146,10 +152,11 @@ PollHandle Socket::GetReadHandle()
 PollHandle Socket::GetWriteHandle()
 {
 #ifdef WIN32
+//    TRACE << "GetWriteHandle\n";
     if (!m_event)
-	m_event = CreateEvent(NULL, false, false, NULL);
+	m_event = WSACreateEvent();
     if (m_event_type != WRITE)
-	WSAEventSelect(m_fd, m_event, FD_WRITE | FD_CONNECT);
+	WSAEventSelect(m_fd, m_event, FD_WRITE | FD_CLOSE);
     m_event_type = WRITE;
     return m_event;
 #else
@@ -184,11 +191,13 @@ unsigned Socket::Connect(const IPEndPoint& ep)
 
     SetUpSockaddr(ep, &u.sin);
 
+//    TRACE << "Connecting to " << ep.ToString() << "\n";
+
     int rc = ::connect(m_fd, &u.sa, sizeof(u.sin));
     if (rc < 0)
     {
 //	TRACE << "Connect gave error " << rc << " WSAGLE=" << WSAGetLastError()
-//	      << " (cf WSAEWOULDBLOCK=" << WSAEWOULDBLOCK << "\n";
+//	      << "\n";
 	return SocketError();
     }
     return 0;
@@ -271,6 +280,23 @@ unsigned Socket::GetReadable(size_t *preadable)
     return 0;
 }
 
+bool Socket::IsWritable()
+{
+    fd_set rd, wr, ex;
+    FD_ZERO(&rd);
+    FD_ZERO(&wr);
+    FD_ZERO(&ex);
+    struct timeval tv = { 0,0 };
+
+    FD_SET((unsigned)m_fd, &wr);
+    FD_SET((unsigned)m_fd, &ex);
+    
+    int rc = ::select(m_fd+1, &rd, &wr, &ex, &tv);
+    if (rc == 0)
+	return false;
+    return true;
+}
+
 bool Socket::IsOpen() const
 {
     return (m_fd != NO_SOCKET);
@@ -281,7 +307,7 @@ unsigned Socket::Close()
     if (!IsOpen())
 	return 0;
     
-//    TRACE << "Closing socket " << m_fd << "\n";
+    LOG(HTTP) << "Closing " << this << "\n";
 #ifdef WIN32
     int rc = ::closesocket(m_fd);
 #else
@@ -302,7 +328,7 @@ unsigned Socket::WaitForRead(unsigned int ms)
 	return 0;
     if (rc == WAIT_TIMEOUT)
 	return EWOULDBLOCK;
-    return GetLastError();
+    return SocketError();
 #else
 //    TRACE << "**** WaitForRead(" << m_fd << ") ****\n";
     struct pollfd pfd;
@@ -346,7 +372,7 @@ unsigned Socket::WaitForWrite(unsigned int ms)
 unsigned Socket::ReadPeek(void *buffer, size_t len, size_t *pread)
 {   
 #ifdef WIN32
-    if (m_event)
+    if (m_event && m_event_type == READ)
 	WSAResetEvent(m_event);
 
     ssize_t rc = ::recv(m_fd, (char*)buffer, len, MSG_NOSIGNAL|MSG_PEEK);
@@ -374,12 +400,12 @@ unsigned Socket::ReadPeek(void *buffer, size_t len, size_t *pread)
 unsigned Socket::Read(void *buffer, size_t len, size_t *pread)
 {
 #ifdef WIN32
-    if (m_event)
+    if (m_event && m_event_type == READ)
 	WSAResetEvent(m_event);
 
     ssize_t rc = ::recv(m_fd, (char*)buffer, len, MSG_NOSIGNAL);
 
-    if (rc < 0 && WSAGetLastError() == WSAEWOULDBLOCK)
+    if (rc < 0 && WSAGetLastError() == WSAEWOULDBLOCK && m_timeout_ms)
     {
 	unsigned rc2 = WaitForRead(m_timeout_ms);
 	if (rc2 != 0)
@@ -389,21 +415,21 @@ unsigned Socket::Read(void *buffer, size_t len, size_t *pread)
 
     if (rc < 0)
     {
-	unsigned rc3 = WSAGetLastError();
-//	TRACE << "Socket read failed:" << rc3 << "\n";
-	if (rc3 == WSAEWOULDBLOCK)
-	    rc3 = EWOULDBLOCK;
-	return rc3;
+//	TRACE << "Socket read failed:" << WSAGetLastError() << "\n";
+	return SocketError();
     }
     *pread = (size_t)rc;
 
-    if (rc > m_peeked)
+    if (rc > (ssize_t)m_peeked)
 	m_peeked = 0;
     else
 	m_peeked -= rc;
 
     if (m_event && m_event_type == READ && m_peeked > 0)
+    {
+//	TRACE << "Setting event again (peeked " << m_peeked << ")\n";
 	WSASetEvent(m_event);
+    }
 #else
     if (len == 0)
     {
@@ -433,13 +459,13 @@ unsigned Socket::Read(void *buffer, size_t len, size_t *pread)
 unsigned Socket::Write(const void *buffer, size_t len, size_t *pwrote)
 {
 #ifdef WIN32
-    if (m_event)
+    if (m_event && m_event_type == WRITE)
 	WSAResetEvent(m_event);
 
     ssize_t rc = ::send(m_fd, (const char*)buffer, len,
 			MSG_NOSIGNAL);
 
-    if (rc < 0 && WSAGetLastError() == WSAEWOULDBLOCK)
+    if (rc < 0 && WSAGetLastError() == WSAEWOULDBLOCK && m_timeout_ms)
     {
 	unsigned rc2 = WaitForWrite(m_timeout_ms);
 	if (rc2 != 0)
@@ -449,10 +475,7 @@ unsigned Socket::Write(const void *buffer, size_t len, size_t *pwrote)
 
     if (rc < 0)
     {
-	unsigned rc3 = WSAGetLastError();
-	if (rc3 == WSAEWOULDBLOCK)
-	    rc3 = EWOULDBLOCK;
-	return rc3;
+	return SocketError();
     }
     *pwrote = (size_t)rc;
 #else
@@ -511,7 +534,7 @@ IPAddress IPAddress::FromNetworkOrder(uint32_t netorder)
 
 IPAddress IPAddress::Resolve(const char *host)
 {
-#ifdef HAVE_GETHOSTBYNAME_R
+#if HAVE_GETHOSTBYNAME_R
     struct hostent ho;
     char buffer[1024];
     
@@ -531,7 +554,7 @@ IPAddress IPAddress::Resolve(const char *host)
 
     memcpy(u.buffer, result->h_addr, 4);
     return FromNetworkOrder(u.netorder);
-#elif defined(HAVE_GETADDRINFO)
+#elif HAVE_GETADDRINFO
     struct addrinfo hints;
     struct addrinfo *list = NULL;
     memset(&hints, '\0', sizeof(hints));
@@ -666,11 +689,25 @@ unsigned DatagramSocket::Read(void *buffer, size_t buflen, size_t *nread,
     } u;
     DWORD flags = 0;
     socklen_t fromlen = sizeof(u);
+
+    if (m_event && m_event_type == READ)
+	WSAResetEvent(m_event);
+
     int rc = WSARecvFrom(m_fd, &buf, 1, &bytesread, &flags, &u.sa, &fromlen,
 			 NULL, NULL);
     if (rc != 0)
-	return WSAGetLastError();
+	return SocketError();
     *nread = bytesread;
+
+    if (m_peeked)
+    {
+//	TRACE << "Read(2) resets m_peeked\n";
+	if (bytesread >= m_peeked)
+	    m_peeked = 0;
+	else
+	    m_peeked -= bytesread;
+    }
+
     if (wasfrom)
     {
 	wasfrom->addr.addr = u.sin.sin_addr.s_addr;
@@ -695,6 +732,13 @@ unsigned DatagramSocket::Read(void *buffer, size_t buflen, size_t *nread,
 	    }
 	}
     }
+
+    if (m_event && m_event_type == READ && m_peeked > 0)
+    {
+//	TRACE << "Setting event again (peeked " << m_peeked << ")\n";
+	WSASetEvent(m_event);
+    }
+
     return 0;
 #else
     union {
@@ -856,7 +900,19 @@ unsigned StreamSocket::Open()
 {
     m_fd = ::socket(PF_INET, SOCK_STREAM, 0);
     int i = 1;
-    ::setsockopt(m_fd, IPPROTO_TCP, TCP_NODELAY, (const char*)&i, sizeof(i));
+    int rc = ::setsockopt(m_fd, IPPROTO_TCP, TCP_NODELAY,
+			  (const char*)&i, sizeof(i));
+    if (rc < 0)
+    {
+	TRACE << "Can't turn off Nagle: " << SocketError() << "\n";
+    }
+
+#ifdef WIN32
+    /** http://support.microsoft.com/kb/823764/EN-US/
+     */
+    i = 65537;
+    ::setsockopt(m_fd, SOL_SOCKET, SO_SNDBUF, (const char*)&i, sizeof(i));
+#endif
     return 0;
 }
 
@@ -900,7 +956,7 @@ unsigned StreamSocket::Accept(StreamSocketPtr *accepted)
 
 unsigned StreamSocket::SetCork(bool corked)
 {
-#ifdef HAVE_TCP_CORK
+#if HAVE_TCP_CORK
     int i = corked;
     int rc = ::setsockopt(m_fd, IPPROTO_TCP, TCP_CORK, &i, sizeof(i));
     if (rc<0)
@@ -908,6 +964,22 @@ unsigned StreamSocket::SetCork(bool corked)
 #else
     (void)corked;
 #endif
+    return 0;
+}
+
+unsigned StreamSocket::ShutdownWrite()
+{
+    int how;
+#ifdef SD_SEND
+    how = SD_SEND;
+#elif defined(SHUT_WR)
+    how = SHUT_WR;
+#else
+    return 0;
+#endif
+    int rc = ::shutdown(m_fd, how);
+    if (rc<0)
+	return SocketError();
     return 0;
 }
 

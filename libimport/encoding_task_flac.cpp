@@ -3,11 +3,12 @@
 #include "vorbis_comment.h"
 #include "tags.h"
 #include "libmediadb/schema.h"
+#include "libdb/recordset.h"
 #include "libutil/trace.h"
 #include "libutil/file.h"
 #include <sstream>
 
-#ifdef HAVE_LIBFLAC
+#if HAVE_LIBFLAC
 #include <FLAC/stream_encoder.h>
 #include <FLAC/metadata.h>
 

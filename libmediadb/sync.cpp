@@ -2,11 +2,13 @@
 #include "config.h"
 #include "db.h"
 #include "schema.h"
+#include "libdb/query.h"
 #include "libutil/diff.h"
 #include "libutil/file.h"
 #include "libutil/trace.h"
+#include "libutil/stream.h"
 #include <time.h>
-#ifdef HAVE_SYS_TIME_H
+#if HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 
@@ -607,7 +609,7 @@ unsigned int Synchroniser::AddTune(unsigned int srcid,
 	return rc;
     }
 
-#ifdef HAVE_GETTIMEOFDAY
+#if HAVE_GETTIMEOFDAY
     struct timeval tv;
     ::gettimeofday(&tv, NULL);
     uint64_t usec = (((uint64_t)tv.tv_sec) * 1000000) + tv.tv_usec;
@@ -620,7 +622,7 @@ unsigned int Synchroniser::AddTune(unsigned int srcid,
 	return rc;
     }
 
-#ifdef HAVE_GETTIMEOFDAY
+#if HAVE_GETTIMEOFDAY
     ::gettimeofday(&tv, NULL);
     usec = (((uint64_t)tv.tv_sec) * 1000000) + tv.tv_usec - usec;
 

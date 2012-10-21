@@ -10,9 +10,9 @@
 #include "libutil/socket.h"
 #include "libutil/string_stream.h"
 #include "libutil/trace.h"
-#ifdef HAVE_NET_IF_H
+#if HAVE_NET_IF_H
 #include <net/if.h>
-#elif defined(HAVE_WS2TCPIP_H)
+#elif HAVE_WS2TCPIP_H
 #include <ws2tcpip.h>
 #endif
 #include <boost/thread/mutex.hpp>
@@ -466,18 +466,36 @@ unsigned Responder::Impl::Search(const char *uuid, Callback *cb)
 
 void Responder::Impl::SendSearch(const char *uuid)
 {
-    std::string search("M-SEARCH * HTTP/1.1\r\n"
-		       "Host: 239.255.255.250:1900\r\n"
-		       "Man: \"ssdp:discover\"\r\n"
-		       "MX: 3\r\n"
-		       "ST: ");
-    search += uuid;
-    search += "\r\n"
-	"\r\n";
-    util::IPEndPoint ipe;
-    ipe.addr = util::IPAddress::FromDottedQuad(239,255,255,250);
-    ipe.port = 1900;
-    m_search_socket.Write(search, ipe);
+    util::IPConfig::Interfaces interface_list;
+    
+    util::IPConfig::GetInterfaceList(&interface_list);
+
+    for (util::IPConfig::Interfaces::const_iterator i = interface_list.begin();
+	 i != interface_list.end();
+	 ++i)
+    {
+	if (i->flags & IFF_MULTICAST)
+	{
+	    if (m_filter
+		&& m_filter->CheckAccess(i->address) == util::IPFilter::DENY)
+		continue;
+
+	    m_search_socket.SetOutgoingMulticastInterface(i->address);
+
+	    std::string search("M-SEARCH * HTTP/1.1\r\n"
+			       "Host: 239.255.255.250:1900\r\n"
+			       "Man: \"ssdp:discover\"\r\n"
+			       "MX: 3\r\n"
+			       "ST: ");
+	    search += uuid;
+	    search += "\r\n"
+		"\r\n";
+	    util::IPEndPoint ipe;
+	    ipe.addr = util::IPAddress::FromDottedQuad(239,255,255,250);
+	    ipe.port = 1900;
+	    m_search_socket.Write(search, ipe);
+	}
+    }
 }
 
 unsigned Responder::Impl::Advertise(const std::string& service_type,

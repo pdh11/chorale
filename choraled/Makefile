@@ -5,6 +5,7 @@ SRCS:=  cd.cpp \
 	choralesvc.cpp \
 	database.cpp \
 	ip_filter.cpp \
+	main.cpp \
 	nfs.cpp \
 	web.cpp
 
@@ -35,6 +36,9 @@ $(TOP)$(DIR)% : CXXFLAGS += $(BOOST_CXXFLAGS)
 ifeq ($(libutil),)
 include $(TOP)libutil/Makefile
 endif
+ifeq ($(libupnp),)
+include $(TOP)libupnp/Makefile
+endif
 ifeq ($(libimport),)
 include $(TOP)libimport/Makefile
 endif
@@ -43,6 +47,9 @@ include $(TOP)libdbsteam/Makefile
 endif
 ifeq ($(libdblocal),)
 include $(TOP)libdblocal/Makefile
+endif
+ifeq ($(libdbreceiver),)
+include $(TOP)libdbreceiver/Makefile
 endif
 ifeq ($(libdbmerge),)
 include $(TOP)libdbmerge/Makefile
@@ -62,14 +69,11 @@ endif
 ifeq ($(liboutput),)
 include $(TOP)liboutput/Makefile
 endif
-ifeq ($(libupnp),)
-include $(TOP)libupnp/Makefile
+ifeq ($(libtv),)
+include $(TOP)libtv/Makefile
 endif
 ifeq ($(libupnpd),)
 include $(TOP)libupnpd/Makefile
-endif
-ifeq ($(libtv),)
-include $(TOP)libtv/Makefile
 endif
 
 $(libchoraled): $(CHORALED_OBJS)
@@ -77,13 +81,13 @@ $(libchoraled): $(CHORALED_OBJS)
 		$(CC) -o $@ $(CHORALED_OBJS)
 
 $(choraled): $(libchoraled) $(libtv) $(libdblocal) $(libdbmerge) \
-		$(libreceiverd) $(libreceiver) $(libimport) \
+		$(libreceiverd) $(libdbreceiver) $(libreceiver) $(libimport) \
 		$(libdbsteam) $(libdb) $(libutil) $(libmediadb) \
 		$(libupnpd) $(libupnp) $(liboutput) Makefile
 	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
 		$(CXX) -o $@ $(LDFLAGS) $(TOP)choraled/$(TARGETDIR)$(CHORALED_MAIN).lo \
 		-Wl,-Map,map.txt \
-		$(libchoraled) $(libtv) \
+		$(libchoraled) $(libtv) $(libdbreceiver) \
 		$(libreceiverd) $(libreceiver) $(libupnpd) $(libupnp) \
 		$(liboutput) $(libdblocal) $(libdbmerge) \
 		$(libimport) $(libdbsteam) $(libmediadb) $(libdb) $(libutil) \

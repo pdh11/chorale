@@ -8,7 +8,8 @@ namespace import {
 
 RemoteCDDrive::RemoteCDDrive(util::http::Client *client,
 			     util::http::Server *server)
-    : m_upnp(client, server),
+    : m_device_client(client, server),
+      m_optical_drive(&m_device_client, upnp::s_service_id_optical_drive),
       m_disc_present(true),
       m_threads(util::WorkerThreadPool::NORMAL, 1)
 {
@@ -20,16 +21,15 @@ RemoteCDDrive::~RemoteCDDrive()
 
 unsigned RemoteCDDrive::Init(const std::string& url, const std::string& udn)
 {
-    unsigned int rc = m_upnp.Init(url, udn);
+    unsigned int rc = m_device_client.Init(url, udn);
     if (rc != 0)
 	return rc;
 
-    m_friendly_name = m_upnp.GetDescription().GetFriendlyName();
-
-    rc = m_optical_drive.Init(&m_upnp, upnp::s_service_id_optical_drive);
+    rc = m_optical_drive.Init();
     if (rc != 0)
 	return rc;
 
+    m_friendly_name = m_device_client.GetFriendlyName();
     m_optical_drive.AddObserver(this);
     return 0;
 }

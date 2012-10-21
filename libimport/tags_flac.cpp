@@ -2,9 +2,10 @@
 #include "tags_flac.h"
 #include "vorbis_comment.h"
 #include "libutil/trace.h"
+#include "libdb/recordset.h"
 #include "libmediadb/schema.h"
 
-#ifdef HAVE_TAGLIB
+#if HAVE_TAGLIB
 
 #include <flacfile.h> /* from TagLib */
 #include <xiphcomment.h>

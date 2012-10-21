@@ -2,7 +2,6 @@
 #define TASK_H
 
 #include "counted_object.h"
-#include <boost/thread/mutex.hpp>
 
 namespace util {
 
@@ -23,9 +22,8 @@ public:
  * the background thread). To hand off a Task to a WorkerThread, push
  * it on the WorkerThread's TaskQueue.
  */
-class Task: public util::CountedObject<>
+class Task: public util::CountedObject<util::PerObjectRecursiveLocking>
 {
-    boost::mutex m_observer_mutex;
     TaskObserver *m_observer;
     bool m_done;
 

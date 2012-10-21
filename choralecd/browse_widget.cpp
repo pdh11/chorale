@@ -10,6 +10,7 @@
 #include "browse_widget.h"
 #include "libutil/trace.h"
 #include "libmediadb/schema.h"
+#include "libdb/recordset.h"
 #include <qcursor.h>
 #include <q3cstring.h>
 #include <QMouseEvent>

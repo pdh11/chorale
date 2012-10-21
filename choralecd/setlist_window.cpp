@@ -15,6 +15,7 @@
 #include "libmediadb/registry.h"
 #include "libmediadb/schema.h"
 #include "libmediadb/db.h"
+#include "libdb/query.h"
 #include <qlayout.h>
 #include <qpushbutton.h>
 #include <qlayout.h>

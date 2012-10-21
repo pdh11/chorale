@@ -4,6 +4,8 @@
 #ifndef LIBUTIL_XML_INTERNAL_H
 #define LIBUTIL_XML_INTERNAL_H 1
 
+#include "xml.h"
+
 namespace xml {
 
 /** These classes are used to implement the table-based XML parsing, and are

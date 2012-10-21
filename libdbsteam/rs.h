@@ -6,6 +6,7 @@
 #include "libdb/db.h"
 #include "libdb/readonly_rs.h"
 #include "db.h"
+#include "query.h"
 #include <string>
 
 namespace db {
@@ -13,7 +14,6 @@ namespace db {
 namespace steam {
 
 class Database;
-class Query;
 
 class Recordset: public db::Recordset
 {
@@ -43,10 +43,10 @@ public:
 
 class SimpleRecordset: public Recordset
 {
-    Query *m_query;
+    QueryPtr m_query;
 
 public:
-    SimpleRecordset(Database*, Query* = NULL);
+    SimpleRecordset(Database*, QueryPtr);
     
     void MoveNext();
 };
@@ -59,14 +59,14 @@ class CollateRecordset: public ReadOnlyRecordset
     unsigned int m_intvalue;
     std::string m_strvalue;
     bool m_eof;
-    Query *m_query;
+    QueryPtr m_query;
     SimpleRecordset m_rs;
 
     void MoveUntilValid(Database::stringindex_t::const_iterator i,
 			Database::stringindex_t::const_iterator end);
 
 public:
-    CollateRecordset(Database*, field_t field, Query* = NULL);
+    CollateRecordset(Database*, field_t field, QueryPtr);
     
     bool IsEOF();
     uint32_t GetInteger(field_t which);

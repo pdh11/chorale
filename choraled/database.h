@@ -6,29 +6,27 @@
 #include "libdblocal/file_scanner_thread.h"
 #include "libdblocal/db.h"
 
-#if defined(HAVE_TAGLIB)
-#define HAVE_DB 1
-#endif
+#define HAVE_LOCAL_DB HAVE_TAGLIB
 
-class Database
+namespace choraled {
+
+class LocalDatabase
 {
     db::steam::Database m_sdb;
-#ifdef HAVE_DB
     db::local::FileScannerThread m_ifs;
-#endif
     db::local::Database m_ldb;
 
 public:
-    Database();
+    LocalDatabase();
     
     unsigned int Init(const std::string& loroot, const std::string& hiroot,
 		      util::TaskQueue *queue, const std::string& dbfilename);
 
     db::local::Database *Get() { return &m_ldb; }
 
-#ifdef HAVE_DB
     void ForceRescan() { m_ifs.ForceRescan(); }
-#endif
 };
+
+} // namespace choraled
 
 #endif

@@ -3,6 +3,8 @@
 #include "poller_core.h"
 #include "trace.h"
 
+LOG_DECL(POLL);
+
 #ifdef WIN32
 
 #include <windows.h>
@@ -16,7 +18,9 @@ namespace win32 {
 
 PollerCore::PollerCore()
     : m_array(NULL),
-      m_count(0)
+      m_count(0),
+      m_which(0),
+      m_which_handle(NULL)
 {
 }
 
@@ -38,17 +42,24 @@ unsigned int PollerCore::SetUpArray(const std::vector<PollRecord> *pollables)
 
 unsigned int PollerCore::Poll(unsigned int timeout_ms)
 {
-//    TRACE << "Polling for " << timeout_ms << "\n";
+    LOG(POLL) << "Polling for " << timeout_ms << "ms, " << m_count << " handles\n";
 
-    DWORD rc = ::WaitForMultipleObjects(m_count, m_array, false, timeout_ms);
+    DWORD count = m_count;
+    if (count > MAXIMUM_WAIT_OBJECTS)
+	count = MAXIMUM_WAIT_OBJECTS;
+
+    DWORD rc = ::WaitForMultipleObjects(count, m_array, false, timeout_ms);
     if (rc == WAIT_FAILED)
     {
-//	TRACE << "WFMO failed " << GetLastError() << "\n";
+	TRACE << "WFMO failed " << GetLastError() << "\n";
 	return GetLastError();
     }
 
     if (rc == WAIT_TIMEOUT)
+    {
+//	TRACE << "Poll timed out\n";
 	m_which = -1;
+    }
     else
     {
 //	TRACE << "Poll returned " << (rc - WAIT_OBJECT_0) << "\n";
@@ -66,7 +77,10 @@ unsigned int PollerCore::DoCallbacks(const std::vector<PollRecord> *pollables,
 	return 0;
     
     if (valid)
+    {
+//	TRACE << "Making callback " << m_which << "\n";
 	return (*pollables)[m_which].c();
+    }
 
 //    TRACE << "Warning, pollables changed, searching for handle\n";
 

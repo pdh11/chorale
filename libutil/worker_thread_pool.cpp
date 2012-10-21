@@ -1,3 +1,4 @@
+#include "config.h"
 #include "trace.h"
 #include "worker_thread_pool.h"
 #include "cpus.h"
@@ -10,10 +11,10 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <sys/time.h>
-#ifdef HAVE_SYS_RESOURCE_H
+#if HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
-#ifdef HAVE_SCHED_H
+#if HAVE_SCHED_H
 #include <sched.h>
 #endif
 
@@ -49,7 +50,7 @@ void WorkerThread::Run()
     {
 #ifdef WIN32
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_LOWEST);
-#elif defined(HAVE_SETPRIORITY)
+#elif HAVE_SETPRIORITY
 	/* Both in linuxthreads and in NPTL, this affects only this thread, not
 	 * the whole process (fortunately).
 	 */
@@ -60,7 +61,7 @@ void WorkerThread::Run()
     {
 #ifdef WIN32
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
-#elif defined(HAVE_SCHED_SETSCHEDULER)
+#elif HAVE_SCHED_SETSCHEDULER
 
 	struct sched_param param;
 	param.sched_priority = 1;
@@ -68,12 +69,12 @@ void WorkerThread::Run()
 	if (rc<0)
 	{
 	    TRACE << "Becoming real-time failed, errno " << errno << "\n";
-# if defined(HAVE_SETPRIORITY)
+# if HAVE_SETPRIORITY
 	    setpriority(PRIO_PROCESS, 0, -15);
 # endif
 	}
 
-#elif defined(HAVE_SETPRIORITY)
+#elif HAVE_SETPRIORITY
 	/* Both in linuxthreads and in NPTL, this affects only this thread, not
 	 * the whole process (fortunately).
 	 */

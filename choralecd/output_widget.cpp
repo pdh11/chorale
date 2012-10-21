@@ -15,9 +15,6 @@
 #include <qlayout.h>
 #include <qlabel.h>
 #include "setlist_window.h"
-#include "tagtable.h"
-#include "libutil/hal.h"
-#include "libupnp/ssdp.h"
 #include "libutil/trace.h"
 #include "liboutput/gstreamer.h"
 #include "liboutput/upnpav.h"

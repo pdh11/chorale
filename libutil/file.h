@@ -23,22 +23,26 @@ namespace fileapi = ::util::posix;
 
 using fileapi::Mkdir;
 using fileapi::DirExists;
+using fileapi::GetDirName;
+using fileapi::GetLeafName;
 using fileapi::Canonicalise;
+using fileapi::GetExtension;
 using fileapi::ReadDirectory;
+using fileapi::StripExtension;
 
+/** Create all the parent directories needed so that file "leafname" can be
+ * created.
+ *
+ * Like "mkdir -p `dirname $leafname`".
+ */
 unsigned int MkdirParents(const char *leafname);
 
 void RenameWithMkdir(const char *oldname, const char *newname);
 
+/** Replaces "awkward" characters (such as "/") with filesystem-safe
+ * alternatives.
+ */
 std::string ProtectLeafname(const std::string& s);
-
-std::string GetDirName(const char *filename);
-std::string GetLeafName(const char *filename);
-
-/** Returns file extension (without the ".") */
-std::string GetExtension(const char *filename);
-
-std::string StripExtension(const char *filename);
 
 std::string MakeAbsolutePath(const std::string& start_point,
 			     const std::string& relative_path);

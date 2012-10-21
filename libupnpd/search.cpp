@@ -1,14 +1,14 @@
 #include "config.h"
 #include "search.h"
 #include "libutil/trace.h"
+#include "libdb/query.h"
 #include "libmediadb/schema.h"
-#include "libmediadb/xml.h"
 #include <errno.h>
 #include <string.h>
 
 // #define BOOST_SPIRIT_DEBUG 1
 
-#ifdef HAVE_BOOST_SPIRIT_INCLUDE_CLASSIC_HPP
+#if HAVE_BOOST_SPIRIT_INCLUDE_CLASSIC_HPP
 #include <boost/spirit/include/classic.hpp>
 #include <boost/spirit/include/classic_core.hpp>
 #include <boost/spirit/include/classic_ast.hpp>
@@ -22,7 +22,7 @@
 
 namespace upnpd {
 
-#ifdef HAVE_BOOST_SPIRIT_INCLUDE_CLASSIC_HPP
+#if HAVE_BOOST_SPIRIT_INCLUDE_CLASSIC_HPP
 using namespace boost::spirit::classic;
 #else
 using namespace boost::spirit;
@@ -341,13 +341,14 @@ unsigned int ApplySearchCriteria(db::QueryPtr qp, const std::string& s,
 
 #ifdef TEST
 
-#ifdef HAVE_BOOST_SPIRIT_INCLUDE_CLASSIC_HPP
+#if HAVE_BOOST_SPIRIT_INCLUDE_CLASSIC_HPP
 using namespace boost::spirit::classic;
 #else
 using namespace boost::spirit;
 #endif
 
 # include "libdbsteam/db.h"
+# include "libmediadb/xml.h"
 
 static void Test(db::Database *db, const char *s)
 {
@@ -399,6 +400,7 @@ int main()
     Test(&sdb, "upnp:artist=\"Sting\" or upnp:album=\"Gold\" and upnp:genre exists false");
     Test(&sdb, "(upnp:artist=\"Sting\" or upnp:album=\"Gold\") and upnp:genre exists false");
     Test(&sdb, "(dc:date <= \"1999-12-31\" and dc:date >= \"1990-01-01\")");
+
     return 0;
 }
 

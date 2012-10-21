@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include "db.h"
+#include "recordset.h"
 
 namespace db {
 

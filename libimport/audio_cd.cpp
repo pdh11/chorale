@@ -1,10 +1,10 @@
 #include "config.h"
 #include "audio_cd.h"
 
-#if defined(HAVE_LIBCDIOP) || defined(HAVE_PARANOIA)
+#if HAVE_LIBCDIOP || HAVE_PARANOIA
 
 #include "libutil/trace.h"
-#ifdef HAVE_PARANOIA
+#if HAVE_PARANOIA
 // Oh joy, not C++-compatible
 #define private c_private
 extern "C" {
@@ -23,6 +23,11 @@ typedef cdrom_paranoia_t cdrom_paranoia;
 #endif
 #include <errno.h>
 #include <string.h>
+
+#if !HAVE_DECL_PARANOIA_CB_CACHEERR
+// CDParanoia has this, libcdio doesn't. Define to something innocuous.
+#define PARANOIA_CB_CACHEERR PARANOIA_CB_VERIFY
+#endif
 
 namespace import {
 
@@ -113,6 +118,7 @@ LocalAudioCD::~LocalAudioCD()
 
 class ParanoiaStream: public util::SeekableStream
 {
+    cdrom_drive *m_drive;
     cdrom_paranoia *m_paranoia;
     int m_first_sector;
     int m_last_sector;
@@ -120,30 +126,54 @@ class ParanoiaStream: public util::SeekableStream
     const char *m_data;
     unsigned int m_skip;
 
+    /** Neither cdparanoia nor libcdio lets us know which instance the
+     * callback relates to. So we "guess"; if due to race conditions we get it
+     * wrong, the only effect is slowing down the wrong drive.
+     */
+    static cdrom_drive *sm_current_drive;
+    static unsigned int sm_speed;
+
     static void StaticCallback(long int i, paranoia_cb_mode_t cbm)
     {
 	// Only print anything if something's going wrong
 	if (cbm != PARANOIA_CB_READ && cbm != PARANOIA_CB_VERIFY
 	    && cbm != PARANOIA_CB_OVERLAP)
 	{
-#ifdef HAVE_LIBCDIOP
-	    const char *cbmstr = paranoia_cb_mode2str[cbm];
+#if HAVE_PARANOIA
+	    const char *cbmstr = "";
 #else
-	    const char *cbmstr = "unknown";
+	    const char *cbmstr = paranoia_cb_mode2str[cbm];
 #endif
-	    TRACE << "paranoia callback " << i << " mode " << cbmstr << "\n";
+	    TRACE << "paranoia callback " << i << " mode " << cbm
+		  << " " << cbmstr << "\n";
+	    
+	    if (cbm != PARANOIA_CB_CACHEERR && cbm != PARANOIA_CB_DRIFT)
+	    {
+		// For serious errors, try and slow down the drive
+
+		if (sm_speed > 1)
+		    sm_speed /= 2;
+		TRACE << "Setting speed to " << sm_speed << "x\n";
+
+		cdrom_drive *d = sm_current_drive;
+		if (d)
+		    cdda_speed_set(d, sm_speed);
+	    }
 	}
     }
 
 public:
     ParanoiaStream(cdrom_drive *cdt, int first_sector, int last_sector)
-	: m_paranoia(paranoia_init(cdt)),
+	: m_drive(cdt),
+	  m_paranoia(paranoia_init(cdt)),
 	  m_first_sector(first_sector),
 	  m_last_sector(last_sector),
 	  m_sector(first_sector-1),
 	  m_data(NULL),
 	  m_skip(2352)
     {
+	sm_speed = 64;
+
 	TRACE << "Read starting\n";
 	paranoia_modeset(m_paranoia, 
 			 PARANOIA_MODE_FULL - PARANOIA_MODE_NEVERSKIP);
@@ -165,6 +195,9 @@ public:
     unsigned SetLength(pos64);
 };
 
+cdrom_drive *ParanoiaStream::sm_current_drive = NULL;
+unsigned int ParanoiaStream::sm_speed = 64;
+
 unsigned ParanoiaStream::ReadAt(void *buffer, pos64 pos, size_t len,
 				size_t *pread)
 {
@@ -184,7 +217,13 @@ unsigned ParanoiaStream::ReadAt(void *buffer, pos64 pos, size_t len,
     {
 	++m_sector;
 //	TRACE << "Reading sector " << m_sector << "\n";
+
+	if (!sm_current_drive)
+	    sm_current_drive = m_drive;
 	m_data = (const char*)paranoia_read(m_paranoia, &StaticCallback);
+	if (sm_current_drive == m_drive)
+	    sm_current_drive = NULL;
+
 	if (!m_data)
 	{
 	    TRACE << "Unrecoverable error!\n";

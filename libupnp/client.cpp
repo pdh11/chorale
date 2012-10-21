@@ -11,17 +11,22 @@
 #include "libupnp/soap.h"
 #include <boost/format.hpp>
 
+LOG_DECL(UPNP);
+
 namespace upnp {
 
-class Client::Impl: public util::http::ContentFactory
+class DeviceClient::Impl: public util::http::ContentFactory
 {
     util::http::Client *m_client;
     util::http::Server *m_server;
 
     upnp::Description m_desc;
 
-    typedef std::map<std::string, ClientConnection*> sidmap_t;
+    typedef std::map<std::string, ServiceClient*> sidmap_t;
     sidmap_t m_sidmap;
+
+    typedef std::map<const char*, ServiceClient*> servicemap_t;
+    servicemap_t m_services;
 
     std::string m_gena_callback;
 
@@ -31,9 +36,10 @@ class Client::Impl: public util::http::ContentFactory
 
     static unsigned sm_gena_generation;
 
-    friend class Client;
+    friend class DeviceClient;
 
     class EventXMLObserver;
+    class SoapXMLObserver;
     class Response;
 
 public:
@@ -46,39 +52,36 @@ public:
 	server->AddContentFactory(m_gena_callback, this);
     }
 
-    const upnp::Description& GetDescription() { return m_desc; }
     util::http::Client *GetHttpClient() { return m_client; }
-    util::http::Server *GetHttpServer() { return m_server; }
-    const std::string& GetGenaCallback() { return m_gena_callback; }
     void SetLocalIPAddress(util::IPAddress a) { m_local_address = a; }
-    util::IPAddress GetLocalIPAddress() { return m_local_address; }
 
-    void AddListener(ClientConnection *conn, const std::string& sid)
-    {
-	m_sidmap[sid] = conn;
-    }
-    void RemoveListener(ClientConnection*);
+    unsigned int RegisterClient(const char *service_id, ServiceClient*);
+    void UnregisterClient(const char *service_id, ServiceClient*);
+
+    unsigned int SoapAction(const char *service_id, const char *action_name,
+			    const soap::Outbound& in, soap::Inbound *result);
 
     // Being a ContentFactory
     bool StreamForPath(const util::http::Request*, util::http::Response*);
 };
 
-unsigned Client::Impl::sm_gena_generation = 0;
+unsigned DeviceClient::Impl::sm_gena_generation = 0;
 
-Client::Client(util::http::Client *client,
-	       util::http::Server *server)
+DeviceClient::DeviceClient(util::http::Client *client,
+			   util::http::Server *server)
     : m_impl(new Impl(client, server))
 {
 }
 
-Client::~Client()
+DeviceClient::~DeviceClient()
 {
     delete m_impl;
 }
 
-unsigned int Client::Init(const std::string& descurl, const std::string& udn)
+unsigned int DeviceClient::Init(const std::string& descurl,
+				const std::string& udn)
 {
-    util::http::Fetcher fetcher(m_impl->GetHttpClient(), descurl);
+    util::http::Fetcher fetcher(m_impl->m_client, descurl);
 
     std::string description;
     unsigned int rc = fetcher.FetchToString(&description);
@@ -101,23 +104,25 @@ unsigned int Client::Init(const std::string& descurl, const std::string& udn)
     util::IPEndPoint ipe = fetcher.GetLocalEndPoint();
     m_impl->SetLocalIPAddress(ipe.addr);
 
+    /// @todo Reattach all services on reinit, as they need to resubscribe
+
     return 0;
 }
 
-const Description& Client::GetDescription() const
+const std::string& DeviceClient::GetFriendlyName() const
 {
-    return m_impl->m_desc;
+    return m_impl->m_desc.GetFriendlyName();
 }
 
-class Client::Impl::EventXMLObserver: public xml::SaxParserObserver,
-				      public util::BufferSink
+class DeviceClient::Impl::EventXMLObserver: public xml::SaxParserObserver,
+					    public util::BufferSink
 {
     std::string m_key, m_value;
-    ClientConnection *m_connection;
+    ServiceClient *m_connection;
     xml::SaxParser m_parser;
 
 public:
-    explicit EventXMLObserver(ClientConnection *connection)
+    explicit EventXMLObserver(ServiceClient *connection)
 	: m_connection(connection),
 	  m_parser(this)
     {
@@ -125,7 +130,7 @@ public:
 
     unsigned int OnBegin(const char *tag)
     {
-//	TRACE << "Event: <" << tag << ">\n";
+	LOG(UPNP) << "Event: <" << tag << ">\n";
 	if (!strchr(tag, ':'))
 	{
 	    m_key = tag;
@@ -147,7 +152,8 @@ public:
     {
 	if (!m_key.empty())
 	{
-//	    TRACE << "Event '" << m_key << "' = '" << m_value << "'\n";
+	    LOG(UPNP) << "GENA Event '" << m_key << "' = '" << m_value
+		      << "'\n";
 	    m_connection->OnEvent(m_key.c_str(), m_value);
 	    m_key.clear();
 	    m_value.clear();
@@ -164,8 +170,8 @@ public:
     }
 };
 
-bool Client::Impl::StreamForPath(const util::http::Request *rq, 
-				 util::http::Response *rs)
+bool DeviceClient::Impl::StreamForPath(const util::http::Request *rq, 
+				       util::http::Response *rs)
 {
 //    TRACE << "In SfP\n";
     if (rq->path == m_gena_callback)
@@ -175,12 +181,12 @@ bool Client::Impl::StreamForPath(const util::http::Request *rq,
 	if (ci != rq->headers.end())
 	{
 	    std::string sid = ci->second;
-//	    TRACE << "mine " << rq->verb << " sid=" << sid << "\n";
+	    LOG(UPNP) << "mine " << rq->verb << " sid=" << sid << "\n";
 
 	    sidmap_t::const_iterator cii = m_sidmap.find(sid);
 	    if (cii != m_sidmap.end())
 	    {
-		ClientConnection *connection = cii->second;
+		ServiceClient *connection = cii->second;
 //		TRACE << "Connection=" << connection << "\n";
 
 		rs->body_sink.reset(new EventXMLObserver(connection));
@@ -192,36 +198,17 @@ bool Client::Impl::StreamForPath(const util::http::Request *rq,
     return false;
 }
 
-
-        /* ClientConnection */
-
-
-struct ClientConnection::Impl
+unsigned int DeviceClient::Impl::RegisterClient(const char *service_id,
+						ServiceClient *sc)
 {
-    Client::Impl *parent;
-    ClientConnection *connection;
-    std::string service_type;
-    std::string control_url;
-    std::string sid;
-};
+    servicemap_t::const_iterator i = m_services.find(service_id);
+    if (i != m_services.end() && i->second != sc)
+    {
+	TRACE << "ServiceClient already registered for " << service_id << "\n";
+	return EEXIST;
+    }
 
-ClientConnection::ClientConnection()
-    : m_impl(NULL)
-{
-}
-
-
-ClientConnection::~ClientConnection()    
-{
-    delete m_impl;
-}
-
-unsigned int ClientConnection::Init(Client *parent, const char *service_id)
-{
-    if (!parent || !parent->m_impl || m_impl)
-	return EINVAL;
-
-    const upnp::Services& svc = parent->m_impl->GetDescription().GetServices();
+    const upnp::Services& svc = m_desc.GetServices();
 
     upnp::Services::const_iterator it = svc.find(service_id);
     if (it == svc.end())
@@ -230,25 +217,19 @@ unsigned int ClientConnection::Init(Client *parent, const char *service_id)
 	return ENOENT;
     }
 
-    m_impl = new Impl;
-    m_impl->parent = parent->m_impl;
-    m_impl->connection = this;
-    m_impl->control_url = it->second.control_url;
-    m_impl->service_type = it->second.type;
-
     util::IPEndPoint local_endpoint;
-    local_endpoint.addr = parent->m_impl->GetLocalIPAddress();
-    local_endpoint.port = parent->m_impl->GetHttpServer()->GetPort();
+    local_endpoint.addr = m_local_address;
+    local_endpoint.port = m_server->GetPort();
 
     std::string headers = "Callback: <http://"
 	+ local_endpoint.ToString()
-	+ parent->m_impl->GetGenaCallback() + ">\r\n"
+	+ m_gena_callback + ">\r\n"
 	"NT: upnp:event\r\n"
 	"Timeout: Second-7200\r\n";
 
-//    TRACE << "GENA subscribe:\n" << headers;
+    LOG(UPNP) << "GENA subscribe:\n" << headers;
 
-    util::http::Fetcher fetcher(parent->m_impl->GetHttpClient(),
+    util::http::Fetcher fetcher(m_client,
 				it->second.event_url,
 				headers.c_str(),
 				NULL,
@@ -263,42 +244,37 @@ unsigned int ClientConnection::Init(Client *parent, const char *service_id)
     std::string sid = fetcher.GetHeader("SID");
     if (!sid.empty())
     {
-//	TRACE << "Got SID " << sid << "\n";
-	m_impl->parent->AddListener(this, sid);
+	LOG(UPNP) << "Got SID " << sid << "\n";
+	m_sidmap[sid] = sc;
     }
     else
     {
 	TRACE << "Can't subscribe, no SID\n";
     }
 
+    if (i == m_services.end())
+	m_services[service_id] = sc;
     return 0;
 }
 
-unsigned int ClientConnection::GenaUInt(const std::string& s)
+void DeviceClient::Impl::UnregisterClient(const char *service_id,
+					  ServiceClient *sc)
 {
-    return (unsigned int)strtoul(s.c_str(), NULL, 10);
+    servicemap_t::iterator i = m_services.find(service_id);
+    if (i != m_services.end() && i->second == sc)
+	m_services.erase(i);
+
+    for (sidmap_t::iterator ii = m_sidmap.begin(); ii != m_sidmap.end(); ++ii)
+    {
+	if (ii->second == sc)
+	{
+	    m_sidmap.erase(ii);
+	    break;
+	}
+    }
 }
 
-bool ClientConnection::GenaBool(const std::string& s)
-{
-    return soap::ParseBool(s);
-}
-
-void ClientConnection::SetSid(const std::string& sid)
-{
-    assert(m_impl);
-    assert(m_impl->parent);
-    m_impl->parent->AddListener(this, sid);
-}
-
-unsigned int ClientConnection::SoapAction(const char *action_name,
-					  soap::Inbound *result)
-{
-    soap::Outbound no_params;
-    return SoapAction(action_name, no_params, result);
-}
-
-class ClientConnection::SoapXMLObserver: public xml::SaxParserObserver
+class DeviceClient::Impl::SoapXMLObserver: public xml::SaxParserObserver
 {
     soap::Inbound *m_params;
     std::string m_tag;
@@ -312,7 +288,7 @@ public:
     unsigned int OnContent(const char *content);
 };
 
-unsigned int ClientConnection::SoapXMLObserver::OnBegin(const char *tag)
+unsigned int DeviceClient::Impl::SoapXMLObserver::OnBegin(const char *tag)
 {
     if (!strchr(tag, ':'))
 	m_tag = tag;
@@ -320,14 +296,14 @@ unsigned int ClientConnection::SoapXMLObserver::OnBegin(const char *tag)
     return 0;
 }
 
-unsigned int ClientConnection::SoapXMLObserver::OnContent(const char *content)
+unsigned int DeviceClient::Impl::SoapXMLObserver::OnContent(const char *content)
 {
     if (!m_tag.empty())
 	m_value += content;
     return 0;
 }
 
-unsigned int ClientConnection::SoapXMLObserver::OnEnd(const char *tag)
+unsigned int DeviceClient::Impl::SoapXMLObserver::OnEnd(const char *tag)
 {
     if (!strchr(tag, ':'))
     {
@@ -339,21 +315,32 @@ unsigned int ClientConnection::SoapXMLObserver::OnEnd(const char *tag)
     return 0;
 }
 
-unsigned int ClientConnection::SoapAction(const char *action_name,
-					  const soap::Outbound& in,
-					  soap::Inbound *result)
+unsigned int DeviceClient::Impl::SoapAction(const char *service_id,
+					    const char *action_name,
+					    const soap::Outbound& in,
+					    soap::Inbound *result)
 {
+    const Services& services = m_desc.GetServices();
+    Services::const_iterator i = services.find(service_id);
+    if (i == services.end())
+    {
+	TRACE << "Trying to soap non-existent service\n";
+	return ENOENT;
+    }
+
     std::string headers = "SOAPACTION: \"";
-    headers += m_impl->service_type;
+    headers += i->second.type;
     headers += "#";
     headers += action_name;
     headers += "\"\r\nContent-Type: text/xml; charset=\"utf-8\"\r\n";
 
-    std::string body = in.CreateBody(action_name, m_impl->service_type);
+    LOG(UPNP) << "Soaping:\n" << headers;
+
+    std::string body = in.CreateBody(action_name, i->second.type);
 	
     util::http::StreamPtr hsp;
     unsigned int rc = util::http::Stream::Create(&hsp, 
-						 m_impl->control_url.c_str(),
+						 i->second.control_url.c_str(),
 						 headers.c_str(),
 						 body.c_str());
     if (rc)
@@ -372,6 +359,51 @@ unsigned int ClientConnection::SoapAction(const char *action_name,
     }
 
     return 0;
+}
+
+
+        /* ServiceClient */
+
+
+ServiceClient::ServiceClient(DeviceClient* parent,
+			     const char *service_id)
+    : m_parent(parent),
+      m_service_id(service_id)
+{
+}
+
+ServiceClient::~ServiceClient()    
+{
+    m_parent->m_impl->UnregisterClient(m_service_id, this);
+}
+
+unsigned int ServiceClient::Init()
+{
+    return m_parent->m_impl->RegisterClient(m_service_id, this);
+}
+
+unsigned int ServiceClient::GenaUInt(const std::string& s)
+{
+    return (unsigned int)strtoul(s.c_str(), NULL, 10);
+}
+
+bool ServiceClient::GenaBool(const std::string& s)
+{
+    return soap::ParseBool(s);
+}
+
+unsigned int ServiceClient::SoapAction(const char *action_name,
+					  soap::Inbound *result)
+{
+    soap::Outbound no_params;
+    return SoapAction(action_name, no_params, result);
+}
+
+unsigned int ServiceClient::SoapAction(const char *action_name,
+				       const soap::Outbound& in,
+				       soap::Inbound *result)
+{
+    return m_parent->m_impl->SoapAction(m_service_id, action_name, in, result);
 }
 
 } // namespace upnp

@@ -21,7 +21,13 @@ PollThread::~PollThread()
 void PollThread::Run()
 {
     while (!m_exiting)
-	Poll(INFINITE_MS);
+    {
+	unsigned int rc = Poll(INFINITE_MS);
+	if (rc)
+	{
+	    TRACE << "Poll failed (" << rc << "), exiting\n";
+	}
+    }
 
     boost::mutex::scoped_lock lock(m_mutex);
     m_exited.notify_all();

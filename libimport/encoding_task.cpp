@@ -1,8 +1,15 @@
 #include "config.h"
 #include "encoding_task.h"
+#include "libdb/recordset.h"
 #include "tag_rename_task.h"
 
 namespace import {
+
+EncodingTask::EncodingTask(const std::string& output_filename)
+    : m_input_size(0),
+      m_output_filename(output_filename), 
+      m_rename_stage(EARLY)
+{}
 
 EncodingTask::~EncodingTask()
 {

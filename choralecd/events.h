@@ -13,17 +13,21 @@ enum {
 
 namespace util { class Task; }
 
+/** For marshalling an import::RippingControlObserver */
 class ProgressEvent: public QEvent
 {
-    const util::Task *m_task;
+    unsigned m_track;
+    unsigned m_type;
     unsigned m_num;
     unsigned m_denom;
     
 public:
-    ProgressEvent(const util::Task *task, unsigned num, unsigned denom)
+    ProgressEvent(unsigned track, unsigned event_type,
+		  unsigned num, unsigned denom)
 	: QEvent((QEvent::Type)EVENT_PROGRESS), 
-	  m_task(task), m_num(num), m_denom(denom) {}
-    const util::Task *GetTask() const { return m_task; }
+	  m_track(track), m_type(event_type), m_num(num), m_denom(denom) {}
+    unsigned GetTrack() const { return m_track; }
+    unsigned GetType() const  { return m_type; }
     unsigned GetNum() const   { return m_num; }
     unsigned GetDenom() const { return m_denom; }
 };

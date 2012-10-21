@@ -3,9 +3,6 @@
 
 #include "socket.h"
 #include "stream.h"
-#include "magic.h"
-#include "peeking_line_reader.h"
-#include "http_parser.h"
 #include <string>
 
 namespace util {
@@ -22,8 +19,7 @@ class Client;
  *
  * For a simple, synchronous fetcher, see util::http::Fetcher.
  */
-class Connection: public util::Stream,
-		  public util::Magic<0x34562873>
+class Connection: public util::Stream
 {
 public:
     class Observer
@@ -39,63 +35,12 @@ public:
 
     IPEndPoint GetLocalEndPoint() { return m_local_endpoint; }
 
-private:
-    Client *m_parent;
-    Observer *m_observer; /// @todo Observable?
-    std::string m_extra_headers;
-    std::string m_body;
-    const char *m_verb;
-    util::IPEndPoint m_remote_endpoint;
+protected:
     util::IPEndPoint m_local_endpoint;
-    util::PollerInterface *m_poller;
-    util::StreamSocketPtr m_socket;
-    std::string m_host;
-    std::string m_path;
-    std::string m_headers;
-    PeekingLineReader m_line_reader;
-    Parser m_parser;
 
-    enum {
-	UNINITIALISED,
-	CONNECTING,
-	SEND_HEADERS,
-	SEND_BODY,
-	WAITING,
-	RECV_HEADERS,
-	RECV_BODY,
-	IDLE
-    } m_state;
-
-    struct {
-	size_t transfer_length;
-	size_t total_length;
-	bool is_range;
-	bool got_length;
-	bool connection_close;
-
-	void Clear()
-	{
-	    transfer_length = total_length = 0;
-	    is_range = got_length = connection_close = false;
-	}
-    } m_entity;
-
-    friend class Client;
-
-    Connection(Client *parent,
-	       util::PollerInterface *poller,
-	       Observer *observer,
-	       const std::string& url,
-	       const std::string& extra_headers,
-	       const std::string& body,
-	       const char *verb);
-
-
-    unsigned int OnActivity();
+    Connection();
 
 public:
-    ~Connection();
-
     /** Start the HTTP transaction.
      *
      * Immediate errors (failure to parse host, failure of connect()
@@ -105,11 +50,7 @@ public:
      * calls before you call Init(). If Init() returns a failure,
      * OnHttpDone is guaranteed not to be called afterwards.
      */
-    unsigned int Init();
-
-    // Being a Stream
-    unsigned Read(void *buffer, size_t len, size_t *pread);
-    unsigned Write(const void *, size_t, size_t*) { return EINVAL; }
+    virtual unsigned int Init() = 0;
 };
 
 typedef boost::intrusive_ptr<Connection> ConnectionPtr;

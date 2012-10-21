@@ -13,8 +13,6 @@
 #include <qlayout.h>
 #include <qpushbutton.h>
 #include <qlabel.h>
-#include "libmediatree/root.h"
-#include "libmediadb/registry.h"
 #include "explorer_window.h"
 #include "libdbreceiver/db.h"
 #include "libdbupnp/db.h"
@@ -91,11 +89,36 @@ void UpnpDBWidgetFactory::CreateWidgets(QWidget *parent)
 void UpnpDBWidgetFactory::OnService(const std::string& url,
 				    const std::string& udn)
 {
-    db::upnpav::Database *thedb = new db::upnpav::Database(m_client, m_server);
-    thedb->Init(url, udn);
+    databases_t::const_iterator i = m_databases.find(udn);
+    if (i == m_databases.end())
+    {
+	db::upnpav::Database *thedb = new db::upnpav::Database(m_client,
+							       m_server);
+	thedb->Init(url, udn);
 
-    (void) new choraleqt::DBWidget(m_parent, thedb->GetFriendlyName(),
-				   *m_pixmap, thedb, m_registry);
+	m_databases[udn] = thedb;
+
+	m_widgets[udn] = new choraleqt::DBWidget(m_parent,
+						 thedb->GetFriendlyName(),
+						 *m_pixmap, thedb, m_registry);
+    }
+    else
+    {
+	/* Re-Init()-ing updates the URL, in case the port number has changed
+	 */
+	i->second->Init(url, udn);
+	m_widgets[udn]->setEnabled(true);
+    }
+}
+
+void UpnpDBWidgetFactory::OnServiceLost(const std::string&, 
+					const std::string& udn)
+{
+    widgets_t::const_iterator i = m_widgets.find(udn);
+    if (i != m_widgets.end())
+    {
+	i->second->setEnabled(false);
+    }
 }
 
 

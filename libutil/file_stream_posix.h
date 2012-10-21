@@ -10,12 +10,13 @@ namespace posix {
 class FileStream: public SeekableStream, private boost::noncopyable
 {
     int m_fd;
+    unsigned int m_mode;
 
 public:
     FileStream();
     ~FileStream();
 
-    unsigned Open(const char *filename, FileMode);
+    unsigned Open(const char *filename, unsigned int mode);
 
     // Being a SeekableStream
     unsigned ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread);

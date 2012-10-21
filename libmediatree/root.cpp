@@ -3,6 +3,7 @@
 #include "directory.h"
 #include "node_enumerator.h"
 #include "libdb/free_rs.h"
+#include "libdb/query.h"
 #include "libmediadb/schema.h"
 
 namespace mediatree {
@@ -17,6 +18,10 @@ Root::Root(db::Database *thedb, uint32_t flags)
     if (flags & (1<<mediadb::GENRE))
 	m_children.push_back(Query::Create(thedb, mediadb::GENRE, "Genres"));
     m_children.push_back(Directory::Create(thedb, 0x100));
+}
+
+Root::~Root()
+{
 }
 
 NodePtr Root::Create(db::Database *thedb)

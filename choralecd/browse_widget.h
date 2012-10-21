@@ -44,9 +44,9 @@ class BrowseItem: public QListWidgetItem
     mediatree::NodePtr m_node;
 
 public:
-    BrowseItem(QListWidget *parent, const QString& text, 
+    BrowseItem(QListWidget *parent, const QString& title, 
 	       mediatree::NodePtr node)
-	: QListWidgetItem(text, parent),
+	: QListWidgetItem(title, parent),
 	  m_node(node)
     {
     }

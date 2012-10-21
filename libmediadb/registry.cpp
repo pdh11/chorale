@@ -1,5 +1,4 @@
 #include "registry.h"
-#include "db.h"
 #include "libutil/trace.h"
 
 namespace mediadb {

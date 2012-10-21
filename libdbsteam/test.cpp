@@ -1,4 +1,6 @@
 #include "db.h"
+#include "libdb/recordset.h"
+#include "libdb/query.h"
 #include <assert.h>
 #include "libutil/trace.h"
 

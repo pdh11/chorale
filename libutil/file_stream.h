@@ -6,13 +6,22 @@
 namespace util {
 
 enum FileMode {
-    READ,   // Like O_RDONLY
-    WRITE,  // Like O_RDWR|O_CREAT|O_TRUNC
-    UPDATE, // Like O_RDWR
-    TEMP    // Will be deleted on close (implies WRITE)
+
+    // Basic types
+
+    READ   = 0, // Like O_RDONLY
+    WRITE  = 1, // Like O_RDWR|O_CREAT|O_TRUNC
+    UPDATE = 2, // Like O_RDWR
+    TEMP   = 3, // Will be deleted on close (implies WRITE)
+
+    TYPE_MASK = 3,
+
+    // Additional flags
+
+    SEQUENTIAL = 4
 };
 
-unsigned int OpenFileStream(const char *filename, FileMode,
+unsigned int OpenFileStream(const char *filename, unsigned int mode,
 			    SeekableStreamPtr*) ATTRIBUTE_WARNUNUSED;
 
 } // namespace util

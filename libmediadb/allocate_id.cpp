@@ -1,6 +1,6 @@
 #include "allocate_id.h"
 #include "schema.h"
-#include "libdb/db.h"
+#include "libdb/query.h"
 #include "libutil/trace.h"
 #include <limits.h>
 
@@ -11,6 +11,7 @@ AllocateID::AllocateID(db::Database *thedb)
       m_gap_begin(0x120),
       m_gap_end(0x120)
 {
+
 }
 
 unsigned int AllocateID::Allocate()

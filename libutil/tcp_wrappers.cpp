@@ -18,7 +18,7 @@ TcpWrappers::TcpWrappers(const char *daemon)
 
 bool TcpWrappers::Allowed(IPAddress client)
 {
-#ifdef HAVE_LIBWRAP
+#if HAVE_LIBWRAP
     Lock lock(this);
 
     time_t now = ::time(NULL);

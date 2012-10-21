@@ -11,9 +11,10 @@ namespace util { namespace hal { class Context; } }
 namespace upnp { class Device; }
 namespace upnp { class Server; }
 
-#if (defined(HAVE_LIBCDIOP) || defined(HAVE_PARANOIA)) \
-    && (defined(HAVE_HAL) || defined(WIN32))
-#define HAVE_CD 1
+#ifdef WIN32
+#define HAVE_CD (HAVE_LIBCDIOP || HAVE_PARANOIA)
+#else
+#define HAVE_CD ((HAVE_LIBCDIOP || HAVE_PARANOIA) && HAVE_HAL)
 #endif
 
 class CDService

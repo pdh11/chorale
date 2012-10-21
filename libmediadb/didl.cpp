@@ -3,11 +3,17 @@
 #include "libutil/trace.h"
 #include "db.h"
 #include "schema.h"
+#include "libdb/query.h"
 #include "libutil/xmlescape.h"
 #include "libutil/xml.h"
 #include "libutil/string_stream.h"
 #include <boost/format.hpp>
+#include <boost/algorithm/string/split.hpp>
+#include <boost/algorithm/string/classification.hpp>
 #include <sstream>
+#include <functional>
+
+LOG_DECL(UPNP);
 
 namespace mediadb {
 namespace didl {
@@ -97,6 +103,9 @@ MetadataList Parse(const std::string& xml)
 
 unsigned int ToRecord(const Metadata& md, db::RecordsetPtr rs)
 {
+    std::map<unsigned int, std::string> map_codec_to_url;
+    std::map<unsigned int, uint32_t> map_codec_to_size;
+
     for (Metadata::const_iterator i = md.begin();
 	 i != md.end();
 	 ++i)
@@ -124,6 +133,8 @@ unsigned int ToRecord(const Metadata& md, db::RecordsetPtr rs)
 		type = mediadb::DIR;
 	    else if (i->content == "object.item.audioItem.musicTrack")
 		type = mediadb::TUNE;
+	    else if (i->content == "object.item.audioItem.audioBroadcast")
+		type = mediadb::RADIO;
 	    else if (i->content == "object.container.playlistContainer")
 		type = mediadb::PLAYLIST;
 	    else if (!strncmp(i->content.c_str(), "object.container.", 17))
@@ -137,28 +148,62 @@ unsigned int ToRecord(const Metadata& md, db::RecordsetPtr rs)
 	{
 	    Attributes::const_iterator ci =
 		i->attributes.find("protocolInfo");
-	    if (ci != i->attributes.end()
-		&& ci->second == "http-get:*:audio/mpeg:*")
+	    if (ci != i->attributes.end())
 	    {
-		rs->SetInteger(mediadb::CODEC, mediadb::MP3);
-		rs->SetString(mediadb::PATH, i->content);
-		
-		ci = i->attributes.find("duration");
-		if (ci != i->attributes.end())
+		unsigned int codec = mediadb::NONE;
+
+		/* Split the protocol-info into fields for testing, as there
+		 * may be pointless DLNA blithering in the fourth field.
+		 */
+		std::vector<std::string> fields;
+		boost::algorithm::split(fields, ci->second, 
+					std::bind2nd(std::equal_to<char>(), 
+						     ':'));
+
+		if (fields.size() >= 4 && fields[0] == "http-get")
 		{
-		    unsigned int h=0, m=0, s=0, f=0;
-		    if (sscanf(ci->second.c_str(), "%u:%u:%u.%u", 
-			       &h, &m, &s, &f) == 4
-			|| sscanf(ci->second.c_str(), "%u:%u:%u",
-				  &h, &m, &s) == 3
-			|| sscanf(ci->second.c_str(), "%u:%u.%u",
-				  &m, &s, &f) == 3
-			|| sscanf(ci->second.c_str(), "%u:%u",
-				  &m, &s) == 2)
+		    const std::string& mime = fields[2];
+		    
+		    if (mime == "audio/mpeg")
+			codec = mediadb::MP3;
+		    else if (mime == "audio/x-flac")
+			codec = mediadb::FLAC;
+		    else if (mime == "audio/wav")
+			codec = mediadb::WAV;
+		    else if (mime == "audio/L16")
+			codec = mediadb::PCM;
+		    else if (mime == "application/ogg")
+			codec = mediadb::OGGVORBIS;
+
+		    if (codec != mediadb::NONE)
 		    {
-			unsigned int ms
-			    = h*3600*1000 + m*60*1000 + s*1000 + f * 10;
-			rs->SetInteger(mediadb::DURATIONMS, ms);
+			map_codec_to_url[codec] = i->content;
+			ci = i->attributes.find("size");
+			
+			if (ci != i->attributes.end())
+			    map_codec_to_size[codec]
+				= (uint32_t)strtoul(ci->second.c_str(), NULL, 10);
+
+			// We kind-of assume that duration is
+			// independent of codec
+			ci = i->attributes.find("duration");
+			if (ci != i->attributes.end())
+			{
+			    unsigned int h=0, m=0, s=0, f=0;
+			    if (sscanf(ci->second.c_str(), "%u:%u:%u.%u", 
+				       &h, &m, &s, &f) == 4
+				|| sscanf(ci->second.c_str(), "%u:%u:%u",
+					  &h, &m, &s) == 3
+				|| sscanf(ci->second.c_str(), "%u:%u.%u",
+					  &m, &s, &f) == 3
+				|| sscanf(ci->second.c_str(), "%u:%u",
+					  &m, &s) == 2)
+			    {
+				unsigned int ms
+				    = h*3600*1000 + m*60*1000 + s*1000 + f * 10;
+				rs->SetInteger(mediadb::DURATIONMS, ms);
+			    }
+			}
 		    }
 		}
 	    }
@@ -170,6 +215,37 @@ unsigned int ToRecord(const Metadata& md, db::RecordsetPtr rs)
 //	    else
 //		TRACE << "Unknown tag '" << i->tag << "'\n";
     }
+
+    static const unsigned int codec_preference[] =
+    {
+	mediadb::FLAC,
+	mediadb::WAV,
+	mediadb::PCM,
+	mediadb::MP3,
+	mediadb::OGGVORBIS
+    };
+
+    if (map_codec_to_url.empty())
+    {
+	rs->SetInteger(mediadb::CODEC, mediadb::NONE);
+    }
+    else
+    {
+	for (unsigned int i=0;
+	     i < sizeof(codec_preference)/sizeof(codec_preference[0]); 
+	     ++i)
+	{
+	    unsigned int codec = codec_preference[i];
+	    if (map_codec_to_url.find(codec) != map_codec_to_url.end())
+	    {
+		rs->SetInteger(mediadb::CODEC, codec);
+		rs->SetString(mediadb::PATH, map_codec_to_url[codec]);
+		rs->SetInteger(mediadb::SIZEBYTES, map_codec_to_size[codec]);
+		break;
+	    }
+	}
+    }
+
     return 0;
 }
 
@@ -198,7 +274,7 @@ static std::string IfPresent(const char *tag, unsigned int value)
 static std::string ResItem(mediadb::Database *db, db::RecordsetPtr rs,
 			   const char *urlprefix, unsigned int filter)
 {
-    const char *mimetype = "audio/mpeg"; // Until proven otherwise
+    const char *mimetype = "text/plain"; // Until proven otherwise
 
     /* RFC3003 says that MP2 should be audio/mpeg, just like MP3. But that's a
      * bit unhelpful in the case where the client can play MP3 but not MP2.
@@ -215,10 +291,22 @@ static std::string ResItem(mediadb::Database *db, db::RecordsetPtr rs,
     case mediadb::SPOKEN:
 	switch (codec)
 	{
-	case mediadb::FLAC: mimetype = "audio/x-flac"; break;
-	case mediadb::OGGVORBIS: mimetype = "application/ogg"; break;
-	case mediadb::PCM: mimetype = "audio/L16"; break;
-	case mediadb::WAV: mimetype = "audio/wav"; break;
+	case mediadb::MP2:
+	case mediadb::MP3:
+	    mimetype = "audio/mpeg";
+	    break;
+	case mediadb::FLAC:
+	    mimetype = "audio/x-flac";
+	    break;
+	case mediadb::OGGVORBIS:
+	    mimetype = "application/ogg";
+	    break;
+	case mediadb::PCM:
+	    mimetype = "audio/L16"; 
+	    break;
+	case mediadb::WAV:
+	    mimetype = "audio/wav";
+	    break;
 	}
 	break;
     case mediadb::IMAGE:
@@ -232,8 +320,18 @@ static std::string ResItem(mediadb::Database *db, db::RecordsetPtr rs,
     }
     unsigned int id = rs->GetInteger(mediadb::ID);
     std::string url = db->GetURL(id);
-    if (strncmp(url.c_str(), "http:", 5) && urlprefix)
+
+    /** @bug If we always use urlprefix if present, we end up proxying
+     *       mediadbs (e.g. dbreceiver) whose native URLs are
+     *       HTTP. Which is a waste. But it does keep Sony Playstation
+     *       3s away from bogus (e.g. Jupiter) web servers.
+     */
+
+    if ( /* strncmp(url.c_str(), "http:", 5) && */
+	urlprefix)
+    {
 	url = (boost::format("%s%x") % urlprefix % id).str();
+    }
 
     url = util::XmlEscape(url);
 
@@ -289,14 +387,18 @@ std::string FromRecord(mediadb::Database *db, db::RecordsetPtr rs,
     {
 	std::vector<unsigned int> children;
 	mediadb::ChildrenToVector(rs->GetString(mediadb::CHILDREN), &children);
+
+	LOG(UPNP) << "id " << id << " has " << children.size() << " children:"
+		  << children;
+
 	os << "<container id=\"" << id << "\" parentID=\"" << parentid
-	   << "\" restricted=\"1\" childCount=\"" << children.size() << "\"";
+	   << "\" restricted=\"true\" childCount=\"" << children.size() << "\"";
 
 	/** IDs <= 0x100 are "magic" root ids: browse root, radio root, epg
 	 * root. Unlike everything else, they're searchable.
 	 */
 	if (id <= 0x100)
-	    os << " searchable=\"1\"";
+	    os << " searchable=\"true\"";
 	
 	os << ">"
 	    "<dc:title>" << util::XmlEscape(rs->GetString(mediadb::TITLE))
@@ -307,6 +409,8 @@ std::string FromRecord(mediadb::Database *db, db::RecordsetPtr rs,
 	{
 	    if (id == mediadb::RADIO_ROOT)
 		os << "object.container.channelGroup";
+	    else if (id == mediadb::BROWSE_ROOT)
+		os << "object.container";
 	    else
 		os << "object.container.storageFolder";
 	}
@@ -344,10 +448,13 @@ std::string FromRecord(mediadb::Database *db, db::RecordsetPtr rs,
 	case mediadb::IMAGE:
 	    upnpclass = "object.item.imageItem.photo";
 	    break;
+	case mediadb::FILE:
+	    upnpclass = "object.item";
+	    break;
 	}
 
 	os << "<item id=\"" << id << "\" parentID=\"" << parentid
-	   << "\" restricted=\"1\">"
+	   << "\" restricted=\"true\">"
 
 	    "<dc:title>" << util::XmlEscape(rs->GetString(mediadb::TITLE)) <<
 	    "</dc:title>"
@@ -485,7 +592,7 @@ const Test tests[] = {
 	"<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
 	" xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
 	" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">"
-	"<item id=\"22\" parentID=\"0\" restricted=\"1\">"
+	"<item id=\"22\" parentID=\"0\" restricted=\"true\">"
 	"<res protocolInfo=\"http-get:*:audio/mpeg:*\" size=\"6618946\""
 	" duration=\"0:05:40.00\">http://192.168.168.15:49152/files/22</res>"
 	"<upnp:class>object.item.audioItem.musicTrack</upnp:class>"
@@ -613,7 +720,7 @@ int main(int, char**)
 	"<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
 	" xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
 	" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">"
-	"<item id=\"377\" parentID=\"0\" restricted=\"1\">"
+	"<item id=\"377\" parentID=\"0\" restricted=\"true\">"
 	"<dc:title>Clean</dc:title>"
 	"<upnp:class>object.item.audioItem.musicTrack</upnp:class>"
 	"<upnp:artist>Depeche Mode</upnp:artist>"

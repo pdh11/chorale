@@ -10,7 +10,7 @@ using win32::FileStream;
 using posix::FileStream;
 #endif
 
-unsigned int OpenFileStream(const char *filename, FileMode mode,
+unsigned int OpenFileStream(const char *filename, unsigned int mode,
 			    SeekableStreamPtr *pstm)
 {
     FileStream *f = new FileStream();

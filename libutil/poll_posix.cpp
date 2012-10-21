@@ -4,7 +4,7 @@
 #include "trace.h"
 #include "bind.h"
 
-#if defined(HAVE_POLL_H) && defined(HAVE_SYS_POLL_H)
+#if HAVE_POLL_H && HAVE_SYS_POLL_H
 
 #include <poll.h>
 #include <sys/poll.h>
@@ -156,4 +156,4 @@ void PollWaker::Wake()
 
 } // namespace util
 
-#endif // defined(HAVE_POLL_H) && defined(HAVE_SYS_POLL_H)
+#endif // HAVE_POLL_H && HAVE_SYS_POLL_H

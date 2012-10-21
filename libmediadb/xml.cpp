@@ -1,7 +1,6 @@
 #include "config.h"
 #include "xml.h"
-#include "libdb/db.h"
-#include "libdb/free_rs.h"
+#include "libdb/recordset.h"
 #include "schema.h"
 #include <string>
 #include <boost/static_assert.hpp>
@@ -10,6 +9,8 @@
 #include "libutil/xml.h"
 #include "libutil/xmlescape.h"
 #include <stdio.h>
+
+LOG_DECL(DBLOCAL);
 
 namespace mediadb {
 
@@ -243,6 +244,10 @@ public:
 			rs->SetString(i, value);
 		}
 //		TRACE << "Adding record " << id << "\n";
+
+		LOG(DBLOCAL) << "id " << id << " is '"
+			     << m_fields[mediadb::PATH] << "'\n";
+
 		rs->Commit();
 	    }
 	    else
@@ -286,6 +291,9 @@ unsigned int ReadXML(db::Database *db, util::StreamPtr sp)
 
 
 #ifdef TEST
+
+# include "libdb/free_rs.h"
+# include "libdb/query.h"
 
 class TestDB: public db::Database
 {

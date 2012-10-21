@@ -2,6 +2,7 @@
 #define LIBDB_DELEGATING_RS_H
 
 #include "db.h"
+#include "recordset.h"
 
 namespace db {
 

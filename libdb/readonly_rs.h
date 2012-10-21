@@ -3,7 +3,7 @@
 #ifndef DB_READONLY_RS_H
 #define DB_READONLY_RS_H
 
-#include "db.h"
+#include "recordset.h"
 
 namespace db {
 

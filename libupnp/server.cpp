@@ -5,7 +5,6 @@
 #include "ssdp.h"
 #include "libutil/trace.h"
 #include "libutil/string_stream.h"
-#include "libutil/xmlescape.h"
 #include "libutil/partial_url.h"
 #include "libutil/http_client.h"
 #include "libutil/http_server.h"
@@ -16,6 +15,9 @@
 #include <boost/thread/tss.hpp>
 
 static const char s_description_path[] = "/upnp/description.xml";
+
+LOG_DECL(SOAP);
+LOG_DECL(UPNP);
 
 namespace upnp {
 
@@ -130,7 +132,7 @@ static uint32_t SimpleHash(const char *key)
 
 /** Construct the UUID for the UPnP Universal Device Name (UDN).
  *
- * In order to get the same UUID each time we run, we bake the IP address
+ * In order to get the same UUID each time we run, we bake the hostname
  * and the path into the UUID using a simple hash.
  */
 std::string Server::Impl::MakeUUID(const std::string& resource)
@@ -140,8 +142,12 @@ std::string Server::Impl::MakeUUID(const std::string& resource)
 	uint32_t ui[4];
     } u;
 
+    char hostname[256];
+    hostname[0] = '\0';
+    gethostname(hostname, sizeof(hostname));
+
     strcpy((char*)u.ch, "chorale ");
-    u.ui[2] = m_server->GetPort();
+    u.ui[2] = SimpleHash(hostname);
     u.ui[3] = SimpleHash(resource.c_str());
 
     char buf[48];
@@ -243,7 +249,7 @@ std::string Server::Impl::Description(util::IPAddress ip)
     s += "</device>"
 	"</root>";
 
-//    TRACE << "My description is:\n" << s << "\n";
+    LOG(UPNP) << "My description is:\n" << s << "\n";
 
     return s;
 }
@@ -301,8 +307,9 @@ public:
 void Server::Impl::FireEvent(Service *service,
 			     const char *variable, const std::string& value)
 {
-//    TRACE << "Attempting to fire event for " << udn << "::" << service_id
-//	  << "\n";
+    LOG(UPNP) << "Attempting to fire event for " << service->GetServiceType()
+	      << "::" << variable
+	      << "\n";
 
     std::string body = "<?xml version=\"1.0\"?>"
 	"<e:propertyset xmlns:e=\"urn:schemas-upnp-org:event-1-0\">"
@@ -310,7 +317,7 @@ void Server::Impl::FireEvent(Service *service,
 	"</e:property>"
 	"</e:propertyset>";
 
-    for (subscriptions_t::const_iterator i = m_subscriptions.begin();
+    for (subscriptions_t::iterator i = m_subscriptions.begin();
 	 i != m_subscriptions.end();
 	 ++i)
     {
@@ -320,12 +327,14 @@ void Server::Impl::FireEvent(Service *service,
 	    std::string extra_headers =
 		"NT: upnp:event\r\n"
 		"NTS: upnp:propchange\r\n"
-		"SID: " + i->delivery_url + "\r\n";
-	    /** @bug SEQ
-	     *
-	     * @todo If this were a PollableTask we could just cut it loose
-	     */
+		"CONTENT-TYPE: text/xml; charset=\"utf-8\"\r\n"
+		"SID: " + i->delivery_url + "\r\n"
+		+ (boost::format("SEQ: %u\r\n") % i->event_key).str();
 
+	    i->event_key++;
+
+	    /** @todo If this were a PollableTask we could just cut it loose
+	     */
 	    Notify *n = new Notify;
 
 	    util::http::ConnectionPtr ptr = m_client->Connect(m_poller, n,
@@ -378,7 +387,7 @@ public:
 
     unsigned int OnBegin(const char *tag)
     {
-//	TRACE << "Event: <" << tag << ">\n";
+	LOG(SOAP) << "Arg: <" << tag << ">\n";
 	if (!strchr(tag, ':'))
 	{
 	    m_key = tag;
@@ -404,7 +413,7 @@ public:
     {
 	if (!m_key.empty())
 	{
-//	    TRACE << "Event '" << m_key << "' = '" << m_value << "'\n";
+	    LOG(SOAP) << "Arg '" << m_key << "' = '" << m_value << "'\n";
 	    m_args.Set(m_key, m_value);
 	    m_key.clear();
 	    m_value.clear();
@@ -437,7 +446,7 @@ public:
 	std::string body = result.CreateBody(m_action_name + "Response",
 					     m_service->GetServiceType());
 	
-//	TRACE << "Soap response is " << body << "\n";
+	LOG(SOAP) << "Soap response is " << body << "\n";
 	
 	m_response->ssp = util::StringStream::Create(body);
 	return 0;
@@ -447,22 +456,23 @@ public:
 bool Server::Impl::StreamForPath(const util::http::Request *rq, 
 				 util::http::Response *rs)
 {
-//    TRACE << "Got " << rq->verb << " request for " << rq->path << "\n";
+    LOG(UPNP) << "Got " << rq->verb << " request for " << rq->path << "\n";
 
     const char *path = rq->path.c_str();
     const char *usn;
 
     if (rq->path == s_description_path)
     {
-//	TRACE << "Serving description request\n";
+	LOG(UPNP) << "Serving description request\n";
 	rs->ssp = util::StringStream::Create(Description(rq->local_ep.addr));
+	rs->content_type = "text/xml; charset=\"utf-8\"";
 	return true;
     }
     else if (prefixcmp(path, "/upnp/event/", &usn))
     {
 	if (rq->verb == "SUBSCRIBE")
 	{
-//	    TRACE << "I'm being subscribed at\n" << rq->headers;
+	    LOG(UPNP) << "I'm being subscribed at\n" << rq->headers;
 
 	    Service *service = FindService(usn);
 	    if (service)
@@ -481,11 +491,14 @@ bool Server::Impl::StreamForPath(const util::http::Request *rq,
 		    m_subscriptions.push_back(s);
 
 		    rs->headers["SID"] = delivery; // why not?
+		    rs->headers["TIMEOUT"] = "infinite";
 		    rs->ssp = util::StringStream::Create("");
 		}
 	    }
 	    else
+	    {
 		TRACE << "Can't find service " << usn << "\n";
+	    }
 	    return true;
 	}
     }
@@ -493,13 +506,18 @@ bool Server::Impl::StreamForPath(const util::http::Request *rq,
     {
 	if (rq->verb == "POST")
 	{
-//	    TRACE << "I'm being soaped at\n" << rq->headers;
+	    LOG(UPNP) << "I'm being soaped at\n" << rq->headers;
 	    Service *svc = FindService(usn);
 	    if (svc)
 	    {
+		rs->content_type = "text/xml; charset=\"utf-8\"";
 		rs->body_sink.reset(new SoapReplier(svc, rs, rq->local_ep,
 						    rq->access, &m_endpoints));
 		return true;
+	    }
+	    else
+	    {
+		LOG(UPNP) << "Service " << usn << " not found\n";
 	    }
 	}
     }

@@ -2,7 +2,7 @@
 #include "tcp_wrappers_c.h"
 #include <stdio.h>
 
-#ifdef HAVE_LIBWRAP
+#if HAVE_LIBWRAP
 
 #include <tcpd.h>
 

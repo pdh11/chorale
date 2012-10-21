@@ -2,6 +2,7 @@
 #include "registry.h"
 #include "db.h"
 #include "schema.h"
+#include "libdb/query.h"
 
 namespace mediadb {
 

@@ -3,6 +3,7 @@
 #include "libutil/string_stream.h"
 #include "libmediadb/db.h"
 #include "libmediadb/schema.h"
+#include "libdb/query.h"
 #include "libutil/trace.h"
 #include "libutil/stream.h"
 #include "libutil/urlescape.h"
@@ -470,6 +471,8 @@ void GetContentStream(mediadb::Database *db, unsigned int id,
 
     // Must be a file then
     rsp->ssp = db->OpenRead(id);
+    rsp->length = rs->GetInteger(mediadb::SIZEBYTES);
+
     switch (rs->GetInteger(mediadb::CODEC))
     {
     case mediadb::MP2: rsp->content_type = "audio/x-mp2"; break;
@@ -656,6 +659,8 @@ bool ContentFactory::StreamForPath(const util::http::Request *rq,
 # include "libmediadb/xml.h"
 # include "libmediadb/schema.h"
 # include "libdblocal/db.h"
+# include "libdbmerge/db.h"
+# include "libutil/buffer_chain.h"
 
 static const struct {
     const char *url;
@@ -866,27 +871,9 @@ std::string Printable(const std::string& s)
     return result;
 }
 
-int main()
+void DoTests(mediadb::Database *mdb)
 {
-    db::steam::Database sdb(mediadb::FIELD_COUNT);
-    sdb.SetFieldInfo(mediadb::ID, 
-		     db::steam::FIELD_INT|db::steam::FIELD_INDEXED);
-    sdb.SetFieldInfo(mediadb::PATH,
-		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
-    sdb.SetFieldInfo(mediadb::ARTIST,
-		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
-    sdb.SetFieldInfo(mediadb::ALBUM,
-		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
-    sdb.SetFieldInfo(mediadb::GENRE,
-		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
-    sdb.SetFieldInfo(mediadb::TITLE,
-		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
-
-    mediadb::ReadXML(&sdb, SRCROOT "/libmediadb/example.xml");
-
-    db::local::Database mdb(&sdb);
-
-    receiverd::ContentFactory rcf(&mdb);
+    receiverd::ContentFactory rcf(mdb);
 
     for (unsigned int i=0; i<NTESTS; ++i)
     {
@@ -935,6 +922,33 @@ int main()
 
 	assert(ss->str() == expected);
     }
+}
+
+int main()
+{
+    db::steam::Database sdb(mediadb::FIELD_COUNT);
+    sdb.SetFieldInfo(mediadb::ID, 
+		     db::steam::FIELD_INT|db::steam::FIELD_INDEXED);
+    sdb.SetFieldInfo(mediadb::PATH,
+		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
+    sdb.SetFieldInfo(mediadb::ARTIST,
+		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
+    sdb.SetFieldInfo(mediadb::ALBUM,
+		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
+    sdb.SetFieldInfo(mediadb::GENRE,
+		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
+    sdb.SetFieldInfo(mediadb::TITLE,
+		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
+
+    mediadb::ReadXML(&sdb, SRCROOT "/libmediadb/example.xml");
+
+    db::local::Database mdb(&sdb);
+    DoTests(&mdb);
+
+    db::merge::Database mergedb;
+    mergedb.AddDatabase(&mdb);
+    DoTests(&mergedb);
+
     return 0;
 }
 

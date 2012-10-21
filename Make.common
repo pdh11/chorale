@@ -135,12 +135,17 @@ ifeq ($(TOPCOMMA),)
 TOPCOMMA:=`echo -e $(TOP) | tr '.' ','`
 endif
 
+ifeq ($(ABSTOP),)
+ABSTOP:=`readlink -f ./$(TOP)`
+endif
+
 %.o: %.cpp
 	$(CC_PRE)$(CXX) $(CXXFLAGS) -I$(TOP). \
 		-c $< -o $@ -MD -MP
 	@tr '.' ',' < $*.d \
 		| sed -e "s| $(TOPCOMMA)\([a-z.,]\)| \$$\(TOP\)\1|g" \
 		      -e "s|^$(TOPCOMMA)\([a-z.,]\)|\$$\(TOP\)\1|g" \
+		      -e "s|$(ABSTOP)/|\$$\(TOP\)|g" \
 		| tr ',' '.' \
 		> $*.dd
 	@mv $*.dd $*.dep
@@ -152,6 +157,7 @@ endif
 	@tr '.' ',' < $*.d \
 		| sed -e "s| $(TOPCOMMA)\([a-z.,]\)| \$$\(TOP\)\1|g" \
 		      -e "s|^$(TOPCOMMA)\([a-z.,]\)|\$$\(TOP\)\1|g" \
+		      -e "s|$(ABSTOP)/|\$$\(TOP\)|g" \
 		| tr ',' '.' \
 		> $*.dd
 	@mv $*.dd $*.dep
@@ -171,6 +177,7 @@ $(TOP)$(DIR)$(TARGETDIR)%.lo: $(TOP)$(DIR)%.cpp
 	@tr '.' ',' < $@.d \
 		| sed -e "s| $(TOPCOMMA)\([a-z.,]\)| \$$\(TOP\)\1|g" \
 		      -e "s|^$(TOPCOMMA)\([a-z.,]\)|\$$\(TOP\)\1|g" \
+		      -e "s|$(ABSTOP)/|\$$\(TOP\)|g" \
 		| tr ',' '.' \
 		> $@.dd
 	@mv $@.dd $@.dep
@@ -184,6 +191,7 @@ $(TOP)$(DIR)$(TARGETDIR)%.lo: $(TOP)$(DIR)%.c
 	@tr '.' ',' < $@.d \
 		| sed -e "s| $(TOPCOMMA)\([a-z.,]\)| \$$\(TOP\)\1|g" \
 		      -e "s|^$(TOPCOMMA)\([a-z.,]\)|\$$\(TOP\)\1|g" \
+		      -e "s|$(ABSTOP)/|\$$\(TOP\)|g" \
 		| tr ',' '.' \
 		> $@.dd
 	@mv $@.dd $@.dep
@@ -198,13 +206,14 @@ $(TOP)$(DIR)$(TARGETDIR)%__$(TEST_SUFFIX): $(TOP)$(DIR)%.cpp
 	@tr '.' ',' < $@.d \
 		| sed -e "s| $(TOPCOMMA)\([a-z.,]\)| \$$\(TOP\)\1|g" \
 		      -e "s|^$(TOPCOMMA)\([a-z.,]\)|\$$\(TOP\)\1|g" \
+		      -e "s|$(ABSTOP)/|\$$\(TOP\)|g" \
 		| tr ',' '.' \
 		> $@.dd
 	@mv $@.dd $@.dep
 	@rm $@.d
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
 		$(CXX) $(CXXFLAGS) $(LDFLAGS) -fprofile-arcs -ftest-coverage \
-		$@.lo $(filter %.la,$^) $(TEST_LIBS) -o $@ -Wl,-Map,$@.map
+		$@.lo $(filter %.la,$^) $(TEST_LIBS) -lgcov -o $@ -Wl,-Map,$@.map
 	$(TEST_PRE)$(TEST_RUN) $@ || ( echo $@ FAILED ; rm -f $@ ; false )
 	@: > $@
 	@$(GCOV) -o $(dir $@).libs/$(notdir $@).cpp $< > $@.gcov.txt

@@ -1,26 +1,24 @@
 #ifndef LIBUPNP_CLIENT_H
 #define LIBUPNP_CLIENT_H 1
 
-#include "device.h"
+#include <string>
 
 namespace util { namespace http { class Client; } }
 namespace util { namespace http { class Server; } }
 
 namespace upnp {
 
-class Description;
-
 namespace soap { class Inbound; }
 namespace soap { class Outbound; }
 
-class ClientConnection;
+class ServiceClient;
 
-class Client
+class DeviceClient
 {
     class Impl;
     Impl *m_impl;
 
-    friend class ClientConnection;
+    friend class ServiceClient;
 
 public:
     /** UPnP client for a particular device.
@@ -28,19 +26,19 @@ public:
      * We need an HTTP server as well as the client, because we'll
      * receive GENA notifications through it.
      */
-    Client(util::http::Client*, util::http::Server*);
-    ~Client();
+    DeviceClient(util::http::Client*, util::http::Server*);
+    ~DeviceClient();
 
     unsigned int Init(const std::string& description_url, 
 		      const std::string& device_udn);
 
-    const Description& GetDescription() const;
+    const std::string& GetFriendlyName() const;
 };
 
-class ClientConnection
+class ServiceClient
 {
-    class Impl;
-    Impl *m_impl;
+    DeviceClient *m_parent;
+    const char *m_service_id;
 
     class SoapXMLObserver;
 
@@ -50,12 +48,10 @@ protected:
     static bool GenaBool(const std::string&);
 
 public:
-    ClientConnection();
-    virtual ~ClientConnection();
+    ServiceClient(DeviceClient* parent, const char *service_id);
+    virtual ~ServiceClient();
 
-    void SetSid(const std::string& sid);
-
-    unsigned int Init(Client* parent, const char *service_id);
+    unsigned int Init();
 
     unsigned int SoapAction(const char *action_name,
 			    const soap::Outbound& params,

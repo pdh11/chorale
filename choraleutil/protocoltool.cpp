@@ -1,3 +1,4 @@
+#include "config.h"
 #include "libdbempeg/db.h"
 #include "libmediadb/xml.h"
 #include "libmediadb/sync.h"
@@ -5,7 +6,7 @@
 #include "libdblocal/db.h"
 #include "libdbsteam/db.h"
 #include "libdblocal/file_scanner.h"
-#include "config.h"
+#include "libdb/query.h"
 #include "libempeg/discovery.h"
 #include "libempeg/protocol_client.h"
 #include "libutil/poll.h"
@@ -14,7 +15,7 @@
 #include "libutil/http_server.h"
 #include "libutil/worker_thread_pool.h"
 #include <getopt.h>
-#ifdef HAVE_SYS_TIME_H
+#if HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 
@@ -132,12 +133,14 @@ void ScanCallback::OnDiscoveredEmpeg(const util::IPAddress& ip,
 	    printf("%-15s ** Can't contact: error %u\n", "", rc);
 	    return;
 	}
-	std::string version, id, configini;
+	std::string version, id, type, configini;
 	rc = pc.ReadFidToString(empeg::FID_VERSION, &version);
 	if (!rc)
 	    rc = pc.ReadFidToString(empeg::FID_ID, &id);
 //	if (!rc)
 //	    rc = pc.ReadFidToString(empeg::FID_CONFIGINI, &configini);
+	if (!rc)
+	    rc = pc.ReadFidToString(empeg::FID_TYPE, &type);
 	if (rc)
 	{
 	    printf("%-15s ** Can't collect info: error %u\n", "", rc);
@@ -158,25 +161,39 @@ void ScanCallback::OnDiscoveredEmpeg(const util::IPAddress& ip,
 	    printf("\n");
 	any = true;
 
-	// Mark 2 serial numbers are decimal mmyynnnnn
-	//   mm = month of manufacture 01-12
-	//   yy = year of manufacture 00-01
-	//   nnnnn = actual serial number starting at 1
-	//
-	// This means that the very first Mark 2 was #060000001, and
-	// also that serial numbers order isn't chronological order:
-	// 120001100 was manufactured before 010101200 despite being
-	// numerically larger.
-	
-	printf("%-15s Mark %-2s #%05u (%02u/%u) v%s\n",
-	       "",
-	       (hwrev < 9) ? "2" : "2a", // No Mark 1s on ethernet!
-	       serial   % 100000,        // We only planned 100,000 ever!
-	       (serial  / 10000000),             // Month of manufacture
-	       ((serial / 100000) % 100) + 2000, // Year of manufacture
-	       version.c_str());
+	if (!strcmp(type.c_str(), "jupiter"))
+	{
+	    // Holy hell, it's a Rio Central/HSX-109. Not many of them around.
 
-//	printf("version: %s\n", version.c_str());
+	    printf("%-15s Jupiter #%06u v%s hwrev %u\n",
+		   "",
+		   serial % 1000000,
+		   version.c_str(),
+		   hwrev);
+	}
+	else
+	{
+	    // Mark 2 serial numbers are decimal mmyynnnnn
+	    //   mm = month of manufacture 01-12
+	    //   yy = year of manufacture 00-01
+	    //   nnnnn = actual serial number starting at 1
+	    //
+	    // This means that the very first Mark 2 was #060000001, and
+	    // also that serial numbers order isn't chronological order:
+	    // 120001100 was manufactured before 010101200 despite being
+	    // numerically larger.
+	    
+	    printf("%-15s Mark %-2s #%05u (%02u/%u) v%s\n",
+		   "",
+		   (hwrev < 9) ? "2" : "2a", // No Mark 1s on ethernet!
+		   serial   % 100000,        // We only planned 100,000 ever!
+		   (serial  / 10000000),             // Month of manufacture
+		   ((serial / 100000) % 100) + 2000, // Year of manufacture
+		   version.c_str());
+	}
+
+//	printf("version: '%s'\n", version.c_str());
+//	printf("type: '%s'\n", type.c_str());
 //	printf("id: >>>%s\n<<<\n", id.c_str());
 //	printf("config: >>>%s\n<<<\n", configini.c_str());
     }

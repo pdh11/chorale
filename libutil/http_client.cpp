@@ -4,9 +4,16 @@
 #include "poll.h"
 #include "http_fetcher.h"
 #include "bind.h"
+#include "magic.h"
+#include "peeking_line_reader.h"
+#include "http_parser.h"
 #include "trace.h"
+#include "scanf64.h"
 #include <boost/format.hpp>
 #include <boost/tokenizer.hpp>
+
+LOG_DECL(HTTP);
+LOG_DECL(HTTP_CLIENT);
 
 namespace util {
 
@@ -16,7 +23,77 @@ namespace http {
         /* util::http::Connection */
 
 
-Connection::Connection(Client *parent,
+Connection::Connection()
+{
+}
+
+
+        /* util::http::ConnectionImpl */
+
+
+class ConnectionImpl: public Connection,
+		      public util::Magic<0x34562873>
+{
+    Client *m_parent;
+    Observer *m_observer; /// @todo Observable?
+    std::string m_extra_headers;
+    std::string m_body;
+    const char *m_verb;
+    util::IPEndPoint m_remote_endpoint;
+
+    util::PollerInterface *m_poller;
+    util::StreamSocketPtr m_socket;
+    std::string m_host;
+    std::string m_path;
+    std::string m_headers;
+    PeekingLineReader m_line_reader;
+    Parser m_parser;
+
+    enum {
+	UNINITIALISED,
+	CONNECTING,
+	SEND_HEADERS,
+	SEND_BODY,
+	WAITING,
+	RECV_HEADERS,
+	RECV_BODY,
+	IDLE
+    } m_state;
+
+    struct {
+	size_t transfer_length;
+	size_t total_length;
+	bool is_range;
+	bool got_length;
+	bool connection_close;
+
+	void Clear()
+	{
+	    transfer_length = total_length = 0;
+	    is_range = got_length = connection_close = false;
+	}
+    } m_entity;
+
+public:
+    ConnectionImpl(Client *parent,
+		   util::PollerInterface *poller,
+		   Observer *observer,
+		   const std::string& url,
+		   const std::string& extra_headers,
+		   const std::string& body,
+		   const char *verb);
+    ~ConnectionImpl();
+
+    unsigned int OnActivity();
+
+    unsigned int Init();
+
+    // Being a Stream
+    unsigned Read(void *buffer, size_t len, size_t *pread);
+    unsigned Write(const void *, size_t, size_t*) { return EINVAL; }
+};
+ 
+ConnectionImpl::ConnectionImpl(Client *parent,
 		       util::PollerInterface *poller,
 		       Connection::Observer *observer,
 		       const std::string& url,
@@ -47,7 +124,7 @@ Connection::Connection(Client *parent,
  * delete the connection unless our caller has already squirreled the result
  * of the constructor call away somewhere.
  */
-unsigned int Connection::Init()
+unsigned int ConnectionImpl::Init()
 {
     if (m_remote_endpoint.addr.addr == 0)
 	return ENOENT;
@@ -56,7 +133,7 @@ unsigned int Connection::Init()
     m_socket->SetNonBlocking(true);
     m_socket->SetTimeoutMS(0);
     m_poller->Add(m_socket.get(),
-		  Bind<Connection, &Connection::OnActivity>(this), 
+		  Bind<ConnectionImpl, &ConnectionImpl::OnActivity>(this), 
 		  util::PollerInterface::OUT);
     unsigned int rc = m_socket->Connect(m_remote_endpoint);
     if (rc && rc != EINPROGRESS && rc != EWOULDBLOCK && rc != EISCONN)
@@ -69,20 +146,21 @@ unsigned int Connection::Init()
     return 0;
 }
 
-Connection::~Connection()
+ConnectionImpl::~ConnectionImpl()
 {
-//    TRACE << "hc" << this << ": ~Connection in state " << m_state << "\n";
+    LOG(HTTP_CLIENT) << "hc" << this << ": ~ConnectionImpl in state "
+		     << m_state << "\n";
     m_poller->Remove(m_socket.get());
-//    TRACE << "~Connection done\n";
+    LOG(HTTP_CLIENT) << "~ConnectionImpl" << " done\n";
 }
 
-unsigned int Connection::OnActivity()
+unsigned int ConnectionImpl::OnActivity()
 {
     AssertValid();
 
     unsigned rc;
 
-//    TRACE << "hc" << this << ": activity, state " << m_state << "\n";
+    LOG(HTTP_CLIENT) << "hc" << this << ": activity, state " << m_state << "\n";
 
     ConnectionPtr ptr(this); // Stop me being destroyed until OA exits
 
@@ -91,11 +169,21 @@ unsigned int Connection::OnActivity()
     case CONNECTING:
 //	TRACE << "Connecting\n";
 	rc = m_socket->Connect(m_remote_endpoint);
+
+	/* Windows rather delightfully, can return EINVAL here whether the
+	 * connection has succeeded or not.
+	 */
+	if (rc == EINVAL)
+	{
+	    if (m_socket->IsWritable())
+		rc = EISCONN;
+	}
+
 	if (rc && rc != EISCONN)
 	{
 	    if (rc == EINPROGRESS || rc == EWOULDBLOCK)
 	    {
-//		TRACE << "Connection in progress\n";
+//		TRACE << "Connection in progress (" << rc << ")\n";
 		return 0;
 	    }
 
@@ -113,6 +201,7 @@ unsigned int Connection::OnActivity()
 	m_headers = m_verb ? m_verb : (m_body.empty() ? "GET" : "POST");
 	m_headers += " " + m_path + " HTTP/1.1\r\n"
 	    "Host: " + m_host + "\r\n"
+	    "Connection: close\r\n"
 	    "User-Agent: " PACKAGE_NAME "/" PACKAGE_VERSION "\r\n";
 	if (!m_body.empty())
 	    m_headers += (boost::format("Content-Length: %u\r\n") % m_body.size()).str();
@@ -166,10 +255,13 @@ unsigned int Connection::OnActivity()
 	    }
 	}
 
+	/// @todo Remove this once pooling implemented
+	m_socket->ShutdownWrite();
+
 	m_poller->Remove(m_socket.get());
-//	TRACE << "hc" << this << ": rebinding for read fd " << m_socket->GetReadHandle() << "\n";
+//	TRACE << "hc" << this << ": rebinding for read fd " << m_socket << "\n";
 	m_poller->Add(m_socket.get(), 
-		      Bind<Connection,&Connection::OnActivity>(this), 
+		      Bind<ConnectionImpl,&ConnectionImpl::OnActivity>(this), 
 		      util::PollerInterface::IN);
 
 	m_state = WAITING;
@@ -182,7 +274,7 @@ unsigned int Connection::OnActivity()
 //	TRACE << "Waiting\n";
 
 	rc = m_parser.GetResponseLine(&http_code, NULL);
-//	TRACE << "GRL returned " << rc << "\n";
+	LOG(HTTP) << "GRL returned " << rc << "\n";
 	if (rc)
 	    return (rc == EWOULDBLOCK) ? 0 : rc;
 
@@ -211,16 +303,16 @@ unsigned int Connection::OnActivity()
 		 * but traditional Receiver servers send
 		 * "Content-Range: bytes=X-Y"
 		 */
-		unsigned long long rmin, rmax, elen = 0;
+		uint64_t rmin, rmax, elen = 0;
 
-		if (sscanf(value.c_str(), "bytes %llu-%llu/%llu",
-			   &rmin, &rmax, &elen) == 3
-		    || sscanf(value.c_str(), "bytes=%llu-%llu/%llu",
-			      &rmin, &rmax, &elen) == 3
-		    || sscanf(value.c_str(), "bytes %llu-%llu",
-			      &rmin, &rmax) == 2
-		    || sscanf(value.c_str(), "bytes=%llu-%llu",
-			      &rmin, &rmax) == 2)
+		if (util::Scanf64(value.c_str(), "bytes %llu-%llu/%llu",
+				  &rmin, &rmax, &elen) == 3
+		    || util::Scanf64(value.c_str(), "bytes=%llu-%llu/%llu",
+				     &rmin, &rmax, &elen) == 3
+		    || util::Scanf64(value.c_str(), "bytes %llu-%llu",
+				     &rmin, &rmax) == 2
+		    || util::Scanf64(value.c_str(), "bytes=%llu-%llu",
+				     &rmin, &rmax) == 2)
 		{
 		    if (elen)
 			m_entity.total_length = (size_t)elen;
@@ -232,8 +324,8 @@ unsigned int Connection::OnActivity()
 	    }
 	    else if (!strcasecmp(key.c_str(), "Content-Length"))
 	    {
-		unsigned long long ull;
-		sscanf(value.c_str(), "%llu", &ull);
+		uint64_t ull;
+		util::Scanf64(value.c_str(), "%llu", &ull);
 		m_entity.transfer_length = (size_t)ull;
 		m_entity.got_length = true;
 	    }
@@ -278,8 +370,12 @@ unsigned int Connection::OnActivity()
     case IDLE:
 //	TRACE << "HttpConnection going idle\n";
 	m_poller->Remove(m_socket.get());
+
+	// -- When fixing, remove unconditional connection:close from headers
+	//
 	// if (!m_entity.connection_close)
 	//     m_parent->PoolMe(this)
+
 	break;
 	
     default:
@@ -289,7 +385,7 @@ unsigned int Connection::OnActivity()
     return 0;
 }
 
-unsigned int Connection::Read(void *buffer, size_t len, size_t *pread)
+unsigned int ConnectionImpl::Read(void *buffer, size_t len, size_t *pread)
 {
     assert(m_state != UNINITIALISED);
 
@@ -309,7 +405,7 @@ unsigned int Connection::Read(void *buffer, size_t len, size_t *pread)
     unsigned int rc = m_socket->Read(buffer, len, pread);
     if (rc)
     {
-//	TRACE << "hc" << this << ": Read(fd " << m_socket->GetReadHandle()
+//	TRACE << "hc" << this << ": Read(" << m_socket
 //	      << ", " << len << ") returned " << rc << "\n";
 	return rc;
     }
@@ -342,8 +438,8 @@ ConnectionPtr Client::Connect(util::PollerInterface *poller,
 			      const std::string& body,
 			      const char *verb)
 {
-    ConnectionPtr ptr(new Connection(this, poller, observer, url,
-				     extra_headers, body, verb));
+    ConnectionPtr ptr(new ConnectionImpl(this, poller, observer, url,
+					 extra_headers, body, verb));
     return ptr;
 }
 
@@ -356,6 +452,7 @@ ConnectionPtr Client::Connect(util::PollerInterface *poller,
 # include "http_server.h"
 # include "poll.h"
 # include "string_stream.h"
+# include "worker_thread_pool.h"
 
 class EchoContentFactory: public util::http::ContentFactory
 {

@@ -1,5 +1,6 @@
 #include "file_posix.h"
 #include "file.h"
+#include "config.h"
 #include "trace.h"
 #include <sys/stat.h>
 #include <string.h>
@@ -9,12 +10,50 @@
 #include <assert.h>
 #include <dirent.h>
 
-#ifndef WIN32
-
 namespace util {
 
 namespace posix {
 
+std::string GetLeafName(const char *filename)
+{
+    const char *rslash = strrchr(filename, '/');
+    if (rslash)
+	return std::string(rslash+1);
+    return filename;
+}
+
+std::string GetDirName(const char *filename)
+{
+    const char *rslash = strrchr(filename, '/');
+    if (rslash)
+	return std::string(filename, rslash);
+    return std::string();
+}
+
+std::string GetExtension(const char *filename)
+{
+    const char *dot = strrchr(filename, '.');
+    if (!dot)
+	return "";
+    const char *slash = strrchr(filename, '/');
+    if (slash && slash > dot)
+	return "";
+    return std::string(dot+1);
+}
+
+std::string StripExtension(const char *filename)
+{
+    const char *dot = strrchr(filename, '.');
+    if (!dot)
+	return filename;
+    const char *slash = strrchr(filename, '/');
+    if (slash && slash > dot)
+	return filename;
+    return std::string(filename, dot);
+}
+
+
+#ifndef WIN32
 unsigned int Mkdir(const char *dirname)
 {
     int rc = ::mkdir(dirname, 0775);
@@ -22,7 +61,6 @@ unsigned int Mkdir(const char *dirname)
 	return (unsigned)errno;
     return 0;
 }
-
 bool DirExists(const char *dirname)
 {
     struct stat st;
@@ -88,9 +126,8 @@ unsigned int ReadDirectory(const std::string& path,
 
     return 0;
 }
+#endif
 
 } // namespace posix
 
 } // namespace util
-
-#endif // !WIN32

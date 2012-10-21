@@ -34,6 +34,10 @@ public:
 			   const char *extra_headers = NULL,
 			   const char *body = NULL);
 
+    // Being a Pollable
+    PollHandle GetReadHandle() { return m_socket->GetReadHandle(); }
+    PollHandle GetWriteHandle() { return m_socket->GetWriteHandle(); }
+
     // Being a SeekableStream
     unsigned ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread);
     unsigned WriteAt(const void *buffer, pos64 pos, size_t len, 

@@ -2,7 +2,9 @@
 #include "config.h"
 #include "libmediadb/schema.h"
 
-Database::Database()
+namespace choraled {
+
+LocalDatabase::LocalDatabase()
     : m_sdb(mediadb::FIELD_COUNT),
       m_ldb(&m_sdb)
 {
@@ -26,12 +28,12 @@ Database::Database()
 		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
 }
 
-#ifdef HAVE_DB
-unsigned int Database::Init(const std::string& loroot,
-			    const std::string& hiroot,
-			    util::TaskQueue *queue, 
-			    const std::string& dbfilename)
+unsigned int LocalDatabase::Init(const std::string& loroot,
+				 const std::string& hiroot,
+				 util::TaskQueue *queue, 
+				 const std::string& dbfilename)
 {
     return m_ifs.Init(loroot, hiroot, &m_ldb, queue, dbfilename);
 }
-#endif
+
+} // namespace choraled

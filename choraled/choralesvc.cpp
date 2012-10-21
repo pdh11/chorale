@@ -9,7 +9,7 @@
 #include <getopt.h>
 #include <pthread.h>
 #include <shlobj.h>
-#include <shlwapi.h>
+#include <stdarg.h>
 #include "cd.h"
 #include "database.h"
 #include "nfs.h"
@@ -19,6 +19,7 @@
 #include "libutil/http_client.h"
 #include "libutil/http_server.h"
 #include "libutil/trace.h"
+#include "libutil/file.h"
 #include "libutil/utf8.h"
 #include "libreceiver/ssdp.h"
 #include "libreceiverd/content_factory.h"
@@ -26,6 +27,7 @@
 #include "libupnp/ssdp.h"
 #include "libupnpd/media_server.h"
 #include "libupnpd/optical_drive.h"
+#include "main.h"
 
 class ChoraleService
 {
@@ -40,7 +42,7 @@ class ChoraleService
 
 public:
 
-    static void Install(const char *mp3root, const char *flacroot);
+    static void Install(const choraled::Settings&);
     static void Uninstall();
 
     static bool IsInstalled();
@@ -65,14 +67,6 @@ public:
 
 class ChoraleService::Impl
 {
-    volatile bool m_exiting;
-
-    util::Poller m_poller;
-
-    util::WorkerThreadPool m_wtp_low;
-    util::WorkerThreadPool m_wtp_normal;
-    Database m_db;
-
 public:
     Impl();
     ~Impl();
@@ -81,58 +75,55 @@ public:
 };
 
 ChoraleService::Impl::Impl()
-    : m_exiting(false),
-      m_wtp_low(util::WorkerThreadPool::LOW),
-      m_wtp_normal(util::WorkerThreadPool::NORMAL)
 {    
 }
 
 ChoraleService::Impl::~Impl()
 {
-    m_exiting = true;
-    m_poller.Wake();
+    choraled::s_exiting = true;
+    if (choraled::s_poller)
+	choraled::s_poller->Wake();
 }
 
-static std::string GetRegistryEntry(const char *key, const char *value)
+static std::wstring GetRegistryEntry(const wchar_t *key, const wchar_t *value)
 {
     HKEY hkey;
-    LONG rc = RegOpenKeyExA(HKEY_LOCAL_MACHINE, key, 0, 
+    LONG rc = RegOpenKeyExW(HKEY_LOCAL_MACHINE, key, 0, 
 			    KEY_READ|KEY_QUERY_VALUE, &hkey);
     if (rc != ERROR_SUCCESS)
     {
 	TRACE << "Can't open registry key " << key << ": " << rc << "\n";
-	return "";
+	return std::wstring();
     }
 
     DWORD type;
-    char buf[256];
+    wchar_t buf[256];
     DWORD size = sizeof(buf);
-    rc = RegQueryValueExA(hkey, value, NULL,
-			       &type, (BYTE*)&buf, &size);
+    rc = RegQueryValueExW(hkey, value, NULL, &type, (BYTE*)&buf, &size);
     RegCloseKey(hkey);
 
     if (rc != ERROR_SUCCESS)
     {
 	TRACE << "Can't read registry value " << key << ": " << rc << "\n";
-	return "";
+	return std::wstring();
     }
     if (type != REG_SZ)
     {
 	TRACE << "Registry value " << key << " not a string (" << type
 	      << ")\n";
-	return "";
+	return std::wstring();
     }
-    TRACE << "RQVE returned " << size << " bytes\n";
+//    TRACE << "RQVE returned " << size << " bytes\n";
     buf[size] = 0;
-    return std::string(buf);
+    return std::wstring(buf);
 }
 
-static LONG SetRegistryEntry(const char *key, const char *value,
-			     const std::string& contents)
+static LONG SetRegistryEntry(const wchar_t *key, const wchar_t *value,
+			     const std::wstring& contents)
 {
     HKEY hkey;
     DWORD disposition;
-    LONG rc = RegCreateKeyExA(HKEY_LOCAL_MACHINE, key, 0, NULL,
+    LONG rc = RegCreateKeyExW(HKEY_LOCAL_MACHINE, key, 0, NULL,
 			      REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL,
 			      &hkey, &disposition);
     if (rc != ERROR_SUCCESS)
@@ -141,8 +132,9 @@ static LONG SetRegistryEntry(const char *key, const char *value,
 	return rc;
     }
 		
-    rc = RegSetValueExA(hkey, value, 0, REG_SZ,
-			(const BYTE*)contents.c_str(), contents.length() + 1);
+    rc = RegSetValueExW(hkey, value, 0, REG_SZ,
+			(const BYTE*)contents.c_str(), 
+			(contents.length() + 1) * sizeof(wchar_t));
     RegCloseKey(hkey);
 
     if (rc != ERROR_SUCCESS)
@@ -153,28 +145,71 @@ static LONG SetRegistryEntry(const char *key, const char *value,
     return rc;
 }
 
-#define REG_ROOT "SOFTWARE\\chorale.sf.net\\Chorale\\1.0"
+class Win32Complaints: public choraled::Complaints
+{
+public:
+    void Complain(int loglevel, const char *format, ...)
+    {
+	va_list args;
 
-#define RIO_REG_ROOT "SOFTWARE\\Diamond Multimedia\\Audio Receiver Manager\\1.0"
+	va_start(args, format);
+	vfprintf(stderr, format, args);
+	va_end(args);
 
-const char *mediaroot = "C:\\My Music";
+	/// @todo Event logging (requires message file/windmc/windres)
+#if 0
+	HANDLE h = RegisterEventSorce(NULL, PACKAGE_NAME);
+	char buf[512];
+	va_list args;
+
+	va_args(args, format);
+	vsnprintf(buf, sizeof(buf), format, args);
+	va_end(args);
+
+	WORD wType = EVENTLOG_INFORMATION_TYPE;
+	if (loglevel == LOG_WARNING)
+	    wType = EVENTLOG_WARNING_TYPE;
+	else if (loglevel == LOG_ERR)
+	    wType = EVENTLOG_ERROR_TYPE;
+
+	const char *ptr = buf;
+	ReportEvent(h, wType, 0, 0x60000000, NULL, 1, 0, &ptr, 1);
+
+	DeregisterEventSource(h);
+#endif
+    }
+};
+
+static const wchar_t REG_ROOT[] = L"SOFTWARE\\chorale.sf.net\\Chorale\\1.0";
+
+#define RIO_REG_ROOT L"SOFTWARE\\Diamond Multimedia\\Audio Receiver Manager\\1.0"
 
 void ChoraleService::Impl::Run()
 {
     pthread_win32_process_attach_np();
 
-    std::string mp3root = GetRegistryEntry(REG_ROOT, "mp3root");
-    std::string flacroot = GetRegistryEntry(REG_ROOT, "flacroot");
+    std::string mp3root = 
+	util::UTF16ToUTF8(GetRegistryEntry(REG_ROOT, L"mp3root"));
+    std::string flacroot = 
+	util::UTF16ToUTF8(GetRegistryEntry(REG_ROOT, L"flacroot"));
+    std::wstring assimilate_receiver = GetRegistryEntry(REG_ROOT, 
+						       L"assimilate_receiver");
 
-    if (mp3root.empty())
-    {
-	fprintf(stderr,
-		"Chorale not installed properly -- no music root set\n");
-	return;
-    }
+    choraled::Settings settings;
+    memset(&settings, '\0', sizeof(settings));
 
-    char common_app_data[MAX_PATH];
-    if (FAILED(SHGetFolderPathA(NULL,
+    settings.flags = choraled::CD;
+
+    if (!mp3root.empty())
+	settings.flags |= choraled::LOCAL_DB | choraled::MEDIA_SERVER;
+
+    if (!assimilate_receiver.empty())
+	settings.flags |= choraled::ASSIMILATE_RECEIVER | choraled::MEDIA_SERVER;
+    else if (!mp3root.empty())
+	settings.flags |= choraled::RECEIVER;
+
+    util::utf16_t common_app_data[MAX_PATH];
+    if (FAILED(SHGetFolderPathW(NULL,
 				CSIDL_COMMON_APPDATA|CSIDL_FLAG_CREATE,
 				NULL, 0, common_app_data)))
     {
@@ -182,104 +217,57 @@ void ChoraleService::Impl::Run()
 		"Chorale not installed properly -- can't find shared app data\n");
 	return;
     }
-    PathAppend(common_app_data, "chorale.db");
-    std::string dbfile(common_app_data);
+    std::string dbfile(util::UTF16ToUTF8(common_app_data) + "/chorale.db");
 
-    m_db.Init(mp3root.c_str(), flacroot.c_str(), &m_wtp_low, dbfile);
+    std::string layout;
 
-    std::string layout = GetRegistryEntry(RIO_REG_ROOT "\\HTTP", "LAYOUT");
+    if (settings.flags & choraled::RECEIVER)
+	layout = util::UTF16ToUTF8(GetRegistryEntry(RIO_REG_ROOT "\\HTTP",
+						    L"LAYOUT"));
 
     std::string webroot;
     const char *rback = strrchr(layout.c_str(), '\\');
     if (rback)
 	webroot = std::string(layout.c_str(), rback);
     else
-	webroot = "C:\\My Music";
+    {
+	util::utf16_t widename[512];
+	if (::GetModuleFileNameW(NULL, widename, sizeof(widename)/2))
+	{
+	    webroot = util::UTF16ToUTF8(widename);
+	    TRACE << "choralesvc installed as " << webroot << "\n";
+	    webroot = util::GetDirName(webroot.c_str()) + "\\web";
+	}
+	else
+	    webroot = "C:\\My Music";
+    }
+
+    webroot = util::Canonicalise(webroot);
 
     TRACE << "Webroot is " << webroot << "\n";
 
-    std::string arf = GetRegistryEntry(RIO_REG_ROOT "\\NFS", "IMAGE FILE");
+    std::string arf;
+
+    if (settings.flags & choraled::RECEIVER)
+    {
+	arf = util::UTF16ToUTF8(GetRegistryEntry(RIO_REG_ROOT "\\NFS", 
+						 L"IMAGE FILE"));
     
-    TRACE << "Arf is '" << arf << "'\n";
-
-    NFSService nfsd;
-    if (!arf.empty())
-    {
-	unsigned int rc = nfsd.Init(&m_poller, arf.c_str());
-	if (rc != 0)
-	{
-	    TRACE << "Can't initialise NFS: " << rc << "\n";
-	    arf.clear();
-	}
+	TRACE << "Arf is '" << arf << "'\n";
     }
 
-    util::http::Server ws(&m_poller, &m_wtp_normal);
-    
-    receiverd::ContentFactory rcf(m_db.Get());
-    util::http::FileContentFactory fcf(webroot+"/upnp", "/upnp");
-    util::http::FileContentFactory fcf2(webroot+"/layout", "/layout");
+    settings.database_file = dbfile.c_str();
+    settings.web_root = webroot.c_str();
+    settings.receiver_software_server = NULL;
+    settings.receiver_arf_file = arf.c_str();
+    settings.media_root = mp3root.c_str();
+    settings.flac_root = flacroot.c_str();
+    settings.web_port = (unsigned short)((settings.flags & choraled::RECEIVER) ? 12078 : 0);
+    settings.nthreads = 32;
 
-    if (1)
-    {
-	ws.AddContentFactory("/tags", &rcf);
-	ws.AddContentFactory("/query", &rcf);
-	ws.AddContentFactory("/content", &rcf);
-	ws.AddContentFactory("/results", &rcf);
-	ws.AddContentFactory("/list", &rcf);
-	ws.AddContentFactory("/layout", &fcf2);
-    }
-    ws.AddContentFactory("/upnp", &fcf);
+    Win32Complaints complaints;
 
-    RootContentFactory rootcf(m_db.Get());
-
-    ws.AddContentFactory("/", &rootcf);
-    ws.Init(12078);
-    TRACE << "Webserver got port " << ws.GetPort() << "\n";
-
-    receiver::ssdp::Server pseudo_ssdp(NULL);
-
-    if (1)
-    {
-	pseudo_ssdp.Init(&m_poller);
-	pseudo_ssdp.RegisterService(receiver::ssdp::s_uuid_musicserver, 
-				    ws.GetPort());
-	if (!arf.empty())
-	    pseudo_ssdp.RegisterService(receiver::ssdp::s_uuid_softwareserver,
-					nfsd.GetPort());
-	TRACE << "Receiver service started\n";
-    }
-
-    char hostname[256];
-    hostname[0] = '\0';
-    ::gethostname(hostname, sizeof(hostname)-1);
-    hostname[255] = '\0';
-    char *dot = strchr(hostname, '.');
-    if (dot && dot > hostname)
-	*dot = '\0';
-
-    upnp::ssdp::Responder ssdp(&m_poller, NULL);
-    util::http::Client wc;
-    upnp::Server upnpserver(&m_poller, &wc, &ws, &ssdp);
-    upnpd::MediaServer mediaserver(m_db.Get(), &upnpserver);
-
-    if (0)
-    {
-	mediaserver.SetFriendlyName(std::string(mediaroot)
-				    + " on " + hostname);
-    }
-
-# ifdef HAVE_CD
-    CDService cds(NULL);
-    if (1)
-	cds.Init(&ws, hostname, &upnpserver);
-# endif
-
-    upnpserver.Init();
-
-    TRACE << "Polling\n";
-
-    while (!m_exiting)
-	m_poller.Poll(util::Poller::INFINITE_MS);
+    choraled::Main(&settings, &complaints);
 
     pthread_win32_process_detach_np();
 }
@@ -384,15 +372,23 @@ bool ChoraleService::IsInstalled()
     return result;
 }
 
-void ChoraleService::Install(const char *mp3root, const char *flacroot)
+void ChoraleService::Install(const choraled::Settings& settings)
 {
-    /* At this point mp3root is guaranteed to be non-NULL (by the argc
-     * checks), but flacroot might be NULL if no secondary root was
-     * given.
-     */
-    LONG rc = SetRegistryEntry(REG_ROOT, "mp3root", mp3root);
+    const char *mp3root = settings.media_root;
+    const char *flacroot = settings.flac_root;
+    bool assimilate_receiver
+	= (settings.flags & choraled::ASSIMILATE_RECEIVER) != 0;
+    
+    LONG rc = SetRegistryEntry(REG_ROOT, L"mp3root",
+			       mp3root ? util::UTF8ToUTF16(mp3root)
+			               : std::wstring());
     if (rc == ERROR_SUCCESS)
-	rc = SetRegistryEntry(REG_ROOT, "flacroot", flacroot ? flacroot : "");
+	rc = SetRegistryEntry(REG_ROOT, L"flacroot",
+			      flacroot ? util::UTF8ToUTF16(flacroot)
+			               : std::wstring());
+    if (rc == ERROR_SUCCESS)
+	rc = SetRegistryEntry(REG_ROOT, L"assimilate_receiver",
+			      assimilate_receiver ? L"yes" : L"");
     if (rc != ERROR_SUCCESS)
     {
 	fprintf(stderr, "Unable to set registry entries (code %u)\n\n",
@@ -424,7 +420,7 @@ void ChoraleService::Install(const char *mp3root, const char *flacroot)
         return;
     }
 
-    WCHAR my_path[MAX_PATH];
+    util::utf16_t my_path[MAX_PATH];
     GetModuleFileNameW(NULL, my_path, MAX_PATH);
 
     SC_HANDLE svc = CreateServiceW(mgr, L"" PACKAGE_NAME, L"" PACKAGE_NAME, 
@@ -520,9 +516,22 @@ void ChoraleService::Uninstall()
         int err = GetLastError();
         CloseServiceHandle(svc);
         CloseServiceHandle(mgr);
-        fprintf(stderr, "The service could not be deleted (error number is %d)\n", err);
-        fprintf(stderr, "Uninstallation failed\n");
-        return;
+
+	if (err == ERROR_SERVICE_MARKED_FOR_DELETE)
+	{
+	    fprintf(stderr, "The service is marked for deletion but can't disappear entirely yet.\n");
+	    fprintf(stderr, "For instance, if Control Panel/Services is open, that prevents\nservices from disappearing until it is closed and reopened.\n");
+	}
+	else
+	{
+	    fprintf(stderr, "The service could not be deleted (error number is %d)\n", err);
+	    fprintf(stderr, "Uninstallation failed\n");
+	    return;
+	}
+    }
+    else
+    {
+	printf("The service has been stopped and uninstalled\n");
     }
 
     CloseServiceHandle(svc);
@@ -533,10 +542,18 @@ void ChoraleService::Uninstall()
         /* Command-line handling */
 
 
+#if (HAVE_LIBCDIOP && !HAVE_PARANOIA)
+#define LICENCE "This program is free software under the GNU General Public Licence.\n\n"
+#elif (HAVE_TAGLIB || HAVE_PARANOIA)
+#define LICENCE "This program is free software under the GNU Lesser General Public Licence.\n\n"
+#else
+#define LICENCE "This program is placed in the public domain by its authors.\n\n"
+#endif
+
 static void Usage(FILE *f)
 {
     fprintf(f,
-"Usage: choralesvc -i <root-directory> [<flac-root-directory>]\n"
+"Usage: choralesvc -i [-a] <root-directory> [<flac-root-directory>]\n"
 "       choralesvc -d|-u|-h\n"
 "Serve local media resources (files, inputs, outputs), to network clients.\n"
 "\n"
@@ -546,12 +563,14 @@ static void Usage(FILE *f)
 #endif
 " -i, --install   Install service\n"
 " -u, --uninstall Uninstall service\n"
+"     --assimilate-receiver  Gateway existing Receiver server to UPnP\n"
 " -h, --help      These hastily-scratched notes\n"
 "\n"
 "Once the service is installed, it is automatically started; you can then\n"
 "use Control Panel / Services to stop or restart it.\n"
 "\n"
-"From " PACKAGE_STRING " built on " __DATE__ "\n"
+	    LICENCE
+"From " PACKAGE_STRING " built on " __DATE__ ".\n"
 	);
 }
 
@@ -572,6 +591,11 @@ wchar_t *wmemmove(wchar_t *dest, const wchar_t *src, size_t n)
     return (wchar_t*)memmove(dest, src, n*2);
 }
 
+/* We use main() rather than wmain() because there isn't a wide
+ * version of getopt. This means that the command-line arguments are
+ * char*, but IN THE SYSTEM ANSI CODEPAGE. All char* strings
+ * everywhere outside this file in Chorale are UTF-8.
+ */
 int main(int argc, char *argv[])
 {
     static const struct option options[] =
@@ -580,8 +604,12 @@ int main(int argc, char *argv[])
 	{ "install",   no_argument, NULL, 'i' },
 	{ "uninstall", no_argument, NULL, 'u' },
 	{ "help",      no_argument, NULL, 'h' },
+	{ "assimilate-receiver", no_argument, NULL, 11 },
 	{ NULL, 0, NULL, 0 }
     };
+
+    choraled::Settings settings;
+    memset(&settings, '\0', sizeof(settings));
 
     int which = 0;
 
@@ -596,6 +624,10 @@ int main(int argc, char *argv[])
 	    Usage(stdout);
 	    return 0;
 
+	case 11:
+	    settings.flags |= choraled::ASSIMILATE_RECEIVER;
+	    break;
+
 	case 'i':
 	case 'u':
 	case 'd':
@@ -609,11 +641,23 @@ int main(int argc, char *argv[])
 	}
     }
 
+    std::string flac_root, mp3_root;
+
     if (which == 'i')
     {
-	// Install mode -- 1 or 2 arguments
-	if (argc > optind+2 || argc <= optind)
+	switch (argc-optind) // Number of remaining arguments
 	{
+	case 2:
+	    flac_root = util::LocalEncodingToUTF8(argv[optind+1]);
+	    settings.flac_root = flac_root.c_str();
+	    /* fall through */
+	case 1:
+	    mp3_root = util::LocalEncodingToUTF8(argv[optind]);
+	    settings.media_root = mp3_root.c_str();
+	    /* fall through */
+	case 0:
+	    break;
+	default:
 	    Usage(stderr);
 	    return 1;
 	}
@@ -631,7 +675,7 @@ int main(int argc, char *argv[])
     if (which == 'd')
 	ChoraleService::RunForeground();
     else if (which == 'i')
-	ChoraleService::Install(argv[optind], argv[optind+1]);
+	ChoraleService::Install(settings);
     else if (which == 'u')
 	ChoraleService::Uninstall();
     else

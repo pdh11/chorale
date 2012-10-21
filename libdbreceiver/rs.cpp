@@ -54,6 +54,8 @@ std::string Recordset::GetString(field_t which)
 
     if (which == mediadb::CHILDREN)
     {
+	if ((m_got_what & GOT_TAGS) == 0)
+	    GetTags();
 	if ((m_got_what & GOT_CONTENT) == 0)
 	    GetContent();
 	return m_freers->GetString(which);
@@ -75,28 +77,38 @@ void Recordset::GetTags()
        << std::hex << m_id << "?_utf8=1";
     std::string url = os.str();
 
+//    TRACE << "Asking for URL " << url << "\n";
+
     std::string content;
     util::http::Fetcher hc(m_parent->m_http, url);
     hc.FetchToString(&content);
 
+//    TRACE << "Content of " << url << " is\n" << Hex(content.c_str(), content.length());
+
     if (!m_freers)
 	m_freers = db::FreeRecordset::Create();
 
-    int index = 0;
     while (!content.empty())
     {
 	if (content.length() < 2)
+	{
+//	    TRACE << "Don't like this content (length=" << content.length()
+//		  << ")\n";
 	    break; // Malformed
+	}
 
 	int id = (unsigned char)content[0];
 	unsigned int size = (unsigned char)content[1];
 	if (size > content.length() + 2)
+	{
+//	    TRACE << "Don't like this field (size=" << size
+//		  << ", content length=" << content.length() << ")\n";
 	    break; // Malformed
+	}
 
 	std::string field(content, 2, size);
 
 	content.erase(0, size+2);
-	++index;
 
 	int choraleid = m_parent->m_server_to_media_map[id];
 	if (!choraleid || size == 0)
@@ -116,6 +128,8 @@ void Recordset::GetTags()
 		TRACE << "Unrecognised type string '" << field << "' id=" << id << " choraleid=" << choraleid << "\n";
 		m_freers->SetInteger(mediadb::TYPE, mediadb::FILE);
 	    }
+//	    TRACE << "id " << m_id << " type is "
+//		  << m_freers->GetInteger(mediadb::TYPE) << "\n";
 	    break;
 	case mediadb::CODEC:
 	    if (field == "mp3")
@@ -141,7 +155,14 @@ void Recordset::GetContent()
     if (!m_freers)
 	m_freers = db::FreeRecordset::Create();
     
-    /** @todo Some protection against doing this on a tune */
+    unsigned int type = m_freers->GetInteger(mediadb::TYPE);
+    if (type != mediadb::PLAYLIST && type != mediadb::DIR)
+    {
+//	TRACE << "Content asked-for on id " << m_id 
+//	      << " with non-playlist type " << type << "\n";
+	m_got_what |= GOT_CONTENT;
+	return;
+    }
 
     std::ostringstream os;
     os << "http://" << m_parent->m_ep.ToString() << "/content/"
@@ -153,7 +174,9 @@ void Recordset::GetContent()
     util::http::Fetcher hc(m_parent->m_http, url);
     hc.FetchToString(&content);
 
-    TRACE << "Content is\n" << Hex(content.c_str(), content.length());
+//    TRACE << "Content of " << m_id << " is\n" << Hex(content.c_str(), content.length());
+
+    std::vector<unsigned int> childvec;
 
     /** Binary playlist format, little-endian words.
      *
@@ -166,7 +189,6 @@ void Recordset::GetContent()
 	&& content[0] == (char)0xFF
 	&& content[1] == (char)2)
     {
-	std::vector<unsigned int> childvec;
 	childvec.resize((content.length()-4) / 8);
 	for (unsigned int i=0; i<childvec.size(); ++i)
 	{
@@ -176,10 +198,22 @@ void Recordset::GetContent()
 		+ ((unsigned char)content[offset+2] << 16)
 		+ ((unsigned char)content[offset+3] << 24);
 	}
-
-	m_freers->SetString(mediadb::CHILDREN,
-			    mediadb::VectorToChildren(childvec));
     }
+    else
+    {
+	childvec.resize(content.length() / 4);
+	for (unsigned int i=0; i<childvec.size(); ++i)
+	{
+	    unsigned int offset = i*4;
+	    childvec[i] = (unsigned char)content[offset]
+		+ ((unsigned char)content[offset+1] << 8)
+		+ ((unsigned char)content[offset+2] << 16)
+		+ ((unsigned char)content[offset+3] << 24);
+	}
+    }
+  
+    m_freers->SetString(mediadb::CHILDREN,
+			mediadb::VectorToChildren(childvec));
 
     m_got_what |= GOT_CONTENT;
 }
@@ -245,7 +279,7 @@ RestrictionRecordset::RestrictionRecordset(Database *parent,
     hc.FetchToString(&m_content);
 
     TRACE << "results content (" << m_content.length() << ") =\n"
-	  << Hex(m_content.c_str(), m_content.length());
+	  << util::Hex(m_content.c_str(), m_content.length());
     
     m_eof = m_content.empty();
 

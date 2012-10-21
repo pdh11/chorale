@@ -55,44 +55,6 @@ std::string ProtectLeafname(const std::string& s)
     return out;
 }
 
-std::string GetDirName(const char *filename)
-{
-    const char *rslash = strrchr(filename, '/');
-    if (rslash)
-	return std::string(filename, rslash);
-    return std::string();
-}
-
-std::string GetLeafName(const char *filename)
-{
-    const char *rslash = strrchr(filename, '/');
-    if (rslash)
-	return std::string(rslash+1);
-    return filename;
-}
-
-std::string GetExtension(const char *filename)
-{
-    const char *dot = strrchr(filename, '.');
-    if (!dot)
-	return "";
-    const char *slash = strrchr(filename, '/');
-    if (slash && slash > dot)
-	return "";
-    return std::string(dot+1);
-}
-
-std::string StripExtension(const char *filename)
-{
-    const char *dot = strrchr(filename, '.');
-    if (!dot)
-	return filename;
-    const char *slash = strrchr(filename, '/');
-    if (slash && slash > dot)
-	return filename;
-    return std::string(filename, dot);
-}
-
 static void Split(const std::string& in, std::string *head, std::string *tail)
 {
     std::string::size_type slash = in.find('/');
@@ -249,6 +211,34 @@ int main()
     assert(util::URLToPath("file:///") == "/");
     assert(util::URLToPath("file:///foo/") == "/foo/");
     assert(util::URLToPath("file:///who%3F.mp3") == "/who?.mp3");
+
+    assert(util::win32::GetDirName("C:\\foo") == "C:"); // Is this what we want?
+    assert(util::win32::GetDirName("C:\\foo\\bar") == "C:\\foo");
+    assert(util::win32::GetDirName("foo\\bar/wurdle") == "foo\\bar");
+    assert(util::win32::GetDirName("foo/bar\\wurdle") == "foo/bar");
+    assert(util::posix::GetDirName("foo/bar\\wurdle") == "foo");
+
+    assert(util::win32::GetLeafName("C:\\foo") == "foo");
+    assert(util::win32::GetLeafName("C:\\foo\\bar") == "bar");
+    assert(util::win32::GetLeafName("foo\\bar/wurdle") == "wurdle");
+    assert(util::win32::GetLeafName("foo/bar\\wurdle") == "wurdle");
+    assert(util::posix::GetLeafName("foo/bar\\wurdle") == "bar\\wurdle");
+
+    assert(util::win32::StripExtension("ILOVEYOU.TXT.VBS") == "ILOVEYOU.TXT");
+    assert(util::posix::StripExtension("ILOVEYOU.TXT.VBS") == "ILOVEYOU.TXT");
+    assert(util::win32::StripExtension("foo.txt\\bar") == "foo.txt\\bar");
+    assert(util::posix::StripExtension("foo.txt\\bar") == "foo");
+    assert(util::win32::StripExtension("foo/bar.txt") == "foo/bar");
+    assert(util::posix::StripExtension("foo/bar.txt") == "foo/bar");
+
+    assert(util::win32::GetExtension("ILOVEYOU.TXT.VBS") == "VBS");
+    assert(util::posix::GetExtension("ILOVEYOU.TXT.VBS") == "VBS");
+    assert(util::win32::GetExtension("foo.txt\\bar") == "");
+    assert(util::posix::GetExtension("foo.txt\\bar") == "txt\\bar");
+    assert(util::win32::GetExtension("foo/bar.txt") == "txt");
+    assert(util::posix::GetExtension("foo/bar.txt") == "txt");
+    assert(util::win32::GetExtension("foo.bar/txt") == "");
+    assert(util::posix::GetExtension("foo.bar/txt") == "");
 
     return 0;
 }

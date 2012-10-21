@@ -2,6 +2,7 @@
 #include "urlplayer.h"
 #include "libutil/trace.h"
 #include "libutil/observable.h"
+#include "libdb/query.h"
 #include "libmediadb/db.h"
 #include "libmediadb/schema.h"
 #include "libmediadb/registry.h"

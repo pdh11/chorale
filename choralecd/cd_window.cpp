@@ -9,7 +9,6 @@
  */
 #include "cd_window.h"
 #include "libutil/trace.h"
-#include "libutil/file.h"
 #include <qradiobutton.h>
 #include <qlayout.h>
 #include <qlabel.h>
@@ -23,31 +22,22 @@
 #include <qcursor.h>
 #include <qstring.h>
 #include "tagtable.h"
-#include "libimport/ripping_task.h"
-#include "libimport/encoding_task_flac.h"
-#include "libimport/encoding_task_mp3.h"
-#include "libimport/eject_task.h"
-#include "libimport/playlist.h"
 #include "events.h"
 #include "settings.h"
 #include <sstream>
 #include <iomanip>
-#include "libdb/free_rs.h"
 #include "libmediadb/schema.h"
+#include "libdb/recordset.h"
 #include <fcntl.h>
 
 namespace choraleqt {
 
-unsigned CDWindow::sm_index = 0;
-
 struct CDWindow::Entry
 {
-    import::RippingTaskPtr rtp;
     unsigned rt_percent;
-    import::EncodingTaskPtr etp1;
     unsigned et1_percent;
-    import::EncodingTaskPtr etp2;
     unsigned et2_percent;
+    /// @todo bool cancelled
 };
 
 static const struct
@@ -74,9 +64,8 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
 		   const Settings *settings, util::TaskQueue *cpu_queue,
 		   util::TaskQueue *disk_queue)
     : QDialog(NULL, NULL),
-      m_settings(settings),
-      m_cpu_queue(cpu_queue),
-      m_disk_queue(disk_queue),
+      m_rip(drive, cd, cpu_queue, disk_queue,
+	    settings->GetMP3Root(), settings->GetFlacRoot()),
       m_ntracks((unsigned int)cd->GetTrackCount()),
       m_entries(new Entry[m_ntracks]),
       m_cdtype(NULL),
@@ -86,12 +75,12 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
       m_progress_column(0),
       m_cddb(cddb)
 {
-    unsigned int this_index = ++sm_index;
+    m_rip.AddObserver(this);
 
     unsigned total_sectors = cd->GetTotalSectors();
 
     std::ostringstream caption;
-    caption << "CD " << this_index << ": " << drive->GetName()
+    caption << "CD in " << drive->GetName()
 	    << " (" << (total_sectors / (75*60)) << ":"
 	    << std::setw(2) << std::setfill('0')
 	    << ((total_sectors/75) % 60) << ")";
@@ -207,7 +196,7 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
 		      + toplayout->sizeHint().height()
 		      + m_table->horizontalHeader()->sizeHint().height()
 		      + m_table->horizontalScrollBar()->sizeHint().height()
-		      + m_table->contentsHeight() + 4 + 2*6 + 8 );
+		      + m_table->contentsHeight() + 4 + 2*6 + 18 );
 
     size_t newheight = maximumHeight();
     size_t screenheight = QApplication::desktop()->height();
@@ -215,51 +204,11 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
     if (newheight > (screenheight*7/8))
 	newheight = screenheight *7/8;
     resize((int)newheight, width());
-     
-    for (unsigned int i=0; i<m_ntracks; ++i)
-    {
-	char leaf[32];
-	sprintf(leaf, "cd%03ut%02u", this_index, i+1);
-	std::string filename = m_settings->GetFlacRoot() + "/" + leaf;
-
-	import::EncodingTaskPtr etp1
-	    = import::EncodingTaskFlac::Create(filename + ".flac");
-	m_entries[i].etp1 = etp1;
-	m_entries[i].et1_percent = 0;
-	etp1->SetObserver(this);
-
-	filename = m_settings->GetMP3Root() + "/" + leaf;
-
-	import::EncodingTaskPtr etp2
-	    = import::EncodingTaskMP3::Create(filename + ".mp3");
-	m_entries[i].etp2 = etp2;
-	m_entries[i].et2_percent = 0;
-	etp2->SetObserver(this);
-
-	import::RippingTaskPtr rtp = 
-	    import::RippingTask::Create(cd, i, filename, etp1, etp2,
-					m_cpu_queue,
-					m_disk_queue);
-	m_entries[i].rtp = rtp;
-	m_entries[i].rt_percent = 0;
-	rtp->SetObserver(this);
-	drive->GetTaskQueue()->PushTask(rtp);
-	TRACE << "Pushed task for track " << i << "/" << m_ntracks << "\n";
-    }
-    drive->GetTaskQueue()->PushTask(import::EjectTask::Create(drive));
-    TRACE << "Pushed eject task\n";
 }
 
 CDWindow::~CDWindow()
 {
     TRACE << "~CDWindow\n";
-    for (unsigned int i = 0; i < m_ntracks; ++i)
-    {
-	m_entries[i].etp1->SetObserver(NULL);
-	m_entries[i].etp2->SetObserver(NULL);
-	if (m_entries[i].rtp)
-	    m_entries[i].rtp->SetObserver(NULL);
-    }
     QApplication::removePostedEvents(this);
     delete[] m_entries;
 }
@@ -353,34 +302,27 @@ std::string CDWindow::QStringToUTF8(const QString& s)
     return std::string(qcs.data(), qcs.length());
 }
 
-static std::string UnThe(const std::string& s)
-{
-    if (std::string(s,0,4) == "The ")
-	return std::string(s,4);
-    return s;
-}
-
 void CDWindow::OnDone()
 {
     unsigned int cdtype = m_cdtype->selectedId();
     unsigned int trackoffset = m_trackoffset->value();
-    std::string album;
-    std::string albumroot;
-    import::PlaylistPtr pp;
 
-    if (cdtype == COMPILATION)
+    switch (cdtype)
     {
-	album = QStringToUTF8(m_albumname->text());
-	albumroot = "Compilations/" + album + ".asx";
-
-	pp = import::Playlist::Create(m_settings->GetMP3Root()
-						  + "/" + albumroot);
-	pp->Load();
+    case COMPILATION:
+	m_rip.SetTemplates("Artists/%A/%t", "Compilations/%c");
+	break;
+    case MIXED:
+	m_rip.SetTemplates("Mixed/%c/%02n %t", "");
+	break;
+    case SINGLE_ARTIST: default:
+	m_rip.SetTemplates("Artists/%A/%c/%02n %t", "");
+	break;
     }
 
     for (unsigned int i=0; i<m_ntracks; ++i)
     {
-	db::RecordsetPtr tags = db::FreeRecordset::Create();
+	db::RecordsetPtr tags = m_rip.Tags(i);
 
 	if (cdtype != COMPILATION)
 	{
@@ -396,75 +338,20 @@ void CDWindow::OnDone()
 		continue;
 	    tags->SetString(field, QStringToUTF8(m_table->text(i, j)));
 	}
-
-//	TRACE << "Track " << (i+1+trackoffset) << tags << "\n";
-
-	std::string artist = UnThe(util::ProtectLeafname(tags->GetString(mediadb::ARTIST)));
-	album = util::ProtectLeafname(tags->GetString(mediadb::ALBUM));
-	std::string title = util::ProtectLeafname(tags->GetString(mediadb::TITLE));
 	
-	std::ostringstream name;
-	// Form filename
-	switch (cdtype)
-	{
-	case SINGLE_ARTIST:
-	    name << "Artists/" 
-		 << artist << "/"
-		 << album << "/"
-		 << std::setw(2) << std::setfill('0')
-		 << (i+1+trackoffset) << " "
-		 << title;
-	    albumroot = "Artists/" + artist + "/" + album;
-	    break;
-	case COMPILATION:
-	    name << "Artists/" 
-		 << artist << "/"
-		 << title;
-	    break;
-	case MIXED:
-	    name << "Mixed/" 
-		 << album << "/"
-		 << std::setw(2) << std::setfill('0')
-		 << (i+1+trackoffset) << " "
-		 << title;
-	    albumroot = "Mixed/" + album;
-	    break;
-	}
-
-	std::string filename = "/";
-	filename += name.str();
-
-	TRACE << "Renaming to " << filename << ".ext\n";
-
-	std::string flacname = m_settings->GetFlacRoot() + filename + ".flac";
-	std::string mp3name  = m_settings->GetMP3Root()  + filename + ".mp3";
-
-	/** Because they are disk-bound not CPU-bound, punt tagging operations
-	 * to the disk queue.
-	 */
-	m_entries[i].etp1->RenameAndTag(flacname, tags, m_disk_queue);
-	m_entries[i].etp2->RenameAndTag(mp3name, tags, m_disk_queue);
-
-	if (pp)
-	    pp->SetEntry(i+trackoffset, mp3name);
+	tags->Commit();
     }
 
-    if (pp)
-    {
-	pp->Save();
-    }
-
-    std::string link = m_settings->GetMP3Root() + "/New Albums/" + album;
-    util::MkdirParents(link.c_str());
-    util::posix::MakeRelativeLink(link, m_settings->GetMP3Root() + "/" + albumroot);
-
+    m_rip.Done();
+    
     close();
 }
 
-void CDWindow::OnProgress(const util::Task *task, unsigned num, unsigned denom)
+void CDWindow::OnProgress(unsigned track, unsigned type,
+			  unsigned num, unsigned denom)
 {
     // Called on wrong thread
-    QApplication::postEvent(this, new ProgressEvent(task, num, denom));
+    QApplication::postEvent(this, new ProgressEvent(track, type, num, denom));
 }
 
 void CDWindow::customEvent(QEvent *ce)
@@ -472,45 +359,40 @@ void CDWindow::customEvent(QEvent *ce)
     if ((int)ce->type() == EVENT_PROGRESS)
     {
 	ProgressEvent *pe = (ProgressEvent*)ce;
-	const util::Task *task = pe->GetTask();
 	unsigned percent
 	    = (unsigned)(((long long)pe->GetNum()) * 100 / pe->GetDenom());
 	if (percent == 100 && pe->GetNum() != pe->GetDenom())
 	    percent = 99;
 
-	for (unsigned int i=0; i<m_ntracks; ++i)
+	unsigned int track = pe->GetTrack();
+	unsigned int type = pe->GetType();
+	bool draw = false;
+
+	Entry *e = &m_entries[track];
+
+	switch (type)
 	{
-	    bool draw = false;
-	    if (m_entries[i].etp1.get() == task)
-	    {
-		draw = (percent != m_entries[i].et1_percent);
-		m_entries[i].et1_percent = percent;
-	    }
-	    else if (m_entries[i].etp2.get() == task)
-	    {
-		draw = (percent != m_entries[i].et2_percent);
-		m_entries[i].et2_percent = percent;
-	    }
-	    else if (m_entries[i].rtp.get() == task)
-	    {
-		draw = (percent != m_entries[i].rt_percent);
-		m_entries[i].rt_percent = percent;
-		if (percent == 100)
-		{
-		    // Abandon references so the object is deleted
-		    m_entries[i].rtp->SetObserver(NULL);
-		    m_entries[i].rtp = NULL;
-		}
-	    }
-	    if (draw)
-	    {
-		std::ostringstream os;
-		os << m_entries[i].rt_percent << "%/"
-		   << m_entries[i].et1_percent << "%/"
-		   << m_entries[i].et2_percent << "%";
-		m_table->setText(i, m_progress_column, os.str().c_str());
+	case import::PROGRESS_RIP:
+	    draw = (percent != e->rt_percent);
+	    e->rt_percent = percent;
 		break;
-	    }
+	case import::PROGRESS_FLAC:
+	    draw = (percent != e->et1_percent);
+	    e->et1_percent = percent;
+	    break;
+	case import::PROGRESS_MP3:
+	    draw = (percent != e->et2_percent);
+	    e->et2_percent = percent;
+	    break;
+	}
+	
+	if (draw)
+	{
+	    std::ostringstream os;
+	    os << e->rt_percent << "%/"
+	       << e->et1_percent << "%/"
+	       << e->et2_percent << "%";
+	    m_table->setText(track, m_progress_column, os.str().c_str());
 	}
     }
 }

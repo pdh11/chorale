@@ -10,50 +10,42 @@
 #include <string>
 #include <map>
 #include <set>
-//#include <sys/time.h>
+#include <vector>
 #include <boost/thread/mutex.hpp>
+#include "attributes.h"
+
+namespace util {
 
 class Tracer
 {
     static boost::mutex sm_mutex;
     boost::mutex::scoped_lock m_lock;
+    bool m_emit;
 
 public:
-    Tracer(const char *file, unsigned int line)
-	: m_lock(sm_mutex)
-    {
-#if 0 //def WIN32
-	printf("%04u:%-25s:%4u: ", (unsigned int)GetCurrentThreadId(), file, 
-	       line);
-#else
-//	struct timeval tv;
-//	gettimeofday(&tv, NULL);
+    Tracer(const char *env_var, const char *file, unsigned int line);
+    ~Tracer();
 
-//	printf("%09u.%06u:%-25s:%4u: ", (unsigned)tv.tv_sec, (unsigned)tv.tv_usec, file, line);
-	printf("%-25s:%4u: ", file, line);
-#endif
-    }
-    ~Tracer() { fflush(stdout); }
+    void Printf(const char *format, ...) const ATTRIBUTE_PRINTF(2,3);
 
     // scoped_lock is noncopyable in older versions of Boost
-    Tracer(const Tracer&) : m_lock(sm_mutex) {}
+    Tracer(const Tracer& o) : m_lock(sm_mutex), m_emit(o.m_emit) {}
 };
 
-class NullTracer
-{
-};
-
-inline const Tracer& operator<<(const Tracer& n, const char* s) { printf("%s",s?s:"NULL"); return n; }
-inline const Tracer& operator<<(const Tracer& n, const std::string& s) { printf("%s", s.c_str()); return n; }
-inline const Tracer& operator<<(const Tracer& n, unsigned int ui) { printf("%u",ui); return n; }
-inline const Tracer& operator<<(const Tracer& n, unsigned long ul) { printf("%lu",ul); return n; }
-inline const Tracer& operator<<(const Tracer& n, unsigned long long ull) { printf("%llu",ull); return n; }
-inline const Tracer& operator<<(const Tracer& n, char i) { printf("'%c'",i); return n; }
-inline const Tracer& operator<<(const Tracer& n, int i) { printf("%d",i); return n; }
-inline const Tracer& operator<<(const Tracer& n, long i) { printf("%ld",i); return n; }
-inline const Tracer& operator<<(const Tracer& n, long long i) { printf("%lld",i); return n; }
-inline const Tracer& operator<<(const Tracer& n, const void *p) { printf("%p",p); return n; }
-inline const Tracer& operator<<(const Tracer& n, double d) { printf("%f",d); return n; }
+inline const Tracer& operator<<(const Tracer& n, const char* s) { n.Printf("%s",s?s:"NULL"); return n; }
+       const Tracer& operator<<(const Tracer& n, const wchar_t* s);
+inline const Tracer& operator<<(const Tracer& n, const std::string& s) { n.Printf("%s", s.c_str()); return n; }
+       const Tracer& operator<<(const Tracer& n, const std::wstring& s);
+inline const Tracer& operator<<(const Tracer& n, unsigned int ui) { n.Printf("%u",ui); return n; }
+inline const Tracer& operator<<(const Tracer& n, unsigned long ul) { n.Printf("%lu",ul); return n; }
+inline const Tracer& operator<<(const Tracer& n, char i) { n.Printf("'%c'",i); return n; }
+inline const Tracer& operator<<(const Tracer& n, int i) { n.Printf("%d",i); return n; }
+inline const Tracer& operator<<(const Tracer& n, long i) { n.Printf("%ld",i); return n; }
+inline const Tracer& operator<<(const Tracer& n, const void *p) { n.Printf("%p",p); return n; }
+inline const Tracer& operator<<(const Tracer& n, double d) { n.Printf("%f",d); return n; }
+// These ones are out-of-line due to mingw shenanigans
+const Tracer& operator<<(const Tracer& n, unsigned long long ull);
+const Tracer& operator<<(const Tracer& n, long long ll);
 
 template<typename X> 
 inline const Tracer& operator<<(const Tracer& n, const std::set<X>& m)
@@ -64,6 +56,18 @@ inline const Tracer& operator<<(const Tracer& n, const std::set<X>& m)
 	n << *i << ", ";
     }
     n << "}\n";
+    return n;
+}
+
+template<typename X> 
+inline const Tracer& operator<<(const Tracer& n, const std::vector<X>& v)
+{
+    n << "( ";
+    for (typename std::vector<X>::const_iterator i = v.begin(); i != v.end(); ++i)
+    {
+	n << *i << ", ";
+    }
+    n << ")\n";
     return n;
 }
 
@@ -112,13 +116,51 @@ inline const Tracer& operator<<(const Tracer&n, Hex hex)
     return n;
 }
 
-template <typename T>
+class LogNameList
+{
+    const char *m_name;
+    static LogNameList *sm_head;
+    LogNameList *m_next;
+
+public:
+    LogNameList(const char *name);
+    static void ShowLogNames();
+};
+
+/** A tracer that does nothing, for release builds.
+ *
+ * For EnumHelper, see
+ * http://pdh11.blogspot.com/2009/04/one-template-to-rule-them-all-revisited.html
+ */
+struct NullTracer {
+    NullTracer() {}
+
+    struct EnumHelper {
+	EnumHelper() {}
+	EnumHelper(const NullTracer&) {}
+    } helper;
+
+    NullTracer(const EnumHelper&) {}
+};
+
+template<typename T>
 inline const NullTracer& operator<<(const NullTracer& n, T) { return n; }
 
+inline const NullTracer::EnumHelper& operator<<(const NullTracer& n, int)
+{ return n.helper; }
+
+} // namespace util
+
 #ifdef WITH_DEBUG
-#define TRACE Tracer(__FILE__,__LINE__)
+#define TRACE ::util::Tracer(NULL, __FILE__, __LINE__)
+#define LOG(x) ::util::Tracer(::LOG_IMPL_ ##x, __FILE__, __LINE__)
+#define LOG_DECL(x) \
+    static util::LogNameList LOG_NAME_ ##x (#x);	\
+    static const char LOG_IMPL_ ##x [] = "LOG_" #x
 #else
-#define TRACE NullTracer()
+#define TRACE util::NullTracer()
+#define LOG(x) util::NullTracer()
+#define LOG_DECL(x) extern char LOG_IMPL_ ##x
 #endif
 
 #endif

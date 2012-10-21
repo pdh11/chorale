@@ -8,12 +8,12 @@
  * typically, the GPL.
  */
 #include "settings_entry.h"
-#include "settings_window.h"
 #include <qpushbutton.h>
 #include <q3hbox.h>
 #include <qlineedit.h>
 #include <qlabel.h>
 #include <qcheckbox.h>
+#include <stdio.h>
 #include <QTableWidget>
 #include <QHeaderView>
 

@@ -23,7 +23,7 @@ class Description
     std::string m_friendly_name;
     std::string m_presentation_url;
 
-    /** The services in this device, indexed by service type.
+    /** The services in this device, indexed by service ID (not type!)
      */
     Services m_services;
 

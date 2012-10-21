@@ -2,6 +2,7 @@
 #define LIBIMPORT_REMOTE_CD_DRIVE_H 1
 
 #include "cd_drives.h"
+#include "audio_cd.h"
 #include "libupnp/OpticalDrive_client.h"
 #include "libutil/task.h"
 #include "libutil/worker_thread_pool.h"
@@ -10,7 +11,7 @@ namespace import {
 
 class RemoteCDDrive: public CDDrive, public upnp::OpticalDriveObserver
 {
-    upnp::Client m_upnp;
+    upnp::DeviceClient m_device_client;
     upnp::OpticalDriveClient m_optical_drive;
     std::string m_friendly_name;
     bool m_disc_present;

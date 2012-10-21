@@ -21,6 +21,16 @@ std::string Canonicalise(const std::string& path);
 unsigned int ReadDirectory(const std::string& path, 
 			   std::vector<util::Dirent> *entries);
 
+/** Returns only the directory part of the name, without trailing slash.
+ */
+std::string GetDirName(const char *filename);
+
+std::string GetLeafName(const char *filename);
+
+/** Returns file extension (without the ".") */
+std::string GetExtension(const char *filename);
+
+std::string StripExtension(const char *filename);
 
 } // namespace win32
 

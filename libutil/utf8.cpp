@@ -8,6 +8,43 @@ namespace util {
 
 enum { BOM = 0xFEFF, ERROR = 0xFFFD };
 
+std::string UTF32ToUTF8(const utf32_t *s)
+{
+    std::string result;
+    result.reserve(64); // guess
+
+    if (*s == BOM)
+	++s;
+    
+    while (*s)
+    {
+	uint32_t ch = *s++;
+
+	if (ch < 0x80)
+	    result += (char)ch;
+	else if (ch < 0x800)
+	{
+	    result += (char)(0xC0 + (ch>>6));
+	    result += (char)(0x80 + (ch & 0x3F));
+	}
+	else if (ch < 0x10000)
+	{
+	    result += (char)(0xE0 + (ch>>12));
+	    result += (char)(0x80 + ((ch>>6) & 0x3F));
+	    result += (char)(0x80 + (ch & 0x3F));
+	}
+	else
+	{
+	    result += (char)(0xF0 + (ch>>18));
+	    result += (char)(0x80 + ((ch>>12) & 0x3F));
+	    result += (char)(0x80 + ((ch>>6) & 0x3F));
+	    result += (char)(0x80 + (ch & 0x3F));
+	}
+    }
+
+    return result;
+}
+
 std::string UTF16ToUTF8(const utf16_t *s)
 {
     std::string result;
@@ -145,6 +182,21 @@ utf16string UTF8ToUTF16(const char *s)
     }
 
     return result;
+}
+
+std::string LocalEncodingToUTF8(const char *local_string)
+{
+    size_t len_chars = mbstowcs(NULL, local_string, 0);
+
+    if (len_chars == (size_t)-1)
+	return local_string;
+
+    std::wstring ws;
+    ws.resize(len_chars);
+
+    mbstowcs(&ws[0], local_string, len_chars+1);
+
+    return WideToUTF8(ws);
 }
 
 } // namespace util

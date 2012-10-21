@@ -1,6 +1,6 @@
 #include "query.h"
 #include "results.h"
-#include "libdb/db.h"
+#include "libdb/query.h"
 #include "libutil/trace.h"
 #include "libdb/free_rs.h"
 #include "libmediadb/schema.h"
@@ -14,6 +14,10 @@ Query::Query(db::Database *thedb, int field, const std::string& name)
       m_info(db::FreeRecordset::Create())
 {
     m_info->SetString(mediadb::TITLE, name);
+}
+
+Query::~Query()
+{
 }
 
 NodePtr Query::Create(db::Database *thedb, int field, const std::string& name)

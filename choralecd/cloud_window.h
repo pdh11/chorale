@@ -16,7 +16,7 @@ class InvisibleSizeGrip: public QSizeGrip
     Q_OBJECT
 
 public:
-    InvisibleSizeGrip(QWidget *parent) : QSizeGrip(parent) {}
+    InvisibleSizeGrip(QWidget *parent_widget) : QSizeGrip(parent_widget) {}
 
     void paintEvent(QPaintEvent*) {}
 };

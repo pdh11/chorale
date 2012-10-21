@@ -4,14 +4,14 @@ all:
 
 include $(TOP)Make.common
 
+ifeq ($(choralecd),)
+include $(TOP)choralecd/Makefile
+endif
 ifeq ($(choraleutil),)
 include $(TOP)choraleutil/Makefile
 endif
 ifeq ($(choraled),)
 include $(TOP)choraled/Makefile
-endif
-ifeq ($(choralecd),)
-include $(TOP)choralecd/Makefile
 endif
 
 # Autoconf stuff for remaking 'configure' and 'Make.config'
@@ -104,13 +104,24 @@ release: distclean
 		 .
 	bzip2 -9 $(CHORALE).tar
 
+# "check" is the GNU Coding Standards word for "tests"
+check: tests headercheck
+
 winrelease: all
 	rm -f $(CHORALE)-win32.zip
 	rm -rf wintemp
-	mkdir -p wintemp
+	mkdir -p wintemp/web/upnp wintemp/web/layout
 	cp $(TOP)choraled/choralesvc.exe wintemp
+	cp $(TOP)choraleutil/protocoltool wintemp/protocoltool.exe
 	cp /usr/i586-mingw32/bin/mingwm10.dll wintemp
-	zip -j -m -r $(CHORALE)-win32.zip wintemp
+	cp $(TOP)libupnp/AVTransport2.xml      wintemp/web/upnp/AVTransport.xml
+	cp $(TOP)libupnp/ContentDirectory3.xml wintemp/web/upnp/ContentDirectory.xml
+	cp $(TOP)libupnp/OpticalDrive.xml      wintemp/web/upnp/OpticalDrive.xml
+	cp $(TOP)libupnp/RenderingControl2.xml wintemp/web/upnp/RenderingControl.xml
+	cp $(TOP)imagery/icon32.png            wintemp/web/layout/icon.png
+	cp $(TOP)imagery/icon32s.png           wintemp/web/layout/iconsel.png
+	cp $(TOP)imagery/icon.ico              wintemp/web/layout/icon.ico
+	cd wintemp && zip -m -r ../$(CHORALE)-win32.zip .
 	mkdir -p wintemp
 	cp $(TOP)README       wintemp/README.TXT
 	cp $(TOP)INSTALL.WIN32 wintemp/INSTALL.TXT
@@ -118,7 +129,9 @@ winrelease: all
 	cp $(TOP)COPYING.GPL  wintemp/COPYING.GPL.TXT
 	cp $(TOP)COPYING.LGPL wintemp/COPYING.LGPL.TXT
 	cp $(TOP)libreceiverd/README wintemp/README.receiver.TXT
-	zip -j -m -r -l $(CHORALE)-win32.zip wintemp
+	GROFF_NO_SGR=please man $(TOP)choraleutil/protocoltool.1 \
+		| col -b > wintemp/README.protocoltool.TXT
+	cd wintemp && zip -m -r -l ../$(CHORALE)-win32.zip .
 
 SUBDIRS:= \
 	choralecd \
@@ -126,6 +139,7 @@ SUBDIRS:= \
 	choraleutil \
 	libdb \
 	libdbempeg \
+	libdbinno \
 	libdblocal \
 	libdbmerge \
 	libdbreceiver \
@@ -147,6 +161,8 @@ libdeps.dot: Makefile
 	echo "digraph G {" > $@
 	for i in $(SUBDIRS) ; do \
 		grep "^#include.*\".*/" $$i/*.{h,cpp} \
+			| fgrep -v choraled.all \
+			| fgrep -v exe.all \
 			| grep -v ".*include.*$$i" \
 			| sed -e 's,/[^\"]*\", -> ,'  -e s,/[^/]*\",, ; \
 	done | sort | uniq >> $@
@@ -167,8 +183,33 @@ filedeps.dot: Makefile
 
 %.png: %.dot
 	tred $< | dot -Tsvg -Nfontname="Luxi Sans" -Gfontnames=gd -o $*.svg
-	inkscape -z -b white -e $@ $*.svg -d60 > /dev/null
+	inkscape -z -b white -y 1.0 -e $@ $*.svg -d60 > /dev/null
 
 CLEANS += $(TOP)filedeps.dot $(TOP)libdeps.dot
 
-#  -e s,/[^/]*\",, ; \
+ALL_HEADERS:=$(shell ls $(TOP)*/*.h | fgrep -v .all- )
+
+#$(filter-out %/%.all-%, $(wildcard $(TOP)*/*.h))
+
+CHECKED_HEADERS:=$(ALL_HEADERS:$(TOP)%=$(TOP).headercheck/%)
+
+$(TOP).headercheck/%: $(TOP)% scripts/headercheck Makefile
+	@scripts/headercheck $< $(CXXFLAGS) $(QT_CXXFLAGS) $(INNODB_CXXFLAGS)
+	@mkdir -p `dirname $@`
+	@touch $@
+
+ALL_CPPS:=$(wildcard $(TOP)*/*.cpp)
+
+CHECKED_CPPS:=$(ALL_CPPS:$(TOP)%=$(TOP).cppcheck/%)
+
+$(TOP).cppcheck/%: $(TOP)% scripts/cppcheck Makefile
+	@scripts/cppcheck $< $(CXXFLAGS) $(QT_CXXFLAGS)
+	@mkdir -p `dirname $@`
+	@touch $@
+
+headercheck: $(CHECKED_HEADERS)
+
+cppcheck: $(CHECKED_CPPS)
+
+headercount:
+	grep 'TOP.*:' */$(TARGETDIR)/*.lo.dep | wc -l

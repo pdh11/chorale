@@ -10,7 +10,7 @@
 #undef IN
 #undef OUT
 
-#ifdef HAVE_DBUS
+#if HAVE_DBUS
 
 #include <dbus/dbus.h>
 
@@ -331,7 +331,7 @@ public:
 
 int main()
 {
-#ifdef HAVE_DBUS
+#if HAVE_DBUS
     util::Poller poller;
     util::dbus::Connection conn(&poller);
     unsigned int rc = conn.Connect(util::dbus::Connection::SYSTEM);

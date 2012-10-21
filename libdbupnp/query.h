@@ -1,7 +1,7 @@
 #ifndef LIBDBUPNP_QUERY_H
 #define LIBDBUPNP_QUERY_H 1
 
-#include "libdb/db.h"
+#include "libdb/query.h"
 
 namespace db {
 namespace upnpav {

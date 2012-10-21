@@ -1,15 +1,11 @@
 #include "config.h"
 #include "upnpav.h"
 #include "libutil/trace.h"
-#include "libutil/xmlescape.h"
 #include "libutil/xml.h"
 #include "libutil/string_stream.h"
 #include "libutil/poll.h"
 #include "libupnp/description.h"
-#include "libupnp/soap.h"
 #include "libupnp/ssdp.h"
-#include "libupnp/AVTransport2_client.h"
-#include "libupnp/ConnectionManager2_client.h"
 #include <errno.h>
 
 namespace output {
@@ -17,7 +13,10 @@ namespace upnpav {
 
 URLPlayer::URLPlayer(util::http::Client *client,
 		     util::http::Server *server)
-    : m_upnp(client, server),
+    : m_device_client(client, server),
+      m_avtransport(&m_device_client, upnp::s_service_id_av_transport),
+      m_connectionmanager(&m_device_client,
+			  upnp::s_service_id_connection_manager),
       m_state(STOP),
       m_poller(NULL)
 {
@@ -32,20 +31,19 @@ unsigned URLPlayer::Init(const std::string& url, const std::string& udn,
 {
     m_poller = poller;
 
-    unsigned int rc = m_upnp.Init(url, udn);
-    if (rc != 0)
+    unsigned int rc = m_device_client.Init(url, udn);
+    if (rc)
 	return rc;
 
-    m_friendly_name = m_upnp.GetDescription().GetFriendlyName();
+    m_friendly_name = m_device_client.GetFriendlyName();
 
-    rc = m_avtransport.Init(&m_upnp, upnp::s_service_id_av_transport);
-    if (rc != 0)
+    rc = m_avtransport.Init();
+    if (rc)
 	return rc;
     m_avtransport.AddObserver(this);
 
-    rc = m_connectionmanager.Init(&m_upnp, 
-				  upnp::s_service_id_connection_manager);
-    if (rc != 0)
+    rc = m_connectionmanager.Init();
+    if (rc)
 	return rc;
 
     return 0;

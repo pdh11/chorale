@@ -27,7 +27,6 @@ class Database: public mediadb::Database
 {
     util::http::Client *m_http;
     util::IPEndPoint m_ep;
-    bool m_got_tags;
 
     std::set<int> m_has_tags;
     std::map<int, int> m_server_to_media_map;

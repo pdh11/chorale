@@ -15,6 +15,7 @@ SRCS:=\
 	playlist_asx.cpp \
 	playlist_wpl.cpp \
 	remote_cd_drive.cpp \
+	ripping_control.cpp \
 	ripping_task.cpp \
 	tag_rename_task.cpp \
 	tags.cpp \

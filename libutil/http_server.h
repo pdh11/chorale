@@ -6,15 +6,15 @@
 #include <map>
 #include "socket.h"
 #include "stream.h"
-#include "worker_thread_pool.h"
 #include "pollable_task.h"
-#include "buffer_chain.h"
 
 namespace util {
 
+class BufferSink;
 class TaskQueue;
 class PollerInterface;
 class IPFilter;
+class WorkerThreadPool;
 
 namespace http {
 
@@ -64,17 +64,13 @@ struct Request: public boost::noncopyable
  */
 struct Response: public boost::noncopyable
 {
-    std::auto_ptr<BufferSink> body_sink;
+    boost::intrusive_ptr<BufferSink> body_sink;
     SeekableStreamPtr ssp;
     const char *content_type;   /// Default is text/html
     std::map<std::string, std::string> headers;
+    uint64_t length; /// If zero, use ssp->GetLength()
 
-    void Clear()
-    {
-	body_sink.reset(NULL);
-	content_type = NULL;
-	ssp.reset(NULL);
-    }
+    void Clear();
 };
 
 /** A http::Server plug-in, responsible for all the content under a
@@ -119,6 +115,7 @@ class Server
     StreamSocketPtr m_server_socket;
     unsigned short m_port;
     TaskPoller m_task_poller;
+    std::string m_server_header;
 
     class Task;
     friend class Task;
@@ -133,6 +130,8 @@ public:
     unsigned Init(unsigned short port = 0);
 
     unsigned short GetPort();
+
+    const std::string& GetServerHeader() { return m_server_header; }
 
     /** Mounts a virtual filesystem on the given "mount point".
      *

@@ -1,23 +1,19 @@
 #include "config.h"
 #include "content_directory.h"
 #include "libmediadb/schema.h"
-#include "libmediadb/xml.h"
 #include "libmediadb/didl.h"
 #include "libmediadb/db.h"
+#include "libdb/query.h"
 #include "libutil/trace.h"
-#include "libutil/poll.h"
-#include "libutil/poll_thread.h"
-#include "libutil/http_client.h"
-#include "libutil/http_server.h"
 #include "libutil/xmlescape.h"
-#include "libutil/urlescape.h"
-#include "libupnp/ContentDirectory3_client.h"
+#include "libutil/socket.h"
 #include "libupnp/soap_info_source.h"
-#include "media_server.h"
 #include "search.h"
 #include <sstream>
 #include <errno.h>
 #include <boost/format.hpp>
+
+LOG_DECL(CDS);
 
 namespace upnpd {
 
@@ -77,10 +73,10 @@ unsigned int ContentDirectoryImpl::Browse(const std::string& object_id,
 					  uint32_t *update_id)
 {
     unsigned int id = (unsigned int)strtoul(object_id.c_str(), NULL, 10);
-
-//    TRACE << "Browse(" << browse_flag << "," << object_id
-//	  << "," << starting_index << "," << requested_count
-//	  << ")\n";
+    
+    LOG(CDS) << "Browse(" << browse_flag << "," << object_id
+	     << "," << starting_index << "," << requested_count
+	     << ")\n";
 
     db::QueryPtr qp = m_db->CreateQuery();
     unsigned int rc = qp->Where(qp->Restrict(mediadb::ID, db::EQ,
@@ -135,9 +131,9 @@ unsigned int ContentDirectoryImpl::Browse(const std::string& object_id,
 	if (starting_index + requested_count > children.size())
 	    requested_count = (uint32_t)(children.size() - starting_index);
 
-//	TRACE << "Returning children " << starting_index << ".."
-//	      << (starting_index+requested_count) << "/"
-//	      << children.size() << "\n";
+	LOG(CDS) << "Returning children " << starting_index << ".."
+		 << (starting_index+requested_count) << "/"
+		 << children.size() << "\n";
 
 	for (unsigned int i = 0; i < requested_count; ++i)
 	{
@@ -165,7 +161,7 @@ unsigned int ContentDirectoryImpl::Browse(const std::string& object_id,
 
     ss << mediadb::didl::s_footer;
 
-//    TRACE << "Browse result is " << ss.str() << "\n\n";
+    LOG(CDS) << "Browse result is " << ss.str() << "\n\n";
 
     *result = ss.str();
     return 0;
@@ -182,7 +178,7 @@ unsigned int ContentDirectoryImpl::Search(const std::string& container_id,
 					  uint32_t *total_matches,
 					  uint32_t *update_id)
 {
-//    TRACE << "Search(" << search_criteria << ")\n";
+    LOG(CDS) << "Search(" << search_criteria << ")\n";
 
     db::QueryPtr qp = m_db->CreateQuery();
 
@@ -222,8 +218,8 @@ unsigned int ContentDirectoryImpl::Search(const std::string& container_id,
 		 * OK to use fictitious ones.
 		 */
 		ss << "<container id=\"" << collate << ":" << n
-		   << "\" parentID=\"" << container_id << "\" restricted=\"1\""
-		    " searchable=\"1\">"
+		   << "\" parentID=\"" << container_id << "\" restricted=\"true\""
+		    " searchable=\"true\">"
 		   << "<dc:title>" << util::XmlEscape(rs->GetString(0))
 		   << "</dc:title>";
 
@@ -278,7 +274,7 @@ unsigned int ContentDirectoryImpl::Search(const std::string& container_id,
     }
     ss << mediadb::didl::s_footer;
 
-//    TRACE << "Search result is " << ss.str() << " (" << nok << " items)\n";
+    LOG(CDS) << "Search result is " << ss.str() << " (" << nok << " items)\n";
 
     *result = ss.str();
     *number_returned = nok;
@@ -344,11 +340,19 @@ unsigned int ContentDirectoryImpl::GetServiceResetToken(std::string *srt)
 
 #ifdef TEST
 
+# include "libutil/poll.h"
+# include "libutil/poll_thread.h"
+# include "libutil/http_client.h"
+# include "libutil/http_server.h"
+# include "libutil/worker_thread_pool.h"
 # include "libdblocal/db.h"
 # include "libdbsteam/db.h"
 # include "libdbupnp/db.h"
 # include "libupnp/ssdp.h"
 # include "libupnp/server.h"
+# include "libupnp/ContentDirectory3_client.h"
+# include "libmediadb/xml.h"
+# include "media_server.h"
 
 static const struct {
     const char *objectid;
@@ -367,8 +371,8 @@ static const struct {
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
       " xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">"
-      "<container id=\"0\" parentID=\"-1\" restricted=\"1\" childCount=\"5\""
-      " searchable=\"1\">"
+      "<container id=\"0\" parentID=\"-1\" restricted=\"true\" childCount=\"5\""
+      " searchable=\"true\">"
       "<dc:title>mp3</dc:title>"
       "<upnp:class>object.container.storageFolder</upnp:class>"
       "<upnp:storageUsed>-1</upnp:storageUsed>"
@@ -387,31 +391,31 @@ static const struct {
 " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
 " xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">"
 
-"<container id=\"289\" parentID=\"0\" restricted=\"1\" childCount=\"17\">"
+"<container id=\"289\" parentID=\"0\" restricted=\"true\" childCount=\"17\">"
 "<dc:title>1992-2002</dc:title>"
 "<upnp:class>object.container.storageFolder</upnp:class>"
 "<upnp:storageUsed>-1</upnp:storageUsed>"
 "</container>"
 
-"<container id=\"290\" parentID=\"0\" restricted=\"1\" childCount=\"12\">"
+"<container id=\"290\" parentID=\"0\" restricted=\"true\" childCount=\"12\">"
 "<dc:title>Everything Is</dc:title>"
 "<upnp:class>object.container.storageFolder</upnp:class>"
 "<upnp:storageUsed>-1</upnp:storageUsed>"
 "</container>"
 
-"<container id=\"291\" parentID=\"0\" restricted=\"1\" childCount=\"4\">"
+"<container id=\"291\" parentID=\"0\" restricted=\"true\" childCount=\"4\">"
 "<dc:title>SongsStartingWithB</dc:title>"
 "<upnp:class>object.container.playlistContainer</upnp:class>"
 "<upnp:storageUsed>-1</upnp:storageUsed>"
 "</container>"
 
-"<container id=\"293\" parentID=\"0\" restricted=\"1\" childCount=\"13\">"
+"<container id=\"293\" parentID=\"0\" restricted=\"true\" childCount=\"13\">"
 "<dc:title>The Garden</dc:title>"
 "<upnp:class>object.container.storageFolder</upnp:class>"
 "<upnp:storageUsed>-1</upnp:storageUsed>"
 "</container>"
 
-"<container id=\"294\" parentID=\"0\" restricted=\"1\" childCount=\"10\">"
+"<container id=\"294\" parentID=\"0\" restricted=\"true\" childCount=\"10\">"
 "<dc:title>Violator</dc:title>"
 "<upnp:class>object.container.storageFolder</upnp:class>"
 "<upnp:storageUsed>-1</upnp:storageUsed>"
@@ -426,13 +430,13 @@ static const struct {
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
       " xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">"
 
-      "<item id=\"302\" parentID=\"289\" restricted=\"1\">"
+      "<item id=\"302\" parentID=\"289\" restricted=\"true\">"
       "<dc:title>Born Slippy Nuxx</dc:title>"
       "<upnp:class>object.item.audioItem.musicTrack</upnp:class>"
       "<upnp:genre>Electronica</upnp:genre>"
       "<dc:date>1996-01-01</dc:date>"
       "</item>"
-      "<item id=\"297\" parentID=\"0\" restricted=\"1\">"
+      "<item id=\"297\" parentID=\"0\" restricted=\"true\">"
       "<dc:title>Bigmouth</dc:title>"
       "<upnp:class>object.item.audioItem.musicTrack</upnp:class>"
       "<upnp:genre>Electronica</upnp:genre>"
@@ -445,8 +449,8 @@ static const struct {
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
       " xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">"
-      "<container id=\"0\" parentID=\"-1\" restricted=\"1\" childCount=\"5\""
-      " searchable=\"1\">"
+      "<container id=\"0\" parentID=\"-1\" restricted=\"true\" childCount=\"5\""
+      " searchable=\"true\">"
       "<dc:title>mp3</dc:title>"
       "<upnp:class>object.container.storageFolder</upnp:class>"
       "</container></DIDL-Lite>",
@@ -457,8 +461,8 @@ static const struct {
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
       " xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">"
-      "<container id=\"0\" parentID=\"-1\" restricted=\"1\" childCount=\"5\""
-      " searchable=\"1\">"
+      "<container id=\"0\" parentID=\"-1\" restricted=\"true\" childCount=\"5\""
+      " searchable=\"true\">"
       "<dc:title>mp3</dc:title>"
       "<upnp:class>object.container.storageFolder</upnp:class>"
       "<upnp:searchClass includeDerived=\"0\">"
@@ -475,8 +479,8 @@ static const struct {
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
       " xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">"
-      "<container id=\"0\" parentID=\"-1\" restricted=\"1\" childCount=\"5\""
-      " searchable=\"1\">"
+      "<container id=\"0\" parentID=\"-1\" restricted=\"true\" childCount=\"5\""
+      " searchable=\"true\">"
       "<dc:title>mp3</dc:title>"
       "<upnp:class>object.container.storageFolder</upnp:class>"
       "<upnp:storageUsed>-1</upnp:storageUsed>"
@@ -488,7 +492,7 @@ static const struct {
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
       " xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">"
-      "<item id=\"302\" parentID=\"289\" restricted=\"1\">"
+      "<item id=\"302\" parentID=\"289\" restricted=\"true\">"
       "<dc:title>Born Slippy Nuxx</dc:title>"
       "<upnp:class>object.item.audioItem.musicTrack</upnp:class>"
       "</item></DIDL-Lite>",
@@ -499,7 +503,7 @@ static const struct {
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
       " xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">"
-      "<item id=\"302\" parentID=\"289\" restricted=\"1\">"
+      "<item id=\"302\" parentID=\"289\" restricted=\"true\">"
       "<dc:title>Born Slippy Nuxx</dc:title>"
       "<upnp:class>object.item.audioItem.musicTrack</upnp:class>"
       "<upnp:artist>Underworld</upnp:artist>"
@@ -517,7 +521,7 @@ static const struct {
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
       " xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">"
-      "<item id=\"302\" parentID=\"289\" restricted=\"1\">"
+      "<item id=\"302\" parentID=\"289\" restricted=\"true\">"
       "<dc:title>Born Slippy Nuxx</dc:title>"
       "<upnp:class>object.item.audioItem.musicTrack</upnp:class>"
       "<upnp:artist>Underworld</upnp:artist>"
@@ -530,7 +534,7 @@ static const struct {
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
       " xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">"
-      "<item id=\"302\" parentID=\"289\" restricted=\"1\">"
+      "<item id=\"302\" parentID=\"289\" restricted=\"true\">"
       "<dc:title>Born Slippy Nuxx</dc:title>"
       "<upnp:class>object.item.audioItem.musicTrack</upnp:class>"
       "<upnp:originalTrackNumber>9</upnp:originalTrackNumber>"
@@ -543,7 +547,7 @@ static const struct {
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
       " xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">"
-      "<item id=\"302\" parentID=\"289\" restricted=\"1\">"
+      "<item id=\"302\" parentID=\"289\" restricted=\"true\">"
       "<dc:title>Born Slippy Nuxx</dc:title>"
       "<upnp:class>object.item.audioItem.musicTrack</upnp:class>"
       "<dc:date>1996-01-01</dc:date>"
@@ -574,7 +578,7 @@ static const struct {
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
       " xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">"
 
-      "<container id=\"291\" parentID=\"0\" restricted=\"1\" childCount=\"4\">"
+      "<container id=\"291\" parentID=\"0\" restricted=\"true\" childCount=\"4\">"
       "<dc:title>SongsStartingWithB</dc:title>"
       "<upnp:class>object.container.playlistContainer</upnp:class>"
       "<upnp:storageUsed>-1</upnp:storageUsed>"
@@ -588,7 +592,7 @@ static const struct {
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
       " xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">"
-      "<container id=\"291\" parentID=\"0\" restricted=\"1\" childCount=\"4\">"
+      "<container id=\"291\" parentID=\"0\" restricted=\"true\" childCount=\"4\">"
       "<dc:title>SongsStartingWithB</dc:title>"
       "<upnp:class>object.container.playlistContainer</upnp:class>"
       "<upnp:storageUsed>-1</upnp:storageUsed>"
@@ -604,7 +608,7 @@ static const struct {
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
       " xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">"
-      "<item id=\"353\" parentID=\"290\" restricted=\"1\">"
+      "<item id=\"353\" parentID=\"290\" restricted=\"true\">"
       "<dc:title>Headlights</dc:title>"
       "<upnp:class>object.item.audioItem.musicTrack</upnp:class>"
       "<upnp:artist>Nine Black Alps</upnp:artist>"
@@ -627,7 +631,7 @@ static const struct {
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
       " xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">"
-      "<container id=\"2:0\" parentID=\"0\" restricted=\"1\" searchable=\"1\">"
+      "<container id=\"2:0\" parentID=\"0\" restricted=\"true\" searchable=\"true\">"
       "<dc:title>Depeche Mode</dc:title>"
       "<upnp:class>object.container.person.musicArtist</upnp:class>"
       "<upnp:artist>Depeche Mode</upnp:artist>"
@@ -635,7 +639,7 @@ static const struct {
       "object.container.album.musicAlbum"
       "</upnp:searchClass>"
       "</container>"
-      "<container id=\"2:1\" parentID=\"0\" restricted=\"1\" searchable=\"1\">"
+      "<container id=\"2:1\" parentID=\"0\" restricted=\"true\" searchable=\"true\">"
       "<dc:title>Nine Black Alps</dc:title>"
       "<upnp:class>object.container.person.musicArtist</upnp:class>"
       "<upnp:artist>Nine Black Alps</upnp:artist>"
@@ -643,7 +647,7 @@ static const struct {
       "object.container.album.musicAlbum"
       "</upnp:searchClass>"
       "</container>"
-      "<container id=\"2:2\" parentID=\"0\" restricted=\"1\" searchable=\"1\">"
+      "<container id=\"2:2\" parentID=\"0\" restricted=\"true\" searchable=\"true\">"
       "<dc:title>Underworld</dc:title>"
       "<upnp:class>object.container.person.musicArtist</upnp:class>"
       "<upnp:artist>Underworld</upnp:artist>"
@@ -651,7 +655,7 @@ static const struct {
       "object.container.album.musicAlbum"
       "</upnp:searchClass>"
       "</container>"
-      "<container id=\"2:3\" parentID=\"0\" restricted=\"1\" searchable=\"1\">"
+      "<container id=\"2:3\" parentID=\"0\" restricted=\"true\" searchable=\"true\">"
       "<dc:title>Zero 7</dc:title>"
       "<upnp:class>object.container.person.musicArtist</upnp:class>"
       "<upnp:artist>Zero 7</upnp:artist>"
@@ -670,7 +674,7 @@ static const struct {
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
       " xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">"
-      "<container id=\"3:0\" parentID=\"0\" restricted=\"1\" searchable=\"1\">"
+      "<container id=\"3:0\" parentID=\"0\" restricted=\"true\" searchable=\"true\">"
       "<dc:title>Violator</dc:title>"
       "<upnp:class>object.container.album.musicAlbum</upnp:class>"
       "<upnp:album>Violator</upnp:album>"
@@ -690,7 +694,7 @@ static const struct {
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
       " xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">"
-      "<item id=\"331\" parentID=\"0\" restricted=\"1\">"
+      "<item id=\"331\" parentID=\"0\" restricted=\"true\">"
       "<dc:title>Blue Dress</dc:title>"
       "<upnp:class>object.item.audioItem.musicTrack</upnp:class>"
       "<upnp:artist>Depeche Mode</upnp:artist>"
@@ -703,7 +707,7 @@ static const struct {
       "<res protocolInfo=\"http-get:*:audio/x-flac:*\" size=\"33977715\""
       " duration=\"0:05:38.00\">15f</res>"
       "</item>"
-      "<item id=\"366\" parentID=\"0\" restricted=\"1\">"
+      "<item id=\"366\" parentID=\"0\" restricted=\"true\">"
       "<dc:title>World In My Eyes</dc:title>"
       "<upnp:class>object.item.audioItem.musicTrack</upnp:class>"
       "<upnp:artist>Depeche Mode</upnp:artist>"
@@ -730,25 +734,25 @@ static const struct {
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
       " xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">"
-      "<container id=\"3:0\" parentID=\"0\" restricted=\"1\" searchable=\"1\">"
+      "<container id=\"3:0\" parentID=\"0\" restricted=\"true\" searchable=\"true\">"
       "<dc:title>1992-2002</dc:title>"
       "<upnp:class>object.container.album.musicAlbum</upnp:class>"
       "<upnp:album>1992-2002</upnp:album>"
       "<upnp:searchClass includeDerived=\"0\">object.item.audioItem.musicTrack</upnp:searchClass>"
       "</container>"
-      "<container id=\"3:1\" parentID=\"0\" restricted=\"1\" searchable=\"1\">"
+      "<container id=\"3:1\" parentID=\"0\" restricted=\"true\" searchable=\"true\">"
       "<dc:title>Everything Is</dc:title>"
       "<upnp:class>object.container.album.musicAlbum</upnp:class>"
       "<upnp:album>Everything Is</upnp:album>"
       "<upnp:searchClass includeDerived=\"0\">object.item.audioItem.musicTrack</upnp:searchClass>"
       "</container>"
-      "<container id=\"3:2\" parentID=\"0\" restricted=\"1\" searchable=\"1\">"
+      "<container id=\"3:2\" parentID=\"0\" restricted=\"true\" searchable=\"true\">"
       "<dc:title>The Garden</dc:title>"
       "<upnp:class>object.container.album.musicAlbum</upnp:class>"
       "<upnp:album>The Garden</upnp:album>"
       "<upnp:searchClass includeDerived=\"0\">object.item.audioItem.musicTrack</upnp:searchClass>"
       "</container>"
-      "<container id=\"3:3\" parentID=\"0\" restricted=\"1\" searchable=\"1\">"
+      "<container id=\"3:3\" parentID=\"0\" restricted=\"true\" searchable=\"true\">"
       "<dc:title>Violator</dc:title>"
       "<upnp:class>object.container.album.musicAlbum</upnp:class>"
       "<upnp:album>Violator</upnp:album>"
@@ -764,7 +768,7 @@ static const struct {
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
       " xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">"
-      "<container id=\"5:0\" parentID=\"0\" restricted=\"1\" searchable=\"1\"><dc:title>Ambient</dc:title><upnp:class>object.container.genre.musicGenre</upnp:class><upnp:genre>Ambient</upnp:genre><upnp:searchClass includeDerived=\"0\">object.item.audioItem.musicTrack</upnp:searchClass></container><container id=\"5:1\" parentID=\"0\" restricted=\"1\" searchable=\"1\"><dc:title>Electronica</dc:title><upnp:class>object.container.genre.musicGenre</upnp:class><upnp:genre>Electronica</upnp:genre><upnp:searchClass includeDerived=\"0\">object.item.audioItem.musicTrack</upnp:searchClass></container><container id=\"5:2\" parentID=\"0\" restricted=\"1\" searchable=\"1\"><dc:title>Rock</dc:title><upnp:class>object.container.genre.musicGenre</upnp:class><upnp:genre>Rock</upnp:genre><upnp:searchClass includeDerived=\"0\">object.item.audioItem.musicTrack</upnp:searchClass></container>"
+      "<container id=\"5:0\" parentID=\"0\" restricted=\"true\" searchable=\"true\"><dc:title>Ambient</dc:title><upnp:class>object.container.genre.musicGenre</upnp:class><upnp:genre>Ambient</upnp:genre><upnp:searchClass includeDerived=\"0\">object.item.audioItem.musicTrack</upnp:searchClass></container><container id=\"5:1\" parentID=\"0\" restricted=\"true\" searchable=\"true\"><dc:title>Electronica</dc:title><upnp:class>object.container.genre.musicGenre</upnp:class><upnp:genre>Electronica</upnp:genre><upnp:searchClass includeDerived=\"0\">object.item.audioItem.musicTrack</upnp:searchClass></container><container id=\"5:2\" parentID=\"0\" restricted=\"true\" searchable=\"true\"><dc:title>Rock</dc:title><upnp:class>object.container.genre.musicGenre</upnp:class><upnp:genre>Rock</upnp:genre><upnp:searchClass includeDerived=\"0\">object.item.audioItem.musicTrack</upnp:searchClass></container>"
       "</DIDL-Lite>", 3, 3 },
 };
 
@@ -884,12 +888,13 @@ int main(int, char**)
     std::string descurl = (boost::format("http://127.0.0.1:%u/upnp/description.xml")
 			      % ws.GetPort()).str();
 
-    upnp::Client client(&wc, &ws);
+    upnp::DeviceClient client(&wc, &ws);
     rc = client.Init(descurl, ms.GetUDN());
     assert(rc == 0);
 
-    upnp::ContentDirectory3Client cdc;
-    rc = cdc.Init(&client, upnp::s_service_id_content_directory);
+    upnp::ContentDirectory3Client cdc(&client,
+				      upnp::s_service_id_content_directory);
+    rc = cdc.Init();
     assert(rc == 0);
     
 #ifdef WIN32

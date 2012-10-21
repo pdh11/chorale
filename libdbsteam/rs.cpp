@@ -1,6 +1,5 @@
 #include "config.h"
 #include "rs.h"
-#include "db.h"
 #include "query.h"
 #include "libutil/trace.h"
 #include <boost/format.hpp>
@@ -273,7 +272,7 @@ unsigned int Recordset::Delete()
         /* SimpleRecordset */
 
 
-SimpleRecordset::SimpleRecordset(Database *db, Query *q)
+SimpleRecordset::SimpleRecordset(Database *db, QueryPtr q)
     : Recordset(db),
       m_query(q)
 {
@@ -524,14 +523,14 @@ void OrderedRecordset::MoveNext()
         /* CollateRecordset */
 
 
-CollateRecordset::CollateRecordset(Database *db, field_t field, Query *query)
+CollateRecordset::CollateRecordset(Database *db, field_t field, QueryPtr query)
     : m_parent(db),
       m_field(field), 
       m_is_int(false),
       m_intvalue(0),
       m_eof(false), 
       m_query(query), 
-      m_rs(db)
+      m_rs(db, QueryPtr())
 {
     boost::recursive_mutex::scoped_lock lock(m_parent->m_mutex);
     m_is_int = ((m_parent->m_fields[field].flags & FIELD_TYPEMASK)

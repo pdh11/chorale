@@ -4,6 +4,7 @@
 #ifdef TEST
 
 # include "db.h"
+# include "libdb/query.h"
 # include "schema.h"
 # include "libdbsteam/db.h"
 # include "libutil/string_stream.h"

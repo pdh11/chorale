@@ -4,6 +4,8 @@
 #include "trace.h"
 #include "worker_thread_pool.h"
 
+LOG_DECL(POLL);
+
 #undef IN
 #undef OUT
 
@@ -27,6 +29,10 @@ public:
     ~WaitingTask()
     {
 //	TRACE << "wt" << this << ": ~WaitingTask\n";
+	if (m_pollable)
+	    m_parent->m_poller->Remove(m_pollable);
+	m_parent->m_poller->Remove(this);
+//	TRACE << "wt" << this << ": ~WaitingTask done\n";
     }
 
     unsigned int OnActivity()
@@ -71,7 +77,7 @@ TaskPoller::TaskPoller(PollerInterface *poller,
 
 TaskPoller::~TaskPoller()
 {
-//    TRACE << "~TaskPoller\n";
+    LOG(POLL) << "~TaskPoller\n";
 
     m_exiting = true;
 
@@ -87,14 +93,14 @@ TaskPoller::~TaskPoller()
 	}
     }
 
-//    TRACE << "~TaskPoller calls Shutdown\n";
+    LOG(POLL) << "~TaskPoller calls Shutdown\n";
 
     /* If we leave any threads alive, they might call back into us. So we must
      * synchronously close the pool before leaving this destructor.
      */
     m_thread_pool->Shutdown();
 
-//    TRACE << "~TaskPoller: Shutdown succeeded\n";
+    LOG(POLL) << "~TaskPoller: Shutdown succeeded\n";
 }
 
 void TaskPoller::Wait(TaskPtr ptr, Pollable *pollable, unsigned int direction)

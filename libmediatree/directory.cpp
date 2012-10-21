@@ -1,6 +1,6 @@
 #include "directory.h"
 #include "node_enumerator.h"
-#include "libdb/db.h"
+#include "libdb/query.h"
 #include "libmediadb/schema.h"
 #include "libutil/trace.h"
 
@@ -17,6 +17,10 @@ Directory::Directory(db::Database *thedb, unsigned int id,
     : m_db(thedb),
       m_id(id),
       m_info(info)
+{
+}
+
+Directory::~Directory()
 {
 }
 

@@ -1,10 +1,11 @@
 #include "config.h"
 #include "encoding_task_mp3.h"
+#include "libdb/recordset.h"
 #include "libutil/trace.h"
 #include "libutil/file.h"
 #include "tags.h"
 
-#ifdef HAVE_LAME
+#if HAVE_LAME
 #include <lame/lame.h>
 
 namespace import {

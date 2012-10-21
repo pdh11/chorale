@@ -1,3 +1,4 @@
+#include "config.h"
 #include "file_stream_posix.h"
 #include "trace.h"
 #include "stream_test.h"
@@ -12,15 +13,15 @@ namespace util {
 namespace posix {
 
 FileStream::FileStream()
-    : m_fd(-1)
+    : m_fd(-1), m_mode(0)
 {
 }
 
-unsigned FileStream::Open(const char *filename, FileMode mode)
+unsigned FileStream::Open(const char *filename, unsigned int mode)
 {
     unsigned flags = 0;
 
-    switch (mode)
+    switch (mode & TYPE_MASK)
     {
     case READ:   flags = O_RDONLY; break;
     case WRITE:  flags = O_RDWR|O_CREAT|O_TRUNC; break;
@@ -34,9 +35,16 @@ unsigned FileStream::Open(const char *filename, FileMode mode)
     m_fd = open(filename, flags, 0644);
     if (m_fd < 0)
 	return (unsigned)errno;
+    m_mode = mode;
 
-    if (mode == TEMP)
+    if ((mode & TYPE_MASK) == TEMP)
 	unlink(filename);
+
+#if HAVE_POSIX_FADVISE
+    if (mode & SEQUENTIAL)
+	posix_fadvise(m_fd, 0, 0, POSIX_FADV_SEQUENTIAL);
+#endif
+
     return 0;
 }
 
@@ -70,6 +78,15 @@ unsigned FileStream::WriteAt(const void *buffer, pos64 pos, size_t len,
 	*pwrote = 0;
 	return (unsigned)errno;
     }
+
+#if HAVE_SYNC_FILE_RANGE
+    const pos64 PAGE_SIZE = 4096; // A plausible guess
+
+    if ((m_mode & SEQUENTIAL) && (pos+rc >= PAGE_SIZE))
+	sync_file_range(m_fd, 0, (pos+rc) & ~(PAGE_SIZE-1), 
+			SYNC_FILE_RANGE_WRITE);
+#endif
+
 //    TRACE << "fs wrote " << rc << "/" << len << "\n";
     *pwrote = (size_t)rc;
     return 0;

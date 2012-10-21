@@ -1,7 +1,7 @@
 #include "config.h"
 #include "file_notifier.h"
 #include "libutil/bind.h"
-#ifdef HAVE_INOTIFY_INIT
+#if HAVE_INOTIFY_INIT
 #include <sys/inotify.h>
 #define HAVE_NOTIFY 1
 #endif
@@ -16,12 +16,12 @@
 #undef IN
 #undef OUT
 
-#ifndef HAVE_INOTIFY_INIT
-# ifdef HAVE_NR_INOTIFY_INIT
-#  ifdef HAVE_LINUX_UNISTD_H
+#if !HAVE_INOTIFY_INIT
+# if HAVE_NR_INOTIFY_INIT
+#  if HAVE_LINUX_UNISTD_H
 #   include <linux/unistd.h>
 #  endif
-#  ifdef HAVE_LINUX_INOTIFY_H
+#  if HAVE_LINUX_INOTIFY_H
 #   include <linux/inotify.h>
 #  endif
 
@@ -44,6 +44,10 @@ static int inotify_add_watch(int fd, const char *name, uint32_t mask)
 # endif
 #endif
 
+#ifndef HAVE_NOTIFY
+#define HAVE_NOTIFY 0
+#endif
+
 namespace import {
 
 FileNotifier::FileNotifier()
@@ -54,7 +58,7 @@ FileNotifier::FileNotifier()
 
 unsigned int FileNotifier::Init(util::PollerInterface *poller)
 {
-#ifdef HAVE_NOTIFY
+#if HAVE_NOTIFY
     m_fd = inotify_init();
     if (m_fd < 0)
     {
@@ -85,7 +89,7 @@ unsigned int FileNotifier::Init(util::PollerInterface *poller)
 
 FileNotifier::~FileNotifier()
 {
-#ifdef HAVE_NOTIFY
+#if HAVE_NOTIFY
     if (m_fd != -1)
 	close(m_fd);
 #endif
@@ -93,7 +97,7 @@ FileNotifier::~FileNotifier()
 
 void FileNotifier::Watch(const char *directory)
 {
-#ifdef HAVE_NOTIFY
+#if HAVE_NOTIFY
     inotify_add_watch(m_fd, directory,
 		      IN_ATTRIB | IN_CLOSE_WRITE | IN_CREATE | IN_DELETE |
 		      IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO);
@@ -102,7 +106,7 @@ void FileNotifier::Watch(const char *directory)
 
 unsigned int FileNotifier::OnActivity()
 {
-#ifdef HAVE_NOTIFY
+#if HAVE_NOTIFY
     enum { BUFSIZE = 1024 };
     char buffer[BUFSIZE];
     bool any = false;

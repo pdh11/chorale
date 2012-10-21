@@ -2,9 +2,10 @@
 #include "tags_mp3.h"
 #include "libutil/trace.h"
 #include "libutil/file.h"
+#include "libdb/recordset.h"
 #include "libmediadb/schema.h"
 
-#ifdef HAVE_TAGLIB
+#if HAVE_TAGLIB
 
 #include <mpegfile.h> /* from TagLib */
 #include <id3v2tag.h>

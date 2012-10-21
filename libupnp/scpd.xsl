@@ -199,9 +199,12 @@ namespace upnp {
 
 /** Client implementation generated automatically from SCPD <xsl:value-of select="$class"/>.xml
  */
-class <xsl:value-of select="$class"/>Client: public <xsl:value-of select="$class"/>, public ClientConnection
+class <xsl:value-of select="$class"/>Client: public <xsl:value-of select="$class"/>, public ServiceClient
 {
 public:
+    <xsl:value-of select="$class"/>Client(DeviceClient *device, const char *service_id)
+      : ServiceClient(device, service_id)
+    {}
 
     // Being a ServiceObserver
     void OnEvent(const char *var, const std::string&amp; value);

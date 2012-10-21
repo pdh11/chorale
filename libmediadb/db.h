@@ -2,8 +2,9 @@
 #define MEDIADB_DB_H 1
 
 #include "libdb/db.h"
-#include "libutil/stream.h"
 #include "allocate_id.h"
+
+namespace util { class SeekableStream; }
 
 /** Classes specialising the general-purpose db::Database API for
  * media databases.
@@ -23,8 +24,8 @@ public:
 
     virtual unsigned int AllocateID() { return m_aid.Allocate(); }
     virtual std::string GetURL(unsigned int id) = 0;
-    virtual util::SeekableStreamPtr OpenRead(unsigned int id) = 0;
-    virtual util::SeekableStreamPtr OpenWrite(unsigned int id) = 0;
+    virtual boost::intrusive_ptr<util::SeekableStream> OpenRead(unsigned int id) = 0;
+    virtual boost::intrusive_ptr<util::SeekableStream> OpenWrite(unsigned int id) = 0;
 };
 
 } // namespace mediadb

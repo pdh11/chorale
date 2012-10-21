@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
 
     db::local::Database ldb(&sdb);
 
-#ifdef HAVE_TAGLIB
+#if HAVE_TAGLIB
     db::local::FileScanner ifs(argv[optind], flacdir, &ldb, &wtp);
 
     unsigned int rc = ifs.Scan();
