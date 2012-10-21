@@ -13,9 +13,6 @@ endif
 ifeq ($(choraled),)
 include $(TOP)choraled/Makefile
 endif
-ifeq ($(mobileapp),)
-include $(TOP)mobile/Makefile
-endif
 
 # Autoconf stuff for remaking 'configure' and 'Make.config'
 
@@ -162,12 +159,10 @@ SUBDIRS:= \
 	libreceiverd \
 	libtv \
 	libui \
-	libuidarwin \
 	libuiqt \
 	libupnp \
 	libupnpd \
-	libutil \
-	mobile
+	libutil
 
 libdeps.dot: Makefile
 	echo "digraph G {" > $@
