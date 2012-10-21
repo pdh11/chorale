@@ -1,4 +1,5 @@
 #include "database.h"
+#include "config.h"
 #include "libmediadb/schema.h"
 
 Database::Database()

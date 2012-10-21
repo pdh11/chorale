@@ -76,30 +76,30 @@ struct db__Query
     explicit db__Query(db::QueryPtr q) : qp(q) {}
 };
 
-extern "C" db_QueryRep db_Query_Restrict(db_Query q, unsigned int which,
+extern "C" db_QueryExpr db_Query_Restrict(db_Query q, unsigned int which,
 					 db_RestrictionType rt, 
 					 const char *val)
 {
-    return (db_QueryRep) q->qp->Restrict(which, (db::RestrictionType)rt, val);
+    return (db_QueryExpr) q->qp->Restrict(which, (db::RestrictionType)rt, val);
 }
 
-extern "C" db_QueryRep db_Query_Restrict2(db_Query q, unsigned int which,
+extern "C" db_QueryExpr db_Query_Restrict2(db_Query q, unsigned int which,
 					  db_RestrictionType rt, uint32_t val)
 {
-    return (db_QueryRep) q->qp->Restrict(which, (db::RestrictionType)rt, val);
+    return (db_QueryExpr) q->qp->Restrict(which, (db::RestrictionType)rt, val);
 }
 
-extern "C" db_QueryRep db_Query_And(db_Query q, const db_QueryRep a,
-				    const db_QueryRep b)
+extern "C" db_QueryExpr db_Query_And(db_Query q, const db_QueryExpr a,
+				    const db_QueryExpr b)
 {
-    return (db_QueryRep) q->qp->And((const db::Query::Rep*)a,
+    return (db_QueryExpr) q->qp->And((const db::Query::Rep*)a,
 				    (const db::Query::Rep*)b);
 }
 
-extern "C" db_QueryRep db_Query_Or(db_Query q, const db_QueryRep a,
-				   const db_QueryRep b)
+extern "C" db_QueryExpr db_Query_Or(db_Query q, const db_QueryExpr a,
+				   const db_QueryExpr b)
 {
-    return (db_QueryRep) q->qp->Or((const db::Query::Rep*)a,
+    return (db_QueryExpr) q->qp->Or((const db::Query::Rep*)a,
 				   (const db::Query::Rep*)b);
 }
 

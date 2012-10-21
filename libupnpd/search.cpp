@@ -116,8 +116,9 @@ typedef char const*         iterator_t;
 typedef tree_match<iterator_t> parse_tree_match_t;
 typedef parse_tree_match_t::tree_iterator iter_t;
 
-static const db::Query::Rep* Translate(db::QueryPtr qp, const iter_t& i,
-				       unsigned int *collate)
+static const db::Query::Subexpression Translate(db::QueryPtr qp, 
+						const iter_t& i,
+						unsigned int *collate)
 {
 //    TRACE << "In Translate value=\"" <<
 //        std::string(i->value.begin(), i->value.end()) <<
@@ -128,19 +129,27 @@ static const db::Query::Rep* Translate(db::QueryPtr qp, const iter_t& i,
     {
     case SearchGrammar::DISJUNCTION:
     {
-	const db::Query::Rep *lhs = Translate(qp, i->children.begin(), collate);
-	const db::Query::Rep *rhs = Translate(qp, i->children.begin()+1, collate);
-	if (!lhs || !rhs)
-	    return lhs ? lhs : rhs;
+	db::Query::Subexpression lhs = Translate(qp, i->children.begin(), 
+						 collate);
+	db::Query::Subexpression rhs = Translate(qp, i->children.begin()+1,
+						 collate);
+	if (!lhs.IsValid())
+	    return rhs;
+	if (!rhs.IsValid())
+	    return lhs;
 	return qp->Or(lhs, rhs);
     }
     case SearchGrammar::CONJUNCTION:
     {
-	const db::Query::Rep *lhs = Translate(qp, i->children.begin(), collate);
-	const db::Query::Rep *rhs = Translate(qp, i->children.begin()+1, collate);
+	db::Query::Subexpression lhs = Translate(qp, i->children.begin(), 
+						 collate);
+	db::Query::Subexpression rhs = Translate(qp, i->children.begin()+1,
+						 collate);
 //	TRACE << "Anding, lhs=" << lhs << " rhs=" << rhs << "\n";
-	if (!lhs || !rhs)
-	    return lhs ? lhs : rhs;
+	if (!lhs.IsValid())
+	    return rhs;
+	if (!rhs.IsValid())
+	    return lhs;
 	return qp->And(lhs, rhs);
     }
     case SearchGrammar::STATEMENT:
@@ -179,7 +188,7 @@ static const db::Query::Rep* Translate(db::QueryPtr qp, const iter_t& i,
 	else
 	{
 //	    TRACE << "Can't do search field '" << field << "'\n";
-	    return NULL;
+	    return db::Query::Subexpression();
 	}
 
 	std::string literal((i->children.begin()+1)->value.begin(),
@@ -223,7 +232,7 @@ static const db::Query::Rep* Translate(db::QueryPtr qp, const iter_t& i,
 	else
 	{
 	    TRACE << "Can't do search operator '" << op << "'\n";
-	    return NULL;
+	    return db::Query::Subexpression();
 	}
 
 //	TRACE << "field=" << field << " op=" << op << " lit=" << literal << "\n";
@@ -240,7 +249,7 @@ static const db::Query::Rep* Translate(db::QueryPtr qp, const iter_t& i,
 	    TRACE << "Can't do query '" << field << "' " << op << " '"
 		  << literal << "'\n";
 	    
-	    return NULL;
+	    return db::Query::Subexpression();
 	}
 
 	if (which == mediadb::TYPE)
@@ -260,19 +269,19 @@ static const db::Query::Rep* Translate(db::QueryPtr qp, const iter_t& i,
 	    {
 		qp->CollateBy(mediadb::ARTIST);
 		*collate = mediadb::ARTIST;
-		return NULL;
+		return db::Query::Subexpression();
 	    }
 	    else if (literal == "object.container.genre.musicGenre")
 	    {
 		qp->CollateBy(mediadb::GENRE);
 		*collate = mediadb::GENRE;
-		return NULL;
+		return db::Query::Subexpression();
 	    }
 	    else if (literal == "object.container.album.musicAlbum")
 	    {
 		qp->CollateBy(mediadb::ALBUM);
 		*collate = mediadb::ALBUM;
-		return NULL;
+		return db::Query::Subexpression();
 	    }
 
 	    return qp->Restrict(which, rt, type);
@@ -286,7 +295,7 @@ static const db::Query::Rep* Translate(db::QueryPtr qp, const iter_t& i,
 
     TRACE << "Don't like parse node\n";
 
-    return NULL;
+    return db::Query::Subexpression();
 }
 
 unsigned int ApplySearchCriteria(db::QueryPtr qp, const std::string& s,
@@ -302,8 +311,8 @@ unsigned int ApplySearchCriteria(db::QueryPtr qp, const std::string& s,
 	return EINVAL;
     }
 
-    const db::Query::Rep *rep = Translate(qp, info.trees.begin(), collate);
-    if (rep)
+    db::Query::Subexpression rep = Translate(qp, info.trees.begin(), collate);
+    if (rep.IsValid())
     {
 	unsigned int rc = qp->Where(rep);
 	if (rc)

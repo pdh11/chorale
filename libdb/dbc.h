@@ -29,16 +29,16 @@ enum db_RestrictionType
 
 typedef struct db__Query *db_Query; // Opaque type
 
-typedef const struct db__QueryRep *db_QueryRep; // Opaque type
+typedef const struct db__QueryRep *db_QueryExpr; // Opaque type
 
-db_QueryRep db_Query_Restrict(db_Query, unsigned int which, 
+db_QueryExpr db_Query_Restrict(db_Query, unsigned int which, 
 			      db_RestrictionType rt, const char *val);
-db_QueryRep db_Query_Restrict2(db_Query, unsigned int which,
+db_QueryExpr db_Query_Restrict2(db_Query, unsigned int which,
 			       db_RestrictionType rt, uint32_t val);
-db_QueryRep db_Query_And(db_Query, const db_QueryRep, const db_QueryRep);
-db_QueryRep db_Query_Or(db_Query, const db_QueryRep, const db_QueryRep);
+db_QueryExpr db_Query_And(db_Query, const db_QueryExpr, const db_QueryExpr);
+db_QueryExpr db_Query_Or(db_Query, const db_QueryExpr, const db_QueryExpr);
 
-unsigned int db_Query_Where(const db_QueryRep);
+unsigned int db_Query_Where(const db_QueryExpr);
 db_Recordset db_Query_Execute(db_Query);
 void         db_Query_Free(db_Query*);
 

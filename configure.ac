@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(chorale, [0.11], pdh@utter.chaos.org.uk)
+AC_INIT(chorale, [0.12], pdh@utter.chaos.org.uk)
 
 AC_MSG_NOTICE([Required: Boost.])
 AC_MSG_NOTICE([Optional: Taglib, Qt4, gstreamer, libcdio, libcddb, lame, flac, libupnp, dbus, hal, libmpg123, inkscape, xsltproc, imagemagick.])
@@ -269,6 +269,18 @@ if test "$ac_cv_func_inotify_init" = "no"; then
     AC_MSG_RESULT([no])
   fi
 fi
+
+AC_TYPE_OFF_T
+AC_TYPE_SIZE_T
+AC_TYPE_INT8_T
+AC_TYPE_INT16_T
+AC_TYPE_INT32_T
+AC_TYPE_INT64_T
+AC_TYPE_SSIZE_T
+AC_TYPE_UINT8_T
+AC_TYPE_UINT16_T
+AC_TYPE_UINT32_T
+AC_TYPE_UINT64_T
 
 AC_DEFUN([PDH_CHECK_SOCKOPT], [
 AC_MSG_CHECKING([for $1])

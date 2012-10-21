@@ -10,24 +10,24 @@ Query::Query()
 
 Query::~Query() {}
 
-const Query::Rep *Query::Restrict(field_t which, RestrictionType rt,
-				  const std::string& val)
+Query::Subexpression Query::Restrict(field_t which, RestrictionType rt,
+				     const std::string& val)
 {
     m_restrictions.push_back(Restriction(which, rt, val));
-    return (const Query::Rep*)m_restrictions.size();
+    return Subexpression((int)m_restrictions.size());
 }
 
-const Query::Rep *Query::Restrict(field_t which, RestrictionType rt,
-				  uint32_t val)
+Query::Subexpression Query::Restrict(field_t which, RestrictionType rt,
+				     uint32_t val)
 {
     m_restrictions.push_back(Restriction(which, rt, val));
-    return (const Query::Rep*)m_restrictions.size();
+    return Subexpression((int)m_restrictions.size());
 }
 
-const Query::Rep *Query::And(const Rep *a, const Rep *b)
+Query::Subexpression Query::And(const Subexpression& a, const Subexpression& b)
 {
-    ssize_t sa = (ssize_t)a;
-    ssize_t sb = (ssize_t)b;
+    int sa = a.val;
+    int sb = b.val;
 
     assert(sa != 0);
     assert(sb != 0);
@@ -42,13 +42,13 @@ const Query::Rep *Query::And(const Rep *a, const Rep *b)
 	assert(-sb <= (ssize_t)m_relations.size());
 
     m_relations.push_back(Relation(true, sa, sb));
-    return (const Query::Rep*)-m_relations.size();
+    return Subexpression((int) -m_relations.size());
 }
 
-const Query::Rep *Query::Or(const Rep *a, const Rep *b)
+Query::Subexpression Query::Or(const Subexpression& a, const Subexpression& b)
 {
-    ssize_t sa = (ssize_t)a;
-    ssize_t sb = (ssize_t)b;
+    int sa = a.val;
+    int sb = b.val;
 
     assert(sa != 0);
     assert(sb != 0);
@@ -63,7 +63,7 @@ const Query::Rep *Query::Or(const Rep *a, const Rep *b)
 	assert(-sb <= (ssize_t)m_relations.size());
 
     m_relations.push_back(Relation(false, sa, sb));
-    return (const Query::Rep*)-m_relations.size();
+    return Subexpression((int) -m_relations.size());
 }
 
 /** Apply a condition to the query (like SQL "SELECT * WHERE ...")
@@ -74,9 +74,9 @@ const Query::Rep *Query::Or(const Rep *a, const Rep *b)
  * m_restrictions array, and negative values refer to ands and ors
  * (internal nodes of the syntax tree) in the m_relations array.
  */
-unsigned int Query::Where(const Rep *expr)
+unsigned int Query::Where(const Subexpression& expr)
 {
-    m_root = (ssize_t)expr;
+    m_root = expr.val;
 
     // Can be 0, meaning null query
 

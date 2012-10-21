@@ -102,7 +102,7 @@ protected:
 protected:
     restrictions_t m_restrictions;
     relations_t m_relations;
-    ssize_t m_root;
+    int m_root;
     orderby_t m_orderby;
     orderby_t m_collateby;
 
@@ -112,16 +112,25 @@ public:
     Query();
     virtual ~Query();
 
-    class Rep;
+    class Subexpression
+    {
+	int val;
+	explicit Subexpression(int v) : val(v) {}
+	friend class Query;
 
-    const Rep *Restrict(field_t which, RestrictionType rt, 
+    public:
+	Subexpression() : val(0) {}
+	bool IsValid() const { return val != 0; }
+    };
+
+    Subexpression Restrict(field_t which, RestrictionType rt, 
 			const std::string& val) ATTRIBUTE_WARNUNUSED;
-    const Rep *Restrict(field_t which, RestrictionType rt,
+    Subexpression Restrict(field_t which, RestrictionType rt,
 			uint32_t val) ATTRIBUTE_WARNUNUSED;
-    const Rep *And(const Rep*, const Rep*);
-    const Rep *Or(const Rep*, const Rep*);
+    Subexpression And(const Subexpression&, const Subexpression&);
+    Subexpression Or(const Subexpression&, const Subexpression&);
 
-    virtual unsigned int Where(const Rep*);
+    virtual unsigned int Where(const Subexpression&);
     virtual unsigned int OrderBy(field_t which);
     virtual unsigned int CollateBy(field_t which);
 

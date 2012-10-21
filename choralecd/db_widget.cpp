@@ -8,6 +8,7 @@
  * typically, the GPL.
  */
 #include "features.h"
+#include "config.h"
 #include "db_widget.h"
 #include <qlayout.h>
 #include <qpushbutton.h>

@@ -1,4 +1,5 @@
 #include "web.h"
+#include "config.h"
 #include "libutil/trace.h"
 #include "libutil/string_stream.h"
 #include "libutil/urlescape.h"

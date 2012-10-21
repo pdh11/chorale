@@ -95,7 +95,7 @@ static uint32_t SimpleHash(const char *key)
 /** Construct the UUID for the UPnP Universal Device Name (UDN).
  *
  * In order to get the same UUID each time we run, we bake the IP address
- * and the path into the UUID using MD5.
+ * and the path into the UUID using a simple hash.
  */
 std::string Server::Impl::MakeUUID(const std::string& resource)
 {
@@ -254,11 +254,11 @@ std::string Server::Impl::Description(Device *d)
     ss << "<device>"
         "<deviceType>" << d->m_type << "</deviceType>"
         "<friendlyName>" << d->m_friendly_name << "</friendlyName>"
-        "<manufacturer>" << "Peter Hartley" << "</manufacturer>"
-	"<manufacturerURL>http://utter.chaos.org.uk/~pdh/software/chorale/</manufacturerURL>"
-        "<modelDescription>chorale</modelDescription>"
-        "<modelName>chorale</modelName>"
-        "<modelNumber>chorale</modelNumber>"
+        "<manufacturer>" << "Chorale contributors" << "</manufacturer>"
+	"<manufacturerURL>http://chorale.sf.net</manufacturerURL>"
+        "<modelDescription>" PACKAGE_VERSION "</modelDescription>"
+        "<modelName>" PACKAGE_NAME "</modelName>"
+        "<modelNumber>" PACKAGE_VERSION "</modelNumber>"
         "<UDN>uuid:" << d->m_uuid << "</UDN>"
         "<presentationURL>" << m_presentation_url << "</presentationURL>"
         "<iconList>"

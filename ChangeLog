@@ -1,4 +1,9 @@
 
+2008-Aug-05: Version 0.12 released; changes since 0.11:
+
+	* choraled: Reinstate accidentally-disabled web EPG
+	* libutil: Fix compilation against older Boost versions
+	
 2008-Jun-06: Version 0.11 released; changes since 0.10:
 
 	* libreceiverd: Add NFS server for Rio Receivers

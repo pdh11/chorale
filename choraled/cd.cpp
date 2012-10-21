@@ -1,6 +1,7 @@
 #include "cd.h"
 #include "libimport/cd_content_factory.h"
 #include "libupnpd/optical_drive.h"
+#include <boost/lambda/lambda.hpp>
 #include <boost/lambda/construct.hpp>
 
 CDService::CDService(util::hal::Context *hal)

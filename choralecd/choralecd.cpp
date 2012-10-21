@@ -14,6 +14,7 @@
 #include <QCleanlooksStyle>
 #include "main_window.h"
 #include "settings.h"
+#include "config.h"
 #include "libutil/cpus.h"
 #include "libutil/dbus.h"
 #include "libutil/hal.h"

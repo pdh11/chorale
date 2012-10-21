@@ -29,6 +29,9 @@ public:
 #endif
     }
     ~Tracer() { fflush(stdout); }
+
+    // scoped_lock is noncopyable in older versions of Boost
+    Tracer(const Tracer&) : m_lock(sm_mutex) {}
 };
 
 class NullTracer

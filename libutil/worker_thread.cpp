@@ -1,6 +1,7 @@
 #include "trace.h"
 #include "worker_thread.h"
 #include "task.h"
+#include "config.h"
 #include <boost/thread.hpp>
 #include <boost/bind.hpp>
 #include <unistd.h>

@@ -1,6 +1,7 @@
 #include "portmap.h"
 #include "libutil/trace.h"
 #include "libutil/endian.h"
+#include <errno.h>
 
 namespace receiverd {
 

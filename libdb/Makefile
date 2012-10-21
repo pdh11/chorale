@@ -1,7 +1,6 @@
 TOP?=../
 DIR:=libdb/
-SRCS:=  dbc.cpp \
-	free_rs.cpp \
+SRCS:=	free_rs.cpp \
 	query.cpp \
 	readonly_rs.cpp
 
