@@ -64,6 +64,7 @@ OutputWidgetFactory::OutputWidgetFactory(QPixmap *pixmap,
 					 util::hal::Context *halp,
 					 mediadb::Registry *registry)
     : m_pixmap(pixmap),
+      m_parent(NULL),
       m_hal(halp),
       m_registry(registry)
 {
@@ -84,7 +85,9 @@ void OutputWidgetFactory::CreateWidgets(QWidget *parent)
     }
     else
     {
-	output::URLPlayer *player = new output::gstreamer::URLPlayer;
+	output::gstreamer::URLPlayer *player =
+	    new output::gstreamer::URLPlayer;
+	player->Init();
 	m_players.push_back(player);
 	output::Queue *queue = new output::Queue(player);
 	queue->SetName("output");
@@ -108,7 +111,8 @@ void OutputWidgetFactory::OnDevice(util::hal::DevicePtr dev)
 	    card_id = device_id + " on " + card_id;
     }
 
-    output::URLPlayer *player = new output::gstreamer::URLPlayer(card, device);
+    output::gstreamer::URLPlayer *player = new output::gstreamer::URLPlayer;
+    player->Init(card, device);
     m_players.push_back(player);
     output::Queue *queue = new output::Queue(player);
     queue->SetName(devnode);
@@ -126,6 +130,7 @@ UpnpOutputWidgetFactory::UpnpOutputWidgetFactory(QPixmap *pixmap,
 						 util::http::Client *client,
 						 util::http::Server *server)
     : m_pixmap(pixmap),
+      m_parent(NULL),
       m_registry(registry),
       m_poller(poller),
       m_client(client),

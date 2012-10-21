@@ -1,22 +1,32 @@
+#include "config.h"
 #include "search.h"
 #include "libutil/trace.h"
-#include "libmediadb/localdb.h"
 #include "libmediadb/schema.h"
 #include "libmediadb/xml.h"
-#include "libdbsteam/db.h"
 #include <errno.h>
 #include <string.h>
 
 // #define BOOST_SPIRIT_DEBUG 1
 
+#ifdef HAVE_BOOST_SPIRIT_INCLUDE_CLASSIC_HPP
+#include <boost/spirit/include/classic.hpp>
+#include <boost/spirit/include/classic_core.hpp>
+#include <boost/spirit/include/classic_ast.hpp>
+#include <boost/spirit/include/classic_tree_to_xml.hpp>
+#else
 #include <boost/spirit.hpp>
 #include <boost/spirit/core.hpp>
 #include <boost/spirit/tree/ast.hpp>
 #include <boost/spirit/tree/tree_to_xml.hpp>
+#endif
 
 namespace upnpd {
 
+#ifdef HAVE_BOOST_SPIRIT_INCLUDE_CLASSIC_HPP
+using namespace boost::spirit::classic;
+#else
 using namespace boost::spirit;
+#endif
 
 struct SearchGrammar: public grammar<SearchGrammar>
 {
@@ -269,19 +279,19 @@ static const db::Query::Subexpression Translate(db::QueryPtr qp,
 	    {
 		qp->CollateBy(mediadb::ARTIST);
 		*collate = mediadb::ARTIST;
-		return db::Query::Subexpression();
+		return qp->Restrict(mediadb::TYPE, db::EQ, mediadb::TUNE);
 	    }
 	    else if (literal == "object.container.genre.musicGenre")
 	    {
 		qp->CollateBy(mediadb::GENRE);
 		*collate = mediadb::GENRE;
-		return db::Query::Subexpression();
+		return qp->Restrict(mediadb::TYPE, db::EQ, mediadb::TUNE);
 	    }
 	    else if (literal == "object.container.album.musicAlbum")
 	    {
 		qp->CollateBy(mediadb::ALBUM);
 		*collate = mediadb::ALBUM;
-		return db::Query::Subexpression();
+		return qp->Restrict(mediadb::TYPE, db::EQ, mediadb::TUNE);
 	    }
 
 	    return qp->Restrict(which, rt, type);
@@ -331,7 +341,13 @@ unsigned int ApplySearchCriteria(db::QueryPtr qp, const std::string& s,
 
 #ifdef TEST
 
+#ifdef HAVE_BOOST_SPIRIT_INCLUDE_CLASSIC_HPP
+using namespace boost::spirit::classic;
+#else
 using namespace boost::spirit;
+#endif
+
+# include "libdbsteam/db.h"
 
 static void Test(db::Database *db, const char *s)
 {

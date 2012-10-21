@@ -236,7 +236,7 @@ void ChoraleService::Impl::Run()
     ws.Init(12078);
     TRACE << "Webserver got port " << ws.GetPort() << "\n";
 
-    receiver::ssdp::Server pseudo_ssdp;
+    receiver::ssdp::Server pseudo_ssdp(NULL);
 
     if (1)
     {
@@ -257,7 +257,7 @@ void ChoraleService::Impl::Run()
     if (dot && dot > hostname)
 	*dot = '\0';
 
-    upnp::ssdp::Responder ssdp(&m_poller);
+    upnp::ssdp::Responder ssdp(&m_poller, NULL);
     util::http::Client wc;
     upnp::Server upnpserver(&m_poller, &wc, &ws, &ssdp);
     upnpd::MediaServer mediaserver(m_db.Get(), &upnpserver);

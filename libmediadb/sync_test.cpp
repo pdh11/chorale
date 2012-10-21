@@ -1,9 +1,8 @@
 #include "sync.h"
-# include "localdb.h"
+#include "fake_database.h"
+# include "db.h"
 # include "xml.h"
 # include "schema.h"
-# include "libdbsteam/db.h"
-# include "libutil/string_stream.h"
 # include "libutil/trace.h"
 # include <boost/format.hpp>
 
@@ -66,59 +65,15 @@ public:
     }
 };
 
-/** A mediadb::LocalDatabase whose database works, but which has no files.
- */
-class FakeLocalDatabase: public mediadb::Database
-{
-    db::steam::Database m_db;
-
-public:
-    FakeLocalDatabase();
-
-    // Being a Database
-    db::RecordsetPtr CreateRecordset() { return m_db.CreateRecordset(); }
-    db::QueryPtr CreateQuery() { return m_db.CreateQuery(); }
-
-    // Being a mediadb::Database
-    std::string GetURL(unsigned int) { return ""; }
-
-    util::SeekableStreamPtr OpenRead(unsigned int)
-    {
-	return util::StringStream::Create();
-    }
-
-    util::SeekableStreamPtr OpenWrite(unsigned int)
-    {
-	return util::StringStream::Create();
-    }
-};
-
-FakeLocalDatabase::FakeLocalDatabase()
-    : m_db(mediadb::FIELD_COUNT)
-{
-    m_db.SetFieldInfo(mediadb::ID, 
-		      db::steam::FIELD_INT|db::steam::FIELD_INDEXED);
-    m_db.SetFieldInfo(mediadb::PATH,
-		      db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
-    m_db.SetFieldInfo(mediadb::ARTIST,
-		      db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
-    m_db.SetFieldInfo(mediadb::ALBUM,
-		      db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
-    m_db.SetFieldInfo(mediadb::GENRE,
-		      db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
-    m_db.SetFieldInfo(mediadb::TITLE,
-		      db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
-}
-
 void Test(const char *src, const char *dest,
 	  const char *delenda, const char *addenda, const char *mutanda)
 {
-    FakeLocalDatabase dbsrc;
+    mediadb::FakeDatabase dbsrc;
     util::StringStreamPtr streamsrc = util::StringStream::Create();
     streamsrc->str() = src;
     mediadb::ReadXML(&dbsrc, streamsrc);
 
-    FakeLocalDatabase dbdest;
+    mediadb::FakeDatabase dbdest;
     util::StringStreamPtr streamdest = util::StringStream::Create();
     streamdest->str() = dest;
     mediadb::ReadXML(&dbdest, streamdest);
@@ -153,6 +108,8 @@ void Test(const char *src, const char *dest,
 //    mediadb::WriteXML(&dbdest, 1, stdout);
 
     // As we just synchronised them, a second sync should do no work
+
+//    TRACE << "Resync\n";
 
     mediadb::Synchroniser sync2(&dbsrc, &dbdest, false);
 
@@ -247,9 +204,9 @@ static const struct {
 "<record><id>256</id><title>root</title><type>playlist</type>"
 " <children><child>260</child><child>270</child></children></record>"
 "<record><id>260</id><title>Abba</title><type>playlist</type>"
-" <children><child>280</child></children>"
+" <children><child>280</child></children></record>"
 "<record><id>270</id><title>Party</title><type>playlist</type>"
-" <children><child>280</child></children>"
+" <children><child>280</child></children></record>"
 "<record><id>280</id><title>Fernando</title><type>tune</type></record>"
 "</db>",
 
@@ -257,7 +214,7 @@ static const struct {
 "<record><id>256</id><title>root</title><type>playlist</type>"
 " <children><child>1260</child></children></record>"
 "<record><id>1260</id><title>Abba</title><type>playlist</type>"
-" <children><child>1280</child></children>"
+" <children><child>1280</child></children></record>"
 "<record><id>1280</id><title>Fernando</title><type>tune</type></record>"
 "</db>",
 
@@ -277,9 +234,9 @@ static const struct {
 "<record><id>256</id><title>root</title><type>playlist</type>"
 " <children><child>270</child><child>260</child></children></record>"
 "<record><id>270</id><title>Party</title><type>playlist</type>"
-" <children><child>280</child></children>"
+" <children><child>280</child></children></record>"
 "<record><id>260</id><title>Abba</title><type>playlist</type>"
-" <children><child>280</child></children>"
+" <children><child>280</child></children></record>"
 "<record><id>280</id><title>Fernando</title><type>tune</type></record>"
 "</db>",
 
@@ -287,7 +244,7 @@ static const struct {
 "<record><id>256</id><title>root</title><type>playlist</type>"
 " <children><child>1260</child></children></record>"
 "<record><id>1260</id><title>Abba</title><type>playlist</type>"
-" <children><child>1280</child></children>"
+" <children><child>1280</child></children></record>"
 "<record><id>1280</id><title>Fernando</title><type>tune</type></record>"
 "</db>",
 
@@ -306,9 +263,9 @@ static const struct {
 "<record><id>256</id><title>root</title><type>playlist</type>"
 " <children><child>260</child><child>270</child></children></record>"
 "<record><id>260</id><title>Abba</title><type>playlist</type>"
-" <children><child>280</child></children>"
+" <children><child>280</child></children></record>"
 "<record><id>270</id><title>Party</title><type>playlist</type>"
-" <children><child>280</child></children>"
+" <children><child>280</child></children></record>"
 "<record><id>280</id><title>Fernando</title><type>tune</type></record>"
 "</db>",
 
@@ -316,9 +273,9 @@ static const struct {
 "<record><id>256</id><title>root</title><type>playlist</type>"
 " <children><child>1260</child><child>1270</child></children></record>"
 "<record><id>1260</id><title>Abba</title><type>playlist</type>"
-" <children><child>1280</child></children>"
+" <children><child>1280</child></children></record>"
 "<record><id>1270</id><title>Party</title><type>playlist</type>"
-" <children><child>1280</child></children>"
+" <children><child>1280</child></children></record>"
 "<record><id>1280</id><title>Fernando</title><type>tune</type>"
 " <sizebytes>42</sizebytes></record>"
 "</db>",
@@ -338,7 +295,7 @@ static const struct {
 "<record><id>256</id><title>root</title><type>playlist</type>"
 " <children><child>260</child></children></record>"
 "<record><id>260</id><title>Abba</title><type>playlist</type>"
-" <children><child>280</child></children>"
+" <children><child>280</child></children></record>"
 "<record><id>280</id><title>Fernando</title><type>tune</type></record>"
 "</db>",
 
@@ -346,7 +303,7 @@ static const struct {
 "<record><id>256</id><title>root</title><type>playlist</type>"
 " <children><child>1260</child></children></record>"
 "<record><id>1260</id><title>Abba</title><type>playlist</type>"
-" <children><child>1280</child></children>"
+" <children><child>1280</child></children></record>"
 "<record><id>1280</id><title>Fernando</title><type>playlist</type>"
 " <children><child>1290</child></children></record>"
 "<record><id>1290</id><title>Fernandino</title><type>tune</type></record>"
@@ -367,7 +324,7 @@ static const struct {
 "<record><id>256</id><title>root</title><type>playlist</type>"
 " <children><child>260</child><child>270</child></children></record>"
 "<record><id>260</id><title>Abba</title><type>playlist</type>"
-" <children><child>280</child></children>"
+" <children><child>280</child></children></record>"
 "<record><id>270</id><title>Party</title><type>playlist</type>"
 " <children><child>300</child></children></record>"
 "<record><id>280</id><title>Fernando</title><type>playlist</type>"
@@ -403,7 +360,7 @@ static const struct {
 "<record><id>256</id><title>root</title><type>playlist</type>"
 " <children><child>260</child><child>270</child></children></record>"
 "<record><id>260</id><title>Abba</title><type>playlist</type>"
-" <children><child>280</child></children>"
+" <children><child>280</child></children></record>"
 "<record><id>270</id><title>Party</title><type>playlist</type>"
 " <children><child>300</child></children></record>"
 "<record><id>280</id><title>Fernando</title><type>playlist</type>"
@@ -542,10 +499,10 @@ int main()
 {
     for (unsigned int i=0; i<sizeof(tests)/sizeof(tests[0]); ++i)
     {
-	TRACE << "Test #" << i << "\n";
+//	TRACE << "Test #" << i << "\n";
 	Test(tests[i].src, tests[i].dest, tests[i].delenda,
 	     tests[i].addenda, tests[i].mutanda);
-	TRACE << "Test #" << i << "bis\n";
+//	TRACE << "Test #" << i << "bis\n";
 	Test(tests[i].dest, tests[i].src, tests[i].delenda_rev,
 	     tests[i].addenda_rev, tests[i].mutanda_rev);
     }

@@ -29,7 +29,7 @@ endif
 
 $(LIBRECEIVER_TESTS) : TEST_LIBS+= $(BOOST_LIBS) $(LIBS)
 
-$(LIBRECEIVER_TESTS) : $(libutil) 
+$(LIBRECEIVER_TESTS) : $(libreceiver) $(libutil)
 
 $(libreceiver): $(LIBRECEIVER_OBJS)
 	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \

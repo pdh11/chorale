@@ -154,12 +154,13 @@ class MediaDBParser: public xml::SaxParserObserver
 {
     db::Database *m_db;
     unsigned int m_field;
-    db::RecordsetPtr m_rs;
     std::vector<unsigned int> m_children;
     bool m_in_child;
     std::map<std::string, unsigned int> m_rev_typemap;
     std::map<std::string, unsigned int> m_rev_codecmap;
     std::string m_value;
+    std::set<uint32_t> m_ids;
+    std::string m_fields[mediadb::FIELD_COUNT];
 
 public:
     explicit MediaDBParser(db::Database *thedb)
@@ -181,11 +182,8 @@ public:
 
 	if (name == "record")
 	{
-	    m_rs = m_db->CreateRecordset();
-	    m_rs->AddRecord();
-	}
-	else if (name == "children")
-	{
+	    for (unsigned int i=0; i<mediadb::FIELD_COUNT; ++i)
+		m_fields[i].clear();
 	    m_children.clear();
 	}
 	else if (name == "child")
@@ -211,43 +209,45 @@ public:
 	std::string name = tag;
 
 	if (m_field < mediadb::FIELD_COUNT)
-	{
-//	    TRACE << tagmap[m_field] << " = '" << m_value << "'\n";
-
-	    if (m_rs)
-	    {
-		if (m_field == mediadb::TYPE)
-		{
-		    m_rs->SetInteger(m_field, m_rev_typemap[m_value]);
-		}
-		else if (m_field == mediadb::CODEC)
-		{
-		    m_rs->SetInteger(m_field, m_rev_codecmap[m_value]);
-		}
-		else
-		{
-		    m_rs->SetString(m_field, m_value);
-		}
-	    }
-	}
+	    m_fields[m_field] = m_value;
 	else if (m_in_child)
-	{
 	    m_children.push_back((unsigned)strtoul(m_value.c_str(), NULL, 10));
-	}
 
 	m_field = mediadb::FIELD_COUNT;
 	m_in_child = false;
-	if (name == "record" && m_rs)
+
+	if (name == "record")
 	{
-	    m_rs->Commit();
-	    m_rs = NULL;
-	}
-	else if (name == "children")
-	{
-	    if (m_rs)
+	    uint32_t id = (uint32_t)strtoul(m_fields[mediadb::ID].c_str(),
+					    NULL, 10);
+	    
+	    // Recover from duplicate IDs sometimes caused by old versions
+	    if (m_ids.find(id) == m_ids.end())
 	    {
-		m_rs->SetString(mediadb::CHILDREN,
-				mediadb::VectorToChildren(m_children));
+		m_ids.insert(id);
+		db::RecordsetPtr rs = m_db->CreateRecordset();
+		rs->AddRecord();
+
+		for (unsigned int i=0; i<mediadb::FIELD_COUNT; ++i)
+		{
+		    std::string value = m_fields[i];
+
+		    if (i == mediadb::TYPE)
+			rs->SetInteger(i, m_rev_typemap[value]);
+		    else if (i == mediadb::CODEC)
+			rs->SetInteger(i, m_rev_codecmap[value]);
+		    else if (i == mediadb::CHILDREN)
+			rs->SetString(i, 
+				      mediadb::VectorToChildren(m_children));
+		    else
+			rs->SetString(i, value);
+		}
+//		TRACE << "Adding record " << id << "\n";
+		rs->Commit();
+	    }
+	    else
+	    {
+		TRACE << "Rejecting duplicate id " << id << "\n";
 	    }
 	}
 	return 0;

@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
     util::http::Server http_server(&bg_poller, &disk_pool);
     http_server.Init();
 
-    upnp::ssdp::Responder uclient(&fg_poller);
+    upnp::ssdp::Responder uclient(&fg_poller, NULL);
     choraleqt::UpnpOutputWidgetFactory uowf(&output_pixmap, &registry,
 					    &fg_poller, &http_client,
 					    &http_server);
@@ -147,11 +147,12 @@ int main(int argc, char *argv[])
  *
  * There are also a bunch of things that can use a mediadb::Database
  * once you've got one: you can serve it out again over a different
- * protocol, synchronise it with a different storage device, or queue up
- * tracks from it (on any audio device, local or remote) and listen to
- * them. Effectively, because of careful choice of abstractions,
- * Chorale acts as a giant crossbar switch between sources of media
- * and consumers of media:
+ * protocol, synchronise it with a different storage device, or queue
+ * up tracks from it (on any audio device, local or remote) and listen
+ * to them. You can even merge together a number of different
+ * databases, and treat them as a single one. Effectively, because of
+ * careful choice of abstractions, Chorale acts as a giant crossbar
+ * switch between sources of media and consumers of media:
  *
  * \dot
 digraph G {

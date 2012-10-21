@@ -43,6 +43,7 @@ public:
 
     // Being a upnp::soap::InfoSource
     util::IPEndPoint GetCurrentEndPoint();
+    unsigned int GetCurrentAccess();
 };
 
 } // namespace upnp

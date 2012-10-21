@@ -101,12 +101,12 @@ unsigned MemoryStream::Impl::WriteAt(const void *buf,
 
     if (i->first > pos)
 	--i;
-    size_t chunkpos = pos - i->first;
+    size_t chunkpos = (size_t)pos - i->first;
     size_t nwrite = std::min(len, i->second->len - chunkpos);
     memcpy(((char*)i->second->data) + chunkpos, buf, nwrite);
     pos += nwrite;
     if (pos > m_size)
-	m_size = pos;
+	m_size = (size_t)pos;
     *pwrote = nwrite;
 //    TRACE << "ms wrote " << nwrite << "/" << len << "\n";
     return 0;
@@ -121,8 +121,8 @@ unsigned MemoryStream::Impl::ReadAt(void *buf, SeekableStream::pos64 pos,
 	return 0;
     }
 
-    len = std::min((SeekableStream::pos64)len, m_size - pos);
-    chunks_t::iterator i = m_chunks.lower_bound(pos);
+    len = std::min(len, m_size - (size_t)pos);
+    chunks_t::iterator i = m_chunks.lower_bound((size_t)pos);
     if (i == m_chunks.end() || i->first > pos)
 	--i;
 //    TRACE << "Read: i->first = " << i->first << " m_pos = " << m_pos << "\n";

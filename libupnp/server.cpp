@@ -40,11 +40,19 @@ class Server::Impl: public util::http::ContentFactory
     typedef std::vector<Subscription> subscriptions_t;
     subscriptions_t m_subscriptions;
 
-    boost::thread_specific_ptr<util::IPEndPoint> m_endpoints;
+    struct SoapInfo
+    {
+	util::IPEndPoint ipe;
+	unsigned int access; ///< As per util::IPFilter
+    };
+
+    class SoapReplier;
+
+    boost::thread_specific_ptr<SoapInfo> m_endpoints;
 
     Service *FindService(const char *udn, const char *service);
     Service *FindService(const char *usn);
-    static std::string MakeUUID(const std::string& resource);
+    std::string MakeUUID(const std::string& resource);
 
 public:
     Impl(Server*, util::PollerInterface *poller, util::http::Client *client,
@@ -62,6 +70,7 @@ public:
 		   const char *variable, const std::string& value);
 
     util::IPEndPoint GetCurrentEndPoint();
+    unsigned int GetCurrentAccess();
 
     // Being a ContentFactory
     bool StreamForPath(const util::http::Request*, util::http::Response*);
@@ -132,7 +141,7 @@ std::string Server::Impl::MakeUUID(const std::string& resource)
     } u;
 
     strcpy((char*)u.ch, "chorale ");
-    u.ui[2] = 0; //SimpleHash(UpnpGetServerIpAddress());
+    u.ui[2] = m_server->GetPort();
     u.ui[3] = SimpleHash(resource.c_str());
 
     char buf[48];
@@ -233,6 +242,9 @@ std::string Server::Impl::Description(util::IPAddress ip)
 	
     s += "</device>"
 	"</root>";
+
+//    TRACE << "My description is:\n" << s << "\n";
+
     return s;
 }
 
@@ -247,14 +259,14 @@ unsigned int Server::Impl::Init()
 	const Device *device = *i;
 	if (i == m_devices.begin())
 	    m_ssdp->Advertise("upnp::rootdevice",
-			      device->GetUDN() + "::upnp:rootdevice",
+			      device->GetUDN(),
 			      &description_url);
 
-	m_ssdp->Advertise(device->GetUDN(),
+	m_ssdp->Advertise("",
 			  device->GetUDN(), &description_url);
 
 	m_ssdp->Advertise(device->GetDeviceType(), 
-			  device->GetUDN() + "::" + device->GetDeviceType(), 
+			  device->GetUDN(), 
 			  &description_url);
 
 	for (Device::const_iterator j = device->begin();
@@ -263,8 +275,7 @@ unsigned int Server::Impl::Init()
 	{
 	    const Service *service = *j;
 	    m_ssdp->Advertise(service->GetServiceType(),
-			      device->GetUDN() + "::"
-			      + service->GetServiceType(), &description_url);
+			      device->GetUDN(), &description_url);
 	}
     }
 
@@ -317,8 +328,12 @@ void Server::Impl::FireEvent(Service *service,
 
 	    Notify *n = new Notify;
 
-	    n->SetPtr(m_client->Connect(m_poller, n, i->delivery_url,
-					extra_headers, body, "NOTIFY"));
+	    util::http::ConnectionPtr ptr = m_client->Connect(m_poller, n,
+							      i->delivery_url,
+							      extra_headers, 
+							      body, "NOTIFY");
+	    n->SetPtr(ptr);
+	    ptr->Init();
 	}
     }
 }
@@ -335,13 +350,14 @@ static bool prefixcmp(const char *haystack, const char *needle,
     return false;
 }
 
-class SoapReplier: public xml::SaxParserObserver,
-		   public util::BufferSink
+class Server::Impl::SoapReplier: public xml::SaxParserObserver,
+				 public util::BufferSink
 {
     Service *m_service;
     util::http::Response *m_response;
     util::IPEndPoint m_ipe;
-    boost::thread_specific_ptr<util::IPEndPoint> *m_endpoints;
+    unsigned int m_access;
+    boost::thread_specific_ptr<Server::Impl::SoapInfo> *m_endpoints;
     xml::SaxParser m_parser;
     std::string m_action_name;
     soap::Inbound m_args;
@@ -349,11 +365,12 @@ class SoapReplier: public xml::SaxParserObserver,
 
 public:
     SoapReplier(Service *service, util::http::Response *response,
-		util::IPEndPoint ipe,
-		boost::thread_specific_ptr<util::IPEndPoint> *endpoints)
+		util::IPEndPoint ipe, unsigned int access,
+		boost::thread_specific_ptr<SoapInfo> *endpoints)
 	: m_service(service),
 	  m_response(response),
 	  m_ipe(ipe),
+	  m_access(access),
 	  m_endpoints(endpoints),
 	  m_parser(this)
     {
@@ -406,9 +423,10 @@ public:
 
 	// Otherwise, end of body -- assemble reply
 
-	util::IPEndPoint *ipeptr = new util::IPEndPoint;
-	*ipeptr = m_ipe;
-	m_endpoints->reset(ipeptr);
+	SoapInfo *soap_info = new SoapInfo;
+	soap_info->ipe = m_ipe;
+	soap_info->access = m_access;
+	m_endpoints->reset(soap_info);
 
 	soap::Outbound result;
 	unsigned int rc = m_service->OnAction(m_action_name.c_str(), m_args,
@@ -436,6 +454,7 @@ bool Server::Impl::StreamForPath(const util::http::Request *rq,
 
     if (rq->path == s_description_path)
     {
+//	TRACE << "Serving description request\n";
 	rs->ssp = util::StringStream::Create(Description(rq->local_ep.addr));
 	return true;
     }
@@ -479,7 +498,7 @@ bool Server::Impl::StreamForPath(const util::http::Request *rq,
 	    if (svc)
 	    {
 		rs->body_sink.reset(new SoapReplier(svc, rs, rq->local_ep,
-						    &m_endpoints));
+						    rq->access, &m_endpoints));
 		return true;
 	    }
 	}
@@ -490,13 +509,20 @@ bool Server::Impl::StreamForPath(const util::http::Request *rq,
 
 util::IPEndPoint Server::Impl::GetCurrentEndPoint()
 {
-    util::IPEndPoint *ptr = m_endpoints.get();
+    SoapInfo *ptr = m_endpoints.get();
     if (ptr)
-	return *ptr;
+	return ptr->ipe;
     util::IPEndPoint nil;
     nil.addr.addr = 0;
     nil.port = 0;
     return nil;
+}
+
+unsigned int Server::Impl::GetCurrentAccess()
+{
+    SoapInfo *ptr = m_endpoints.get();
+    assert(ptr);
+    return ptr->access;
 }
 
 
@@ -535,6 +561,11 @@ std::string Server::RegisterDevice(Device *device,
 util::IPEndPoint Server::GetCurrentEndPoint()
 {
     return m_impl->GetCurrentEndPoint();
+}
+
+unsigned int Server::GetCurrentAccess()
+{
+    return m_impl->GetCurrentAccess();
 }
 
 } // namespace upnp

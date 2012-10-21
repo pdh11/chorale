@@ -5,6 +5,7 @@
 
 #include <string>
 
+namespace util { class IPFilter; }
 namespace util { class PartialURL; }
 namespace util { class PollerInterface; }
 
@@ -23,7 +24,7 @@ class Responder
     Impl *m_impl;
 
 public:
-    explicit Responder(util::PollerInterface*);
+    Responder(util::PollerInterface*, util::IPFilter*);
     ~Responder();
 
     class Callback
@@ -39,7 +40,7 @@ public:
     unsigned Search(const char *uuid, Callback*);
 
     unsigned Advertise(const std::string& service_type,
-		       const std::string& unique_service_name,
+		       const std::string& unique_device_name,
 		       const util::PartialURL *url);
 };
 
@@ -49,12 +50,17 @@ public:
 
 // Common search UUIDs
 
-extern const char s_device_type_optical_drive[];
 extern const char s_device_type_media_renderer[];
-extern const char s_service_type_optical_drive[];
-extern const char s_service_type_content_directory[];
+extern const char s_device_type_optical_drive[];
+extern const char s_service_id_av_transport[];
+extern const char s_service_id_connection_manager[];
+extern const char s_service_id_content_directory[];
+extern const char s_service_id_optical_drive[];
+extern const char s_service_id_rendering_control[];
 extern const char s_service_type_av_transport[];
 extern const char s_service_type_connection_manager[];
+extern const char s_service_type_content_directory[];
+extern const char s_service_type_optical_drive[];
 
 } // namespace upnp
 

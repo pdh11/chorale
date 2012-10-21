@@ -1,3 +1,23 @@
+2009-Mar-05: Version 0.14 released; changes since 0.13:
+
+	* configure, COPYING: new Qt versions are LGPL
+	* libdblocal: new home for mediadb::Database
+	* libmediadb: more robustness against corrupt databases
+	* libdbmerge: new merged view of databases
+	* libtv: recordings now asynchronous rather than tying up a thread each
+	* libupnp: upgrade SCPD versions from upnp.org
+	* libupnp: support service versioning
+	* libupnp: ClientConnection::Init now takes service_id not service_type
+	* libupnp: ssdp::Responder::Advertise now takes UDN not USN
+	* libupnp: SSDP now deals better with multihomed hosts
+	* libreceiver: use subnet-directed broadcasts for pseudo-SSDP
+	* libempeg: use subnet-directed broadcasts for discovery
+	* libutil: clean up error-prone semantics of http::Client::Connect
+	* libutil: use libwrap to allow access control by IP address
+	* choraled: use libdbmerge to show radio alongside files
+	* choraled: only default to -p 12078 if serving Rio Receivers
+	127 files changed, 1703 insertions, 756 deletions
+	
 2009-Feb-12: Version 0.13 released; changes since 0.12:
 
 	* libupnp: remove dependency on Intel libupnp/pupnp
@@ -16,11 +36,13 @@
 	* Make.common: allow "make vtests" with automatic Valgrind options
 	* choraled: persist timer recordings
 	* protocoltool: new tool for working with Empeg car-players
+	203 files changed, 7151 insertions, 3147 deletions
 	
 2008-Aug-05: Version 0.12 released; changes since 0.11:
 
 	* choraled: Reinstate accidentally-disabled web EPG
 	* libutil: Fix compilation against older Boost versions
+	21 files changed, 170 insertions, 68 deletions
 	
 2008-Jun-06: Version 0.11 released; changes since 0.10:
 
@@ -31,5 +53,6 @@
 	* choraled: Remove dependency on libxml++
 	* choraled: choralesvc for Windows
 	* configure: Add --without-lgpl and --without-gpl
+	84 files changed, 1958 insertions, 735 deletions
 	
 2008-Apr-28: First public release, version 0.10

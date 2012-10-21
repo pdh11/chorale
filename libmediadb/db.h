@@ -17,6 +17,7 @@ namespace mediadb
 class Database: public db::Database
 {
     class AllocateID m_aid;
+
 public:
     Database() : m_aid(this) {}
 

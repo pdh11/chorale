@@ -2,7 +2,7 @@
 #include "rs.h"
 #include "db.h"
 #include "libmediadb/didl.h"
-#include "libupnp/ContentDirectory2.h"
+#include "libupnp/ContentDirectory3.h"
 #include "libmediadb/schema.h"
 #include "libdb/free_rs.h"
 #include "libutil/trace.h"
@@ -78,7 +78,7 @@ void Recordset::GetTags()
 
     std::string result;
     m_parent->GetContentDirectory()->Browse(objectid,
-					    upnp::ContentDirectory2::BROWSEFLAG_BROWSE_METADATA,
+					    upnp::ContentDirectory3::BROWSEFLAG_BROWSE_METADATA,
 					    "*",
 					    0, 0, "", &result,
 					    NULL, NULL, NULL);
@@ -129,7 +129,7 @@ void Recordset::GetChildren()
 	uint32_t total = 0;
 	unsigned int rc = m_parent->GetContentDirectory()
 	    ->Browse(objectid,
-		     upnp::ContentDirectory2::BROWSEFLAG_BROWSE_DIRECT_CHILDREN,
+		     upnp::ContentDirectory3::BROWSEFLAG_BROWSE_DIRECT_CHILDREN,
 		     "", start, LUMP, "",
 		     &result, &nret, &total, NULL);
 	if (rc == 0)

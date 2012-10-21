@@ -2,6 +2,7 @@
 #include "config.h"
 #include "libutil/http_parser.h"
 #include "libutil/ip_config.h"
+#include "libutil/ip_filter.h"
 #include "libutil/line_reader.h"
 #include "libutil/partial_url.h"
 #include "libutil/poll.h"
@@ -15,7 +16,11 @@
 #include <ws2tcpip.h>
 #endif
 #include <boost/thread/mutex.hpp>
+#include <list>
 #include <map>
+
+#undef IN
+#undef OUT
 
 namespace upnp {
 
@@ -24,6 +29,8 @@ namespace ssdp {
 class Responder::Impl: public util::Timed
 {
     util::PollerInterface *m_poller;
+    util::IPFilter *m_filter;
+
     typedef std::map<std::string, Callback*> map_t;
 
     /** The remote uuids (NTs) that we're looking for
@@ -40,9 +47,9 @@ class Responder::Impl: public util::Timed
     class Advertisement;
     friend class Advertisement;
 
-    typedef std::map<std::string, Advertisement*> adverts_t;
+    typedef std::list<Advertisement*> adverts_t;
 
-    /** Map of unique_service_names to Advertisement objects
+    /** List of Advertisement objects
      */
     adverts_t m_adverts;
 
@@ -52,13 +59,13 @@ class Responder::Impl: public util::Timed
     void SendSearch(const char *uuid);
 
 public:
-    explicit Impl(util::PollerInterface*);
+    Impl(util::PollerInterface*, util::IPFilter*);
     ~Impl();
 
     unsigned Search(const char *uuid, Callback*);
 
     unsigned Advertise(const std::string& service_type,
-		       const std::string& unique_service_name,
+		       const std::string& unique_device_name,
 		       const util::PartialURL *url);
 
     unsigned OnActivity();
@@ -70,9 +77,10 @@ public:
 class Responder::Impl::Advertisement: public util::Timed
 {
     util::PollerInterface *m_poller;
+    util::IPFilter *m_filter;
     util::DatagramSocket *m_socket;
     std::string m_service_type;
-    std::string m_unique_service_name;
+    std::string m_unique_device_name;
     util::PartialURL m_partial_url;
 
     /** Advertisements are sent in cycles of three */
@@ -80,14 +88,16 @@ class Responder::Impl::Advertisement: public util::Timed
     
 public:
     Advertisement(util::PollerInterface *poller,
+		  util::IPFilter *filter,
 		  util::DatagramSocket *socket,
 		  const std::string& service_type,
-		  const std::string& unique_service_name,
+		  const std::string& unique_device_name,
 		  const util::PartialURL *partial_url)
 	: m_poller(poller),
+	  m_filter(filter),
 	  m_socket(socket),
 	  m_service_type(service_type),
-	  m_unique_service_name(unique_service_name),
+	  m_unique_device_name(unique_device_name),
 	  m_partial_url(*partial_url),
 	  m_cycle(0)
     {
@@ -98,14 +108,27 @@ public:
 
     ~Advertisement()
     {
+	SendNotify(false);
 	m_poller->Remove(this);
     }
 
-    void SendNotify();
-    void SendReply(const std::string& search_id, 
-		   const util::IPEndPoint& to) {}
+    void SendNotify(bool alive=true);
+
+    /** Send a reply to a search
+     *
+     * @param them Who to reply to (i.e. who we got the search from)
+     * @param us   Who to reply from (i.e. address the search was sent to)
+     * @param type Service type to claim to be (i.e. the version searched-for)
+     */
+    void SendReply(const util::IPEndPoint& them,
+		   util::IPAddress us, const std::string& type);
 
     const std::string& GetServiceType() { return m_service_type; }
+
+    /** An advertisement matches a search if either they're exactly the same,
+     * or the search is for an earlier version number of the same service.
+     */
+    bool MatchServiceType(const std::string& search);
 
     // Being a Timed
     unsigned OnTimer();
@@ -117,7 +140,7 @@ unsigned Responder::Impl::Advertisement::OnTimer()
     return 0;
 }
 
-void Responder::Impl::Advertisement::SendNotify()
+void Responder::Impl::Advertisement::SendNotify(bool alive)
 {
     /** We need to send the advert out with different URLs on different
      * interfaces.
@@ -132,16 +155,28 @@ void Responder::Impl::Advertisement::SendNotify()
     {
 	if (i->flags & IFF_MULTICAST)
 	{
+	    if (m_filter
+		&& m_filter->CheckAccess(i->address) == util::IPFilter::DENY)
+		continue;
+
 	    m_socket->SetOutgoingMulticastInterface(i->address);
+
+	    std::string nt = m_service_type.empty()
+		? m_unique_device_name
+		: m_service_type;
+	    std::string usn = m_service_type.empty()
+		? m_unique_device_name
+		: m_unique_device_name + "::" + m_service_type;
 	
+	    /** @todo Server OS */
 	    std::string message = "NOTIFY * HTTP/1.1\r\n"
 		"HOST: 239.255.255.250:1900\r\n"
 		"CACHE-CONTROL: max-age=1800\r\n"
 		"LOCATION: " + m_partial_url.Resolve(i->address) + "\r\n"
-		"NT: " + m_service_type + "\r\n"
-		"NTS: ssdp:alive\r\n"
+		"NT: " + nt + "\r\n"
+		"NTS: " + (alive ? "ssdp:alive" : "ssdp:byebye") + "\r\n"
 		"SERVER: UPnP/1.0 " PACKAGE_NAME "/" PACKAGE_VERSION "\r\n"
-		"USN: " + m_unique_service_name + "\r\n"
+		"USN: " + usn + "\r\n"
 		"\r\n";
 	
 	    util::IPEndPoint ipe;
@@ -164,8 +199,74 @@ void Responder::Impl::Advertisement::SendNotify()
     }
 }
 
-Responder::Impl::Impl(util::PollerInterface *poller)
-    : m_poller(poller)
+void Responder::Impl::Advertisement::SendReply(const util::IPEndPoint& them,
+					       util::IPAddress us,
+					       const std::string& service_type)
+{
+    std::string usn = service_type.empty()
+	? m_unique_device_name
+	: m_unique_device_name + "::" + m_service_type;
+
+    /** @todo DATE, server OS */
+    std::string message = "HTTP/1.1 200 OK\r\n"
+	"CACHE-CONTROL: max-age=1800\r\n"
+	"EXT:\r\n"
+	"LOCATION: " + m_partial_url.Resolve(us) + "\r\n"
+	"SERVER:  UPnP/1.0 " PACKAGE_NAME "/" PACKAGE_VERSION "\r\n"
+	"ST: " + service_type + "\r\n"
+	"USN: " + usn + "\r\n"
+	"\r\n";
+
+//    TRACE << "replying to " << them.ToString() << ":\n" << message << "\n";
+
+    m_socket->Write(message, them);
+}
+
+bool Responder::Impl::Advertisement::MatchServiceType(const std::string& search)
+{
+//    TRACE << search << " vs " << m_service_type << "\n";
+
+    if (search == m_service_type)
+    {
+//	TRACE << "Complete match\n";
+	return true;
+    }
+    
+    std::string::size_type versionpos = m_service_type.find_last_not_of("0123456789");
+    if (versionpos == m_service_type.size()
+	|| versionpos == m_service_type.size()-1
+	|| m_service_type[versionpos] != ':')
+	return false; // Not versioned
+
+    if (search.size() <= versionpos
+	|| search[versionpos] != ':')
+	return false; // Search not versioned or wrong length
+
+    if (search.compare(0, versionpos, m_service_type, 0, versionpos))
+	return false; // Search doesn't match
+
+    unsigned long my_version = strtoul(m_service_type.c_str() + versionpos+1,
+				       NULL, 10);
+    unsigned long search_version =  strtoul(search.c_str() + versionpos+1,
+					    NULL, 10);
+
+    if (my_version > search_version)
+    {
+	TRACE << "Returning downgrade version " << search_version << " of "
+	      << m_service_type << "\n";
+    }
+//    TRACE << "Searching for version " << search_version << " I'm version "
+//	  << my_version  << "\n";
+    return search_version <= my_version;
+}
+
+
+        /* Responder::Impl::Impl */
+
+
+Responder::Impl::Impl(util::PollerInterface *poller, util::IPFilter *filter)
+    : m_poller(poller),
+      m_filter(filter)
 {
     m_multicast_socket.SetNonBlocking(true);
     m_search_socket.SetNonBlocking(true);
@@ -181,8 +282,26 @@ Responder::Impl::Impl(util::PollerInterface *poller)
     ipe.port = 1900;
     m_multicast_socket.Bind(ipe);
 
-    m_multicast_socket.JoinMulticastGroup(
-	util::IPAddress::FromDottedQuad(239,255,255,250));
+    util::IPConfig::Interfaces interface_list;
+    
+    util::IPConfig::GetInterfaceList(&interface_list);
+
+    for (util::IPConfig::Interfaces::const_iterator i = interface_list.begin();
+	 i != interface_list.end();
+	 ++i)
+    {
+	if (i->flags & IFF_MULTICAST)
+	{
+	    unsigned rc = m_multicast_socket.JoinMulticastGroup(
+		util::IPAddress::FromDottedQuad(239,255,255,250),
+		i->address);
+	    if (rc)
+	    {
+		TRACE << "SSDP can't multicast on " << i->name << ": "
+		      << rc << "\n";
+	    }
+	}
+    }
 }
 
 Responder::Impl::~Impl()
@@ -192,7 +311,7 @@ Responder::Impl::~Impl()
 
     while (!m_adverts.empty())
     {
-	Advertisement *ad = m_adverts.begin()->second;
+	Advertisement *ad = *m_adverts.begin();
 	m_adverts.erase(m_adverts.begin());
 	delete ad;
     }
@@ -214,7 +333,12 @@ unsigned Responder::Impl::OnActivity()
 	if (rc != 0 || packet.empty())
 	    return 0;
 
+	if (m_filter
+	    && m_filter->CheckAccess(wasfrom.addr) == util::IPFilter::DENY)
+	    continue;
+
 //	TRACE << packet;
+//	TRACE << "wasto: " << wasto.ToString() << "\n";
 
 	util::StringStreamPtr ssp = util::StringStream::Create(packet);
 
@@ -261,6 +385,9 @@ unsigned Responder::Impl::OnActivity()
 		}
 	    } while (!key.empty());
 
+//	    TRACE << (verb == "NOTIFY" ? "notify" : "reply") << " from " << wasfrom.ToString() << " to "
+//		  << wasto.ToString() << ": " << service << "\n";
+
 	    if (!service.empty() && !location.empty() && !udn.empty())
 	    {
 //		TRACE << "Service " << service << " found at '"
@@ -295,21 +422,24 @@ unsigned Responder::Impl::OnActivity()
 	    std::string service_type, search_id;
 	    do {
 		rc = hh.GetHeaderLine(&key, &value);
-		if (!strcasecmp(key.c_str(), "S"))
-		    search_id = value;
-		else if (!strcasecmp(key.c_str(), "ST"))
+		if (!strcasecmp(key.c_str(), "ST"))
 		    service_type = value;
 	    } while (!key.empty());
+
+//	    TRACE << "search from " << wasfrom.ToString() << " to "
+//		  << wasto.ToString() << ": " << service_type << "\n";
 
 	    for (adverts_t::const_iterator i = m_adverts.begin();
 		 i != m_adverts.end();
 		 ++i)
 	    {
-		if (service_type == "ssdp:all"
-		    || service_type == i->second->GetServiceType())
-		{
-		    i->second->SendReply(search_id, wasfrom);
-		}
+		/** 
+		 * @todo Check we advertise everything we should (UPnP-DA p21)
+		 */
+		if (service_type == "ssdp:all")
+		    (*i)->SendReply(wasfrom, wasto, (*i)->GetServiceType());
+		else if ((*i)->MatchServiceType(service_type))
+		    (*i)->SendReply(wasfrom, wasto, service_type);
 	    }	   
 	}
 	else
@@ -351,14 +481,15 @@ void Responder::Impl::SendSearch(const char *uuid)
 }
 
 unsigned Responder::Impl::Advertise(const std::string& service_type,
-				    const std::string& unique_service_name,
+				    const std::string& unique_device_name,
 				    const util::PartialURL *url)
 {
-    m_adverts[unique_service_name] = new Advertisement(m_poller,
-						       &m_search_socket,
-						       service_type,
-						       unique_service_name,
-						       url);
+    m_adverts.push_back(new Advertisement(m_poller,
+					  m_filter,
+					  &m_search_socket,
+					  service_type,
+					  unique_device_name,
+					  url));
     return 0;
 }
 
@@ -366,8 +497,8 @@ unsigned Responder::Impl::Advertise(const std::string& service_type,
         /* Responder itself */
 
 
-Responder::Responder(util::PollerInterface *poller)
-    : m_impl(new Impl(poller))
+Responder::Responder(util::PollerInterface *poller, util::IPFilter *filter)
+    : m_impl(new Impl(poller, filter))
 {
 }
 
@@ -382,10 +513,10 @@ unsigned Responder::Search(const char *uuid, Callback *cb)
 }
 
 unsigned Responder::Advertise(const std::string& service_type,
-			      const std::string& unique_service_name,
+			      const std::string& unique_device_name,
 			      const util::PartialURL *url)
 {
-    return m_impl->Advertise(service_type, unique_service_name, url);
+    return m_impl->Advertise(service_type, unique_device_name, url);
 }
 
 
@@ -398,7 +529,22 @@ const char s_device_type_media_renderer[] =
     "urn:schemas-upnp-org:device:MediaRenderer:1";
 
 const char s_device_type_optical_drive[] = 
-    "urn:chorale-sf-net:dev:OpticalDrive:1";
+    "urn:chorale-sf-net:device:OpticalDrive:1";
+
+const char s_service_id_optical_drive[] =
+     "urn:chorale-sf-net:serviceId:OpticalDrive";
+
+const char s_service_id_content_directory[] =
+    "urn:upnp-org:serviceId:ContentDirectory";
+
+const char s_service_id_av_transport[] =
+    "urn:upnp-org:serviceId:AVTransport";
+
+const char s_service_id_connection_manager[] =
+    "urn:upnp-org:serviceId:ConnectionManager";
+    
+const char s_service_id_rendering_control[] =
+    "urn:upnp-org:serviceId:RenderingControl";
 
 const char s_service_type_optical_drive[] =
      "urn:chorale-sf-net:service:OpticalDrive:1";
@@ -432,13 +578,15 @@ void MyCallback::OnService(const std::string& url, const std::string& udn)
 int main()
 {
     util::Poller poller;
-    upnp::ssdp::Responder client(&poller);
+    upnp::ssdp::Responder client(&poller, NULL);
     MyCallback cb;
     client.Search(upnp::s_service_type_content_directory, &cb);
+    client.Search("urn:chorale-sf-net:device:Test:1", &cb);
+    client.Search("urn:chorale-sf-net:device:Test:3", &cb);
 
     util::PartialURL purl("/description.xml", 80);
-    client.Advertise("urn:chorale-sf-net:device:Test:1",
-		     "uuid:00-00-00-00::urn:chorale-sf-net:device:Test:1",
+    client.Advertise("urn:chorale-sf-net:device:Test:2",
+		     "uuid:00-00-00-00",
 		     &purl);
 
     time_t t = time(NULL) + 5;

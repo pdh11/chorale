@@ -317,7 +317,9 @@ IndexedRecordset::IndexedRecordset(Database *db, field_t field, uint32_t intval)
     Database::intindex_t& the_index = db->m_intindexes[field];
     Database::intindex_t::const_iterator i = the_index.find(intval);
     if (i == the_index.end())
+    {
 	m_eof = true;
+    }
     else
     {
 	m_eof = false;
@@ -587,7 +589,11 @@ void CollateRecordset::MoveUntilValid(Database::stringindex_t::const_iterator i,
 	{
 	    m_rs.SetRecordNumber(*ci);
 	    if (m_query->Match(&m_rs))
+	    {
+//		TRACE << m_rs.GetString(1) << " with '" << m_strvalue
+//		      << "' matches " << m_query->ToString() << "\n";
 		return; // Found an acceptable one
+	    }
 	}
 
 	++i;

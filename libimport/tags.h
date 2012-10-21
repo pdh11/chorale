@@ -8,6 +8,10 @@
 #include <boost/thread/mutex.hpp>
 #include "libutil/counted_object.h"
 
+/** Classes for reading media files and their metadata.
+ *
+ * Including files and CDs.
+ */
 namespace import {
 
 class Tags: public util::CountedObject<>

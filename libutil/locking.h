@@ -39,6 +39,7 @@ public:
 
 /** Locking policy: per-class
  */
+template <class T>
 class PerClassLocking
 {
     static boost::mutex sm_mutex;
@@ -49,9 +50,12 @@ public:
 	boost::mutex::scoped_lock m_lock;
 
     public:
-	Lock(PerClassLocking *l) : m_lock(l->sm_mutex) {}
+	Lock(PerClassLocking<T> *l) : m_lock(l->sm_mutex) {}
     };
 };
+
+template<class T>
+boost::mutex util::PerClassLocking<T>::sm_mutex;
 
 /** Locking policy: none
  */

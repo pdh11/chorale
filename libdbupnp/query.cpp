@@ -118,7 +118,7 @@ RecordsetPtr Query::Execute()
 	return RecordsetPtr(new SearchRecordset(m_parent, upnp_query));
     }
 
-    TRACE << "Warning, don't know how to do this query\n";
+    TRACE << "Warning, don't know how to do UPnP query (" << ToString() << ")\n";
 
     return RecordsetPtr(new RecordsetOne(m_parent, 0));
 }

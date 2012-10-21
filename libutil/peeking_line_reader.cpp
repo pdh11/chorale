@@ -14,7 +14,7 @@ PeekingLineReader::PeekingLineReader(StreamSocketPtr socket)
 unsigned int PeekingLineReader::GetLine(std::string *line)
 {
     char buf[1024];
-    size_t nread;
+    size_t nread = 0;
 
     for (;;)
     {

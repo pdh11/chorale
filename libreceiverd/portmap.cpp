@@ -17,8 +17,8 @@ struct Mapping
 
 } // namespace portmap
 
-PortMapper::PortMapper(util::PollerInterface *poller)
-    : m_rpc(PROGRAM_PORTMAP, 2, poller, this)
+PortMapper::PortMapper(util::PollerInterface *poller, util::IPFilter *filter)
+    : m_rpc(PROGRAM_PORTMAP, 2, poller, filter, this)
 {
 }
 

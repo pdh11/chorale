@@ -412,7 +412,7 @@ void <xsl:value-of select="$class"/>Server::On<xsl:value-of select="name"/>(<xsl
       <xsl:if test="not(position()=last())">,
       </xsl:if>
     </xsl:for-each>)<xsl:choose>
-    <xsl:when test="$h">;</xsl:when>
+    <xsl:when test="$h"><!--<xsl:if test="not(Optional)"> = 0</xsl:if>-->;</xsl:when>
     <xsl:when test="$ch">;</xsl:when>
     <xsl:when test="$s">
 {

@@ -196,7 +196,5 @@ recordings will not play back on devices which can't play MP2.
 
 Also note that, although it's capable of recording multiple channels
 at once provided they're all on the same multiplex, there is NO
-WARNING given if you attempt clashing recordings. And the list of
-recordings to be made is currently NOT preserved over a daemon
-restart. This probably makes DVB-T a curiosity/preview ONLY in this
-version.
+WARNING given if you attempt clashing recordings. This probably makes
+DVB-T a curiosity/preview ONLY in this version.

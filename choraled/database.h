@@ -3,8 +3,8 @@
 
 #include "config.h"
 #include "libdbsteam/db.h"
-#include "libimport/file_scanner_thread.h"
-#include "libmediadb/localdb.h"
+#include "libdblocal/file_scanner_thread.h"
+#include "libdblocal/db.h"
 
 #if defined(HAVE_TAGLIB)
 #define HAVE_DB 1
@@ -14,9 +14,9 @@ class Database
 {
     db::steam::Database m_sdb;
 #ifdef HAVE_DB
-    import::FileScannerThread m_ifs;
+    db::local::FileScannerThread m_ifs;
 #endif
-    mediadb::LocalDatabase m_ldb;
+    db::local::Database m_ldb;
 
 public:
     Database();
@@ -24,7 +24,7 @@ public:
     unsigned int Init(const std::string& loroot, const std::string& hiroot,
 		      util::TaskQueue *queue, const std::string& dbfilename);
 
-    mediadb::LocalDatabase *Get() { return &m_ldb; }
+    db::local::Database *Get() { return &m_ldb; }
 
 #ifdef HAVE_DB
     void ForceRescan() { m_ifs.ForceRescan(); }

@@ -81,6 +81,7 @@ public:
 
     unsigned Bind(const IPEndPoint&);
     IPEndPoint GetLocalEndPoint();
+    IPEndPoint GetRemoteEndPoint();
 
     unsigned Connect(const IPEndPoint&);
 
@@ -125,7 +126,15 @@ public:
     ~DatagramSocket();
 
     unsigned EnableBroadcast(bool broadcastable);
-    unsigned JoinMulticastGroup(IPAddress);
+
+    /** Join a multicast group.
+     *
+     * Note that you need to do this on all the interfaces you care about
+     * @sa http://tldp.org/HOWTO/Multicast-HOWTO-6.html
+     */
+    unsigned JoinMulticastGroup(IPAddress multicast_addr,
+				IPAddress interface_addr);
+
     unsigned SetOutgoingMulticastInterface(IPAddress);
 
     using Stream::Read;

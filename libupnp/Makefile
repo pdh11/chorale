@@ -12,10 +12,10 @@ SRCS:=\
 LIBUPNP_XML:= \
 	AVTransport2.xml \
 	ConnectionManager2.xml \
-	ContentDirectory2.xml \
+	ContentDirectory3.xml \
 	OpticalDrive.xml \
 	RenderingControl2.xml \
-	ScheduledRecording1.xml \
+	ScheduledRecording2.xml \
 	TestService.xml
 
 SRCS:=$(sort $(SRCS) $(LIBUPNP_XML:%.xml=%.cpp) $(LIBUPNP_XML:%.xml=%_server.cpp) $(LIBUPNP_XML:%.xml=%_client.cpp))

@@ -11,8 +11,6 @@ SRCS:=\
 	encoding_task_flac.cpp \
 	encoding_task_mp3.cpp \
 	file_notifier.cpp \
-	file_scanner.cpp \
-	file_scanner_thread.cpp \
 	playlist.cpp \
 	playlist_asx.cpp \
 	playlist_wpl.cpp \
@@ -27,7 +25,6 @@ SRCS:=\
 TEST_SRCS:=\
 	cd_drives.cpp \
 	file_notifier.cpp \
-	file_scanner.cpp \
 	playlist_asx.cpp \
 	playlist_wpl.cpp
 
@@ -50,9 +47,6 @@ $(TOP)$(DIR)% : CXXFLAGS += $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) \
 ifeq ($(libutil),)
 include $(TOP)libutil/Makefile
 endif
-ifeq ($(libdbsteam),)
-include $(TOP)libdbsteam/Makefile
-endif
 ifeq ($(libdb),)
 include $(TOP)libdb/Makefile
 endif
@@ -63,7 +57,7 @@ endif
 $(LIBIMPORT_TESTS) : TEST_LIBS += $(BOOST_LIBS) $(TAGLIB_LIBS) \
 	$(PARANOIA_LIBS) $(HAL_LIBS) $(LIBCDIOP_LIBS) $(LIBS)
 
-$(LIBIMPORT_TESTS) : $(libimport) $(libmediadb) $(libdbsteam) \
+$(LIBIMPORT_TESTS) : $(libimport) $(libmediadb) \
 	$(libdb) $(libutil)
 
 $(libimport): $(LIBIMPORT_OBJS)

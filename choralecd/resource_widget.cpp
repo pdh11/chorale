@@ -19,7 +19,9 @@ ResourceWidget::ResourceWidget(QWidget *parent, const std::string& label,
 			       const char *topbutton, const char *bottombutton,
 			       const std::string& tooltip)
     : QFrame(parent),
-      m_label(label)
+      m_label(label),
+      m_top(NULL),
+      m_bottom(NULL)
 {
     setFrameStyle( Panel | Sunken );
     setLineWidth(2);

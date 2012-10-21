@@ -2,7 +2,6 @@ TOP?=../
 DIR:=libmediadb/
 SRCS:= 	allocate_id.cpp \
 	didl.cpp \
-	localdb.cpp \
 	registry.cpp \
 	schema.cpp \
 	sync.cpp \
@@ -11,7 +10,6 @@ SRCS:= 	allocate_id.cpp \
 
 TEST_SRCS:= \
 	didl.cpp \
-	localdb.cpp \
 	registry.cpp \
 	schema.cpp \
 	sync_test.cpp \
@@ -41,13 +39,16 @@ endif
 ifeq ($(libdbsteam),)
 include $(TOP)libdbsteam/Makefile
 endif
-ifeq ($(libdbempeg),)
-include $(TOP)libdbempeg/Makefile
+ifeq ($(libdblocal),)
+include $(TOP)libdblocal/Makefile
+endif
+ifeq ($(libimport),)
+include $(TOP)libimport/Makefile
 endif
 
-$(MEDIADB_TESTS) : TEST_LIBS += $(BOOST_LIBS) $(LIBS)
+$(MEDIADB_TESTS) : TEST_LIBS += $(libdblocal) $(libdb) $(libimport) $(libutil) $(TAGLIB_LIBS) $(BOOST_LIBS) $(LIBS)
 
-$(MEDIADB_TESTS) : $(libmediadb) $(libdbempeg) $(libempeg) $(libdbsteam) $(libdb) $(libutil)
+$(MEDIADB_TESTS) : $(libdblocal) $(libmediadb) $(libdbsteam) $(libdb) $(libutil)
 
 $(libmediadb): $(MEDIADB_OBJS)
 	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \

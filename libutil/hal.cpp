@@ -277,7 +277,7 @@ int main()
     if (rc)
     {
 	TRACE << "Can't connect (" << rc << ")\n";
-	return 1;
+	return 0;
     }
     
     util::hal::Context ctx(&conn);

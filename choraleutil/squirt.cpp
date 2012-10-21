@@ -1,9 +1,9 @@
 #include "config.h"
 #include "libdbsteam/db.h"
-#include "libimport/file_scanner.h"
+#include "libdblocal/file_scanner.h"
+#include "libdblocal/db.h"
 #include "libmediadb/schema.h"
 #include "libmediadb/xml.h"
-#include "libmediadb/localdb.h"
 #include "libutil/worker_thread_pool.h"
 #include "libutil/cpus.h"
 #include "libutil/trace.h"
@@ -293,10 +293,10 @@ int main(int argc, char *argv[])
 
     util::WorkerThreadPool wtp(util::WorkerThreadPool::NORMAL, nthreads);
 
-    mediadb::LocalDatabase ldb(&sdb);
+    db::local::Database ldb(&sdb);
 
 #ifdef HAVE_TAGLIB
-    import::FileScanner ifs(mediaroot, flacroot, &ldb, &wtp);
+    db::local::FileScanner ifs(mediaroot, flacroot, &ldb, &wtp);
 
     ifs.Scan();
 

@@ -22,7 +22,7 @@ class PortMapper: public RPCObserver
     };
 
 public:
-    explicit PortMapper(util::PollerInterface*);
+    PortMapper(util::PollerInterface*, util::IPFilter*);
 
     void AddProgram(uint32_t program_number, unsigned short port)
     {

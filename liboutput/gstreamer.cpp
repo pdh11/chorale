@@ -464,9 +464,16 @@ gboolean URLPlayer::Impl::OnAlarm()
 /* URLPlayer */
 
 
-URLPlayer::URLPlayer(int card, int device)
-    : m_impl(new Impl(card, device))
+URLPlayer::URLPlayer()
+    : m_impl(NULL)
 {
+}
+
+unsigned int URLPlayer::Init(int card, int device)
+{
+    assert(!m_impl);
+    m_impl = new Impl(card, device);
+    return 0;
 }
 
 URLPlayer::~URLPlayer()
@@ -476,27 +483,38 @@ URLPlayer::~URLPlayer()
 
 unsigned int URLPlayer::SetURL(const std::string& url, const std::string&)
 {
+    if (!m_impl)
+	return EINVAL;
+
     return m_impl->SetURL(url);
 }
 
 unsigned int URLPlayer::SetNextURL(const std::string& url, const std::string&)
 {
+    if (!m_impl)
+	return EINVAL;
+
     return m_impl->SetNextURL(url);
 }
 
 unsigned int URLPlayer::SetPlayState(PlayState st)
 {
+    if (!m_impl)
+	return EINVAL;
+
     return m_impl->SetPlayState(st);
 }
 
 void URLPlayer::AddObserver(URLObserver *obs)
 {
-    m_impl->AddObserver(obs);
+    if (m_impl)
+	m_impl->AddObserver(obs);
 }
 
 void URLPlayer::RemoveObserver(URLObserver *obs)
 {
-    m_impl->RemoveObserver(obs);
+    if (m_impl)
+	m_impl->RemoveObserver(obs);
 }
 
 } // namespace gstreamer

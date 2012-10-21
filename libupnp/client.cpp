@@ -40,7 +40,7 @@ public:
     Impl(util::http::Client *client, util::http::Server *server)
 	: m_client(client),
 	  m_server(server),
-	  m_gena_callback((boost::format("/gena-%u")
+	  m_gena_callback((boost::format("/upnp/gena/%u")
 			   % (sm_gena_generation++)).str())
     {
 	server->AddContentFactory(m_gena_callback, this);
@@ -88,8 +88,8 @@ unsigned int Client::Init(const std::string& descurl, const std::string& udn)
 	return rc;
     }
 
-    TRACE << "descurl " << descurl << "\n";
-    TRACE << "description " << description << "\n";
+//    TRACE << "descurl " << descurl << "\n";
+//    TRACE << "description " << description << "\n";
 
     rc = m_impl->m_desc.Parse(description, descurl, udn);
     if (rc)
@@ -200,7 +200,7 @@ struct ClientConnection::Impl
 {
     Client::Impl *parent;
     ClientConnection *connection;
-    const char *service_type;
+    std::string service_type;
     std::string control_url;
     std::string sid;
 };
@@ -216,17 +216,17 @@ ClientConnection::~ClientConnection()
     delete m_impl;
 }
 
-unsigned int ClientConnection::Init(Client *parent, const char *service_type)
+unsigned int ClientConnection::Init(Client *parent, const char *service_id)
 {
     if (!parent || !parent->m_impl || m_impl)
 	return EINVAL;
 
     const upnp::Services& svc = parent->m_impl->GetDescription().GetServices();
 
-    upnp::Services::const_iterator it = svc.find(service_type);
+    upnp::Services::const_iterator it = svc.find(service_id);
     if (it == svc.end())
     {
-	TRACE << "No service of type '" << service_type << "'\n";
+	TRACE << "No service with id '" << service_id << "'\n";
 	return ENOENT;
     }
 
@@ -234,7 +234,7 @@ unsigned int ClientConnection::Init(Client *parent, const char *service_type)
     m_impl->parent = parent->m_impl;
     m_impl->connection = this;
     m_impl->control_url = it->second.control_url;
-    m_impl->service_type = service_type;
+    m_impl->service_type = it->second.type;
 
     util::IPEndPoint local_endpoint;
     local_endpoint.addr = parent->m_impl->GetLocalIPAddress();

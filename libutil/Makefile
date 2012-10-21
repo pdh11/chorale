@@ -29,11 +29,14 @@ SRCS:= \
 	pollable_task.cpp \
 	poll_thread.cpp \
 	quote_escape.cpp \
+	sliding_buffer_stream.cpp \
 	socket.cpp \
 	stream.cpp \
 	stream_test.cpp \
 	string_stream.cpp \
 	task.cpp \
+	tcp_wrappers.cpp \
+	tcp_wrappers_c.c \
 	trace.cpp \
 	urlescape.cpp \
 	utf8.cpp \
@@ -60,8 +63,10 @@ TEST_SRCS:= \
 	poll.cpp \
 	pollable_task.cpp \
 	quote_escape.cpp \
+	sliding_buffer_stream.cpp \
 	stream.cpp \
 	string_stream.cpp \
+	tcp_wrappers.cpp \
 	urlescape.cpp \
 	utf8.cpp \
 	walker.cpp \
@@ -83,7 +88,7 @@ UTIL_TESTS:=$(TESTS)
 
 $(TOP)$(DIR)% : CXXFLAGS += $(BOOST_CXXFLAGS) $(DBUS_CXXFLAGS) $(HAL_CXXFLAGS)
 
-$(UTIL_TESTS): TEST_LIBS+= $(BOOST_LIBS) $(DBUS_LIBS) $(HAL_LIBS) $(LIBS)
+$(UTIL_TESTS): TEST_LIBS+= $(BOOST_LIBS) $(DBUS_LIBS) $(HAL_LIBS) $(LIBS) $(LIBWRAP)
 
 $(UTIL_TESTS): $(libutil)
 

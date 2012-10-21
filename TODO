@@ -19,8 +19,6 @@ libimport: M3U
 asynchronous db (for dbreceiver)
 man pages (!)
 more doxy comments
-type=spoken (cf new Vibez implementation)
-album art
 DVB-T recording conflicts
 gateway Receiver server to UPnP clients
 gateway UPnP server to Receiver clients
@@ -33,10 +31,21 @@ Convert EPG::Impl to PollableTask
 Pass a Callback to Task::Create? to TaskPoller::WaitFor*?
 Rewrite http::Stream in terms of http::Client
 Pass a name mapper to Synchronise for carv2 (UTF8->Latin1)
+Split out libcd (+libcdupnp) from libimport, find better name for what's left?
+Writable db::local
+Writable db::upnp
+Disentangle RippingControl from CDWindow
+If Queue'd URLs refer to localhost, rewrite ITO IP as seen by target
+Somehow get the underlying db of the localdb into filescanner
+Tidy up [Eager]SlidingBufferStream
+MultiStream could be a LOT simpler now, see tv::dvb::Service::CountedStream
+Pool http::Clients
 
   2.0
   ---
 NF2 genre
+type=spoken (cf new Vibez implementation)
+album art
 more-homemade audio out (gapless, RG)
 MSC sync
 DAAP
@@ -51,4 +60,3 @@ libutil: boost::bind instead of Task::Run/OnActivity/OnTimer?
 How much Boost do we lose out on if we insist on -fno-rtti -fno-exceptions?
 new empeg receiver distribution (freetype, ...)
 Turn Stream/SeekableStream into BufferPtr factories?
-If Queue'd URLs refer to localhost, rewrite ITO IP as seen by target

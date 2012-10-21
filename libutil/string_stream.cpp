@@ -52,10 +52,10 @@ SeekableStream::pos64 StringStream::GetLength()
 unsigned StringStream::SetLength(pos64 len)
 {
     if (len > m_string.length())
-	m_string.append(len - m_string.length(), ' ');
+	m_string.append((size_t)len - m_string.length(), ' ');
     else
     {
-	m_string.erase(len);
+	m_string.erase((size_t)len);
 	if (Tell() > len)
 	    Seek(len);
     }

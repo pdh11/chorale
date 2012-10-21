@@ -77,6 +77,13 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
       m_settings(settings),
       m_cpu_queue(cpu_queue),
       m_disk_queue(disk_queue),
+      m_ntracks((unsigned int)cd->GetTrackCount()),
+      m_entries(new Entry[m_ntracks]),
+      m_cdtype(NULL),
+      m_albumname(NULL),
+      m_trackoffset(NULL),
+      m_table(NULL),
+      m_progress_column(0),
       m_cddb(cddb)
 {
     unsigned int this_index = ++sm_index;
@@ -133,9 +140,6 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
     }
 
     vlayout->addLayout(toplayout);
-
-    m_ntracks = (unsigned int)cd->GetTrackCount();
-    m_entries = new Entry[m_ntracks];
 
     m_table = new TagTable(m_ntracks, (sizeof(columns)/sizeof(*columns)),
 			   this);

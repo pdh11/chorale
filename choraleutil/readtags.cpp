@@ -9,9 +9,9 @@
 #include <boost/thread/mutex.hpp>
 #include "libutil/trace.h"
 #include "libdbsteam/db.h"
-#include "libimport/file_scanner.h"
 #include "libmediadb/schema.h"
-#include "libmediadb/localdb.h"
+#include "libdblocal/db.h"
+#include "libdblocal/file_scanner.h"
 
 void Usage(FILE *f)
 {
@@ -78,10 +78,10 @@ int main(int argc, char *argv[])
     if (!flacdir)
 	flacdir = "";
 
-    mediadb::LocalDatabase ldb(&sdb);
+    db::local::Database ldb(&sdb);
 
 #ifdef HAVE_TAGLIB
-    import::FileScanner ifs(argv[optind], flacdir, &ldb, &wtp);
+    db::local::FileScanner ifs(argv[optind], flacdir, &ldb, &wtp);
 
     unsigned int rc = ifs.Scan();
     assert(rc == 0);

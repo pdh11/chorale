@@ -21,7 +21,8 @@
 
 SettingsWindow::SettingsWindow(Settings *settings)
     : QDialog(),
-      m_settings(settings)
+      m_settings(settings),
+      m_gb(NULL)
 {
     setCaption("Settings for choralecd");
 

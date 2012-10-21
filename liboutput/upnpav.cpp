@@ -38,13 +38,13 @@ unsigned URLPlayer::Init(const std::string& url, const std::string& udn,
 
     m_friendly_name = m_upnp.GetDescription().GetFriendlyName();
 
-    rc = m_avtransport.Init(&m_upnp, upnp::s_service_type_av_transport);
+    rc = m_avtransport.Init(&m_upnp, upnp::s_service_id_av_transport);
     if (rc != 0)
 	return rc;
     m_avtransport.AddObserver(this);
 
     rc = m_connectionmanager.Init(&m_upnp, 
-				  upnp::s_service_type_connection_manager);
+				  upnp::s_service_id_connection_manager);
     if (rc != 0)
 	return rc;
 

@@ -4,7 +4,7 @@
 #include "libimport/tags.h"
 #include "libdbsteam/db.h"
 #include "libmediadb/schema.h"
-#include "libmediadb/localdb.h"
+#include "libdblocal/db.h"
 #include "libutil/trace.h"
 #include <getopt.h>
 
@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
 	}
     }
 
-    mediadb::LocalDatabase ldb(&sdb);
+    db::local::Database ldb(&sdb);
 #endif
 
 #ifdef HAVE_GSTREAMER

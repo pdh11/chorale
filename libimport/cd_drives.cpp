@@ -56,7 +56,7 @@ void CDDrives::Refresh()
     
 	std::ifstream f("/proc/sys/dev/cdrom/info");
 
-	while (!f.eof())
+	while (!f.eof() && !f.fail())
 	{
 	    std::string line;
 	    std::getline(f, line);

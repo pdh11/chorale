@@ -7,6 +7,7 @@
 
 namespace util { class IPEndPoint; }
 namespace util { class PollerInterface; }
+namespace util { class IPFilter; }
 
 namespace receiver {
 
@@ -25,7 +26,7 @@ class Server: public boost::noncopyable
     Impl *m_impl;
 
 public:
-    Server();
+    explicit Server(util::IPFilter*);
     ~Server();
 
     unsigned Init(util::PollerInterface*);

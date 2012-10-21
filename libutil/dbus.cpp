@@ -95,7 +95,7 @@ unsigned int Connection::Impl::Connect(unsigned int bus)
 			  &m_err);
     if (dbus_error_is_set(&m_err))
     {
-	TRACE << "Can't connect to dbus: " << m_err.message;
+	TRACE << "Can't connect to dbus: " << m_err.message << "\n";
 	dbus_error_free(&m_err);
 	return ENOENT;
     }

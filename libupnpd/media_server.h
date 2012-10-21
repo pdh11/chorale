@@ -1,7 +1,7 @@
 #ifndef LIBUPNPD_MEDIASERVER_H
 #define LIBUPNPD_MEDIASERVER_H 1
 
-#include "libupnp/ContentDirectory2_server.h"
+#include "libupnp/ContentDirectory3_server.h"
 #include "libupnp/device.h"
 #include "content_directory.h"
 
@@ -16,7 +16,7 @@ namespace upnpd {
 class MediaServer: public upnp::Device
 {
     upnpd::ContentDirectoryImpl m_contentdirectory;
-    upnp::ContentDirectory2Server m_contentdirectoryserver;
+    upnp::ContentDirectory3Server m_contentdirectoryserver;
 
 public:
     MediaServer(mediadb::Database*, upnp::soap::InfoSource*);

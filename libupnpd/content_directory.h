@@ -1,7 +1,7 @@
 #ifndef UPNPD_CONTENT_DIRECTORY_H
 #define UPNPD_CONTENT_DIRECTORY_H 1
 
-#include "libupnp/ContentDirectory2.h"
+#include "libupnp/ContentDirectory3.h"
 
 namespace mediadb { class Database; }
 namespace upnp { namespace soap { class InfoSource; } }
@@ -11,7 +11,7 @@ namespace upnpd {
 /** Actual implementation of upnp::ContentDirectory2 base class in terms of
  * a mediadb::Database.
  */
-class ContentDirectoryImpl: public upnp::ContentDirectory2
+class ContentDirectoryImpl: public upnp::ContentDirectory3
 {
     mediadb::Database *m_db;
     upnp::soap::InfoSource *m_info_source;
@@ -19,7 +19,7 @@ class ContentDirectoryImpl: public upnp::ContentDirectory2
 public:
     ContentDirectoryImpl(mediadb::Database*, upnp::soap::InfoSource*);
     
-    // Being a ContentDirectory2
+    // Being a ContentDirectory3
     unsigned int Browse(const std::string& object_id,
 			BrowseFlag browse_flag,
 			const std::string& filter,
@@ -44,6 +44,7 @@ public:
     unsigned int GetSortCapabilities(std::string *sort_caps);
     unsigned int GetFeatureList(std::string *feature_list);
     unsigned int GetSystemUpdateID(uint32_t*);
+    unsigned int GetServiceResetToken(std::string*);
 };
 
 } // namespace upnpd

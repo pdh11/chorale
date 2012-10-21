@@ -128,7 +128,7 @@ unsigned Description::Parse(const std::string& description,
 	sd.control_url = util::http::ResolveURL(base_url, sd.control_url);
 	sd.event_url = util::http::ResolveURL(base_url, sd.event_url);
 	sd.scpd_url = util::http::ResolveURL(base_url, sd.scpd_url);
-	m_services[sd.type] = sd;
+	m_services[sd.id] = sd;
     }
 
     return 0;

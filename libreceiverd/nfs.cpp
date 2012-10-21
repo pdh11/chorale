@@ -71,9 +71,9 @@ struct Readargs
 
 } // namespace nfs
 
-NFSServer::NFSServer(util::PollerInterface *poller, PortMapper *portmap,
-		     VFS *vfs)
-    : m_rpc(PROGRAM_NFS, 2, poller, this),
+NFSServer::NFSServer(util::PollerInterface *poller, util::IPFilter *filter,
+		     PortMapper *portmap, VFS *vfs)
+    : m_rpc(PROGRAM_NFS, 2, poller, filter, this),
       m_vfs(vfs)
 {
     portmap->AddProgram(PROGRAM_NFS, m_rpc.GetPort());
@@ -266,8 +266,8 @@ int main(int argc, char *argv[])
     if (argc >= 2)
     {
 	util::Poller poller;
-	receiverd::PortMapper pmap(&poller);
-	receiverd::Mount mountd(&poller, &pmap);
+	receiverd::PortMapper pmap(&poller, NULL);
+	receiverd::Mount mountd(&poller, NULL, &pmap);
 
 	util::SeekableStreamPtr stm;
 	unsigned int rc = util::OpenFileStream(argv[1], util::READ, &stm);
@@ -279,9 +279,9 @@ int main(int argc, char *argv[])
 
 	receiverd::TarFS tarfs(stm);
 
-	receiverd::NFSServer nfsd(&poller, &pmap, &tarfs);
+	receiverd::NFSServer nfsd(&poller, NULL, &pmap, &tarfs);
 
-	receiver::ssdp::Server ssdp;
+	receiver::ssdp::Server ssdp(NULL);
 	ssdp.Init(&poller);
 	ssdp.RegisterService(receiver::ssdp::s_uuid_softwareserver, 
 			     pmap.GetPort());

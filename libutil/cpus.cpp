@@ -9,7 +9,7 @@ unsigned int util::CountCPUs()
     if (!n)
     {
 	std::ifstream f("/proc/cpuinfo");
-	while (!f.eof())
+	while (!f.eof() && !f.fail())
 	{
 	    std::string line;
 	    std::getline(f, line);

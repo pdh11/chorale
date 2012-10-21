@@ -10,7 +10,6 @@
 #include "libutil/poll.h"
 #include "libutil/hal.h"
 #include "libutil/dbus.h"
-#include "libimport/file_scanner_thread.h"
 #include "libreceiver/ssdp.h"
 #include "libreceiverd/content_factory.h"
 #include "libupnp/server.h"
@@ -18,15 +17,17 @@
 #include "liboutput/gstreamer.h"
 #include "libupnpd/media_renderer.h"
 #include "libupnpd/media_server.h"
-#include "libtv/stream_factory.h"
+#include "libtv/database.h"
 #include "libtv/epg.h"
 #include "libtv/web_epg.h"
 #include "libtv/recording.h"
 #include "libtv/dvb_service.h"
+#include "libtv/dvb.h"
 #include "libmediadb/schema.h"
-#include "libdbempeg/db.h"
+#include "libdbmerge/db.h"
 #include "cd.h"
 #include "database.h"
+#include "ip_filter.h"
 #include "nfs.h"
 #include "web.h"
 #include <stdarg.h>
@@ -70,8 +71,7 @@ static void Usage(FILE *f)
 "     --arf=FILE       Boot from ARF (default=" DEFAULT_ARF_FILE ")\n"
 "     --nfs=SERVER     Boot using real NFS net-boot on SERVER\n"
 " -w, --web=DIR      Web server root dir (default=" DEFAULT_WEB_DIR ")\n"
-" -p, --port=PORT      Web server port (default=" DEFAULT_WEB_PORT_S ")\n"
-//" -i, --interface=IF Network interface to listen on (default=first found)\n"
+" -p, --port=PORT      Web server port (see below for default)\n"
 #ifdef HAVE_GSTREAMER
 " -a, --no-audio     Don't become a UPnP MediaRenderer server\n"
 #endif
@@ -88,17 +88,28 @@ static void Usage(FILE *f)
 #endif
 " -h, --help         These hastily-scratched notes\n"
 	    "\n"
-	    "  Omitting <root-directory> implies -r, -m, -b and ignores -f, -t.\n"
-	    "  The options --nfs and --arf are mutually exclusive; --arf is the default.\n"
-	    "They are not used by Empeg-Car Receiver Edition, which always boots locally.\n"
-	    "  The default port is that used by 'traditional' Receiver servers; use -p 0 to\n"
-	    "pick an arbitrary unused port, but note that this will mean that all Receivers\n"
-	    "must be rebooted every time the server restarts.\n"
-	    "\n"
-	    "  Send SIGHUP to force a media re-scan (not needed on systems with 'inotify'\n"
-	    "support).\n"
-	    "\n"
-"From " PACKAGE_STRING " built on " __DATE__ ".\n"
+"  Omitting <root-directory> means no local files are served, so -f and -t are\n"
+"then ignored. If -b is also in effect, or if DVB support is not present, -m\n"
+"and -r are also implicitly activated (as there would be nothing to serve).\n"
+"  Omitting <root-directory> also disables TV and radio timer recording, as\n"
+"there would be nowhere to record them to.\n"
+"  The options --nfs and --arf are mutually exclusive; --arf is the default.\n"
+"They do not affect Empeg-Car Receiver Edition, which always boots locally.\n"
+"  By default, the port used is " DEFAULT_WEB_PORT_S ", as used by 'traditional' Receiver\n"
+"servers, unless -r is in effect, in which case the default port is 0, meaning\n"
+"pick an arbitrary unused port. In either case, the default can be overridden\n"
+"using -p.\n"
+#ifdef HAVE_LIBWRAP
+"\n"
+"  Use /etc/hosts.allow and /etc/hosts.deny to confer or deny access to\n"
+"choraled, using the daemon-names 'choraled' or, for read-only access,\n"
+"'choraled.ro'. See 'man hosts_access'.\n"
+#endif
+"\n"
+"  Send SIGHUP to force a media re-scan (not needed on systems with 'inotify'\n"
+"support).\n"
+"\n"
+"From " PACKAGE_STRING " (" PACKAGE_WEBSITE ") built on " __DATE__ ".\n"
 	);
 }
 
@@ -216,6 +227,7 @@ int Main(int argc, char *argv[])
     const char *channelsconf = DEFAULT_CHANNELS_CONF;
     const char *timer_db = DEFAULT_TIMER_DB_FILE;
     unsigned short port = DEFAULT_WEB_PORT;
+    bool explicit_port = false;
 
     int option_index;
     int option;
@@ -236,6 +248,7 @@ int Main(int argc, char *argv[])
 	    break;
 	case 'p':
 	    port = (unsigned short)strtoul(optarg, NULL, 10);
+	    explicit_port = true;
 	    break;
 	case 'f':
 	    dbfile = optarg;
@@ -286,25 +299,37 @@ int Main(int argc, char *argv[])
     {
 	// No music directory given -- disable all file ops
 	do_db = false;
-	do_receiver = false;
-	do_dvb = false;
+    }
+
+    if (!do_db && !do_dvb)
+    {
+	// Nothing to serve
 	do_mserver = false;
+	do_receiver = false;
     }
 
     if (!do_audio && !do_receiver && !do_mserver && !do_cd)
     {
-	printf("No protocols to serve; exiting\n");
+	complain(LOG_WARNING, "No protocols to serve; exiting\n");
 	return 0;
+    }
+
+    if (!explicit_port)
+    {
+	if (do_receiver)
+	    port = DEFAULT_WEB_PORT;
+	else
+	    port = 0;
     }
 
     if (do_daemon)
 	daemonise();
 
-    output::URLPlayer *player = NULL;
+    output::gstreamer::URLPlayer player;
     if (do_audio)
     {
 	// Start this off early, as it fork()s internally
-	player = new output::gstreamer::URLPlayer;
+	player.Init();
     }
 
     if (!nthreads)
@@ -330,8 +355,6 @@ int Main(int argc, char *argv[])
 	db.Init(mediaroot, flacroot, &wtp_low, dbfile);
 #endif
 
-    TRACE << "serving\n";
-
     util::Poller poller;
     util::TaskPoller tp_real_time(&poller, &wtp_real_time);
 
@@ -352,8 +375,8 @@ int Main(int argc, char *argv[])
 	unsigned rc = dvbc.Load(channelsconf);
 	if (rc != 0)
 	{
-	    TRACE << "Can't load DVB channels from '" << channelsconf
-		  << "': " << rc << "\n";
+	    complain(LOG_WARNING, "Can't load DVB channels from '%s': %u\n",
+		     channelsconf, rc);
 	    do_dvb = false;
 	}
     }
@@ -362,7 +385,7 @@ int Main(int argc, char *argv[])
     {
 	if (dvbc.Count() == 0)
 	{
-	    TRACE << "No DVB channels found\n";
+	    complain(LOG_WARNING, "No DVB channels found\n");
 	    do_dvb = false;
 	}
     }
@@ -383,32 +406,56 @@ int Main(int argc, char *argv[])
 
 	if (!tuned)
 	{
-	    TRACE << "Can't tune DVB frontend\n";
+	    complain(LOG_WARNING, "Can't tune DVB frontend\n");
 	    do_dvb = false;
 	}
     }
 
-    tv::RadioStreamFactory rsf(&dvb_frontend, &dvbc);
+    if (!do_db && !do_dvb)
+    {
+	// Nothing to serve
+	do_mserver = false;
+	do_receiver = false;
+    }
+
+    if (!do_audio && !do_receiver && !do_mserver && !do_cd)
+    {
+	complain(LOG_WARNING, "No protocols to serve; exiting\n");
+	return 0;
+    }
+
     tv::dvb::EPG epg;
-    tv::Recordings recordings;
 
     // Reading the device is done on a RT thread, writing to disk on a
     // normal thread.
     tv::dvb::Service dvb_service(&dvb_frontend, 
 				 &dvbc, 
-				 std::string(mediaroot) + "/Recordings",
-				 &recordings, &tp_real_time, &wtp_normal);
+				 do_db ? (std::string(mediaroot) + "/Recordings")
+				 : std::string(),
+				 &tp_real_time, &wtp_normal);
+
+    tv::Database tvdb(&dvb_service, &dvbc);
 
     if (do_dvb)
-    {
-	rsf.AddRadioStations(db.Get());
-	db.Get()->RegisterStreamFactory(mediadb::RADIO, &rsf);
 	epg.Init(&dvb_frontend, &dvbc, &poller, timer_db, &dvb_service);
-    }
 
-    util::http::Server ws(&poller, &wtp_normal);
+    db::merge::Database mergedb;
+    if (do_db)
+	mergedb.AddDatabase(db.Get());
+    if (do_dvb)
+	mergedb.AddDatabase(&tvdb);
 
-    receiverd::ContentFactory rcf(db.Get());
+#ifdef HAVE_LIBWRAP
+    choraled::IPFilter ipf;
+    util::IPFilter *pipf = &ipf;
+    complain(LOG_NOTICE, "Using hosts.allow/hosts.deny filtering\n");
+#else
+    util::IPFilter *pipf = NULL;
+#endif
+
+    util::http::Server ws(&poller, &wtp_normal, pipf);
+
+    receiverd::ContentFactory rcf(&mergedb);
     util::http::FileContentFactory fcf(std::string(webroot)+"/upnp",
 				       "/upnp");
     util::http::FileContentFactory fcf2(std::string(webroot)+"/layout",
@@ -434,13 +481,19 @@ int Main(int argc, char *argv[])
     RootContentFactory rootcf(db.Get());
 
     ws.AddContentFactory("/", &rootcf);
-    ws.Init(port);
+    unsigned int rc = ws.Init(port);
+    if (rc)
+    {
+	complain(LOG_ERR, "Can't bind server port %u, exiting\n", port);
+	return 1;
+    }
+
     TRACE << "Webserver got port " << ws.GetPort() << "\n";
 
     NFSService nfs;
     if (do_receiver && !software_server && arf)
     {
-	unsigned rc = nfs.Init(&poller, arf);
+	rc = nfs.Init(&poller, pipf, arf);
 	if (rc)
 	{
 	    complain(LOG_WARNING,
@@ -450,7 +503,7 @@ int Main(int argc, char *argv[])
 	}
     }
 
-    receiver::ssdp::Server pseudossdp;
+    receiver::ssdp::Server pseudossdp(pipf);
     if (do_receiver)
     {
 	pseudossdp.Init(&poller);
@@ -466,7 +519,6 @@ int Main(int argc, char *argv[])
 
     util::hal::Context *halp = NULL;
 
-    unsigned int rc;
 #ifdef HAVE_HAL
     util::dbus::Connection dbusc(&poller);
     rc = dbusc.Connect(util::dbus::Connection::SYSTEM);
@@ -494,23 +546,24 @@ int Main(int argc, char *argv[])
     if (dot && dot > hostname)
 	*dot = '\0';
 
-    upnp::ssdp::Responder ssdp(&poller);
+    upnp::ssdp::Responder ssdp(&poller, pipf);
     util::http::Client wc;
     upnp::Server upnpserver(&poller, &wc, &ws, &ssdp);
 
-    upnpd::MediaServer mediaserver(db.Get(), &upnpserver);
+    upnpd::MediaServer mediaserver(&mergedb, &upnpserver);
 
     if (do_mserver)
     {
-	mediaserver.SetFriendlyName(std::string(mediaroot)
+	mediaserver.SetFriendlyName((do_db ? std::string(mediaroot)
+				     : std::string("Freeview"))
 				    + " on " + hostname);
-	rc = mediaserver.Init(&upnpserver, mediaroot);
+	rc = mediaserver.Init(&upnpserver, do_db ? mediaroot : "DVB");
 	if (rc)
 	    complain(LOG_WARNING, "Can't start UPnP media server: %u\n", rc);
     }
 
 #ifdef HAVE_GSTREAMER
-    upnpd::MediaRenderer mediarenderer(player);
+    upnpd::MediaRenderer mediarenderer(&player);
 
     if (do_audio)
     {
@@ -548,8 +601,6 @@ int Main(int argc, char *argv[])
 #endif
 	}
     }
-
-    delete player;
 
     s_poller = NULL;
 

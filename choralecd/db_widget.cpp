@@ -47,6 +47,7 @@ ReceiverDBWidgetFactory::ReceiverDBWidgetFactory(QPixmap *pixmap,
 						 mediadb::Registry *registry,
 						 util::http::Client *http)
     : m_pixmap(pixmap),
+      m_parent(NULL),
       m_registry(registry),
       m_http(http)
 {
@@ -75,6 +76,7 @@ UpnpDBWidgetFactory::UpnpDBWidgetFactory(QPixmap *pixmap,
 					 util::http::Client *client,
 					 util::http::Server *server)
     : m_pixmap(pixmap),
+      m_parent(NULL),
       m_registry(registry),
       m_client(client),
       m_server(server)
@@ -104,6 +106,7 @@ EmpegDBWidgetFactory::EmpegDBWidgetFactory(QPixmap *pixmap,
 					 mediadb::Registry *registry,
 					 util::http::Server *server)
     : m_pixmap(pixmap),
+      m_parent(NULL),
       m_registry(registry),
       m_server(server)
 {

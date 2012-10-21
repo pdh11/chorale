@@ -32,7 +32,7 @@ Connection::Connection(Client *parent,
       m_socket(StreamSocket::Create()),
       m_line_reader(m_socket),
       m_parser(&m_line_reader),
-      m_state(CONNECTING)
+      m_state(UNINITIALISED)
 {
     ParseURL(url, &m_host, &m_path);
     std::string hostonly;
@@ -47,26 +47,26 @@ Connection::Connection(Client *parent,
  * delete the connection unless our caller has already squirreled the result
  * of the constructor call away somewhere.
  */
-void Connection::Init()
+unsigned int Connection::Init()
 {
     if (m_remote_endpoint.addr.addr == 0)
-    {
-	m_observer->OnHttpDone(ENOENT);
-	return;
-    }
+	return ENOENT;
 	
+    m_state = CONNECTING;
     m_socket->SetNonBlocking(true);
     m_socket->SetTimeoutMS(0);
     m_poller->Add(m_socket.get(),
 		  Bind<Connection, &Connection::OnActivity>(this), 
 		  util::PollerInterface::OUT);
     unsigned int rc = m_socket->Connect(m_remote_endpoint);
-    if (rc && rc != EINPROGRESS && rc != EWOULDBLOCK)
+    if (rc && rc != EINPROGRESS && rc != EWOULDBLOCK && rc != EISCONN)
     {
 	TRACE << "Connect failed: " << rc << "\n";
 	m_poller->Remove(m_socket.get());
-	m_observer->OnHttpDone(rc);
+	return rc;
     }
+
+    return 0;
 }
 
 Connection::~Connection()
@@ -93,7 +93,7 @@ unsigned int Connection::OnActivity()
 	rc = m_socket->Connect(m_remote_endpoint);
 	if (rc && rc != EISCONN)
 	{
-	    if (rc == EINPROGRESS)
+	    if (rc == EINPROGRESS || rc == EWOULDBLOCK)
 	    {
 //		TRACE << "Connection in progress\n";
 		return 0;
@@ -291,6 +291,8 @@ unsigned int Connection::OnActivity()
 
 unsigned int Connection::Read(void *buffer, size_t len, size_t *pread)
 {
+    assert(m_state != UNINITIALISED);
+
 //    TRACE << "hc" << this << ": in Read()\n";
     if (m_state != RECV_BODY)
 	return EWOULDBLOCK;
@@ -342,7 +344,6 @@ ConnectionPtr Client::Connect(util::PollerInterface *poller,
 {
     ConnectionPtr ptr(new Connection(this, poller, observer, url,
 				     extra_headers, body, verb));
-    ptr->Init();
     return ptr;
 }
 
@@ -443,6 +444,9 @@ int main(int, char*[])
     util::http::ConnectionPtr connection = client.Connect(&poller, &tobs, url);
 
     tobs.SetStream(connection);
+
+    rc = connection->Init();
+    assert(rc == 0);
 
     time_t start = time(NULL);
     time_t finish = start+12; // Long enough for the worker thread to time out

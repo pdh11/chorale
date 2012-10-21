@@ -1,4 +1,5 @@
 #include "db.h"
+#include "libutil/trace.h"
 #include <sstream>
 
 namespace db {
@@ -102,7 +103,7 @@ unsigned int Query::CollateBy(field_t which)
     return 0;
 }
 
-std::string Query::ToString()
+std::string Query::ToString() const
 {
     std::ostringstream os;
     os << ToStringElement(m_root);
@@ -120,7 +121,7 @@ std::string Query::ToString()
     return os.str();
 }
 
-std::string Query::ToStringElement(ssize_t elem)
+std::string Query::ToStringElement(ssize_t elem) const
 {
     if (elem == 0)
 	return "";
@@ -178,6 +179,57 @@ std::string Query::ToStringElement(ssize_t elem)
 	os << ToStringElement(r.b) << ") ";
 	return os.str();
     }
+}
+
+unsigned int Query::Clone(const Query *other)
+{
+//    TRACE << "Cloning " << other->ToString() << "\n";
+
+    for (restrictions_t::const_iterator i = other->m_restrictions.begin();
+	 i != other->m_restrictions.end();
+	 ++i)
+    {
+	if (i->is_string)
+	    Restrict(i->which, i->rt, i->sval);
+	else
+	    Restrict(i->which, i->rt, i->ival);
+    }
+
+    for (relations_t::const_iterator i = other->m_relations.begin();
+	 i != other->m_relations.end();
+	 ++i)
+    {
+	if (i->anditive)
+	    And(Subexpression((int)i->a), Subexpression((int)i->b));
+	else
+	    Or(Subexpression((int)i->a), Subexpression((int)i->b));
+    }
+
+    unsigned int rc = Where(Subexpression(other->m_root));
+    if (rc)
+	return rc;
+
+    for (orderby_t::const_iterator i = other->m_orderby.begin();
+	 i != other->m_orderby.end();
+	 ++i)
+    {
+	rc = OrderBy(*i);
+	if (rc)
+	    return rc;
+    }
+
+    for (orderby_t::const_iterator i = other->m_collateby.begin();
+	 i != other->m_collateby.end();
+	 ++i)
+    {
+	rc = CollateBy(*i);
+	if (rc)
+	    return rc;
+    }
+
+//    TRACE << "Cloned: " << ToString() << "\n";
+
+    return 0;
 }
 
 } // namespace db

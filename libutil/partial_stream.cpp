@@ -24,6 +24,8 @@ public:
 		     size_t *pwrote);
     pos64 GetLength();
     unsigned SetLength(pos64);
+
+    util::PollHandle GetReadHandle() { return m_stream->GetReadHandle(); }
 };
 
 PartialSeekableStream::PartialSeekableStream(SeekableStreamPtr s, pos64 begin,
@@ -37,7 +39,7 @@ unsigned PartialSeekableStream::ReadAt(void *buffer, pos64 pos, size_t len,
 {
 //    TRACE << "PSRA pos=" << pos << " len=" << len << " m_end=" << m_end << "\n";
     if (pos + len + m_begin > m_end)
-	len = m_end - pos - m_begin;
+	len = (size_t)(m_end - pos - m_begin);
     unsigned rc = m_stream->ReadAt(buffer, pos+m_begin, len, pread);
     return rc;
 }
@@ -46,7 +48,7 @@ unsigned PartialSeekableStream::WriteAt(const void *buffer, pos64 pos,
 					size_t len, size_t *pwrote)
 {
     if (pos + len + m_begin > m_end)
-	len = m_end - pos - m_begin;
+	len = (size_t)(m_end - pos - m_begin);
     unsigned rc = m_stream->WriteAt(buffer, pos+m_begin, len, pwrote);
     return rc;
 }
@@ -76,6 +78,8 @@ public:
     // Being a Stream
     unsigned Read(void *buffer, size_t len, size_t *pread);
     unsigned Write(const void *buffer, size_t len, size_t *pwrote);
+
+    util::PollHandle GetReadHandle() { return m_stream->GetReadHandle(); }
 };
 
 PartialStream::PartialStream(StreamPtr s, unsigned long long length)

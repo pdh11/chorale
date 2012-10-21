@@ -12,13 +12,14 @@ class MultiStream: public Stream
 {
     class Impl;
     Impl *m_impl;
-    MultiStream(SeekableStreamPtr,size_t);
+    MultiStream(SeekableStreamPtr, SeekableStream::pos64);
     ~MultiStream();
 
 public:
     typedef boost::intrusive_ptr<MultiStream> MultiStreamPtr;
     
-    static unsigned Create(SeekableStreamPtr backingstream, size_t size,
+    static unsigned Create(SeekableStreamPtr backingstream, 
+			   SeekableStream::pos64 size,
 			   MultiStreamPtr *result) ATTRIBUTE_WARNUNUSED; 
 
     /** Create an output. You can't create any new outputs once you've

@@ -2,7 +2,9 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(chorale, [0.13], pdh@utter.chaos.org.uk)
+AC_INIT(chorale, [0.14], pdh@utter.chaos.org.uk)
+AC_SUBST(PACKAGE_WEBSITE, [http://chorale.sf.net])
+AC_DEFINE_UNQUOTED([PACKAGE_WEBSITE], ["${PACKAGE_WEBSITE}"], [Define to the package's website])
 
 AC_MSG_NOTICE([Required: Boost.])
 AC_MSG_NOTICE([Optional: Taglib, Qt4, gstreamer, cdparanoia or libcdio, libcddb, lame, flac, dbus, hal, libmpg123, inkscape, xsltproc, imagemagick.])
@@ -29,6 +31,7 @@ AC_DEFUN([PDH_LD_WARNING],
 ])
 
 PDH_LD_WARNING([-mthreads])
+PDH_LD_WARNING([-Wl,--as-needed])
 
 AC_DEFUN([PDH_C_WARNING],
 [
@@ -162,18 +165,54 @@ AC_SUBST(VALGRIND_OPTS)
 # Checks for libraries.
 
 AC_ARG_WITH([gpl],
-[AS_HELP_STRING([--without-gpl],[Avoid using GPL libraries (e.g. Qt)])],
+[AS_HELP_STRING([--without-gpl],[Avoid using GPL libraries (e.g. Qt 4.4)])],
 [],[with_gpl=yes])
 AC_ARG_WITH([lgpl],
 [AS_HELP_STRING([--without-lgpl],[Avoid using GPL and LGPL libraries])],
 [],[with_lgpl=yes])
+AC_ARG_WITH([libwrap],
+[AS_HELP_STRING([--without-libwrap],[Avoid using libwrap from tcp_wrappers])],
+[],[with_libwrap=yes])
 
 if test "x${with_lgpl}" = xno ; then
   with_gpl=no
 fi
 
+if test "x${with_libwrap}" != xno; then
+AC_CHECK_HEADER([tcpd.h],[HAVE_LIBWRAP="yes"],[HAVE_LIBWRAP="no"])
+if test "x${HAVE_LIBWRAP}" != xno; then
+AC_MSG_CHECKING([for libwrap])
+ok_LIBS=${LIBS}
+LIBS="$LIBS -lwrap"
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+#include <tcpd.h>
+int allow_severity = 0;
+int deny_severity = 0;
+]],
+[[
+    return hosts_access();
+]])], [AC_MSG_RESULT([yes]); HAVE_LIBWRAP="yes" ; LIBWRAP="-lwrap"],
+      [AC_MSG_RESULT([no]) ; HAVE_LIBWRAP="no" ] )
+# Set it back unconditionally; we don't want to link with -lwrap unless we
+# have to.
+LIBS=$ok_LIBS
+fi
+fi
+AC_SUBST(LIBWRAP)
+AC_SUBST(HAVE_LIBWRAP)
+if test "x${HAVE_LIBWRAP}" != xno; then
+AC_DEFINE(HAVE_LIBWRAP, 1, [Define to 1 if you have libwrap from tcp_wrappers])
+fi
+
 if test "x${with_lgpl}" != xno ; then
-AC_CHECK_LIB(mp3lame, lame_init, [LAME="yes" LAME_LIBS="-lmp3lame"], [LAME="no"], -lm)
+AC_CHECK_LIB(mp3lame, lame_init, [LAME="yes" LAME_LIBS="-lmp3lame"], [LAME="no"])
+ if test "${LAME}" = "no" ; then
+  # Sometimes (e.g. Debian 5.0) lame needs -lm but isn't linked against it, so
+  # it fails to link with --as-needed. So we try it again with --no-as-needed.
+  #
+  # Test for a different symbol so result isn't cached
+  AC_CHECK_LIB(mp3lame, lame_close, [LAME="yes" LAME_LIBS="-lmp3lame"], [LAME="no"],[-Wl,--no-as-needed -lm])
+ fi
 if test "${LAME}" = "yes" ; then
     AC_CHECK_HEADER(lame/lame.h, , [LAME="no"])
 fi
@@ -206,16 +245,36 @@ PKG_PROG_PKG_CONFIG
 
 XIPH_PATH_OGG()
 
-if test "x${with_gpl}" != xno ; then
-PKG_CHECK_MODULES(QT, QtGui >= 4.2.0 Qt3Support >= 4.2.0 QtCore >= 4.2.0, [QT="yes"], [QT="no"])
-AC_SUBST(QT)
-AC_SUBST(QT_CFLAGS)
-AC_SUBST(QT_LIBS)
-if test "${QT}" = "yes" ; then
+# Qt 4.5.0+ is LGPL, earlier Qt is GPL
+QT="no"
+if test "x${with_lgpl}" != xno ; then
+AC_MSG_CHECKING([for Qt])
+PKG_CHECK_EXISTS([QtGui >= 4.5.0 Qt3Support >= 4.5.0 QtCore >= 4.5.0],
+ [QT="yes"
+  AC_MSG_RESULT([yes (LGPL)])
+ ],[
+  if test "x${with_gpl}" != xno ; then
+    PKG_CHECK_EXISTS([QtGui >= 4.2.0 Qt3Support >= 4.2.0 QtCore >= 4.2.0],
+     [QT="yes"
+      AC_MSG_RESULT([yes (GPL)])
+     ],[
+      AC_MSG_RESULT([no])
+     ])
+   else
+      AC_MSG_RESULT([no])
+   fi
+])
+
+ if test "${QT}" = "yes" ; then
   QT_MOC=`pkg-config --variable=moc_location QtGui`
+  QT_CFLAGS=`pkg-config --cflags QtGui Qt3Support QtCore`
+  QT_LIBS=`pkg-config --libs QtGui Qt3Support QtCore`
   AC_SUBST(QT_MOC)
+  AC_SUBST(QT_CFLAGS)
+  AC_SUBST(QT_LIBS)
+ fi
 fi
-fi
+AC_SUBST(QT)
 
 AC_DEFUN([PDH_PKGCONFIG], [
 AC_REQUIRE([PKG_PROG_PKG_CONFIG])
@@ -282,6 +341,10 @@ fi
 AX_BOOST([1.35.0],[BOOST="yes"],[BOOST="no"])
 if test "${ax_cv_boost_thread}${ax_cv_boost_regex}" != "yesyes" ; then
   BOOST="no"
+else
+  AC_LANG_PUSH([C++])
+  AC_CHECK_HEADERS([boost/spirit/include/classic.hpp])
+  AC_LANG_POP
 fi
 
 # Checks for header files.
@@ -418,7 +481,7 @@ printf "\n"
 pdh_ok=yes
 pdh_fail=no
 if test "${pdh_cd}${LIBCDDB}${QT}${LAME}${LIBFLAC}${GSTREAMER}${DBUS}${HAL}${MPG123}${TAGLIB}${HAVE_CONVERT}${HAVE_XSLTPROC}${HAVE_INKSCAPE}" != "yesyesyesyesyesyesyesyesyesyesyesyesyes" ; then
-test "${QT}" = "yes"        || printf "** Install Qt 4.2.0 or later to build optional choralecd\n   http://www.troll.no\n"
+test "${QT}" = "yes"        || printf "** Install Qt 4.2.0 or later to build optional choralecd (4.5.0 for LGPL)\n   http://www.troll.no\n"
 test "${LIBFLAC}" = "yes"   || printf "** Install flac 1.1.3 or later to build optional CD support\n   http://flac.sourceforge.net\n"
 test "${LAME}" = "yes"      || printf "** Install Lame 3.96.1 or later to build optional CD support\n   http://lame.sourceforge.net\n"
 test "${pdh_cd}" = "yes"    || printf "** Install cdparanoia 10 or later, or libcdio 0.76 or later to build\n   optional CD support\n   http://www.xiph.org/paranoia/\n   http://www.gnu.org/software/libcdio\n"
@@ -446,12 +509,11 @@ fi
 if test "${pdh_ok}" = "no" ; then
 printf "With most distributions, it's the '-dev' packages you need. In Ubuntu\n"
 printf "or Debian, try:\n"
-printf "   sudo apt-get install g++ autoconf automake libflac-dev\n"
-printf "        libdbus-1-dev libhal-dev libtag1-dev\n"
-printf "        libboost-thread-dev libboost-regex-dev liblame-dev\n"
-printf "        libcdio-paranoia-dev libcddb2-dev\n"
-printf "        libgstreamer0.10-dev libqt4-dev qt4-dev-tools\n"
-printf "        libmysqlclient15-dev imagemagick inkscape xsltproc\n"
+printf "   sudo apt-get install inkscape make g++ autoconf pkg-config\n"
+printf "        libboost1.35-dev xsltproc libtool\n"
+printf "        libhal-dev libflac-dev libqt4-dev libgstreamer0.10-dev\n"
+printf "        libcdparanoia-dev libtag1-dev libcddb-dev libmpg123-dev\n"
+printf "        liblame-dev\n"
 printf "\n"
 fi
 

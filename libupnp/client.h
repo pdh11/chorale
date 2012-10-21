@@ -55,7 +55,7 @@ public:
 
     void SetSid(const std::string& sid);
 
-    unsigned int Init(Client* parent, const char *service_type);
+    unsigned int Init(Client* parent, const char *service_id);
 
     unsigned int SoapAction(const char *action_name,
 			    const soap::Outbound& params,

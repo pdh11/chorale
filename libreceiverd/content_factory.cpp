@@ -129,6 +129,7 @@ util::SeekableStreamPtr TagsStream(mediadb::Database *db, unsigned int id)
 	case mediadb::WAV: codec = "wave"; break;
 	}
 	StreamAddString(ss, receiver::CODEC, codec);
+
 	StreamAddInt(ss, receiver::LENGTH, rs->GetInteger(mediadb::SIZEBYTES));
 	StreamAddInt(ss, receiver::SAMPLERATE,
 		     rs->GetInteger(mediadb::SAMPLERATE));
@@ -154,7 +155,7 @@ util::SeekableStreamPtr TagsStream(mediadb::Database *db, unsigned int id)
     ss->str() += (char)term;
     ss->Seek(0);
 /*
-    unsigned int len = ss->GetLength();
+    unsigned int len = (unsigned int)ss->GetLength();
     TRACE << "response " << len << " bytes:\n";
     for (unsigned int i=0; i<len; ++i)
     {
@@ -209,8 +210,12 @@ util::SeekableStreamPtr QueryStream(mediadb::Database *db,
 
     db::QueryPtr qp = db->CreateQuery();
     qp->CollateBy(field);
-    if (!value.empty())
-	qp->Where(qp->Restrict(field, db::LIKE, value + ".*"));
+    if (value.empty())
+	qp->Where(qp->Restrict(mediadb::TYPE, db::EQ, mediadb::TUNE));
+    else
+	qp->Where(qp->And(qp->Restrict(field, db::LIKE, value + ".*"),
+			  qp->Restrict(mediadb::TYPE, db::EQ, mediadb::TUNE)));
+		  
     db::RecordsetPtr rs = qp->Execute();
 
     if (!rs)
@@ -384,11 +389,17 @@ void GetContentStream(mediadb::Database *db, unsigned int id,
 	    ss->str() += playlist;
 	}
 
+//	TRACE << "FID " << id << " has " << vec.size() << " children\n";
+
 	for (unsigned int i=0; i<vec.size(); ++i)
 	{
+//	    TRACE << "child " << i << ": " << vec[i] << "\n";
+
 	    qp = db->CreateQuery();
 	    qp->Where(qp->Restrict(mediadb::ID, db::EQ, vec[i]));
 	    rs = qp->Execute();
+
+//	    TRACE << "title is '" << rs->GetString(mediadb::TITLE) << "'\n";
 
 	    type = rs->GetInteger(mediadb::TYPE);
 	    char chtype = 0;
@@ -404,6 +415,9 @@ void GetContentStream(mediadb::Database *db, unsigned int id,
 		chtype = 'T';
 		break;
 	    }
+
+//	    TRACE << "chtype=" << (int)chtype << "\n";
+
 	    if (!chtype)
 		continue; // Don't offer images or videos
 
@@ -447,6 +461,8 @@ void GetContentStream(mediadb::Database *db, unsigned int id,
 	    }
 	}
 
+//	TRACE << "'''" << ss->str() << "'''\n";
+
 	ss->Seek(0);
 	rsp->ssp = ss;
 	return;
@@ -461,6 +477,7 @@ void GetContentStream(mediadb::Database *db, unsigned int id,
     case mediadb::FLAC: rsp->content_type = "audio/x-flac"; break;
     case mediadb::OGGVORBIS: rsp->content_type = "application/ogg"; break;
     case mediadb::PCM: rsp->content_type = "audio/L16"; break;
+    case mediadb::WAV: rsp->content_type = "audio/x-wav"; break;
     }
 }
 
@@ -538,6 +555,8 @@ void PREFlattener::OnItem(unsigned int id, db::RecordsetPtr rs)
     pre.length = rs->GetInteger(mediadb::SIZEBYTES);
     pre.offset = 0;
     m_pvec->push_back(pre);
+
+//    TRACE << "Returning id " << id << " size " << pre.length << "\n";
 }
 
 util::SeekableStreamPtr ListStream(mediadb::Database *db,
@@ -567,6 +586,8 @@ util::SeekableStreamPtr ListStream(mediadb::Database *db,
 	size_t size = vec.size();
 	if (size > 999)
 	    size = 999;
+
+	assert(sizeof(PlaylistReplyExtended) == 12);
 
 	PlaylistReplyExtended *pre = &vec[0];
 	rc = ms->WriteAll(pre, size * sizeof(PlaylistReplyExtended));
@@ -634,7 +655,7 @@ bool ContentFactory::StreamForPath(const util::http::Request *rq,
 # include "libdbsteam/db.h"
 # include "libmediadb/xml.h"
 # include "libmediadb/schema.h"
-# include "libmediadb/localdb.h"
+# include "libdblocal/db.h"
 
 static const struct {
     const char *url;
@@ -797,6 +818,21 @@ static const char tags13Eresult[] =
 "\x06\x04" "1994"
 "\xff";
 
+static const char list123result[] =
+    "\x2e\x01\x00\x00" // FID 302
+    "\x03\x1b\x9d\x00" //   len(302) = 10296067 = 0x9d1b03
+    "\x00\x00\x00\x00" //   offset(302) = 0
+    "\x31\x01\x00\x00" // FID 305 (promoted from 297)
+    "\xef\x24\xbb\x04" //   len(305) = 79373551 = 0x4bb24ef
+    "\x00\x00\x00\x00" //   offset(305) = 0
+    "\x4a\x01\x00\x00" // FID 330 (promoted from 308)
+    "\x49\xda\x33\x01" //   len(330) = 20175433 = 0x133da49
+    "\x00\x00\x00\x00" //   offset(330) = 0
+    "\x5f\x01\x00\x00" // FID 351 (promoted from 331)
+    "\x73\x75\x06\x02" //   len(351) = 33977715 = 0x2067573
+    "\x00\x00\x00\x00" //   offset(351) = 0
+    "";
+
 static const struct {
     const char *url;
     const char *result;
@@ -804,6 +840,7 @@ static const struct {
 } tests2[] = {
     { "/tags/100", RESULT(tags100result) },
     { "/tags/13e", RESULT(tags13Eresult) },
+    { "/list/123?_extended=2&_utf8=1", RESULT(list123result) },
 };
 
 enum { NTESTS2 = sizeof(tests2)/sizeof(tests2[0]) };
@@ -847,7 +884,7 @@ int main()
 
     mediadb::ReadXML(&sdb, SRCROOT "/libmediadb/example.xml");
 
-    mediadb::LocalDatabase mdb(&sdb);
+    db::local::Database mdb(&sdb);
 
     receiverd::ContentFactory rcf(&mdb);
 
@@ -890,7 +927,7 @@ int main()
 
 	if (ss->str() != expected)
 	{
-	    TRACE << "URL " << tests[i].url << " gave:\n"
+	    TRACE << "URL " << tests2[i].url << " gave:\n"
 		  << Printable(ss->str()) 
 		  << "\nshould be\n" 
 		  << Printable(expected) << "\n\n";

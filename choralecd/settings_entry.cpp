@@ -23,7 +23,8 @@ SettingsEntryText::SettingsEntryText(QWidget *parent, Settings *settings,
     : SettingsEntry(parent),
       m_settings(settings),
       m_setter(setter),
-      m_getter(getter)
+      m_getter(getter),
+      m_line(NULL)
 {
     setMargin(6);
     QLabel *mr = new QLabel(this);
@@ -50,7 +51,8 @@ SettingsEntryBool::SettingsEntryBool(QWidget *parent, Settings *settings,
     : SettingsEntry(parent),
       m_settings(settings),
       m_setter(setter),
-      m_getter(getter)
+      m_getter(getter),
+      m_cb(NULL)
 {
     setMargin(6);
     m_cb = new QCheckBox(this);
@@ -82,7 +84,9 @@ SettingsEntryEndpoint::SettingsEntryEndpoint(QWidget *parent,
       m_setter(setter),
       m_getter(getter),
       m_setter2(portsetter),
-      m_getter2(portgetter)
+      m_getter2(portgetter),
+      m_line(NULL),
+      m_portline(NULL)
 {
     setMargin(6);
     Q3HBox *hb = new Q3HBox(this);
@@ -120,7 +124,8 @@ SettingsEntryMap::SettingsEntryMap(QWidget *parent,
     : SettingsEntry(parent),
       m_settings(settings),
       m_setter(setter),
-      m_getter(getter)
+      m_getter(getter),
+      m_table(NULL)
 {
     setMargin(6);
     QLabel *mr = new QLabel(this);

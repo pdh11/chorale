@@ -26,7 +26,7 @@ unsigned RemoteCDDrive::Init(const std::string& url, const std::string& udn)
 
     m_friendly_name = m_upnp.GetDescription().GetFriendlyName();
 
-    rc = m_optical_drive.Init(&m_upnp, upnp::s_service_type_optical_drive);
+    rc = m_optical_drive.Init(&m_upnp, upnp::s_service_id_optical_drive);
     if (rc != 0)
 	return rc;
 

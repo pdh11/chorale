@@ -21,6 +21,10 @@ public:
     /** The IP address and port on which the client contacted us.
      */
     virtual util::IPEndPoint GetCurrentEndPoint() = 0;
+
+    /** The access afforded by IPFilter to the current client.
+     */
+    virtual unsigned int GetCurrentAccess() = 0;
 };
 
 } // namespace soap

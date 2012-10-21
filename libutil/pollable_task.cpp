@@ -32,6 +32,9 @@ public:
     unsigned int OnActivity()
     {
 //	TRACE << "wt" << this << " t" << m_task.get() << ": OnActivity\n";
+	if (m_parent->m_exiting)
+	    return 0;
+
 	m_parent->m_poller->Remove(m_pollable);
 	RunMe();
 	return 0;
@@ -39,6 +42,9 @@ public:
 
     unsigned int OnTimer()
     {
+	if (m_parent->m_exiting)
+	    return 0;
+
 	m_parent->m_poller->Remove(this);
 	RunMe();
 	return 0;

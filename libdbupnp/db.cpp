@@ -6,7 +6,7 @@
 #include "libupnp/ssdp.h"
 #include "libupnp/description.h"
 #include "libupnp/soap.h"
-#include "libupnp/ContentDirectory2_client.h"
+#include "libupnp/ContentDirectory3_client.h"
 #include "libmediadb/schema.h"
 #include <errno.h>
 #include <string.h>
@@ -32,7 +32,7 @@ unsigned Database::Init(const std::string& url, const std::string& udn)
     if (rc != 0)
 	return rc;
 
-    m_contentdirectory.Init(&m_upnp, upnp::s_service_type_content_directory);
+    m_contentdirectory.Init(&m_upnp, upnp::s_service_id_content_directory);
 
     {
 	Lock lock(this);
@@ -56,7 +56,7 @@ unsigned Database::Init(const std::string& url, const std::string& udn)
     {
 	std::string result;
 	rc = m_contentdirectory.Browse("0",
-				       upnp::ContentDirectory2::BROWSEFLAG_BROWSE_METADATA,
+				       upnp::ContentDirectory3::BROWSEFLAG_BROWSE_METADATA,
 				       "upnp:searchClass", 0, 0, "",
 				       &result, NULL, NULL, NULL);
 	if (rc == 0)
@@ -175,7 +175,6 @@ int main()
     util::http::Client http_client;
 
     db::upnpav::Database thedb(&http_client, &http_server);
-//    thedb.Init("http://10.35.1.65:50539/");
 /*
     db::QueryPtr qp = thedb.CreateQuery();
     qp->Restrict(mediadb::ID, db::EQ, 0x100);
@@ -183,18 +182,6 @@ int main()
     std::string children = rs->GetString(mediadb::CHILDREN);
     TRACE << "root is called " << rs->GetString(mediadb::TITLE) << "\n";
     */
-    return 0;
-
-    upnp::ssdp::Responder client(NULL);
-    MyCallback cb;
-    client.Search(upnp::s_service_type_content_directory, &cb);
-
-#ifdef WIN32
-    Sleep(25000);
-#else
-    sleep(25);
-#endif
-
     return 0;
 }
 #endif // TEST

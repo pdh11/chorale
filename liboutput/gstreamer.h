@@ -17,11 +17,13 @@ class URLPlayer: public output::URLPlayer
     Impl *m_impl;
 
 public:
+    URLPlayer();
+    ~URLPlayer();
+
     /** Pass in card==-1 to use the default output, or an ALSA
      * card/device pair.
      */
-    URLPlayer(int card = -1, int device = -1);
-    ~URLPlayer();
+    unsigned int Init(int card = -1, int device = -1);
 
     unsigned int SetURL(const std::string&, const std::string&);
     unsigned int SetNextURL(const std::string&, const std::string&);

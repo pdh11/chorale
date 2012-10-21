@@ -8,6 +8,8 @@
 
 #ifdef WIN32
 
+#include <windows.h>
+
 namespace util {
 
 namespace win32 {

@@ -25,6 +25,7 @@ MainWindow::MainWindow(Settings *settings, util::TaskQueue *cpu_queue,
       m_settings(settings),
       m_cpu_queue(cpu_queue),
       m_disk_queue(disk_queue),
+      m_view(NULL),
       m_encode_tasks(0)
 {
     QMenu *file = new QMenu(this);

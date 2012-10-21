@@ -40,6 +40,12 @@ SetlistWindow::SetlistWindow(output::Queue *queue, mediadb::Registry *registry)
     : QDialog(NULL, NULL),
       m_queue(queue),
       m_registry(registry),
+      m_timecode(NULL),
+      m_toplayout(NULL),
+      m_table(NULL),
+      m_play_button(NULL),
+      m_pause_button(NULL),
+      m_stop_button(NULL),
       m_timecode_sec(0),
       m_state(output::STOP),
       m_current_index(UINT_MAX-1)

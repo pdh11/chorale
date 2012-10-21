@@ -114,7 +114,7 @@ int main()
     util::WorkerThreadPool wtp(util::WorkerThreadPool::NORMAL);
     util::http::Client wc;
     util::http::Server ws(&poller, &wtp);
-    upnp::ssdp::Responder ssdp(&poller);
+    upnp::ssdp::Responder ssdp(&poller, NULL);
 
     ws.Init();
     upnp::Server server(&poller, &wc, &ws, &ssdp);
@@ -133,7 +133,7 @@ int main()
     assert(rc == 0);
 
     upnp::TestServiceClient tsc;
-    rc = tsc.Init(&client, s_test_service_type);
+    rc = tsc.Init(&client, s_test_service_id);
     assert(rc == 0);
 
     DoTest(&tsc);

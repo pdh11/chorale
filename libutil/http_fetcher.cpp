@@ -55,6 +55,7 @@ Fetcher::Impl::Impl(std::map<std::string, std::string> *headers,
 				   extra_headers ? extra_headers : "",
 				   body ? body : "",
 				   verb);
+    m_error_code = m_connection->Init();
 }
 
 unsigned int Fetcher::Impl::FetchToString(std::string *presult)

@@ -2,9 +2,9 @@
 #include "libmediadb/xml.h"
 #include "libmediadb/sync.h"
 #include "libmediadb/schema.h"
-#include "libmediadb/localdb.h"
+#include "libdblocal/db.h"
 #include "libdbsteam/db.h"
-#include "libimport/file_scanner.h"
+#include "libdblocal/file_scanner.h"
 #include "config.h"
 #include "libempeg/discovery.h"
 #include "libempeg/protocol_client.h"
@@ -58,7 +58,7 @@ static void Usage(FILE *f)
 "car-players as they can't play them anyway."
 
 "\n"
-"From " PACKAGE_STRING " built on " __DATE__ " (http://chorale.sf.net).\n"
+"From " PACKAGE_STRING " (" PACKAGE_WEBSITE ") built on " __DATE__ ".\n"
 	);
 }
 
@@ -157,6 +157,16 @@ void ScanCallback::OnDiscoveredEmpeg(const util::IPAddress& ip,
 	if (any)
 	    printf("\n");
 	any = true;
+
+	// Mark 2 serial numbers are decimal mmyynnnnn
+	//   mm = month of manufacture 01-12
+	//   yy = year of manufacture 00-01
+	//   nnnnn = actual serial number starting at 1
+	//
+	// This means that the very first Mark 2 was #060000001, and
+	// also that serial numbers order isn't chronological order:
+	// 120001100 was manufactured before 010101200 despite being
+	// numerically larger.
 	
 	printf("%-15s Mark %-2s #%05u (%02u/%u) v%s\n",
 	       "",
@@ -285,7 +295,7 @@ static int Update()
     sdbsrc.SetFieldInfo(mediadb::TRACKNUMBER,
 		     db::steam::FIELD_INT|db::steam::FIELD_INDEXED);
 
-    mediadb::LocalDatabase dbsrc(&sdbsrc);
+    db::local::Database dbsrc(&sdbsrc);
 
     unsigned int rc;
 
@@ -307,7 +317,8 @@ static int Update()
     }
     else
     {
-	import::FileScanner ifs(update_root, update_flac_root, &dbsrc, &wtp);
+	db::local::FileScanner ifs(update_root, update_flac_root, &dbsrc,
+				   &wtp);
 
 	rc = ifs.Scan();
 	if (rc)

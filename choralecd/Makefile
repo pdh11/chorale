@@ -51,7 +51,7 @@ include $(TOP)Make.common
 
 libchoralecd:=$(TOP)$(DIR)$(TARGETDIR)libchoralecd.a
 
-CLEANS += $(choralecd) $(TOP)$(DIR)*.moc.cpp $(choralecd).map.txt
+CLEANS += $(choralecd) $(cloud) $(TOP)$(DIR)*.moc.cpp $(choralecd).map.txt
 
 CHORALECD_OBJS:=$(LOBJS)
 CHORALECD_DIR:=$(DIR)

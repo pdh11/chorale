@@ -4,6 +4,7 @@
 #include "libutil/socket.h"
 
 namespace util { class PollerInterface; }
+namespace util { class IPFilter; }
 
 namespace receiverd {
 
@@ -82,6 +83,7 @@ class RPCServer
 {
     uint32_t m_program_number;
     uint32_t m_version;
+    util::IPFilter *m_filter;
     util::DatagramSocket m_socket;
     RPCObserver *m_observer;
     enum { BUFSIZE = 9000 };
@@ -90,6 +92,7 @@ class RPCServer
 public:
     RPCServer(uint32_t program_number, uint32_t version, 
 	      util::PollerInterface *poller, 
+	      util::IPFilter *filter,
 	      RPCObserver *observer);
 
     unsigned short GetPort();

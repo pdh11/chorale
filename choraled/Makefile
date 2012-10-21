@@ -4,6 +4,7 @@ SRCS:=  cd.cpp \
 	choraled.cpp \
 	choralesvc.cpp \
 	database.cpp \
+	ip_filter.cpp \
 	nfs.cpp \
 	web.cpp
 
@@ -40,6 +41,12 @@ endif
 ifeq ($(libdbsteam),)
 include $(TOP)libdbsteam/Makefile
 endif
+ifeq ($(libdblocal),)
+include $(TOP)libdblocal/Makefile
+endif
+ifeq ($(libdbmerge),)
+include $(TOP)libdbmerge/Makefile
+endif
 ifeq ($(libdb),)
 include $(TOP)libdb/Makefile
 endif
@@ -69,24 +76,23 @@ $(libchoraled): $(CHORALED_OBJS)
 	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(CHORALED_OBJS)
 
-$(choraled): $(libchoraled) $(libtv) \
-		 $(libreceiverd) $(libreceiver) $(libimport) \
+$(choraled): $(libchoraled) $(libtv) $(libdblocal) $(libdbmerge) \
+		$(libreceiverd) $(libreceiver) $(libimport) \
 		$(libdbsteam) $(libdb) $(libutil) $(libmediadb) \
 		$(libupnpd) $(libupnp) $(liboutput) Makefile
 	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
-		$(CXX) -o $@-lib $(LDFLAGS) $(TOP)choraled/$(TARGETDIR)$(CHORALED_MAIN).lo \
+		$(CXX) -o $@ $(LDFLAGS) $(TOP)choraled/$(TARGETDIR)$(CHORALED_MAIN).lo \
 		-Wl,-Map,map.txt \
 		$(libchoraled) $(libtv) \
 		$(libreceiverd) $(libreceiver) $(libupnpd) $(libupnp) \
-		$(liboutput) \
+		$(liboutput) $(libdblocal) $(libdbmerge) \
 		$(libimport) $(libdbsteam) $(libmediadb) $(libdb) $(libutil) \
-		-Wl,--as-needed $(MPG123_LIBS) \
-		$(TAGLIB_LIBS) $(BOOST_LIBS) $(PARANOIA_LIBS) \
+		$(MPG123_LIBS) \
+		$(TAGLIB_LIBS) $(BOOST_LIBS) $(PARANOIA_LIBS) $(LIBWRAP) \
 		$(GSTREAMER_LIBS) $(HAL_LIBS) $(LIBCDIOP_LIBS) $(LIBS)
-ifeq ($(FINAL),no)
-	@mv -f $@-lib $@
-else
-	@grep ^$(TOP)[a-z].*\.a\( map.txt | sed -e 's,/obj-.*[\(],/,' -e 's,.o[\)],.cpp",' -e 's,^,#include ",' | sort \
+ifneq ($(FINAL),no)
+	@$(RM) $@
+	@grep ^$(TOP)[a-z].*\.a\( map.txt | sed -e 's,/obj-.*[\(],/,' -e 's,.o[\)],.cpp",' -e 's,^,#include ",' | grep -v tcp_wrappers_c.c | sort \
 		 > $@.all-$(FULLTARGET).h
 	@$(CXX) $(CXXFLAGS) -I$(TOP). \
 		-include $@.all-$(FULLTARGET).h -E -dD \
@@ -109,8 +115,8 @@ else
 		$(libreceiverd) $(libreceiver) $(libupnpd) $(libupnp) \
 		$(liboutput) \
 		$(libimport) $(libdbsteam) $(libmediadb) $(libdb) $(libutil) \
-		-Wl,--as-needed $(MPG123_LIBS) \
-		$(TAGLIB_LIBS) $(BOOST_LIBS) $(PARANOIA_LIBS) \
+		$(MPG123_LIBS) \
+		$(TAGLIB_LIBS) $(BOOST_LIBS) $(PARANOIA_LIBS) $(LIBWRAP) \
 		$(GSTREAMER_LIBS) $(HAL_LIBS) $(LIBCDIOP_LIBS) $(LIBS)
 endif
 	@$(STRIP) $@

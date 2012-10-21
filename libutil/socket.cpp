@@ -218,6 +218,30 @@ IPEndPoint Socket::GetLocalEndPoint()
     return ep;
 }
 
+IPEndPoint Socket::GetRemoteEndPoint()
+{
+    union {
+	sockaddr_in sin;
+	sockaddr sa;
+    } u;
+    socklen_t sinlen = sizeof(u);
+
+    int rc = ::getpeername(m_fd, &u.sa, &sinlen);
+
+    IPEndPoint ep;
+    if (rc < 0)
+    {
+	ep.addr.addr = 0;
+	ep.port = 0;
+    }
+    else
+    {
+	ep.addr.addr = u.sin.sin_addr.s_addr;
+	ep.port = ntohs(u.sin.sin_port);
+    }
+    return ep;
+}
+
 unsigned Socket::SetNonBlocking(bool nonblocking)
 {
     unsigned long whether = nonblocking;
@@ -577,20 +601,24 @@ unsigned DatagramSocket::EnableBroadcast(bool broadcastable)
     return 0;
 }
 
-unsigned DatagramSocket::JoinMulticastGroup(IPAddress addr)
+unsigned DatagramSocket::JoinMulticastGroup(IPAddress multicast_addr,
+					    IPAddress interface_addr)
 {
     struct ip_mreq mreq;
 
     memset(&mreq, '\0', sizeof(mreq));
 
-    mreq.imr_multiaddr.s_addr = addr.addr;
-    mreq.imr_interface.s_addr = INADDR_ANY;
+    mreq.imr_multiaddr.s_addr = multicast_addr.addr;
+    mreq.imr_interface.s_addr = interface_addr.addr;
 
     int rc = ::setsockopt(m_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
 			  (const char*)&mreq, sizeof(mreq));
 
     if (rc < 0)
+    {
+	TRACE << "JMG failed " << errno << "\n";
 	return (unsigned)errno;
+    }
 
     return 0;
 }

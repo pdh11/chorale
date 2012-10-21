@@ -14,6 +14,7 @@ namespace util {
 
 class TaskQueue;
 class PollerInterface;
+class IPFilter;
 
 namespace http {
 
@@ -37,7 +38,8 @@ struct Request: public boost::noncopyable
     std::string path;
     bool refresh;
     bool has_body;
-    IPEndPoint local_ep; /// The IP/port on which the client found us
+    IPEndPoint local_ep; ///< The IP/port on which the client found us
+    unsigned int access; ///< As per util::IPFilter
     typedef std::map<std::string, std::string, CaselessCompare> headers_t;
     headers_t headers;
 
@@ -111,6 +113,7 @@ class Server
 {
     util::PollerInterface *m_poller;
     util::WorkerThreadPool *m_thread_pool;
+    util::IPFilter *m_filter;
     typedef std::list<ContentFactory*> list_t;
     list_t m_content;
     StreamSocketPtr m_server_socket;
@@ -121,7 +124,8 @@ class Server
     friend class Task;
 
 public:
-    explicit Server(util::PollerInterface*, util::WorkerThreadPool*);
+    explicit Server(util::PollerInterface*, util::WorkerThreadPool*,
+		    util::IPFilter* = NULL);
     ~Server();
 
     /** Pass port==0 to get a random unassigned port

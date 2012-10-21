@@ -15,10 +15,15 @@ public:
 	IPAddress broadcast;
 	IPAddress netmask;
 	unsigned int flags;
+	std::string name;
     };
 
     typedef std::vector<Interface> Interfaces;
 
+    /** Get the current list of TCP/IP interfaces.
+     *
+     * Interfaces which are down or have no address are skipped.
+     */
     static unsigned GetInterfaceList(Interfaces*);
 };
 

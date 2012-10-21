@@ -218,6 +218,7 @@ static std::string ResItem(mediadb::Database *db, db::RecordsetPtr rs,
 	case mediadb::FLAC: mimetype = "audio/x-flac"; break;
 	case mediadb::OGGVORBIS: mimetype = "application/ogg"; break;
 	case mediadb::PCM: mimetype = "audio/L16"; break;
+	case mediadb::WAV: mimetype = "audio/wav"; break;
 	}
 	break;
     case mediadb::IMAGE:
@@ -427,7 +428,7 @@ std::string FromRecord(mediadb::Database *db, db::RecordsetPtr rs,
 
 # include "libdbsteam/db.h"
 # include "libmediadb/xml.h"
-# include "libmediadb/localdb.h"
+# include "libdblocal/db.h"
 
 struct TestAttribute
 {
@@ -599,7 +600,7 @@ int main(int, char**)
 
     mediadb::ReadXML(&sdb, SRCROOT "/libmediadb/example.xml");
 
-    mediadb::LocalDatabase mdb(&sdb);
+    db::local::Database mdb(&sdb);
 
     db::QueryPtr qp = mdb.CreateQuery();
     qp->Where(qp->Restrict(mediadb::ID, db::EQ, 377));

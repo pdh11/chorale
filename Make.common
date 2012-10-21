@@ -96,6 +96,8 @@ ifneq ($(DEBUG),0)
 WITH_DEBUG:=1
 CFLAGS += -DDEBUG=1 -DWITH_DEBUG -D_FORTIFY_SOURCE=2 -ggdb
 CXXFLAGS += -DDEBUG=1 -DWITH_DEBUG -D_FORTIFY_SOURCE=2 -ggdb
+LDFLAGS += -ggdb
+STRIP:= :
 else
 WITH_DEBUG:=0
 CFLAGS += -fomit-frame-pointer -DNDEBUG
@@ -200,10 +202,11 @@ $(TOP)$(DIR)$(TARGETDIR)%__$(TEST_SUFFIX): $(TOP)$(DIR)%.cpp
 		> $@.dd
 	@mv $@.dd $@.dep
 	@rm $@.d
-	@$(LIBTOOL) --tag=CXX --mode=link --silent \
-		$(CXX) $(CXXFLAGS) -fprofile-arcs -ftest-coverage \
+	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
+		$(CXX) $(CXXFLAGS) $(LDFLAGS) -fprofile-arcs -ftest-coverage \
 		$@.lo $(filter %.la,$^) $(TEST_LIBS) -o $@ -Wl,-Map,$@.map
 	$(TEST_PRE)$(TEST_RUN) $@ || ( echo $@ FAILED ; rm -f $@ ; false )
+	@: > $@
 	@$(GCOV) -o $(dir $@).libs/$(notdir $@).cpp $< > $@.gcov.txt
 	@rm -f *[^c]??.gcov
 	@mv $(notdir $<).gcov  $(notdir $<).gcov0

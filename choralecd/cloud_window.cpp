@@ -18,6 +18,8 @@ Window::Window(QColor fg, QColor bg)
       m_icon16(icon16_xpm),
       m_close(ShadeImage(bg,fg,close_xpm)), // note inverse
       m_minimise(ShadeImage(bg,fg,minimise_xpm)), // note inverse
+      m_x(0),
+      m_y(0),
       m_size_grip(this),
       m_selected(0),
       m_widget(NULL),

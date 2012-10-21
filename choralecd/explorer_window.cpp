@@ -23,7 +23,10 @@ ExplorerWindow::ExplorerWindow(mediadb::Database *db,
 			       mediadb::Registry *registry)
     : QMainWindow(),
       m_db(db),
-      m_registry(registry)
+      m_registry(registry),
+      m_splitter(NULL),
+      m_browse(NULL),
+      m_treemodel(NULL)
 {
     setAttribute(Qt::WA_DeleteOnClose);
     setWindowTitle("Exploring");

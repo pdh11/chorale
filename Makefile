@@ -64,7 +64,7 @@ install: $(choraled)
 	$(INSTALL) -d $(datadir)/chorale/upnp
 	$(INSTALL) libupnp/AVTransport2.xml $(datadir)/chorale/upnp/AVTransport.xml
 	$(INSTALL) libupnp/RenderingControl2.xml $(datadir)/chorale/upnp/RenderingControl.xml
-	$(INSTALL) libupnp/ContentDirectory2.xml $(datadir)/chorale/upnp/ContentDirectory.xml
+	$(INSTALL) libupnp/ContentDirectory3.xml $(datadir)/chorale/upnp/ContentDirectory.xml
 	$(INSTALL) libupnp/OpticalDrive.xml $(datadir)/chorale/upnp/OpticalDrive.xml
 	$(INSTALL) -d $(datadir)/chorale/layout
 	$(INSTALL) -m644 imagery/default.css $(datadir)/chorale/layout/default.css
@@ -120,9 +120,28 @@ winrelease: all
 	cp $(TOP)libreceiverd/README wintemp/README.receiver.TXT
 	zip -j -m -r -l $(CHORALE)-win32.zip wintemp
 
-SUBDIRS:= libdb libdbreceiver libimport libmediatree libreceiver \
-	libdbsteam libutil choraled choralecd libupnpd libempeg libdbempeg \
-	libmediadb libreceiverd liboutput choraleutil libupnp libdbupnp libtv
+SUBDIRS:= \
+	choralecd \
+	choraled \
+	choraleutil \
+	libdb \
+	libdbempeg \
+	libdblocal \
+	libdbmerge \
+	libdbreceiver \
+	libdbsteam \
+	libdbupnp \
+	libempeg \
+	libimport \
+	libmediadb \
+	libmediatree \
+	liboutput \
+	libreceiver \
+	libreceiverd \
+	libtv \
+	libupnp \
+	libupnpd \
+	libutil
 
 libdeps.dot: Makefile
 	echo "digraph G {" > $@
@@ -147,7 +166,8 @@ filedeps.dot: Makefile
 	tred $< | dot -Tgif -o $@
 
 %.png: %.dot
-	tred $< | dot -Tpng -o $@
+	tred $< | dot -Tsvg -Nfontname="Luxi Sans" -Gfontnames=gd -o $*.svg
+	inkscape -z -b white -e $@ $*.svg -d60 > /dev/null
 
 CLEANS += $(TOP)filedeps.dot $(TOP)libdeps.dot
 

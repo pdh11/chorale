@@ -56,6 +56,7 @@ private:
     Parser m_parser;
 
     enum {
+	UNINITIALISED,
 	CONNECTING,
 	SEND_HEADERS,
 	SEND_BODY,
@@ -89,12 +90,22 @@ private:
 	       const std::string& body,
 	       const char *verb);
 
-    void Init();
 
     unsigned int OnActivity();
 
 public:
     ~Connection();
+
+    /** Start the HTTP transaction.
+     *
+     * Immediate errors (failure to parse host, failure of connect()
+     * call) are returned here; errors happening any later come back
+     * through Observer::OnHttpDone. In fact, OnHttpDone may be called
+     * before Init() returns, i.e. you need to be ready for OnHttpDone
+     * calls before you call Init(). If Init() returns a failure,
+     * OnHttpDone is guaranteed not to be called afterwards.
+     */
+    unsigned int Init();
 
     // Being a Stream
     unsigned Read(void *buffer, size_t len, size_t *pread);
@@ -114,6 +125,9 @@ public:
     Client();
 
     /** Passing a NULL verb means POST (if body != NULL) or GET (otherwise).
+     *
+     * Note that the connection doesn't actually start until you call Init()
+     * on the returned object.
      */
     ConnectionPtr Connect(util::PollerInterface *poller,
 			  Connection::Observer *obs,

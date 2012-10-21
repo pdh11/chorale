@@ -25,7 +25,7 @@ Notifier::Notifier(int fd, const util::Callback& callback,
     connect(this, SIGNAL(activated(int)), this, SLOT(OnActivity(int)));
 }
 
-void Notifier::OnActivity(int fd)
+void Notifier::OnActivity(int)
 {
 //    TRACE << "Notifier(" << fd << ")::OnActivity\n";
     m_callback();

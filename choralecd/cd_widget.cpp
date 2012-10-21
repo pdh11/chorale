@@ -87,6 +87,7 @@ UpnpCDWidgetFactory::UpnpCDWidgetFactory(QPixmap *pixmap,
 					 util::http::Client *client,
 					 util::http::Server *server)
     : m_pixmap(pixmap),
+      m_parent(NULL),
       m_settings(settings),
       m_cpu_queue(cpu_queue),
       m_disk_queue(disk_queue),

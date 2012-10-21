@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <string.h>
 #include <boost/thread/condition.hpp>
+#include <algorithm>
 
 namespace util {
 
@@ -11,13 +12,13 @@ class MultiStream::Impl
     class Output;
 
     SeekableStreamPtr m_stm;
-    size_t m_size;
-    size_t m_inputpos;
+    SeekableStream::pos64 m_size;
+    SeekableStream::pos64 m_inputpos;
     unsigned m_noutputs;
 
     enum { MAX_OP = 4 };
 
-    size_t m_outputposes[MAX_OP];
+    SeekableStream::pos64 m_outputposes[MAX_OP];
 
     boost::mutex m_mutex;
     boost::condition m_moredata;
@@ -25,7 +26,7 @@ class MultiStream::Impl
     unsigned OutputRead(void *buffer, size_t len, size_t *pread, unsigned ix);
 
 public:
-    Impl(SeekableStreamPtr stm, size_t size);
+    Impl(SeekableStreamPtr stm, SeekableStream::pos64 size);
     ~Impl();
 
     unsigned CreateOutput(MultiStream*, StreamPtr*);
@@ -60,10 +61,10 @@ unsigned MultiStream::Impl::Output::Read(void *buffer, size_t len,
         /* MultiStream::Impl */
 
 
-MultiStream::Impl::Impl(SeekableStreamPtr stm, size_t size)
+MultiStream::Impl::Impl(SeekableStreamPtr stm, SeekableStream::pos64 size)
     : m_stm(stm), m_size(size), m_inputpos(0), m_noutputs(0)
 {
-    memset(m_outputposes, 0, MAX_OP*sizeof(size_t));
+    memset(m_outputposes, 0, MAX_OP*sizeof(SeekableStream::pos64));
 }
 
 MultiStream::Impl::~Impl()
@@ -95,10 +96,9 @@ unsigned MultiStream::Impl::OutputRead(void *buffer, size_t len,
 	m_moredata.wait(lock);
     }
 
-    size_t nread = m_inputpos - m_outputposes[ix];
-    nread = std::min(nread, len);
-    m_stm->Seek(m_outputposes[ix]);
-    unsigned rc = m_stm->Read(buffer, nread, &nread);
+    SeekableStream::pos64 offset = m_inputpos - m_outputposes[ix];
+    size_t nread = (size_t)std::min(offset, (SeekableStream::pos64)len);
+    unsigned rc = m_stm->ReadAt(buffer, m_outputposes[ix], nread, &nread);
     if (rc)
     {
 	TRACE << "OutputRead failed on backing stream: " << rc << "\n";
@@ -120,8 +120,7 @@ unsigned MultiStream::Impl::Write(const void *buffer, size_t len,
 
     boost::mutex::scoped_lock lock(m_mutex);
     
-    m_stm->Seek(m_inputpos);
-    unsigned rc = m_stm->Write(buffer, len, pwrote);
+    unsigned rc = m_stm->WriteAt(buffer, m_inputpos, len, pwrote);
     if (rc)
 	return rc;
     m_inputpos += *pwrote;
@@ -133,14 +132,15 @@ unsigned MultiStream::Impl::Write(const void *buffer, size_t len,
         /* MultiStream */
 
 
-unsigned MultiStream::Create(SeekableStreamPtr back, size_t size, 
+unsigned MultiStream::Create(SeekableStreamPtr back,
+			     SeekableStream::pos64 size,
 			     MultiStreamPtr *result)
 {
     *result = MultiStreamPtr(new MultiStream(back, size));
     return 0;
 }
 
-MultiStream::MultiStream(SeekableStreamPtr stm, size_t size)
+MultiStream::MultiStream(SeekableStreamPtr stm, SeekableStream::pos64 size)
     : m_impl(new Impl(stm, size))
 {
 }

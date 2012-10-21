@@ -15,31 +15,35 @@ domain, and all copyright is disclaimed.
 
 Some sections of source code in the "choralecd" directory are, in
 part, derived works of example code supplied with Qt3. Unlike Qt
-itself, the example code is not licensed under the GPL:
+itself, the example code is not licensed under the GPL or LGPL:
 qfileiconview.cpp, for instance, says "This example program may be
 used, distributed and modified without limitation".
 
-Binaries compiled from the "choralecd" directory link against Qt, and
-must thus be distributed under the licence under which you obtained
-Qt: typically, this will be the GNU General Public Licence version 3,
-found in the file COPYING.GPL. If, at configure time, cdparanoia is
-not detected but libcdio is, libcdio (also under the GPLv3) will also
-be linked. Get proper legal advice if unsure.
+In distributing *binaries* compiled from this source code, you need to
+pay attention to the licences of third-party libraries which such
+binaries will be linked against.
 
-Other binaries compiled from this source code, including the daemon
-"choraled", also link with libcdio if present (and if cdparanoia isn't
-found), and thus in that case must also be distributed under
-GPLv3. Even if libcdio is not used, they typically also link with
-libraries (including, at least, Taglib) which are licensed under the
-GNU Library General Public Licence, found in the file
-COPYING.LGPL. Such binaries are therefore "works that use the Library"
-as per Section 5 of the LGPL, and you must not redistribute them
-without complying with the requirements of Section 6. Get proper legal
+In particular, if you have a version of Qt earlier than 4.5.0, *or* if
+you have libcdio but not the alternative cdparanoia library, then
+those libraries are licensed under the GNU General Public Licence,
+version 3 (GPLv3). In that case, this source code will by default
+produce binaries which link against these GPL-licensed libraries --
+binaries which themselves can therefore only be distributed under the
+same licence, which is found in the file COPYING.GPL. Get proper legal
 advice if unsure.
 
+Subsequent versions of Qt (4.5.0 and later) are licensed under the GNU
+Library General Public Licence (LGPL), found in the file COPYING.LGPL
+-- as are cdparanoia, TagLib, and other libraries linked by binaries
+compiled from this source code. Such binaries are therefore "works
+that use the Library" as per Section 5 of the LGPL, and you must not
+redistribute them without complying with the requirements of Section
+6. Get proper legal advice if unsure.
+
 You can use the configure options --without-gpl or --without-lgpl to
-ignore GPL and GPL/LGPL libraries respectively, but this is no
+avoid the use of GPL and GPL/LGPL libraries respectively (by
+eliminating the corresponding Chorale functionality), but this is no
 substitute for carefully checking licences yourself if you intend to
-release LGPL or closed-source derived works of Chorale. If you don't
-mind distributing your derived work under GPLv3, you can of course
-just go ahead and enable everything.
+release LGPL or closed-source derived works of Chorale. On the other
+hand, if you don't mind distributing your derived work under GPLv3,
+you can of course just go ahead and enable everything.

@@ -8,7 +8,7 @@
 #include "libutil/locking.h"
 #include "libmediadb/db.h"
 #include "libupnp/client.h"
-#include "libupnp/ContentDirectory2_client.h"
+#include "libupnp/ContentDirectory3_client.h"
 
 namespace db {
 
@@ -40,7 +40,7 @@ class Database: public mediadb::Database,
 		private util::PerObjectRecursiveLocking
 {
     upnp::Client m_upnp;
-    upnp::ContentDirectory2Client m_contentdirectory;
+    upnp::ContentDirectory3Client m_contentdirectory;
 
     typedef std::map<unsigned int, std::string> idmap_t;
     idmap_t m_idmap;
@@ -80,7 +80,7 @@ public:
     unsigned Init(const std::string& url, const std::string& udn);
     const std::string& GetFriendlyName() const;
 
-    upnp::ContentDirectory2 *GetContentDirectory()
+    upnp::ContentDirectory3 *GetContentDirectory()
     {
 	return &m_contentdirectory;
     }

@@ -1,7 +1,6 @@
 #include "libdbsteam/db.h"
 #include "libmediadb/xml.h"
 #include "libmediadb/schema.h"
-#include "libmediadb/localdb.h"
 
 int main(int, char *argv[])
 {

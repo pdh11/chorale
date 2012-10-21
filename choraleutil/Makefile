@@ -52,11 +52,17 @@ endif
 ifeq ($(libempeg),)
 include $(TOP)libempeg/Makefile
 endif
+ifeq ($(libdbempeg),)
+include $(TOP)libdbempeg/Makefile
+endif
 ifeq ($(libmediadb),)
 include $(TOP)libmediadb/Makefile
 endif
 ifeq ($(libdbsteam),)
 include $(TOP)libdbsteam/Makefile
+endif
+ifeq ($(libdblocal),)
+include $(TOP)libdblocal/Makefile
 endif
 ifeq ($(libimport),)
 include $(TOP)libimport/Makefile
@@ -66,10 +72,10 @@ include $(TOP)liboutput/Makefile
 endif
 
 $(play): $(PLAY_OBJS) $(liboutput) $(libdb) $(libutil) \
-		$(libdbsteam) $(libmediadb) $(libimport)
+		$(libdbsteam) $(libmediadb) $(libimport) $(libdblocal)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CXX) -o $@ $(PLAY_OBJS) \
-		$(liboutput) $(libdbsteam) $(libmediadb) \
+		$(liboutput) $(libdblocal) $(libdbsteam) $(libmediadb) \
 		$(libdb) $(libimport) $(libutil) $(LIBFLAC_LIBS) \
 		$(BOOST_LIBS) $(TAGLIB_LIBS) \
 		$(GSTREAMER_LIBS) $(LIBS)
@@ -80,11 +86,11 @@ $(pparse): $(PPARSE_OBJS) $(libimport) $(libutil)
 		 $(BOOST_LIBS) $(LIBS)
 
 $(protocoltool): $(PROTOCOLTOOL_OBJS) \
-		$(libdbempeg) $(libimport) \
+		$(libdbempeg) $(libimport) $(libdblocal) \
 		$(libmediadb) $(libdbsteam) $(libdb) $(libempeg) $(libutil)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
 		$(CXX) -o $@ $(CXXFLAGS) $(PROTOCOLTOOL_OBJS) \
-		$(libdbempeg) $(libimport) \
+		$(libdbempeg) $(libdblocal) $(libimport) \
 		$(libmediadb) $(libdbsteam) $(libdb) $(libempeg) $(libutil) \
 		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS)
 
@@ -94,18 +100,18 @@ $(playlist2dir): $(PLAYLIST2DIR_OBJS) $(libimport) $(libutil)
 		 $(BOOST_LIBS) $(LIBS)
 
 $(readtags): $(READTAGS_OBJS) $(libimport) $(libdb) $(libutil) \
-		$(libdbsteam) $(libmediadb)
+		$(libdbsteam) $(libmediadb) $(libdblocal)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
-		$(CXX) -o $@ $(READTAGS_OBJS) \
+		$(CXX) -o $@ $(READTAGS_OBJS) $(libdblocal) \
 		$(libimport) $(libdbsteam) $(libmediadb) \
 		$(libdb) $(libutil) \
 		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS) -Wl,-Map,map.txt
 
 $(squirt): $(SQUIRT_OBJS) $(libimport) $(libdb) $(libutil) \
-		$(libdbsteam) $(libmediadb)
+		$(libdblocal) $(libdbsteam) $(libmediadb)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CXX) -o $@ $(SQUIRT_OBJS) \
-		$(libimport) $(libdbsteam) $(libmediadb) \
+		$(libdblocal) $(libimport) $(libdbsteam) $(libmediadb) \
 		$(libdb) $(libutil) \
 		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS)
 
@@ -117,7 +123,7 @@ $(timedb): $(TIMEDB_OBJS) $(libimport) $(libdb) $(libutil) \
 		$(libdb) $(libutil) \
 		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS)
 
-CLEANS += $(pparse) $(playlist2dir) $(PPARSE_OBJS) \
+CLEANS += $(pparse) $(playlist2dir) $(PPARSE_OBJS) $(protocoltool) \
 	$(PLAYLIST2DIR_OBJS) $(readtags) $(play) $(squirt) $(timedb)
 
 -include $(CUTIL_DEPS)

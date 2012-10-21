@@ -1,11 +1,20 @@
 #include "ssdp.h"
+#include "config.h"
 #include "libutil/poll.h"
 #include "libutil/bind.h"
 #include "libutil/socket.h"
 #include "libutil/trace.h"
+#include "libutil/ip_filter.h"
+#include "libutil/ip_config.h"
 #include <boost/thread/mutex.hpp>
+#include <boost/format.hpp>
 #include <map>
 #include <sstream>
+#ifdef HAVE_NET_IF_H
+#include <net/if.h>
+#elif defined(HAVE_WS2TCPIP_H)
+#include <ws2tcpip.h>
+#endif
 
 #undef IN
 #undef OUT
@@ -34,6 +43,7 @@ enum { PORT = 21075 };
 
 class Server::Impl
 {
+    util::IPFilter *m_filter;
     util::DatagramSocket m_socket;
 
     struct Service 
@@ -48,7 +58,7 @@ class Server::Impl
     services_t m_services;
 
 public:
-    Impl();
+    Impl(util::IPFilter *ip_filter) : m_filter(ip_filter) {}
 
     unsigned Init(util::PollerInterface *poller);
     void RegisterService(const char *uuid, unsigned short service_port,
@@ -57,10 +67,6 @@ public:
     // being a Pollable
     unsigned OnActivity();
 };
-
-Server::Impl::Impl()
-{
-}
 
 unsigned Server::Impl::Init(util::PollerInterface *poller)
 {
@@ -103,6 +109,10 @@ unsigned Server::Impl::OnActivity()
     if (nread == 0)
 	return 0;
 
+    if (m_filter
+	&& m_filter->CheckAccess(client.addr) == util::IPFilter::DENY)
+	return 0;
+
     buffer[nread] = 0;
 
     char *lf = strchr(buffer, '\n');
@@ -133,8 +143,8 @@ unsigned Server::Impl::OnActivity()
     return m_socket.Write(reply.c_str(), reply.length(), client);
 }
 
-Server::Server()
-    : m_impl(new Impl)
+Server::Server(util::IPFilter *filter)
+    : m_impl(new Impl(filter))
 {
 }
 
@@ -183,11 +193,27 @@ unsigned Client::Impl::Init(util::PollerInterface *poller,
 		    util::Poller::IN);
 
     m_callback = cb;
-
-    util::IPEndPoint ep = { util::IPAddress::ALL, PORT };
     std::string request = uuid;
     request += "\n";
-    return m_socket.Write(request.c_str(), request.length(), ep);
+
+    util::IPConfig::Interfaces ip_interfaces;
+    util::IPConfig::GetInterfaceList(&ip_interfaces);
+
+    for (util::IPConfig::Interfaces::const_iterator i = ip_interfaces.begin();
+	 i != ip_interfaces.end();
+	 ++i)
+    {
+	if (i->flags & IFF_BROADCAST)
+	{
+	    util::IPEndPoint ep;
+	    ep.addr = i->broadcast;
+	    ep.port = PORT;
+	    rc = m_socket.Write(request.c_str(), request.length(), ep);
+	    if (rc)
+		return rc;
+	}
+    }
+    return 0;
 }
 
 unsigned Client::Impl::OnActivity()
@@ -260,12 +286,43 @@ int main()
     TRACE << "Got port " << ep.port << "\n";
     tx.EnableBroadcast(true);
     ep.addr = util::IPAddress::ALL;
-    tx.Write("foo", ep);
+    TRACE << "Sending 'test0' to " << ep.addr.ToString() << "\n";
+    tx.Write("test0", ep);
+
+    util::IPConfig::Interfaces interface_list;
+    
+    util::IPConfig::GetInterfaceList(&interface_list);
+    
+    unsigned int j=0;
+    for (util::IPConfig::Interfaces::const_iterator i = interface_list.begin();
+	 i != interface_list.end();
+	 ++i)
+    {
+	if (i->flags & IFF_BROADCAST)
+	{
+	    ep.addr = i->broadcast;
+	    std::string message = (boost::format("test%u") % ++j).str();
+	    TRACE << "Sending '" << message << "'to " << ep.addr.ToString() << "\n";
+	    tx.Write(message, ep);
+	}
+	else
+	{
+	    TRACE << "Interface " << i->address.ToString()
+		  << " not broadcastable (addr " << i->broadcast.ToString()
+		  << ")\n";
+	}
+    }
     std::string s;
     util::IPEndPoint wasfrom;
     util::IPAddress wasto;
-    rx.Read(&s, &wasfrom, &wasto);
-    TRACE << s << " from " << wasfrom.ToString() << " to " << wasto.ToString() << "\n";
+    for (;;)
+    {
+	unsigned int rc = rx.WaitForRead(2000);
+	if (rc)
+	    break;
+	rx.Read(&s, &wasfrom, &wasto);
+	TRACE << s << " from " << wasfrom.ToString() << " to " << wasto.ToString() << "\n";
+    }
     return 0;
 }
 

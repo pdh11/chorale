@@ -15,17 +15,19 @@ class NFSService::Impl
     receiverd::NFSServer m_nfsd;
 
 public:
-    Impl(util::PollerInterface *poller, util::SeekableStreamPtr arfstream);
+    Impl(util::PollerInterface *poller, util::IPFilter *filter,
+	 util::SeekableStreamPtr arfstream);
 
     unsigned short GetPort() { return m_portmap.GetPort(); }
 };
 
 NFSService::Impl::Impl(util::PollerInterface *poller, 
+		       util::IPFilter *filter,
 		       util::SeekableStreamPtr arfstream)
-    : m_portmap(poller),
-      m_mountd(poller, &m_portmap),
+    : m_portmap(poller, filter),
+      m_mountd(poller, filter, &m_portmap),
       m_tarfs(arfstream),
-      m_nfsd(poller, &m_portmap, &m_tarfs)
+      m_nfsd(poller, filter, &m_portmap, &m_tarfs)
 {
 }
 
@@ -39,7 +41,9 @@ NFSService::~NFSService()
     delete m_impl;
 }
 
-unsigned int NFSService::Init(util::PollerInterface *poller, const char *arf)
+unsigned int NFSService::Init(util::PollerInterface *poller,
+			      util::IPFilter *filter,
+			      const char *arf)
 {
     if (m_impl)
 	return EEXIST;
@@ -52,7 +56,7 @@ unsigned int NFSService::Init(util::PollerInterface *poller, const char *arf)
 	return rc;
     }
 
-    m_impl = new Impl(poller, stm);
+    m_impl = new Impl(poller, filter, stm);
     TRACE << "NFS Init OK\n";
     return 0;
 }

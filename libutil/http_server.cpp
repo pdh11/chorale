@@ -6,6 +6,7 @@
 #include "http_client.h"
 #include "http_fetcher.h"
 #include "http_parser.h"
+#include "ip_filter.h"
 #include "line_reader.h"
 #include "partial_stream.h"
 #include "poll.h"
@@ -64,6 +65,7 @@ class Server::Task: public util::PollableTask
     } m_entity;
 
     enum {
+	CHECKING,
 	WAITING,
 	RECV_HEADERS,
 	RECV_BODY,
@@ -87,7 +89,7 @@ Server::Task::Task(Server *parent, StreamSocketPtr client)
       m_line_reader(m_socket),
       m_parser(&m_line_reader),
       m_buffer_fill(0),
-      m_state(WAITING)
+      m_state(CHECKING)
 {
 //    TRACE << "st" << this << ": accepted fd "
 //	  << client->GetReadHandle() << "\n";
@@ -114,6 +116,20 @@ unsigned int Server::Task::Run()
 
     switch (m_state)
     {
+    case CHECKING:
+	if (m_parent->m_filter)
+	{
+	    IPEndPoint ipe = m_socket->GetRemoteEndPoint();
+	    m_rq.access = m_parent->m_filter->CheckAccess(ipe.addr);
+	    if (m_rq.access == util::IPFilter::DENY)
+		return 0;
+	}
+	else
+	    m_rq.access = util::IPFilter::FULL;
+
+	m_state = WAITING;
+	/* fall through */
+
     case WAITING:
 	rc = m_parser.GetRequestLine(&m_rq.verb, &m_rq.path, NULL);
 	if (rc == EWOULDBLOCK)
@@ -221,7 +237,7 @@ unsigned int Server::Task::Run()
 	 * to m_entity.post_body_length) because GCC 4.3.2 for MinGW
 	 * appears to miscompile it such that the loop never exits.
 	 */
-	size_t remain = m_entity.post_body_length;
+	size_t remain = (size_t)m_entity.post_body_length;
 
 	while (remain)
 	{
@@ -270,6 +286,7 @@ unsigned int Server::Task::Run()
 	    StringStreamPtr ssp = StringStream::Create();
 	    ssp->str() = "<i>404, dude, it's just not there</i>";
 	    m_rs.ssp = ssp;
+	    m_rs.content_type = "text/html";
 	}
 	else if (m_entity.do_range)
 	    m_headers = "HTTP/1.1 206 OK But A Bit Partial\r\n";
@@ -389,7 +406,7 @@ unsigned int Server::Task::Run()
 			    PollHandle h = m_rs.ssp->GetReadHandle();
 			    if (h == NOT_POLLABLE)
 			    {
-				TRACE << "** Problem, non-pollable stream returned EWOULDBLOCK\n";
+				TRACE << "st" << this << ": ** Problem, non-pollable stream returned EWOULDBLOCK\n";
 				return rc;
 			    }
 //			    TRACE << "Waiting for body readability\n";
@@ -471,9 +488,11 @@ unsigned int Server::Task::Run()
 
 
 Server::Server(util::PollerInterface *poller, 
-	       util::WorkerThreadPool *thread_pool)
+	       util::WorkerThreadPool *thread_pool,
+	       util::IPFilter *filter)
     : m_poller(poller),
       m_thread_pool(thread_pool),
+      m_filter(filter),
       m_server_socket(StreamSocket::Create()),
       m_port(0),
       m_task_poller(poller, m_thread_pool)
@@ -572,20 +591,20 @@ bool FileContentFactory::StreamForPath(const Request *rq, Response *rs)
     {
 	TRACE << "Resolved file '" << path2 << "' not in my root '" 
 	      << m_file_root << "'\n";
-	return true;
+	return false;
     }
 
     struct stat st;
     if (stat(path2.c_str(), &st) < 0)
     {
 	TRACE << "Resolved file '" << path2 << "' not found\n";
-	return true;
+	return false;
     }
 
     if (!S_ISREG(st.st_mode))
     {
 	TRACE << "Resolved file '" << path2 << "' not a file\n";
-	return true;
+	return false;
     }
 
     unsigned int rc = util::OpenFileStream(path2.c_str(), util::READ,
@@ -594,7 +613,7 @@ bool FileContentFactory::StreamForPath(const Request *rq, Response *rs)
     {
 	TRACE << "Resolved file '" << path2 << "' won't open " << rc
 	      << "\n";
-	return true;
+	return false;
     }
 
 //    TRACE << "Path '" << rq->path << "' is file '" << path2 << "'\n";
@@ -628,6 +647,7 @@ public:
 	util::http::Fetcher hc(m_client, m_url);
 //	TRACE << "hf" << &hc << " is fetcher " << m_which << "\n";
 	unsigned int rc = hc.FetchToString(&m_contents);
+	assert(rc == 0);
 	m_poller->Wake();
 //	TRACE << "Fetcher " << m_which << " done " << rc << "\n";
 

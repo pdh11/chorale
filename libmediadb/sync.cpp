@@ -170,8 +170,8 @@ unsigned int Synchroniser::CheckPlaylistNames(unsigned int srcid,
 	     * newer version.
 	     */
 	    m_srcids_add_tune.insert(srcid);
-	    TRACE << "Replacing destid " << destid << " with srcid " << srcid
-		  << " in-place\n";
+//	    TRACE << "Replacing destid " << destid << " with srcid " << srcid
+//		  << " in-place\n";
 	}
 	else if (Different(srcrs, destrs, mediadb::ARTIST)
 		 || Different(srcrs, destrs, mediadb::ALBUM)
@@ -310,8 +310,8 @@ unsigned int Synchroniser::MaybeDelete(unsigned int destid, set_t *already)
 	m_any_deleted = true;
     }
 
-    TRACE << "Deleting destid " << destid << " " 
-	  << rs->GetString(mediadb::TITLE) << "\n";
+//    TRACE << "Deleting destid " << destid << " " 
+//	  << rs->GetString(mediadb::TITLE) << "\n";
 
     switch (rs->GetInteger(mediadb::TYPE))
     {
@@ -402,8 +402,8 @@ unsigned int Synchroniser::MaybeAdd(unsigned int srcid, set_t *already)
 	}
     }
 
-    TRACE << "Adding srcid " << srcid << " as destid " << destid
-	  << " '" << rs->GetString(mediadb::TITLE) << "'\n";
+//    TRACE << "Adding srcid " << srcid << " as destid " << destid
+//	  << " '" << rs->GetString(mediadb::TITLE) << "'\n";
 
     switch (rs->GetInteger(mediadb::TYPE))
     {

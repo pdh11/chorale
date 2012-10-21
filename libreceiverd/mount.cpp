@@ -16,8 +16,9 @@ struct FHStatus
 
 } // namespace mountprog
 
-Mount::Mount(util::PollerInterface *poller, PortMapper *portmap)
-    : m_rpc(PROGRAM_MOUNT, 1, poller, this)
+Mount::Mount(util::PollerInterface *poller, util::IPFilter *filter,
+	     PortMapper *portmap)
+    : m_rpc(PROGRAM_MOUNT, 1, poller, filter, this)
 {
     portmap->AddProgram(PROGRAM_MOUNT, m_rpc.GetPort());
 }

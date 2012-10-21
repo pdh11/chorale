@@ -5,6 +5,7 @@
 #include "libutil/endian.h"
 #include "libutil/poll.h"
 #include "libutil/bind.h"
+#include "libutil/ip_filter.h"
 
 #undef IN
 
@@ -13,9 +14,11 @@ namespace receiverd {
 unsigned char RPCServer::sm_buf[9000];
 
 RPCServer::RPCServer(uint32_t program_number, uint32_t version,
-		     util::PollerInterface *poller, RPCObserver *observer)
+		     util::PollerInterface *poller, util::IPFilter *filter,
+		     RPCObserver *observer)
     : m_program_number(program_number),
       m_version(version),
+      m_filter(filter),
       m_observer(observer)
 {
     m_socket.SetNonBlocking(true);
@@ -45,6 +48,10 @@ unsigned int RPCServer::OnActivity()
 	    return rc;
 	if (nread == 0)
 	    return rc;
+
+	if (m_filter
+	    && m_filter->CheckAccess(wasfrom.addr) == util::IPFilter::DENY)
+	    continue;
 
 	if (nread < sizeof(rpc::Call))
 	    continue;

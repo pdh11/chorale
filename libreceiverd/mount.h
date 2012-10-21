@@ -22,7 +22,7 @@ class Mount: public RPCObserver
     };
 
 public:
-    Mount(util::PollerInterface*, PortMapper*);
+    Mount(util::PollerInterface*, util::IPFilter*, PortMapper*);
 
     unsigned int OnRPC(uint32_t proc, const void *args,
 		       size_t argslen, void *reply, size_t *replylen);

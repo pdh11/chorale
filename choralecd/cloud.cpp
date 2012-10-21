@@ -161,9 +161,10 @@ LocalOutputs::LocalOutputs(Window *parent, util::hal::Context *hal,
     }
     else
     {
-	Output *out = new Output(parent,
-				 new output::gstreamer::URLPlayer,
-				 "output");
+	output::gstreamer::URLPlayer *player =
+	    new output::gstreamer::URLPlayer;
+	player->Init();
+	Output *out = new Output(parent, player, "output");
 	m_outputs.insert(out);
 	MenuEntry me;
 	me.pixmap = m_pixmap;
@@ -198,9 +199,10 @@ void LocalOutputs::OnDevice(util::hal::DevicePtr dev)
 	    card_id = device_id + " on " + card_id;
     }
 
-    Output *out = new Output(m_parent,
-			     new output::gstreamer::URLPlayer(card, device),
-			     "output");
+    output::gstreamer::URLPlayer *player = new output::gstreamer::URLPlayer;
+    player->Init(card, device);
+
+    Output *out = new Output(m_parent, player, "output");
     m_outputs.insert(out);
     MenuEntry me;
     me.pixmap = m_pixmap;
@@ -252,7 +254,7 @@ int Main(int argc, char *argv[])
     util::http::Server http_server(&bg_poller, &disk_pool);
     http_server.Init();
 
-    upnp::ssdp::Responder uclient(&fg_poller);
+    upnp::ssdp::Responder uclient(&fg_poller, NULL);
 
     QPixmap network_pixmap(ShadeImage(fg, bg, network_xpm));
 

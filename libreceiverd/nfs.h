@@ -25,7 +25,7 @@ class NFSServer: public RPCObserver
     };
 
 public:
-    NFSServer(util::PollerInterface*, PortMapper*, VFS*);
+    NFSServer(util::PollerInterface*, util::IPFilter*, PortMapper*, VFS*);
 
     unsigned int OnRPC(uint32_t proc, const void *args,
 		       size_t argslen, void *reply, size_t *replylen);

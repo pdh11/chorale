@@ -106,7 +106,7 @@ protected:
     orderby_t m_orderby;
     orderby_t m_collateby;
 
-    std::string ToStringElement(ssize_t);
+    std::string ToStringElement(ssize_t) const;
 
 public:
     Query();
@@ -137,7 +137,18 @@ public:
 
     virtual RecordsetPtr Execute() = 0;
 
-    std::string ToString();
+    std::string ToString() const;
+
+    /** Copies the Where, OrderBy, and CollateBy information from
+     * another query.
+     *
+     * Useful for applying the same query to more than one
+     * Database. Note that this operation may fail: the target
+     * database's Where, OrderBy, or Collate may refuse it. (That's
+     * why this operation isn't just a copy of m_restrictions,
+     * m_relations etc.)
+     */
+    unsigned int Clone(const Query *other);
 };
 
 typedef ::boost::intrusive_ptr<Query> QueryPtr;
