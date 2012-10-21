@@ -451,11 +451,23 @@ AC_DEFUN([PDH_CHECK_BOOST], [
 	[BOOST_REGEX=$i ; break],[])
       LIBS=$ok_LIBS
     done
+    # We also need boost-system, but only if it's present (newer Boost)
+    BOOST_SYSTEM=
+    for i in -lboost_system-mt -lboost_system ; do
+      ok_LIBS=$LIBS
+      LIBS="$LIBS $i"
+      AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+]],
+[[
+]])],
+	[BOOST_SYSTEM=$i ; break],[])
+      LIBS=$ok_LIBS
+    done
     if test "$BOOST_REGEX" = "" ; then
       BOOST="no"
     else
       BOOST="yes"
-      BOOST_LIBS="$BOOST_THREAD $BOOST_REGEX"
+      BOOST_LIBS="$BOOST_THREAD $BOOST_REGEX $BOOST_SYSTEM"
     fi
   fi
   AC_LANG_POP

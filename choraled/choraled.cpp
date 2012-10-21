@@ -8,6 +8,7 @@
 #include "main.h"
 #include <stdio.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <stdarg.h>

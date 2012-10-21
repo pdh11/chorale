@@ -211,7 +211,7 @@ std::auto_ptr<util::Stream> WebEPG::EPGStream(bool tv, bool radio, int day)
 
     for (;;)
     {
-	const db::QueryPtr qp(m_db->CreateQuery());
+	db::QueryPtr qp(m_db->CreateQuery());
 	qp->Where(qp->And(qp->Restrict(tv::epg::START, db::GE, 
 				       (uint32_t)starttime),
 			  qp->Restrict(tv::epg::START, db::LT, 

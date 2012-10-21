@@ -13,6 +13,9 @@
 #if HAVE_WS2TCPIP_H
 #include <ws2tcpip.h>  /* For gethostname */
 #endif
+#if HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 
 #define HAVE_DVB (HAVE_LINUX_DVB_DMX_H && HAVE_LINUX_DVB_FRONTEND_H)
 

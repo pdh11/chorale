@@ -1,0 +1,11 @@
+stamp-h
+stamp-h.in
+map*.txt
+obj-*
+Make.config.*-*
+autom4te.cache
+aclocal.m4
+config.*
+configure
+libtool*
+*~
