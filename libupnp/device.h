@@ -28,7 +28,8 @@ public:
 class Device
 {
     const char *m_type;
-    std::set<Device*> m_devices;
+    typedef std::set<Device*> devices_t;
+    devices_t m_devices;
     typedef std::map<std::string, Service*> services_t;
     services_t m_services;
     std::string m_resource;
@@ -43,6 +44,8 @@ public:
 		    Service *service);
 
     void AddEmbeddedDevice(Device*);
+
+    Device *FindByUDN(const char *udn);
 };
 
 class DeviceManager

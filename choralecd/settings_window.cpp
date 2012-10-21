@@ -34,16 +34,6 @@ SettingsWindow::SettingsWindow(Settings *settings)
     view->setWidgetResizable(true);
     box->show();
     view->show();
-
-/*
-    QLabel *mr = new QLabel(box);
-    mr->setText("MP3 folder");
-    QHBox *hb = new QHBox(box);
-    QLineEdit *le = new QLineEdit(hb);
-    le->setText(settings->GetMP3Root());
-    QPushButton *br = new QPushButton(hb);
-    br->setText("Browse...");
-*/
     
     m_entries.push_back(new SettingsEntryText(box, m_settings, "MP3 folder",
 					      &Settings::SetMP3Root,
@@ -70,11 +60,13 @@ SettingsWindow::SettingsWindow(Settings *settings)
 						  &Settings::SetHttpProxyPort,
 						  &Settings::GetHttpProxyPort));
 
-/*
     m_entries.push_back(new SettingsEntryMap(box, m_settings,
 					     "Aliases for local resources",
 					     NULL, NULL));
-*/
+
+    m_entries.push_back(new SettingsEntryMap(box, m_settings,
+					     "Aliases for network resources",
+					     NULL, NULL));
 
     QWidget *blank = new QWidget(box);
     box->setStretchFactor(blank, 100);

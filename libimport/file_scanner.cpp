@@ -235,6 +235,7 @@ unsigned int FileScanner::Impl::OnFile(dircookie parent_cookie,
 	    rs->SetString(mediadb::PATH, path);
 	    rs->SetInteger(mediadb::SIZEBYTES, pst->st_size);
 	    rs->SetInteger(mediadb::ID, id);
+	    rs->SetInteger(mediadb::IDPARENT, parent_cookie);
 	    rs->Commit();
 	}
 
@@ -288,7 +289,9 @@ unsigned int FileScanner::Impl::OnEnterDirectory(dircookie parent_cookie,
     else
     {
 	boost::recursive_mutex::scoped_lock lock(m_mutex);
-	GetRecordForPath(path, &id);
+	db::RecordsetPtr rs = GetRecordForPath(path, &id);
+	rs->SetInteger(mediadb::IDPARENT, parent_cookie);
+	rs->Commit();
 
 	size_t oldsz = m_children[parent_cookie].size();
 	if (index >= oldsz)

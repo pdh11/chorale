@@ -40,6 +40,8 @@ WebServer::Task::Task(WebServer *parent, StreamSocket *server)
 	TRACE << "Accept failed " << rc << "\n";
 	m_socket.Close();
     }
+//    TRACE << "Accepted socket local ep " 
+//	  << m_socket.GetLocalEndPoint().ToString() << "\n";
 }
 
 void WebServer::Task::Run()

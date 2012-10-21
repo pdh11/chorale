@@ -11,8 +11,7 @@
 
 namespace choraleqt {
 
-/** Override the two size-changed slots to do something more sensible if
- * window isn't shown.
+/** Override the key-press event to start editing when Return is pressed.
  */
 class TagTable: public Q3Table
 {
@@ -21,25 +20,7 @@ class TagTable: public Q3Table
  public:
     TagTable(int rows, int columns, QWidget *parent);
 
-    virtual void columnWidthChanged(int which);
-    virtual void rowHeightChanged(int which);
-    virtual QWidget *beginEdit(int,int,bool);
     virtual void keyPressEvent( QKeyEvent* );
-
- protected:
-    // Must reimplement these as they are private :-(
-    QSize tableSize2() const;
-    void updateGeometries2();
-
- protected:
-    void checkUpdate( int row, int col, QString text,
-		      std::set<unsigned int>* needs_updating );
-//    void buildIndexMap();
-    void doAutoFixup();
-
-    int m_lastSortCol;
-    bool m_sortAsc;
-    QString m_oldText; // so we can tell whether a valueChanged is real or not
 };
 
 /** A table item that repaints in a given colour */

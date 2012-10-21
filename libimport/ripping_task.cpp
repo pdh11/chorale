@@ -1,4 +1,7 @@
+#include "config.h"
 #include "ripping_task.h"
+
+#ifdef HAVE_LIBCDIOP
 #include "libutil/file_stream.h"
 #include "libutil/memory_stream.h"
 #include "libutil/multi_stream.h"
@@ -116,3 +119,5 @@ void RippingTask::Run()
 }
 
 }; // namespace import
+
+#endif // HAVE_LIBCDIOP

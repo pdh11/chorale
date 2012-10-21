@@ -18,13 +18,13 @@ public:
     // Being an AVTransport2
 
     unsigned int SetAVTransportURI(uint32_t InstanceID,
-				   std::string CurrentURI,
-				   std::string CurrentURIMetaData);
+				   const std::string& CurrentURI,
+				   const std::string& CurrentURIMetaData);
     unsigned int SetNextAVTransportURI(uint32_t InstanceID,
-				       std::string NextURI,
-				       std::string NextURIMetaData);
+				       const std::string& NextURI,
+				       const std::string& NextURIMetaData);
     unsigned int Stop(uint32_t InstanceID);
-    unsigned int Play(uint32_t InstanceID, std::string Speed);
+    unsigned int Play(uint32_t InstanceID, const std::string& Speed);
     unsigned int Pause(uint32_t InstanceID);
 };
 

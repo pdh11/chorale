@@ -40,6 +40,7 @@ static const char *const tagmap[] = {
     "lyricist",
     "children",
     "idhigh",
+    "idparent",
 };
 
 enum { NTAGS = sizeof(tagmap)/sizeof(tagmap[0]) };

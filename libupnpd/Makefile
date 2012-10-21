@@ -2,9 +2,12 @@ TOP?=../
 DIR:=libupnpd/
 SRCS:=\
 	avtransport.cpp \
-	media_renderer.cpp 
+	content_directory.cpp \
+	media_renderer.cpp \
+	media_server.cpp
 
-TEST_SRCS:=
+TEST_SRCS:= \
+	content_directory.cpp
 
 all-libupnpd:
 
@@ -13,6 +16,7 @@ all: all-libupnpd
 include $(TOP)Make.common
 
 LIBUPNPD_OBJS:=$(LOBJS)
+LIBUPNPD_TESTS:=$(TESTS)
 
 libupnpd:=$(TOP)$(DIR)$(TARGETDIR)libupnpd.la
 
@@ -24,6 +28,9 @@ $(TOP)$(DIR)% : CXXFLAGS += $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) \
 ifeq ($(libutil),)
 include $(TOP)libutil/Makefile
 endif
+ifeq ($(libupnp),)
+include $(TOP)libupnp/Makefile
+endif
 ifeq ($(libdb),)
 include $(TOP)libdb/Makefile
 endif
@@ -33,6 +40,11 @@ endif
 ifeq ($(libdbsteam),)
 include $(TOP)libdbsteam/Makefile
 endif
+
+$(LIBUPNPD_TESTS) : TEST_LIBS += $(BOOST_LIBS) $(LIBXMLPP_LIBS) $(UPNP_LIBS)
+
+$(LIBUPNPD_TESTS) : $(libdbsteam) \
+		$(libmediadb) $(libupnp) $(libdb) $(libutil)
 
 $(libupnpd): $(LIBUPNPD_OBJS)
 	$(AR_PRE)libtool --tag=CXX --mode=link --quiet \

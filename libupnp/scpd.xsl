@@ -198,18 +198,31 @@ soap::Params <xsl:value-of select="$class"/>Server::OnAction(const char *name, c
       <xsl:for-each select="argumentList/argument">
       <xsl:variable name="type" select="//stateVariable[name=current()/relatedStateVariable]/dataType"/>
       <xsl:text>      </xsl:text>
+      <xsl:if test="direction='in'"><!-- Input types -->
       <xsl:choose>
         <xsl:when test="$type='boolean'">bool</xsl:when>
         <xsl:when test="$type='i2'">int16_t</xsl:when>
         <xsl:when test="$type='ui2'">uint16_t</xsl:when>
         <xsl:when test="$type='i4'">int32_t</xsl:when>
         <xsl:when test="$type='ui4'">uint32_t</xsl:when>
-        <xsl:when test="$type='uri'">std::string</xsl:when>
-        <xsl:when test="$type='string'">std::string</xsl:when>
+        <xsl:when test="$type='uri'">const std::string&amp;</xsl:when>
+        <xsl:when test="$type='string'">const std::string&amp;</xsl:when>
         <xsl:otherwise><xsl:value-of select="$type"/></xsl:otherwise>
       </xsl:choose>
-      <xsl:if test="direction='in'" xml:space="preserve"> </xsl:if>
-      <xsl:if test="direction='out'"> *</xsl:if>
+      <xsl:text> </xsl:text>
+      </xsl:if>
+      <xsl:if test="direction='out'"><!-- Output types -->
+      <xsl:choose>
+        <xsl:when test="$type='boolean'">bool *</xsl:when>
+        <xsl:when test="$type='i2'">int16_t *</xsl:when>
+        <xsl:when test="$type='ui2'">uint16_t *</xsl:when>
+        <xsl:when test="$type='i4'">int32_t *</xsl:when>
+        <xsl:when test="$type='ui4'">uint32_t *</xsl:when>
+        <xsl:when test="$type='uri'">std::string *</xsl:when>
+        <xsl:when test="$type='string'">std::string *</xsl:when>
+        <xsl:otherwise><xsl:value-of select="$type"/></xsl:otherwise>
+      </xsl:choose>
+      </xsl:if>
       <xsl:if test="not($s)"><xsl:value-of select="name"/></xsl:if>
       <xsl:if test="not(position()=last())">,
       </xsl:if>

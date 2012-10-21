@@ -45,6 +45,12 @@
 /* Define to 1 if you have libxml++-2.6 >= 2.14.0 */
 #undef HAVE_LIBXMLPP
 
+/* Define to 1 if you have the <linux/inotify.h> header file. */
+#undef HAVE_LINUX_INOTIFY_H
+
+/* Define to 1 if you have the <linux/unistd.h> header file. */
+#undef HAVE_LINUX_UNISTD_H
+
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 
@@ -53,6 +59,9 @@
 
 /* Define to 1 if you have the <netinet/tcp.h> header file. */
 #undef HAVE_NETINET_TCP_H
+
+/* Define if you have __NR_inotify_init */
+#undef HAVE_NR_INOTIFY_INIT
 
 /* Define to 1 if you have openssl >= 0.9.0 */
 #undef HAVE_OPENSSL

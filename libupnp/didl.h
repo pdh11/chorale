@@ -31,7 +31,11 @@ MetadataList Parse(const std::string&);
  *
  * Assumes the recordset has the standard MediaDB schema.
  */
-std::string FromRecord(mediadb::Database *db, db::RecordsetPtr rs);
+std::string FromRecord(mediadb::Database *db, db::RecordsetPtr rs,
+		       const char *urlprefix = NULL);
+
+extern const char s_header[];
+extern const char s_footer[];
 
 }; // namespace didl
 }; // namespace upnp

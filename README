@@ -43,10 +43,10 @@ offers the following advantages over those packages:
     manual updating or SIGHUP. (Though SIGHUP still works, just in
     case.)
 
-Like receiverd, but unlike Audio Receiver Manager, choraled does not
-incorporate an NFS server or a DHCP server. If you want to use
-choraled with real Rio Receivers, you will need to arrange for them to
-be NFS-bootable; see libreceiverd/README.
+Unlike Audio Receiver Manager, choraled does not incorporate an NFS
+server or a DHCP server. If you want to use choraled with real Rio
+Receivers, you will need to arrange for them to be NFS-bootable; see
+libreceiverd/README.
 
 
 UPnP MediaRenderer server

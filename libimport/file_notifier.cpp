@@ -1,11 +1,43 @@
+#include "config.h"
 #include "file_notifier.h"
+#ifdef HAVE_INOTIFY_INIT
 #include <sys/inotify.h>
+#define HAVE_NOTIFY 1
+#endif
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <assert.h>
 #include "libutil/trace.h"
 #include "libutil/file.h"
+
+#ifndef HAVE_INOTIFY_INIT
+# ifdef HAVE_NR_INOTIFY_INIT
+#  ifdef HAVE_LINUX_UNISTD_H
+#   include <linux/unistd.h>
+#  endif
+#  ifdef HAVE_LINUX_INOTIFY_H
+#   include <linux/inotify.h>
+#  endif
+
+static int inotify_init()
+{
+    return ::syscall(__NR_inotify_init);
+}
+
+static int inotify_add_watch(int fd, const char *name, uint32_t mask)
+{
+    return ::syscall(__NR_inotify_add_watch, fd, name, mask);
+}
+
+//static int inotify_rm_watch(int fd, uint32_t wd)
+//{
+//    return ::syscall(__NR_inotify_rm_watch, fd, wd);
+//}
+
+#  define HAVE_NOTIFY 1
+# endif
+#endif
 
 namespace import {
 
@@ -16,6 +48,7 @@ FileNotifier::FileNotifier()
 
 unsigned int FileNotifier::Init(util::PollerInterface *poller)
 {
+#ifdef HAVE_NOTIFY
     m_fd = inotify_init();
     if (m_fd < 0)
     {
@@ -33,8 +66,10 @@ unsigned int FileNotifier::Init(util::PollerInterface *poller)
     }
 
     poller->AddHandle(m_fd, this, util::PollerInterface::IN);
-
     return 0;
+#else
+    return ENOSYS;
+#endif
 }
 
 FileNotifier::~FileNotifier()
@@ -45,9 +80,11 @@ FileNotifier::~FileNotifier()
 
 void FileNotifier::Watch(const char *directory)
 {
+#ifdef HAVE_NOTIFY
     inotify_add_watch(m_fd, directory,
 		      IN_ATTRIB | IN_CLOSE_WRITE | IN_CREATE | IN_DELETE |
 		      IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO);
+#endif
 }
 
 unsigned int FileNotifier::OnActivity()
@@ -89,6 +126,19 @@ public:
 
 int main()
 {
+    util::Poller poller;
+
+    import::FileNotifier fn;
+
+    unsigned int rc = fn.Init(&poller);
+    if (rc == ENOSYS)
+    {
+	fprintf(stderr, "No inotify() available -- skipping file_notifier test\n");
+	return 0;
+    }
+
+    assert(rc == 0);
+
     char root[] = "file_notifier.test.XXXXXX";
 
     if (!mkdtemp(root))
@@ -96,13 +146,6 @@ int main()
 	fprintf(stderr, "Can't create temporary dir\n");
 	return 1;
     }
-
-    util::Poller poller;
-
-    import::FileNotifier fn;
-
-    unsigned int rc = fn.Init(&poller);
-    assert(rc == 0);
 
     TestObserver obs;
     fn.SetObserver(&obs);

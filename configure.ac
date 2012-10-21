@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(chorale, [0.04], pdh@utter.chaos.org.uk)
+AC_INIT(chorale, [0.05], pdh@utter.chaos.org.uk)
 
 AC_MSG_NOTICE([Required: Taglib, Boost, xsltproc, and libxml++.])
 AC_MSG_NOTICE([Optional: qt, gstreamer, libcdio, libcddb, lame, flac, curl, libupnp, dbus, hal, libuuid, openssl.])
@@ -96,7 +96,9 @@ if test "${LAME}" = "yes" ; then
 fi
 AC_SUBST(LAME)
 AC_SUBST(LAME_LIBS)
-AC_DEFINE(HAVE_LAME, 1, [Define to 1 if you have LAME])
+if test "${LAME}" = "yes" ; then
+    AC_DEFINE(HAVE_LAME, 1, [Define to 1 if you have LAME])
+fi
 
 XIPH_PATH_OGG()
 
@@ -159,6 +161,27 @@ AC_CHECK_HEADERS([stdint.h unistd.h sys/types.h sys/socket.h netinet/in.h netine
 
 AC_CHECK_HEADERS([sys/inotify.h])
 AC_CHECK_FUNCS([inotify_init])
+if test "$ac_cv_func_inotify_init" = "no"; then
+  AC_CHECK_HEADERS([linux/unistd.h linux/inotify.h])
+  AC_MSG_CHECKING([for syscall(__NR_inotify_init) for Debian's benefit])
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef HAVE_LINUX_UNISTD_H
+#include <linux/unistd.h>
+#endif
+],[
+ int fd = syscall(__NR_inotify_init);
+])], [pdh_nr_inotify_init="yes"], [pdh_nr_inotify_init="no"])
+  if test "$pdh_nr_inotify_init" = "yes"; then
+    AC_MSG_RESULT([yes])
+    AC_DEFINE([HAVE_NR_INOTIFY_INIT], 1,
+	      [Define if you have __NR_inotify_init])
+  else
+    AC_MSG_RESULT([no])
+  fi
+fi
 
 AC_DEFUN([PDH_CHECK_SOCKOPT], [
 AC_MSG_CHECKING([for $1])
@@ -204,19 +227,19 @@ printf "\n"
 pdh_ok=yes
 pdh_fail=no
 if test "${LIBCDIOP}${LIBCDDB}${QT}${LAME}${LIBFLAC}${CURL}${UPNP}${GSTREAMER}${DBUS}${HAL}${SQLITE}${LIBUUID}${OPENSSL}" != "yesyesyesyesyesyesyesyesyesyesyesyesyes" ; then
-test "${LIBFLAC}" = "yes"   || printf "** Install flac 1.1.3 or later to build optional choralecd\n   http://flac.sourceforge.net\n"
-test "${LAME}" = "yes"      || printf "** Install Lame 3.96.1 or later to build optional choralecd\n   http://lame.sourceforge.net\n"
-test "${LIBCDIOP}" = "yes"  || printf "** Install libcdio 0.76 or later to build optional choralecd\n   http://www.gnu.org/software/libcdio\n"
-test "${LIBCDDB}" = "yes"   || printf "** Install libcddb 1.2.1 or later to build optional choralecd\n   http://libcddb.sourceforge.net\n"
 test "${QT}" = "yes"        || printf "** Install Qt 4.2.0 or later to build optional choralecd\n   http://www.troll.no\n"
-test "${CURL}" = "yes"      || printf "** Install curl 7.16.1 or later to build optional Rio Receiver client\n   http://curl.haxx.se\n"
-test "${UPNP}" = "yes"      || printf "** Install libupnp-1.4.3 or later to build optional UPnP support\n   http://pupnp.sf.net\n"
-test "${GSTREAMER}" = "yes" || printf "** Install gstreamer-0.10.13 or later to build optional choralecd\n   http://gstreamer.freedesktop.org\n"
-test "${DBUS}" = "yes"      || printf "** Install libdbus-1.1.1 or later to build optional auto-configuration\n   http://dbus.freedesktop.org\n"
-test "${HAL}" = "yes"       || printf "** Install hal-0.5.9.1 or later to build optional auto-configuration\n   http://hal.freedesktop.org\n"
+test "${LIBFLAC}" = "yes"   || printf "** Install flac 1.1.3 or later to build optional CD support\n   http://flac.sourceforge.net\n"
 test "${SQLITE}" = "yes"    || printf "** Install sqlite 3.3 or later to build optional SQL support\n   http://www.sqlite.org\n"
+test "${LAME}" = "yes"      || printf "** Install Lame 3.96.1 or later to build optional CD support\n   http://lame.sourceforge.net\n"
+test "${LIBCDIOP}" = "yes"  || printf "** Install libcdio 0.76 or later to build optional CD support\n   http://www.gnu.org/software/libcdio\n"
+test "${LIBCDDB}" = "yes"   || printf "** Install libcddb 1.2.1 or later to build optional CD support\n   http://libcddb.sourceforge.net\n"
 test "${LIBUUID}" = "yes"   || printf "** Install libuuid 1.00 or later to build optional UPnP support\n   http://e2fsprogs.sourceforge.net\n"
 test "${OPENSSL}" = "yes"   || printf "** Install openssl 0.9.0 or later to build optional UPnP support\n   http://www.openssl.org\n"
+test "${UPNP}" = "yes"      || printf "** Install libupnp-1.4.3 or later to build optional UPnP support\n   http://pupnp.sf.net\n"
+test "${HAL}" = "yes"       || printf "** Install hal 0.5.9.1 or later to build optional auto-configuration\n   http://hal.freedesktop.org\n"
+test "${CURL}" = "yes"      || printf "** Install curl 7.16.1 or later to build optional Rio Receiver client\n   http://curl.haxx.se\n"
+test "${DBUS}" = "yes"      || printf "** Install libdbus 1.1.1 or later to build optional auto-configuration\n   http://dbus.freedesktop.org\n"
+test "${GSTREAMER}" = "yes" || printf "** Install gstreamer 0.10.13 or later to build optional playback support\n   http://gstreamer.freedesktop.org\n"
 printf "\n"
 pdh_ok=no
 fi
@@ -237,9 +260,9 @@ printf "With most distributions, it's the '-dev' packages you need. In Ubuntu\n"
 printf "or Debian, try:\n"
 printf "   sudo apt-get install g++ autoconf automake libflac-dev libflac++-dev\n"
 printf "        libdbus-1-dev libhal-dev uuid-dev libssl-dev libtag1-dev\n"
-printf "        libboost-thread-dev liboost-regex-dev libxml++2.6-dev liblame-dev\n"
+printf "        libboost-thread-dev libboost-regex-dev libxml++2.6-dev liblame-dev\n"
 printf "        libcurl4-openssl-dev libupnp-dev libcdio-paranoia-dev libcddb2-dev\n"
-printf "        libgstreamer0.10-dev libqt4-dev qt4-dev-tools libsqlite3-dev libtool\n"
+printf "        libgstreamer0.10-dev libqt4-dev qt4-dev-tools libsqlite3-dev\n"
 printf "        libmysqlclient15-dev\n"
 printf "\n"
 fi

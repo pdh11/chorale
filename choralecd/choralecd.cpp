@@ -43,15 +43,19 @@
 #if defined(HAVE_GSTREAMER)
 #define HAVE_LIBOUTPUT 1
 #endif
+#if defined(HAVE_LAME) && defined(HAVE_LIBFLAC) && defined(HAVE_LIBCDDB) && defined(HAVE_LIBCDIOP)
+#define HAVE_CD 1
+#endif
 
 int main(int argc, char *argv[])
 {
     QApplication app( argc, argv );
 
+#ifdef HAVE_GSTREAMER
     // Start this off really early, as it fork()s internally
     output::GSTPlayer player;
+#endif
 
-    import::CDDrives cds;
     Settings settings;
     util::WorkerThreadPool cpu_pool;
     util::WorkerThreadPool disk_pool(util::CountCPUs()*2);
@@ -67,15 +71,19 @@ int main(int argc, char *argv[])
 //    choraleqt::LocalDBWidgetFactory ldbwf(&folder_pixmap, &settings);
 //    mainwin->AddWidgetFactory(&ldbwf);
 
+#ifdef HAVE_CD
+    import::CDDrives cds;
     QPixmap cd_pixmap((const char**)cd_xpm);
     choraleqt::CDWidgetFactory cwf(&cd_pixmap, &cds, &settings, cpu_queue,
 				   disk_queue);
     mainwin->AddWidgetFactory(&cwf);
+#endif
 
     mediadb::Registry registry;
 
 #ifdef HAVE_LIBOUTPUT
     output::Queue queue(&player);
+    queue.SetName("localhost");
     QPixmap output_pixmap((const char**)output_xpm);
     choraleqt::OutputWidgetFactory owf(&output_pixmap, &queue, &registry);
     mainwin->AddWidgetFactory(&owf);

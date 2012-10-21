@@ -12,22 +12,22 @@
 #include "libmediadb/schema.h"
 #include <qcursor.h>
 #include <q3cstring.h>
+#include <QMouseEvent>
+#include <QDrag>
 
 namespace choraleqt {
 
 BrowseWidget::BrowseWidget(QWidget *parent, unsigned int dbid)
-    : Q3IconView(parent),
+    : QListWidget(parent),
       m_dbid(dbid)
 {
-    setAutoArrange(true);
     setResizeMode(Adjust);
-    setSelectionMode(Extended);
-    setItemTextPos(Right);
-    setItemsMovable(false);
-    setWordWrapIconText(false);
+    setSelectionMode(ExtendedSelection);
+    setWordWrap(false);
     setSpacing(0);
-    setArrangement(TopToBottom);
-    setMaxItemWidth(400);
+    setViewMode(ListMode);
+    setWrapping(true);
+    setDragDropMode(DragOnly);
 }
 
 void BrowseWidget::SetNode(mediatree::NodePtr np)
@@ -36,57 +36,23 @@ void BrowseWidget::SetNode(mediatree::NodePtr np)
     {
 	m_node = np;
 	clear();
-
-	TRACE << "New node is '" << m_node->GetName() << "'\n";
 	
 	mediatree::Node::EnumeratorPtr ep = m_node->GetChildren();
 	while (ep->IsValid())
 	{
-	    TRACE << "And child.\n";
 	    new BrowseItem(this, 
 			   QString::fromUtf8(ep->Get()->GetName().c_str()),
-			   QPixmap(),
 			   ep->Get());
 	    ep->Next();
 	}
     }
 }
 
-/** Sheer black magic here from Qt example "fileiconview", qv.
- */
-Q3DragObject* BrowseWidget::dragObject()
+QStringList BrowseWidget::mimeTypes() const
 {
-    if ( !currentItem() )
-	return 0;
-
-    QPoint orig = viewportToContents( viewport()->mapFromGlobal( QCursor::pos() ) );
-    BrowseIconDrag *drag = new BrowseIconDrag( viewport() );
-    drag->setPixmap( *currentItem()->pixmap(),
-		     QPoint( currentItem()->pixmapRect().width() / 2, 
-			     currentItem()->pixmapRect().height() / 2 ) );
-
-    for (BrowseItem *item = (BrowseItem*)firstItem();
-	 item;
-	 item = (BrowseItem*)item->nextItem() ) 
-    {
-	if ( item->isSelected() ) 
-	{
-	    Q3IconDragItem id;
-	    id.setData( Q3CString("hello there") );
-	    drag->append( id,
-			  QRect( item->pixmapRect( FALSE ).x() - orig.x(),
-				 item->pixmapRect( FALSE ).y() - orig.y(),
-				 item->pixmapRect().width(), item->pixmapRect().height() ),
-			  QRect( item->textRect( FALSE ).x() - orig.x(),
-				 item->textRect( FALSE ).y() - orig.y(),
-				 item->textRect().width(), item->textRect().height() ),
-			  m_dbid,
-			  item->GetNode()->GetInfo()->GetInteger(mediadb::ID)
-		);
-	}
-    }
-
-    return drag;
+    QStringList qsl;
+    qsl << "application/x-chorale-ids";
+    return qsl;
 }
 
 /** Drag-and-drop.
@@ -96,53 +62,25 @@ Q3DragObject* BrowseWidget::dragObject()
  * convert them to URLs. (Perhaps we also pass them as text/uri-list for DnD
  * to non-Chorale apps.)
  */
-
-BrowseIconDrag::BrowseIconDrag(QWidget *dragSource)
-    : Q3IconDrag(dragSource, NULL)
+QMimeData *BrowseWidget::mimeData(const QList<QListWidgetItem*> items) const
 {
-}
+    std::vector<IDPair> idpv;
+    idpv.resize(items.size());
 
-const char* BrowseIconDrag::format( int i ) const
-{
-    if ( i == 0 )
-        return "application/x-qiconlist";
-    else if ( i == 1 )
-        return "application/x-chorale-ids";
-    else
-        return 0;
-}
-
-QByteArray BrowseIconDrag::encodedData( const char* mime ) const
-{
+    for (unsigned int i=0; i<(unsigned)items.size(); ++i)
+    {
+	BrowseItem *browse_item = (BrowseItem*)items[i];
+	idpv[i].dbid = m_dbid;
+	idpv[i].fid = browse_item->GetNode()->GetInfo()->GetInteger(mediadb::ID);
+    }
+    
     QByteArray a;
-    if ( QString( mime ) == "application/x-qiconlist" )
-    {
-        a = Q3IconDrag::encodedData( mime );
-    }
-    else if ( QString( mime ) == "application/x-chorale-ids" )
-    {
-	a.resize(m_pairs.size() * sizeof(IDPair));
-	memcpy(a.data(), &m_pairs[0], m_pairs.size() * sizeof(IDPair));
-    }
-    return a;
-}
+    a.resize(idpv.size() * sizeof(IDPair));
+    memcpy(a.data(), &idpv[0], idpv.size() * sizeof(IDPair));
 
-bool BrowseIconDrag::canDecode( QMimeSource* e )
-{
-    return e->provides("application/x-qiconlist")
-	|| e->provides("application/x-chorale-ids");
-}
-
-void BrowseIconDrag::append(const Q3IconDragItem &item, const QRect &pr,
-			    const QRect &tr, unsigned int dbid, 
-			    unsigned int fid)
-{
-    Q3IconDrag::append( item, pr, tr );
-
-    IDPair idp;
-    idp.dbid = dbid;
-    idp.fid = fid;
-    m_pairs.push_back(idp);
+    QMimeData *md = new QMimeData;
+    md->setData("application/x-chorale-ids", a);
+    return md;
 }
 
 };

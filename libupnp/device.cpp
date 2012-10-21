@@ -29,6 +29,29 @@ void Device::AddService(const char *serviceID, Service *service)
     m_services[serviceID] = service;
 }
 
+void Device::AddEmbeddedDevice(Device *edev)
+{
+    m_devices.insert(edev);
+}
+
+Device *Device::FindByUDN(const char *udn)
+{
+    if (udn == ("uuid:" + m_uuid))
+	return this;
+
+    for (devices_t::const_iterator i = m_devices.begin();
+	 i != m_devices.end();
+	 ++i)
+    {
+	Device *d = (*i)->FindByUDN(udn);
+	if (d)
+	    return d;
+    }
+
+    TRACE << "can't find device '" << udn << "' uuid='uuid:" << m_uuid << "'\n";
+    return NULL;
+}
+
 class DeviceManager::Impl: public util::LibUPnPUser
 {
     UpnpDevice_Handle m_handle;
@@ -38,6 +61,8 @@ class DeviceManager::Impl: public util::LibUPnPUser
     Service *FindService(const char *udn, const char *service);
     static std::string MakeUUID(const std::string& resource);
 
+    unsigned int m_device_index;
+
 public:
     Impl();
     ~Impl();
@@ -45,12 +70,15 @@ public:
     Device *m_device;
     unsigned int Init();
 
+    std::string Description(Device*);
+
     // Being a LibUPnPUser
     int OnUPnPEvent(int, void *event);
 };
 
 DeviceManager::Impl::Impl()
-    : m_handle(0)
+    : m_handle(0),
+      m_device_index(0)
 {
 }
 
@@ -69,10 +97,12 @@ int DeviceManager::Impl::StaticCallback(Upnp_EventType et, void *ev,
 
 Service *DeviceManager::Impl::FindService(const char *udn, const char *service)
 {
-    /** @todo nested devices */
-    Device::services_t::const_iterator i 
-	= m_device->m_services.find(service);
-    if (i == m_device->m_services.end())
+    Device *d = m_device->FindByUDN(udn);
+    if (!d)
+	return NULL;
+
+    Device::services_t::const_iterator i = d->m_services.find(service);
+    if (i == d->m_services.end())
 	return NULL;
     return i->second;
 }
@@ -124,6 +154,8 @@ int DeviceManager::Impl::OnUPnPEvent(int et, void *event)
 	    uar->ErrCode = UPNP_E_INVALID_ACTION;
 	    return UPNP_E_INVALID_ACTION;
 	}
+
+//	TRACE << "Action " << uar->ActionName << "\n";
 
 //	DOMString ds = ixmlPrintDocument(uar->ActionRequest);
 //	TRACE << "Action doc:\n" << ds << "\n";
@@ -183,25 +215,24 @@ int DeviceManager::Impl::OnUPnPEvent(int et, void *event)
     return UPNP_E_SUCCESS;
 }
 
-unsigned int DeviceManager::Impl::Init()
+std::string DeviceManager::Impl::Description(Device *d)
 {
-    if (m_device->m_uuid.empty())
-	m_device->m_uuid = MakeUUID(m_device->m_resource);
+    if (d->m_uuid.empty())
+	d->m_uuid = MakeUUID(d->m_resource);
 
     std::ostringstream ss;
 
     /* Note that all these are case-sensitive */
 
-    ss << "<?xml version=\"1.0\"?><root xmlns=\"urn:schemas-upnp-org:device-1-0\"><specVersion><major>1</major><minor>0</minor></specVersion>"
-       << "<device>"
-       << "<deviceType>" << m_device->m_type << "</deviceType>"
+    ss << "<device>"
+       << "<deviceType>" << d->m_type << "</deviceType>"
        << "<friendlyName>" << "chorale" << "</friendlyName>"
        << "<manufacturer>" << "Peter Hartley" << "</manufacturer>"
        << "<manufacturerURL>http://utter.chaos.org.uk/~pdh/software/chorale/</manufacturerURL>"
        << "<modelDescription>chorale</modelDescription>"
        << "<modelName>chorale</modelName>"
        << "<modelNumber>chorale</modelNumber>"
-       << "<UDN>uuid:" << m_device->m_uuid << "</UDN>"
+       << "<UDN>uuid:" << d->m_uuid << "</UDN>"
        << "<presentationURL>/</presentationURL>"
        << "<iconList><icon><mimetype>image/png</mimetype>"
        << " <width>32</width><height>32</height><depth>24</depth>"
@@ -209,24 +240,46 @@ unsigned int DeviceManager::Impl::Init()
        << "</icon></iconList>"
        << "<serviceList>";
 
-    for (Device::services_t::const_iterator i = m_device->m_services.begin();
-	 i != m_device->m_services.end();
+    for (Device::services_t::const_iterator i = d->m_services.begin();
+	 i != d->m_services.end();
 	 ++i)
     {
 	ss << "<service>"
 	   << "<serviceType>" << i->second->GetType() << "</serviceType>"
 	   << "<serviceId>" << i->first << "</serviceId>"
 	   << "<SCPDURL>" << i->second->GetSCPDUrl() << "</SCPDURL>"
-	   << "<controlURL>/upnpcontrol</controlURL>"
-	   << "<eventSubURL>/upnpevent</eventSubURL>"
+	   << "<controlURL>/upnpcontrol" << m_device_index << "</controlURL>"
+	   << "<eventSubURL>/upnpevent" << m_device_index << "</eventSubURL>"
 	   << "</service>"
 	    ;
     }
-    ss << "</serviceList>"
-       << "</device>"
-       << "</root>\n";
+    ss << "</serviceList>";
 
-    std::string s = ss.str();
+    ++m_device_index;
+
+    if (!d->m_devices.empty())
+    {
+	ss << "<deviceList>";
+
+	for (Device::devices_t::const_iterator i = d->m_devices.begin();
+	     i != d->m_devices.end();
+	     ++i)
+	    ss << Description(*i);
+
+	ss << "</deviceList>";
+    }
+
+    ss << "</device>\n";
+
+    return ss.str();
+}
+
+unsigned int DeviceManager::Impl::Init()
+{
+    std::string s =
+	"<?xml version=\"1.0\"?><root xmlns=\"urn:schemas-upnp-org:device-1-0\"><specVersion><major>1</major><minor>0</minor></specVersion>"
+	+ Description(m_device)
+	     + "</root>";
 
     TRACE << "My device description is:\n" << s << "\n";
 

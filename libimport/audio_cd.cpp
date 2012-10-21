@@ -1,4 +1,8 @@
+#include "config.h"
 #include "audio_cd.h"
+
+#ifdef HAVE_LIBCDIOP
+
 #include "libutil/trace.h"
 #include <cdio/cdio.h>
 #include <cdio/cdda.h>
@@ -84,3 +88,5 @@ AudioCD::~AudioCD()
 }
 
 }; // namespace import
+
+#endif // HAVE_LIBCDIOP

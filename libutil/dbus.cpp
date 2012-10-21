@@ -296,14 +296,14 @@ int main()
 	conn.AddSignalObserver("org.freedesktop.Hal.Manager", &testobs);
 
 	time_t start = time(NULL);
-	time_t finish = start+10;
+	time_t finish = start+2;
 	time_t now;
 
 	do {
 	    now = time(NULL);
 	    if (now < finish)
 	    {
-		TRACE << "polling\n";
+//		TRACE << "polling\n";
 		poller.Poll((finish-now)*1000);
 	    }
 	} while (now < finish);

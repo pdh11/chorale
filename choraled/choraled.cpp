@@ -13,6 +13,7 @@
 #include "libupnp/device.h"
 #include "liboutput/urlplayer.h"
 #include "libupnpd/media_renderer.h"
+#include "libupnpd/media_server.h"
 #include <getopt.h>
 #include <signal.h>
 #include <unistd.h>
@@ -37,7 +38,10 @@ static void Usage(FILE *f)
 " -n, --no-nfs         Don't announce Receiver software on standard NFS\n"
 "     --nfs=SERVER     Announce an alternative Receiver software server\n"
 " -w, --web=DIR        Web server root dir (default=" DEFAULT_WEB_DIR ")\n"
+#ifdef HAVE_UPNP
 " -a, --no-audio     Don't become a UPnP MediaRenderer server\n"
+" -m, --no-mserver   Don't become a UPnP MediaServer server\n"
+#endif
 	    "\n"
 	    "Send SIGHUP to force a media re-scan (not needed on systems with 'inotify'\n"
 	    "support).\n"
@@ -111,13 +115,20 @@ int main(int argc, char *argv[])
 	{ "nfs", required_argument, NULL, 1 },
 	{ "no-receiver", no_argument, NULL, 'r' },
 	{ "no-audio", no_argument, NULL, 'a' },
+	{ "no-mserver", no_argument, NULL, 'm' },
 	{ NULL, 0, NULL, 0 }
     };
 
     int nthreads = 0;
     bool do_nfs = true;
     bool do_daemon = true;
+#ifdef HAVE_UPNP
     bool do_audio = true;
+    bool do_mserver = true;
+#else
+    bool do_audio = false;
+    bool do_mserver = false;
+#endif
     bool do_receiver = true;
     const char *dbfile = DEFAULT_DB_FILE;
     const char *webroot = DEFAULT_WEB_DIR;
@@ -125,7 +136,7 @@ int main(int argc, char *argv[])
 
     int option_index;
     int option;
-    while ((option = getopt_long(argc, argv, "ardhnt:f:l:", options,
+    while ((option = getopt_long(argc, argv, "ardhmnt:f:l:", options,
 				 &option_index))
 	   != -1)
     {
@@ -152,6 +163,9 @@ int main(int argc, char *argv[])
 	case 'a':
 	    do_audio = false;
 	    break;
+	case 'm':
+	    do_mserver = false;
+	    break;
 	case 'r':
 	    do_receiver = false;
 	    break;
@@ -170,7 +184,7 @@ int main(int argc, char *argv[])
 	return 1;
     }
 
-    if (!do_audio && !do_receiver)
+    if (!do_audio && !do_receiver && !do_mserver)
     {
 	printf("No protocols to serve; exiting\n");
 	return 0;
@@ -221,9 +235,8 @@ int main(int argc, char *argv[])
     util::FileContentFactory fcf(std::string(webroot)+"/layout",
 				 "/layout");
 
-    if (do_receiver)
+    if (do_receiver || do_mserver)
     {
-	ssdp.Init(&poller);
 	ws.AddContentFactory("/tags", &rcf);
 	ws.AddContentFactory("/query", &rcf);
 	ws.AddContentFactory("/content", &rcf);
@@ -233,23 +246,46 @@ int main(int argc, char *argv[])
     
 	ws.Init(&poller, webroot, 0);
 	TRACE << "Webserver got port " << ws.GetPort() << "\n";
+    }
 
+    if (do_receiver)
+    {
+	ssdp.Init(&poller);
 	ssdp.RegisterService(receiver::ssdp::s_uuid_musicserver, ws.GetPort());
 	if (do_nfs)
 	    ssdp.RegisterService(receiver::ssdp::s_uuid_softwareserver, 111,
 				 software_server);
     }
 
+#ifdef HAVE_UPNP
     output::URLPlayer *player = NULL;
     upnpd::MediaRenderer *mediarenderer = NULL;
+    upnpd::MediaServer *mediaserver = NULL;
     upnp::DeviceManager *udm = NULL;
+    upnp::Device *root_device = NULL;
+
+    if (do_mserver)
+    {
+	mediaserver = new upnpd::MediaServer(&ldb, ws.GetPort(), mediaroot);
+	root_device = mediaserver->GetDevice();
+    }
+
     if (do_audio)
     {
 	player = new output::GSTPlayer;
 	mediarenderer = new upnpd::MediaRenderer(player, "/dev/pcmC0D0p");
-	udm = new upnp::DeviceManager;
-	udm->SetRootDevice(mediarenderer->GetDevice());
+	if (root_device)
+	    root_device->AddEmbeddedDevice(mediarenderer->GetDevice());
+	else
+	    root_device = mediarenderer->GetDevice();
     }
+
+    if (root_device)
+    {
+	udm = new upnp::DeviceManager;
+	udm->SetRootDevice(root_device);
+    }
+#endif
 
     s_waker = new util::PollWaker(&poller, NULL);
     signal(SIGHUP, SignalHandler);
@@ -266,9 +302,12 @@ int main(int argc, char *argv[])
 	}
     }
 
+#ifdef HAVE_UPNP
     delete udm;
+    delete mediaserver;
     delete mediarenderer;
     delete player;
+#endif
 
     // Care to avoid race against signal handler
     util::PollWaker *waker = s_waker;

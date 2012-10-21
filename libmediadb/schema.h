@@ -43,6 +43,7 @@ enum {
 
     CHILDREN, ///< {#children, child-id, child-id...} as UTF-8 string
     IDHIGH,   ///< High-quality (FLAC) version of the file, or 0
+    IDPARENT, ///< (An arbitrary one of) the parent directories of this file
 
     FIELD_COUNT
 };

@@ -1,11 +1,10 @@
 #ifndef QEXPLORER_WINDOW_H
 #define QEXPLORER_WINDOW_H 1
 
-#include <qdialog.h>
+#include <QMainWindow>
 #include "libmediatree/node.h"
 
 class QSplitter;
-class Q3ListViewItem;
 class QModelIndex;
 
 namespace mediadb { class Database; };
@@ -14,11 +13,10 @@ namespace mediadb { class Registry; };
 namespace choraleqt {
 
 class TagTable;
-class TreeWidget;
 class BrowseWidget;
 class TreeModel;
 
-class ExplorerWindow: public QDialog
+class ExplorerWindow: public QMainWindow
 {
     Q_OBJECT;
 
@@ -36,7 +34,6 @@ public:
     ~ExplorerWindow();
 
 public slots:
-    void OnTreeSelectionChanged(Q3ListViewItem*);
     void OnTreeSelectionChanged(const QModelIndex&);
 };
 

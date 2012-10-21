@@ -1,7 +1,7 @@
 #ifndef SETLIST_WINDOW_H
 #define SETLIST_WINDOW_H
 
-#include <qdialog.h>
+#include <QDialog>
 #include "liboutput/queue.h"
 
 class QLCDNumber;

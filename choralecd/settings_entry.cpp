@@ -67,7 +67,9 @@ void SettingsEntryBool::OnOK()
     (m_settings->*m_setter)(m_cb->isChecked());
 }
 
-/* Endpoint */
+
+        /* Endpoint */
+
 
 SettingsEntryEndpoint::SettingsEntryEndpoint(QWidget *parent, 
 					     Settings *settings,

@@ -17,9 +17,9 @@ LibUPnPUser::LibUPnPUser()
     boost::recursive_mutex::scoped_lock lock(s_mutex);
     if (s_list.empty())
     {
-	TRACE << "Calling UpnpInit\n";
+//	TRACE << "Calling UpnpInit\n";
 	UpnpInit(NULL, 0);
-	TRACE << "UpnpInit done\n";
+//	TRACE << "UpnpInit done\n";
     }
     s_list.push_back(this);
 }

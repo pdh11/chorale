@@ -155,7 +155,8 @@ static std::string IfPresent(const char *tag, unsigned int value)
     return (boost::format("<%s>%u</%s>") % tag % value % tag).str();
 }
 
-static std::string ResItem(mediadb::Database *db, db::RecordsetPtr rs)
+static std::string ResItem(mediadb::Database *db, db::RecordsetPtr rs,
+			   const char *urlprefix)
 {
     const char *mimetype = "audio/mpeg"; // Until proven otherwise
 
@@ -168,6 +169,13 @@ static std::string ResItem(mediadb::Database *db, db::RecordsetPtr rs)
 
     unsigned int durationms = rs->GetInteger(mediadb::DURATIONMS);
 
+    unsigned int id = rs->GetInteger(mediadb::ID);
+    std::string url = db->GetURL(id);
+    if (!strncmp(url.c_str(), "file:", 5) && urlprefix)
+	url = (boost::format("%s%x") % urlprefix % id).str();
+
+    url = util::XmlEscape(url);
+
     return (boost::format("<res protocolInfo=\"http-get:*:%s:*\""
 			  " size=\"%u\""
 			  " duration=\"%u:%02u:%02u.00\">"
@@ -176,46 +184,89 @@ static std::string ResItem(mediadb::Database *db, db::RecordsetPtr rs)
 			  % rs->GetInteger(mediadb::SIZEBYTES)
 			  % (durationms/3600000)
 			  % ((durationms/ 60000) % 60)
-			  % ((durationms/  1000) % 60)
-	    % util::XmlEscape(db->GetURL(rs->GetInteger(mediadb::ID)))).str();
+	                  % ((durationms/  1000) % 60)
+	                  % url).str();
 }
 
-std::string FromRecord(mediadb::Database *db, db::RecordsetPtr rs)
+const char s_header[] =
+    "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
+    " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
+    " xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">";
+const char s_footer[] = "</DIDL-Lite>";
+
+
+/* FromRecord */
+
+
+std::string FromRecord(mediadb::Database *db, db::RecordsetPtr rs,
+		       const char *urlprefix)
 {
     std::ostringstream os;
-    os << "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
-	" xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
-	" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">"
-	"<item id=\"" << rs->GetInteger(mediadb::ID) << "\" parentID=\"0\" restricted=\"1\">"
-	"<dc:title>" << util::XmlEscape(rs->GetString(mediadb::TITLE)) <<
-	"</dc:title>"
-	"<upnp:class>object.item.audioItem.musicTrack</upnp:class>";
-
-    os << IfPresent("upnp:artist", rs->GetString(mediadb::ARTIST));
-    os << IfPresent("upnp:album", rs->GetString(mediadb::ALBUM));
-    os << IfPresent("upnp:originalTrackNumber", rs->GetInteger(mediadb::TRACKNUMBER));
-    os << IfPresent("upnp:genre", rs->GetString(mediadb::GENRE));
-    unsigned int y = rs->GetInteger(mediadb::YEAR);
-    if (y)
-	os << "<dc:date>" << y << "-01-01</dc:date>";
-
-    /** @todo Figure out what to do with MOOD, ORIGINALARTIST, REMIXED,
-     * CONDUCTOR, COMPOSER, ENSEMBLE, LYRICIST.
-     *
-     * @todo AlbumArtURL
-     */
-
-    os << ResItem(db, rs);
-    unsigned int idhigh = rs->GetInteger(mediadb::IDHIGH);
-    if (idhigh)
+    int id = rs->GetInteger(mediadb::ID);
+    int parentid = rs->GetInteger(mediadb::IDPARENT);
+    if (id == 0x100)
     {
-	db::QueryPtr qp = db->CreateQuery();
-	qp->Restrict(mediadb::ID, db::EQ, idhigh);
-	rs = qp->Execute();
-	if (rs && !rs->IsEOF())
-	    os << ResItem(db, rs);
+	id = 0;
+	parentid = -1;
     }
-    os << "</item></DIDL-Lite>";
+    if (parentid == 0x100)
+	parentid = 0;
+
+    unsigned int type = rs->GetInteger(mediadb::TYPE);
+    if (type == mediadb::DIR || type == mediadb::PLAYLIST)
+    {
+	std::vector<unsigned int> children;
+	mediadb::ChildrenToVector(rs->GetString(mediadb::CHILDREN), &children);
+	os << "<container id=\"" << id << "\" parentID=\"" << parentid
+	   << "\" restricted=\"1\" childCount=\"" << children.size() << "\">"
+	    "<dc:title>" << util::XmlEscape(rs->GetString(mediadb::TITLE))
+	   << "</dc:title>"
+	    "<upnp:class>";
+	if (type == mediadb::DIR)
+	    os << "object.container.storageFolder";
+	else
+	    os << "object.container.playlistContainer";
+	os << "</upnp:class>"
+	    "<upnp:storageUsed>-1</upnp:storageUsed>"
+	    "</container>";
+    }
+    else
+    {
+	os << "<item id=\"" << id << "\" parentID=\"" << parentid
+	   << "\" restricted=\"1\">"
+
+	    "<dc:title>" << util::XmlEscape(rs->GetString(mediadb::TITLE)) <<
+	    "</dc:title>"
+	    "<upnp:class>object.item.audioItem.musicTrack</upnp:class>";
+
+	os << IfPresent("upnp:artist", rs->GetString(mediadb::ARTIST));
+	os << IfPresent("upnp:album", rs->GetString(mediadb::ALBUM));
+	os << IfPresent("upnp:originalTrackNumber",
+			rs->GetInteger(mediadb::TRACKNUMBER));
+	os << IfPresent("upnp:genre", rs->GetString(mediadb::GENRE));
+	unsigned int y = rs->GetInteger(mediadb::YEAR);
+	if (y)
+	    os << "<dc:date>" << y << "-01-01</dc:date>";
+
+	/** @todo Figure out what to do with MOOD, ORIGINALARTIST, REMIXED,
+	 * CONDUCTOR, COMPOSER, ENSEMBLE, LYRICIST.
+	 *
+	 * @todo AlbumArtURL
+	 */
+
+	os << ResItem(db, rs, urlprefix);
+	unsigned int idhigh = rs->GetInteger(mediadb::IDHIGH);
+	if (idhigh)
+	{
+	    db::QueryPtr qp = db->CreateQuery();
+	    qp->Restrict(mediadb::ID, db::EQ, idhigh);
+	    rs = qp->Execute();
+	    if (rs && !rs->IsEOF())
+		os << ResItem(db, rs, urlprefix);
+	}
+	os << "</item>";
+    }
+
     return os.str();
 }
 
@@ -392,7 +443,8 @@ int main(int, char**)
     qp->Restrict(mediadb::ID, db::EQ, 377);
     db::RecordsetPtr rs = qp->Execute();
     assert(rs && !rs->IsEOF());
-    std::string didl = upnp::didl::FromRecord(&mdb, rs);
+    std::string didl = upnp::didl::s_header + upnp::didl::FromRecord(&mdb, rs)
+	+ upnp::didl::s_footer;
 
     const char *expected =
 	"<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""

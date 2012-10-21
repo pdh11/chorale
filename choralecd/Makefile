@@ -32,9 +32,7 @@ SRCS:= \
 	tagtable.cpp \
 	tagtable.moc.cpp \
 	tree_model.cpp \
-	tree_model.moc.cpp \
-	tree_widget.cpp \
-	tree_widget.moc.cpp 
+	tree_model.moc.cpp
 
 choralecd:=$(TOP)$(DIR)choralecd
 
@@ -76,7 +74,7 @@ ifeq ($(libutil),)
 include $(TOP)libutil/Makefile
 endif
 
-ifeq ($(LAME)$(LIBFLAC)$(QT)$(GSTREAMER)$(LIBCDIOP)$(LIBCDDB),yesyesyesyesyesyes)
+ifeq ($(QT),yes)
 
 all: all-choralecd
 install: install-choralecd

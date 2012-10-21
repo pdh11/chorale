@@ -1,7 +1,7 @@
 #ifndef BROWSE_WIDGET_H
 #define BROWSE_WIDGET_H 1
 
-#include <q3iconview.h>
+#include <QListWidget>
 #include <vector>
 #include "libmediatree/node.h"
 
@@ -13,22 +13,7 @@ struct IDPair
     unsigned int fid;
 };
 
-class BrowseIconDrag: public Q3IconDrag
-{
-    Q_OBJECT;
-    std::vector<IDPair> m_pairs;
-
-public: 
-    BrowseIconDrag(QWidget *dragSource);
-
-    const char* format(int i) const;
-    QByteArray encodedData(const char* mime) const;
-    static bool canDecode(QMimeSource* e);
-    void append(const Q3IconDragItem &item, const QRect &pr,
-		const QRect &tr, unsigned int dbid, unsigned int fid);
-};
-
-class BrowseWidget: public Q3IconView
+class BrowseWidget: public QListWidget
 {
     Q_OBJECT;
 
@@ -37,20 +22,22 @@ class BrowseWidget: public Q3IconView
 
 public:
     BrowseWidget(QWidget *parent, unsigned int dbid);
-
-    Q3DragObject *dragObject();
     
     void SetNode(mediatree::NodePtr);
+
+    // Being a QListWidget
+    QStringList mimeTypes() const;
+    QMimeData *mimeData(const QList<QListWidgetItem*> items) const;
 };
 
-class BrowseItem: public Q3IconViewItem
+class BrowseItem: public QListWidgetItem
 {
     mediatree::NodePtr m_node;
 
 public:
-    BrowseItem(Q3IconView *parent, const QString& text, const QPixmap& icon,
+    BrowseItem(QListWidget *parent, const QString& text, 
 	       mediatree::NodePtr node)
-	: Q3IconViewItem(parent, text, icon),
+	: QListWidgetItem(text, parent),
 	  m_node(node)
     {
     }

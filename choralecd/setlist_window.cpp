@@ -44,7 +44,7 @@ SetlistWindow::SetlistWindow(output::Queue *queue, mediadb::Registry *registry)
       m_state(output::STOP),
       m_current_index(UINT_MAX-1)
 {
-    setWindowTitle(QString::fromUtf8(queue->GetName().c_str()));
+    setWindowTitle("Playback on " + QString::fromUtf8(queue->GetName().c_str()));
 
     QVBoxLayout *vlayout = new QVBoxLayout(this, 0, 6);
 
@@ -94,7 +94,7 @@ SetlistWindow::SetlistWindow(output::Queue *queue, mediadb::Registry *registry)
 
     vlayout->addLayout(m_toplayout);
 
-    m_table = new TagTable(6, 2, this);
+    m_table = new TagTable(1, 2, this);
 
     m_table->setReadOnly(true);
     m_table->setColumnStretchable(0, true);
@@ -202,15 +202,14 @@ void SetlistWindow::UpdateCaption()
 
 void SetlistWindow::dragEnterEvent(QDragEnterEvent *e)
 {
-    TRACE << "dragenter\n";
-    bool want = e->provides("application/x-chorale-ids");
+    bool want = e->mimeData()->hasFormat("application/x-chorale-ids");
     TRACE << "want=" << want << "\n";
     e->accept(want);
 }
 
 void SetlistWindow::dropEvent(QDropEvent *e)
 {
-    QByteArray qba = e->encodedData("application/x-chorale-ids");
+    QByteArray qba = e->mimeData()->data("application/x-chorale-ids");
     std::vector<IDPair> idps;
     unsigned int count = qba.size() / sizeof(IDPair);
     idps.resize(count);
@@ -220,11 +219,9 @@ void SetlistWindow::dropEvent(QDropEvent *e)
     for (unsigned int i=0; i<count; ++i)
     {
 	const IDPair& idp = idps[i];
-	TRACE << "got dbid=" << idp.dbid << " fid=" << idp.fid << "\n";
 	mediadb::Database *db = m_registry->DBForIndex(idp.dbid);
 	if (db)
 	{
-	    TRACE << "Got database\n";
 	    m_queue->Add(db, idp.fid);
 	    ok = true;
 

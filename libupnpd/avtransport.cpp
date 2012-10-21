@@ -15,15 +15,15 @@ AVTransportImpl::~AVTransportImpl()
 }
 
 unsigned int AVTransportImpl::SetAVTransportURI(uint32_t, 
-						std::string CurrentURI,
-						std::string metadata)
+						const std::string& CurrentURI,
+						const std::string& metadata)
 {
     return m_player->SetURL(CurrentURI, metadata);
 }
 
 unsigned int AVTransportImpl::SetNextAVTransportURI(uint32_t,
-						    std::string NextURI,
-						    std::string metadata)
+						    const std::string& NextURI,
+						    const std::string& metadata)
 {
     return m_player->SetNextURL(NextURI, metadata);
 }
@@ -33,7 +33,7 @@ unsigned int AVTransportImpl::Stop(uint32_t)
     return m_player->SetPlayState(output::STOP);
 }
 
-unsigned int AVTransportImpl::Play(uint32_t,std::string)
+unsigned int AVTransportImpl::Play(uint32_t, const std::string&)
 {
     return m_player->SetPlayState(output::PLAY);
 }

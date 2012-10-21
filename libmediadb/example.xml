@@ -24,6 +24,7 @@
   <child>316</child>
   <child>381</child>
 </children>
+<idparent>256</idparent>
 </record>
 
 <record>
@@ -45,6 +46,7 @@
   <child>364</child>
   <child>365</child>
 </children>
+<idparent>256</idparent>
 </record>
 
 <record>
@@ -59,13 +61,7 @@
   <child>308</child>
   <child>331</child>
 </children>
-</record>
-
-<record>
-<id>292</id>
-<title>SongsStartingWithB</title>
-<sizebytes>238</sizebytes>
-<path>/home/chorale/mp3/SongsStartingWithB.wpl~</path>
+<idparent>256</idparent>
 </record>
 
 <record>
@@ -88,6 +84,7 @@
   <child>350</child>
   <child>352</child>
 </children>
+<idparent>256</idparent>
 </record>
 
 <record>
@@ -107,6 +104,7 @@
   <child>377</child>
   <child>380</child>
 </children>
+<idparent>256</idparent>
 </record>
 
 <record>
@@ -1967,7 +1965,6 @@
   <child>289</child>
   <child>290</child>
   <child>291</child>
-  <child>292</child>
   <child>293</child>
   <child>294</child>
 </children>

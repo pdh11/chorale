@@ -9,7 +9,6 @@
  */
 #include "explorer_window.h"
 #include "tagtable.h"
-#include "tree_widget.h"
 #include "browse_widget.h"
 #include "libmediadb/registry.h"
 #include "tree_model.h"
@@ -23,18 +22,15 @@ namespace choraleqt {
 
 ExplorerWindow::ExplorerWindow(mediadb::Database *db,
 			       mediadb::Registry *registry)
-    : QDialog(NULL, NULL),
+    : QMainWindow(),
       m_db(db),
       m_registry(registry)
 {
-    QVBoxLayout *vlayout = new QVBoxLayout(this, 0, 1);
-
     setAttribute(Qt::WA_DeleteOnClose);
+    setWindowTitle("Exploring");
 
     m_splitter = new QSplitter(this);
-    vlayout->addWidget(m_splitter);
-
-//    TreeWidget *m_tree = new TreeWidget(m_splitter, m_root);
+    setCentralWidget(m_splitter);
 
     QTreeView *tv = new QTreeView(m_splitter);
     m_treemodel = new TreeModel(db);
@@ -48,9 +44,6 @@ ExplorerWindow::ExplorerWindow(mediadb::Database *db,
 
     connect(tv, SIGNAL(clicked(const QModelIndex&)),
 	    this, SLOT(OnTreeSelectionChanged(const QModelIndex&)));
-
-//    connect(m_tree, SIGNAL(selectionChanged(Q3ListViewItem*)),
-//	    this, SLOT(OnTreeSelectionChanged(Q3ListViewItem*)));
 
     m_browse->SetNode(m_treemodel->NodeForIndex(QModelIndex()));
 
@@ -69,16 +62,6 @@ void ExplorerWindow::OnTreeSelectionChanged(const QModelIndex& qmi)
     mediatree::NodePtr node = m_treemodel->NodeForIndex(qmi);
     if (node)
 	m_browse->SetNode(node);
-}
-
-void ExplorerWindow::OnTreeSelectionChanged(Q3ListViewItem *lvi)
-{
-    if (lvi)
-    {
-	NodeItem *ni = (NodeItem*)lvi;
-
-	m_browse->SetNode(ni->GetNode());
-    }
 }
 
 };
