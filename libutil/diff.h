@@ -4,7 +4,6 @@
 #include <set>
 #include <algorithm>
 #include <boost/dynamic_bitset.hpp>
-#include "trace.h"
 
 namespace util {
 

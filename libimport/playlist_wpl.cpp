@@ -5,8 +5,9 @@
 #include "libutil/xmlescape.h"
 #include "libutil/xml.h"
 #include <errno.h>
-#include <string.h>
 #include <stdio.h>
+#include <assert.h>
+#include <string.h>
 
 namespace import {
 
@@ -22,32 +23,27 @@ typedef xml::Parser<
 		      xml::Tag<SEQ,
 			       xml::Tag<MEDIA,
 					xml::Attribute<SRC,
-						       PlaylistWPL,
-						       &PlaylistWPL::OnSrc
+						       PlaylistXMLObserver,
+						       &PlaylistXMLObserver::OnHref
 						       > > > > > > WPLParser;
 
-unsigned int PlaylistWPL::OnSrc(const std::string& value)
+unsigned int PlaylistWPL::Load(const std::string& filename,
+			       std::list<std::string> *entries)
 {
-    AppendEntry(util::MakeAbsolutePath(GetFilename(), value));
-    return 0;
-}
-
-unsigned int PlaylistWPL::Load()
-{
-    util::SeekableStreamPtr ss;
-    unsigned int rc = util::OpenFileStream(GetFilename().c_str(), util::READ,
-					   &ss);
+    PlaylistXMLObserver obs(filename, entries);
+    std::auto_ptr<util::Stream> ss;
+    unsigned int rc = util::OpenFileStream(filename.c_str(), util::READ, &ss);
     if (rc != 0)
 	return rc;
 
     WPLParser parser;
-    return parser.Parse(ss, this);
+    return parser.Parse(ss.get(), &obs);
 }
 
-unsigned int PlaylistWPL::Save()
+unsigned int PlaylistWPL::Save(const std::string& filename,
+			       const std::list<std::string> *entries)
 {
-    /// @bug Filename is UTF-8 on Windows
-    FILE *f = fopen(GetFilename().c_str(), "w+");
+    FILE *f = fopen(filename.c_str(), "w+");
     if (!f)
     {
 	TRACE << "failed " << errno << "\n";
@@ -56,10 +52,11 @@ unsigned int PlaylistWPL::Save()
 
     fprintf(f, "<?wpl version=\"1.0\"?>\n<smil>\n<body>\n<seq>\n");
 
-    for (size_t i = 0; i < GetLength(); ++i)
+    for (std::list<std::string>::const_iterator i = entries->begin();
+	 i != entries->end();
+	 ++i)
     {
-	std::string relpath = util::MakeRelativePath(GetFilename(),
-						     GetEntry(i));
+	std::string relpath = util::MakeRelativePath(filename, *i);
 	fprintf(f, "<media src=\"%s\"/>\n",
 		util::XmlEscape(relpath).c_str());
     }
@@ -72,6 +69,8 @@ unsigned int PlaylistWPL::Save()
 } // namespace import
 
 #ifdef TEST
+
+# include "playlist.h"
 
 static const char *const tests[] = {
     "sibling.mp3",
@@ -86,31 +85,35 @@ enum { TESTS = sizeof(tests)/sizeof(tests[0]) };
 
 int main()
 {
-    std::string wplname = util::Canonicalise("test.wpl");
-    import::PlaylistPtr pp = import::Playlist::Create(wplname);
+    std::string name = util::Canonicalise("test.wpl");
+    import::Playlist pp;
+
+    unsigned int rc = pp.Init(name);
+    assert(rc == 0);
+
+    std::list<std::string> entries;
 
     for (unsigned int i=0; i<TESTS; ++i)
     {
-	pp->SetEntry(i, util::MakeAbsolutePath(wplname, tests[i]));
+	entries.push_back(util::MakeAbsolutePath(name, tests[i]));
     }
-    unsigned int rc = pp->Save();
+    rc = pp.Save(&entries);
     assert(rc == 0);
 
-    pp = NULL;
-    pp = import::Playlist::Create(wplname);
-    rc = pp->Load();
+    entries.clear();
+
+    rc = pp.Load(&entries);
     assert(rc == 0);
 
-    assert(pp->GetLength() == TESTS);
+    assert(entries.size() == TESTS);
 
     for (unsigned int i=0; i<TESTS; ++i)
     {
-	assert(pp->GetEntry(i) == util::MakeAbsolutePath(wplname, tests[i]));
+	assert(entries.front() == util::MakeAbsolutePath(name, tests[i]));
+	entries.pop_front();
     }
 
-    pp = NULL;
-    
-    unlink(wplname.c_str());
+    unlink(name.c_str());
 
     return 0;
 }

@@ -2,18 +2,22 @@
 #define LIBUPNP_CLIENT_H 1
 
 #include <string>
-#include "libutil/bind.h"
+#include <stdint.h>
 
 namespace util { namespace http { class Client; } }
 namespace util { namespace http { class Server; } }
 namespace util { class Scheduler; }
+namespace util { template<class> class Callback1; }
+namespace util { template<class,class> class Callback2; }
 
 namespace upnp {
 
+namespace soap { class Params; }
 namespace soap { class Inbound; }
 namespace soap { class Outbound; }
 
 class ServiceClient;
+struct Data;
 
 class DeviceClient
 {
@@ -57,6 +61,7 @@ class ServiceClient
 {
     DeviceClient *m_parent;
     const char *m_service_id;
+    const Data *m_data;
 
     class SoapXMLObserver;
 
@@ -66,7 +71,8 @@ protected:
     static bool GenaBool(const std::string&);
 
 public:
-    ServiceClient(DeviceClient* parent, const char *service_id);
+    ServiceClient(DeviceClient* parent, const char *service_id,
+		  const upnp::Data *data);
     virtual ~ServiceClient();
 
     /** Synchronous initialisation (may block).
@@ -85,24 +91,26 @@ public:
 
     /* Synchronous SOAP (not usually a good idea) */
 
-    unsigned int SoapAction(const char *action_name,
-			    const soap::Outbound& params,
-			    soap::Inbound *result = NULL);
-    unsigned int SoapAction(const char *action_name,
-			    soap::Inbound *result = NULL);
+    unsigned int SoapAction2(unsigned int action, ...);
 
     /* Asynchronous SOAP */
 
-    typedef util::Callback2<unsigned int, const soap::Inbound*> SoapCallback;
+    typedef util::Callback2<unsigned int, const soap::Params*> SoapCallback;
 
-    unsigned int SoapAction(const char *action_name,
-			    const soap::Outbound& params,
-			    SoapCallback callback);
-    unsigned int SoapAction(const char *action_name,
-			    SoapCallback callback);
+    unsigned int SoapAction(unsigned int action,
+			    const SoapCallback& callback,
+			    ...);
 
     virtual void OnEvent(const char *var, const std::string& value) = 0;
 };
+
+struct Soaper
+{
+    ServiceClient *client;
+    uint32_t action;
+};
+
+unsigned int SoaperAction(Soaper*, ...);
 
 } // namespace upnp
 

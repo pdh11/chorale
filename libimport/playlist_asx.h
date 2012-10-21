@@ -2,19 +2,17 @@
 #define IMPORT_PLAYLIST_ASX_H
 
 #include <string>
-#include "playlist.h"
+#include "playlist_io.h"
 
 namespace import {
 
-class PlaylistASX: public Playlist
+class PlaylistASX: public PlaylistIO
 {
 public:
-    // Being a Playlist
-    unsigned int Load();
-    unsigned int Save();
-
-    /** Parser callback when an entry is found */
-    unsigned int OnHref(const std::string&);
+    unsigned int Load(const std::string& filename,
+		      std::list<std::string> *entries);
+    unsigned int Save(const std::string& filename,
+		      const std::list<std::string> *entries);
 };
 
 } // namespace import

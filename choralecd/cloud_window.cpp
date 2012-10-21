@@ -249,7 +249,7 @@ void Window::mouseReleaseEvent(QMouseEvent *me)
 	    if (mousing >= MENUITEM)
 	    {
 		m_selected = mousing - MENUITEM;
-		if (m_menu[m_selected].onselect)
+		if (m_menu[m_selected].onselect.IsValid())
 		    m_menu[m_selected].onselect();
 		update();
 	    }

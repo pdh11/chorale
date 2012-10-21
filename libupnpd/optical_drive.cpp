@@ -4,8 +4,8 @@
 #include "libupnp/ssdp.h"
 #include "libupnp/soap_info_source.h"
 #include "libutil/trace.h"
+#include "libutil/printf.h"
 #include <errno.h>
-#include <boost/format.hpp>
 
 namespace upnpd {
 
@@ -111,10 +111,10 @@ unsigned int OpticalDriveImpl::GetTrackInfo(uint8_t track,
     *type = TRACKTYPE_AUDIO;
     *first_sector = (m_audiocd->begin() + track)->first_sector;
     *last_sector = (m_audiocd->begin() + track)->last_sector;
-    *data_url = (boost::format("%s%s%u.pcm") 
-		 % urlprefix
-		 % m_factory->GetPrefix()
-		 % (unsigned int)track).str();
+    *data_url = util::Printf() << urlprefix
+			       << m_factory->GetPrefix()
+			       << (unsigned int)track
+			       << ".pcm";
 //    TRACE << "Track " << track << " url='" << *data_url << "'\n";
     return 0;
 }

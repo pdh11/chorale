@@ -97,7 +97,8 @@ $(choraled): $(libchoraled) $(libtv) $(libdblocal) $(libdbmerge) \
 		$(libimport) $(libdbsteam) $(libmediadb) $(libdb) $(libutil) \
 		$(MPG123_LIBS) \
 		$(TAGLIB_LIBS) $(BOOST_LIBS) $(PARANOIA_LIBS) $(LIBWRAP) \
-		$(GSTREAMER_LIBS) $(HAL_LIBS) $(LIBCDIOP_LIBS) $(LIBS)
+		$(GSTREAMER_LIBS) $(HAL_LIBS) $(LIBCDIOP_LIBS) $(LIBS)\
+		-Wl,-Map,map-choraled-$(FULLTARGET).txt
 ifneq ($(FINAL),no)
 	@$(RM) $@
 	@grep ^$(TOP)[a-z].*\.a\( map-choraled-$(FULLTARGET).txt | \
@@ -105,16 +106,16 @@ ifneq ($(FINAL),no)
 			-e 's,^,#include ",' | \
 		grep -v tcp_wrappers_c.c | grep -v mutex.cpp | \
 		grep -v search.cpp | grep -v whole.cpp | sort \
-		 > $(TOP)choraled/all-$(FULLTARGET).h
+		 > $(TOP)choraled/all-$(FULLTARGET).cpp
 	@$(CXX) $(CXXFLAGS) -I$(TOP). \
-		-include $(TOP)choraled/all-$(FULLTARGET).h -E -dD \
+		-include $(TOP)choraled/all-$(FULLTARGET).cpp -E -dD \
 		-C $(TOP)choraled/$(CHORALED_MAIN).cpp \
 		-o $(TOP)choraled/$(TARGETDIR)all.i -fwhole-program \
 		$(BOOST_CXXFLAGS) $(TAGLIB_CXXFLAGS) \
 		$(DBUS_CXXFLAGS) $(HAL_CXXFLAGS) $(GSTREAMER_CXXFLAGS) &
 	$(CC_PRE)libtool --tag=CXX --mode=compile --silent \
 		$(CXX) $(CXXFLAGS) -I$(TOP). \
-		-include $(TOP)choraled/all-$(FULLTARGET).h \
+		-include $(TOP)choraled/all-$(FULLTARGET).cpp \
 		-c $(TOP)choraled/$(CHORALED_MAIN).cpp \
 		-o $(TOP)choraled/$(TARGETDIR)all.lo \
 		-fwhole-program $(BOOST_CXXFLAGS) \
@@ -122,7 +123,7 @@ ifneq ($(FINAL),no)
 		$(DBUS_CXXFLAGS) $(HAL_CXXFLAGS) $(GSTREAMER_CXXFLAGS)
 	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
 		$(CXX) -o $@ $(TOP)choraled/$(TARGETDIR)all.lo \
-		-fno-exceptions -Wl,-z,combreloc \
+		-fno-exceptions -Wl,-z,combreloc -Wl,--sort-common \
 		-Wl,-Map,map-choraled-$(FULLTARGET)-final.txt -Wl,--gc-sections \
 		$(libchoraled) $(libtv) \
 		$(libreceiverd) $(libreceiver) $(libupnpd) $(libupnp) \

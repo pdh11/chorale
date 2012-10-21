@@ -5,6 +5,7 @@
 #include "libutil/endian.h"
 #include "libutil/scheduler.h"
 #include "libutil/bind.h"
+#include "libutil/counted_pointer.h"
 #include "libutil/ip_filter.h"
 
 #undef IN
@@ -26,7 +27,7 @@ RPCServer::RPCServer(uint32_t program_number, uint32_t version,
 
     poller->WaitForReadable(
 	util::Bind(RPCServerPtr(this)).To<&RPCServer::Run>(),
-	&m_socket, false);
+	m_socket.GetHandle(), false);
 }
 
 unsigned short RPCServer::GetPort()

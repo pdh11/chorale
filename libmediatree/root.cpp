@@ -4,6 +4,8 @@
 #include "node_enumerator.h"
 #include "libdb/free_rs.h"
 #include "libdb/query.h"
+#include "libdb/db.h"
+#include "libutil/trace.h"
 #include "libmediadb/schema.h"
 
 namespace mediatree {

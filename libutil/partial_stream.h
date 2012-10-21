@@ -2,15 +2,17 @@
 #define PARTIAL_STREAM_H 1
 
 #include "stream.h"
+#include <memory>
 
 namespace util {
 
-SeekableStreamPtr CreatePartialStream(SeekableStreamPtr underlying,
-				      unsigned long long begin,
-				      unsigned long long end);
-
-StreamPtr CreatePartialStream(StreamPtr underlying,
-			      unsigned long long length);
+/** A stream representing a portion of another stream.
+ *
+ * If the underlying stream isn't SEEKABLE, begin must be 0.
+ */
+std::auto_ptr<Stream> CreatePartialStream(Stream *underlying,
+					  uint64_t begin,
+					  uint64_t end);
 
 } // namespace util
 

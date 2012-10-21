@@ -4,9 +4,43 @@
 #ifndef LIBUTIL_XML_INTERNAL_H
 #define LIBUTIL_XML_INTERNAL_H 1
 
-#include "xml.h"
+#include <string>
+#include <list>
 
 namespace xml {
+
+class NullSelector;
+
+namespace internals { struct Data; }
+
+template <class Selector0,
+	  class Selector1,
+	  class Selector2,
+	  class Selector3,
+	  class Selector4,
+	  class Selector5,
+	  class Selector6,
+	  class Selector7>
+class Parser
+{
+public:
+    typedef typename Selector0::Target Target;
+
+    typedef AssertCorrectTargetType<Selector1, Target> assert1;
+    typedef AssertCorrectTargetType<Selector2, Target> assert2;
+    typedef AssertCorrectTargetType<Selector3, Target> assert3;
+    typedef AssertCorrectTargetType<Selector4, Target> assert4;
+    typedef AssertCorrectTargetType<Selector5, Target> assert5;
+    typedef AssertCorrectTargetType<Selector6, Target> assert6;
+    typedef AssertCorrectTargetType<Selector7, Target> assert7;
+
+    static const internals::Data data;
+
+    unsigned int Parse(util::Stream *s, Target *obs)
+    {
+	return internals::Parse(s, (void*)obs, &data);
+    }
+};
 
 /** These classes are used to implement the table-based XML parsing, and are
  * not intended for direct use.

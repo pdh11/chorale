@@ -4,6 +4,8 @@
 #define IMPORT_TAGS_H
 
 #include <string>
+#include <errno.h>
+#include "libutil/choose_by_extension.h"
 
 namespace db { class Recordset; }
 
@@ -13,32 +15,29 @@ namespace db { class Recordset; }
  */
 namespace import {
 
-class Tags
+class TagReaderBase;
+class TagWriterBase;
+
+class TagReader
 {
-public:
-    class Impl
-    {
-    protected:
-	std::string m_filename;
-    public:
-	Impl(const std::string& filename) : m_filename(filename) {}
-	virtual ~Impl() {}
-
-	virtual unsigned int Read(db::Recordset*);
-	virtual unsigned int Write(const db::Recordset*) = 0;
-    };
-
-private:
-    Impl *m_impl;
+    util::ChooseByExtension<TagReaderBase> m_chooser;
 
 public:
-    Tags();
-    ~Tags();
+    TagReader();
+    ~TagReader();
+    unsigned int Init(const std::string& filename);
+    unsigned int Read(db::Recordset*);
+};
 
-    unsigned Open(const std::string& filename);
+class TagWriter
+{
+    util::ChooseByExtension<TagWriterBase> m_chooser;
 
-    unsigned Read(db::Recordset*);
-    unsigned Write(const db::Recordset*);
+public:
+    TagWriter();
+    ~TagWriter();
+    unsigned int Init(const std::string& filename);
+    unsigned int Write(const db::Recordset*);
 };
 
 } // namespace import

@@ -253,7 +253,7 @@ int Main(int argc, char *argv[])
 
     mediadb::Registry registry;
 
-    QPixmap output_pixmap((const char**)output_xpm);
+    QPixmap output_pixmap(output_xpm);
 #if HAVE_LIBOUTPUT && HAVE_HAL
     cloud::LocalOutputs owf(&mainwindow, halp, &registry);
 #endif

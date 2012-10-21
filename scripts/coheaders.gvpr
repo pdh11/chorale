@@ -1,0 +1,34 @@
+BEGIN { graph_t C = graph("coheaders", "S"); }
+N {
+	edge_t e, e2;
+	for (e = fstout($); e ; e = nxtout(e)) {
+		node_t n1 = node(C, e.head.name);
+		if (match($.name, ".cpp") >= 0) {
+			// Link from C++ to H, valid
+			n1.weight = n1.weight + 1;
+			for (e2 = fstout($); e2 ; e2 = nxtout(e2)) {
+				node_t n2 = node(C, e2.head.name);
+				edge_t ce = edge(n1, n2, "");
+				ce.weight = ce.weight + 1;
+			}
+		} else {
+			node_t n0 = node(C, $.name);
+			edge_t ke = edge(n0, n1, "");
+			ke.weight = 10000;
+		}
+	}
+}
+END { 
+	graph_t CC = graph("coheaders", "S");
+	node_t n;
+	for (n = fstnode(C); n ; n = nxtnode(n)) {
+		for (e = fstout(n); e ; e = nxtout(e)) {
+			if (e.weight == n.weight && e.head.name != e.tail.name) {
+				node_t n3 = node(CC, e.head.name);
+				node_t n4 = node(CC, e.tail.name);
+				edge(n4, n3, "");
+			}
+		}
+	}
+	write(CC);
+}

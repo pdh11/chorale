@@ -10,6 +10,7 @@
 #include <string>
 #include <assert.h>
 #include <dirent.h>
+#include <unistd.h>
 
 namespace util {
 
@@ -59,9 +60,13 @@ unsigned int Mkdir(const char *dirname)
 {
     int rc = ::mkdir(dirname, 0775);
     if (rc < 0)
+    {
+	TRACE << "mkdir(" << dirname << " failed: " << errno << "\n";
 	return (unsigned)errno;
+    }
     return 0;
 }
+
 bool DirExists(const char *dirname)
 {
     struct stat st;

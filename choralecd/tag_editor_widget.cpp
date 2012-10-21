@@ -8,11 +8,7 @@
 
 namespace choraleqt {
 
-static const struct
-{
-    unsigned int field;
-    const char *title;
-} columns[] = {
+const TagEditorWidget::Column TagEditorWidget::sm_columns[] = {
     { mediadb::ID,             "ID" },
     { mediadb::PATH,           "File" },
     { mediadb::TITLE,          "Title" },
@@ -28,7 +24,7 @@ static const struct
     { mediadb::COMMENT,        "Comment" },
 };
 
-static const unsigned int NCOLUMNS = (unsigned int)(sizeof(columns)/sizeof(columns[0]));
+const unsigned int TagEditorWidget::NCOLUMNS = (unsigned int)(sizeof(sm_columns)/sizeof(sm_columns[0]));
 
 TagEditorWidget::TagEditorWidget(QWidget *parent, unsigned int flags)
     : QTableWidget(parent),
@@ -38,7 +34,7 @@ TagEditorWidget::TagEditorWidget(QWidget *parent, unsigned int flags)
 
     for (unsigned int i=0; i<NCOLUMNS; ++i)
 	setHorizontalHeaderItem(i, new QTableWidgetItem(
-				    QString::fromUtf8(columns[i].title)));
+				    QString::fromUtf8(sm_columns[i].title)));
 
     setSortingEnabled(true);
     setAlternatingRowColors(true);
@@ -58,7 +54,7 @@ TagEditorWidget::TagEditorWidget(QWidget *parent, unsigned int flags)
 	    this, SLOT(edit(const QModelIndex&)));
 }
 
-static QColor ColourFor(const QString& s)
+QColor TagEditorWidget::ColourFor(const QString& s)
 {
     if (s.size() == 0)
 	return Qt::black;
@@ -130,7 +126,7 @@ void TagEditorWidget::SetNode(mediatree::NodePtr np)
 
 	    items.push_back(np);
 
-	    db::RecordsetPtr rs = np->GetInfo();
+	    util::CountedPointer<db::Recordset> rs = np->GetInfo();
 	    
 	    bool is_media = !np->IsCompound();
 
@@ -150,7 +146,7 @@ void TagEditorWidget::SetNode(mediatree::NodePtr np)
 		    item->setData(Qt::UserRole, QVariant((uint)rows));
 		}
 
-		if (columns[i].field == mediadb::DURATIONMS)
+		if (sm_columns[i].field == mediadb::DURATIONMS)
 		{
 		    unsigned int durationms
 			= rs->GetInteger(mediadb::DURATIONMS);
@@ -171,15 +167,15 @@ void TagEditorWidget::SetNode(mediatree::NodePtr np)
 		else
 		{
 		    QString s(QString::fromUtf8(
-				  rs->GetString(columns[i].field).c_str()));
+				  rs->GetString(sm_columns[i].field).c_str()));
 		    
 		    item->setText(s);
 		    if (!is_media)
 			item->setFlags(Qt::ItemIsEnabled); // i.e. not editable
 
-		    if (columns[i].field == mediadb::ARTIST
-			|| columns[i].field == mediadb::ALBUM
-			|| columns[i].field == mediadb::TITLE)
+		    if (sm_columns[i].field == mediadb::ARTIST
+			|| sm_columns[i].field == mediadb::ALBUM
+			|| sm_columns[i].field == mediadb::TITLE)
 			item->setForeground(ColourFor(s));
 		}
 
@@ -247,7 +243,7 @@ void TagEditorWidget::commitData(QWidget *editor)
 		continue;
 	    }
 
-	    db::RecordsetPtr rs = m_items[logicalRow]->GetInfo();
+	    util::CountedPointer<db::Recordset> rs = m_items[logicalRow]->GetInfo();
 	    if (!rs || rs->IsEOF())
 	    {
 		TRACE << "No rs for node\n";
@@ -267,7 +263,7 @@ void TagEditorWidget::commitData(QWidget *editor)
 		 column < NCOLUMNS;
 		 ++column)
 	    {
-		unsigned int field = columns[column].field;
+		unsigned int field = sm_columns[column].field;
 		if (field != mediadb::ID
 		    && field != mediadb::PATH
 		    && field != mediadb::SIZEBYTES

@@ -14,8 +14,15 @@ MediaRenderer::MediaRenderer(output::URLPlayer *player)
       m_rcserver(this,
 		 upnp::s_service_id_rendering_control,
 		 "urn:schemas-upnp-org:service:RenderingControl:2",
-		  "/upnp/RenderingControl.xml",
-		  &m_rcstub)
+		 "/upnp/RenderingControl.xml",
+		 &m_rcstub),
+      m_connection_manager(ConnectionManagerImpl::CLIENT,
+			   "http-get:*:*:*"), ///< @todo Query player for info
+      m_connection_manager_server(this,
+				  upnp::s_service_id_connection_manager,
+				  "urn:schemas-upnp-org:service:ConnectionManager:2",
+				  "/upnp/ConnectionManager.xml",
+				  &m_connection_manager)
 {
 }
 

@@ -8,6 +8,7 @@
 #include "libdb/recordset.h"
 #include "libutil/trace.h"
 #include "libutil/http_client.h"
+#include "libutil/counted_pointer.h"
 #include <getopt.h>
 #include <stdio.h>
 
@@ -59,8 +60,8 @@ int main(int argc, char *argv[])
 	db::RecordsetPtr rs = sdb.CreateRecordset();
 	rs->AddRecord();
 	
-	import::Tags tags;
-	unsigned int rc = tags.Open(argv[i]);
+	import::TagReader tags;
+	unsigned int rc = tags.Init(argv[i]);
 	if (rc == 0)
 	    rc = tags.Read(rs.get());
 	if (rc == 0)

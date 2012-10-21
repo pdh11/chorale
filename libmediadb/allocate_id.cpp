@@ -1,7 +1,10 @@
 #include "allocate_id.h"
 #include "schema.h"
 #include "libdb/query.h"
+#include "libdb/db.h"
+#include "libdb/recordset.h"
 #include "libutil/trace.h"
+#include "libutil/counted_pointer.h"
 #include <limits.h>
 
 namespace mediadb {

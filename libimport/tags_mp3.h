@@ -2,7 +2,8 @@
 #define WRITE_TAGS_MP3_H
 
 #include <string>
-#include "tags.h"
+#include "tag_reader.h"
+#include "tag_writer.h"
 
 namespace import {
 
@@ -10,14 +11,16 @@ namespace import {
  */
 namespace mp3 {
 
-class Tags: public import::Tags::Impl
+class TagWriter: public import::TagWriterBase
 {
 public:
-    Tags(const std::string& filename): import::Tags::Impl(filename) {}
+    unsigned Write(const std::string& filename, const db::Recordset*);
+};
 
-    // Being a Tags::Impl
-    unsigned Read(db::Recordset*);
-    unsigned Write(const db::Recordset*);
+class TagReader: public import::TagReaderBase
+{
+public:
+    unsigned Read(const std::string& filename, db::Recordset*);
 };
 
 } // namespace mp3

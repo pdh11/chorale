@@ -2,6 +2,7 @@ TOP?=../
 DIR:=libupnpd/
 SRCS:= \
 	avtransport.cpp \
+	connection_manager.cpp \
 	content_directory.cpp \
 	media_renderer.cpp \
 	media_server.cpp \

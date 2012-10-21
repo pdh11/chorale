@@ -553,7 +553,7 @@ static void Usage(FILE *f)
 "Serve local media resources (files, inputs, outputs), to network clients.\n"
 "\n"
 "The options are:\n"
-#ifdef WITH_DEBUG
+#if DEBUG	    
 " -d, --debug     Run service in foreground (for debugging)\n"
 #endif
 " -i, --install   Install service\n"

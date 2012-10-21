@@ -1,10 +1,10 @@
 #ifndef LIBRECEIVERD_TARFS_H
 #define LIBRECEIVERD_TARFS_H
 
-#include "libutil/stream.h"
-#include "libutil/counted_pointer.h"
 #include "vfs.h"
 #include <map>
+
+namespace util { class Stream; }
 
 namespace receiverd {
 
@@ -15,7 +15,7 @@ namespace receiverd {
  */
 class TarFS: public VFS
 {
-    util::SeekableStreamPtr m_stm;
+    util::Stream *m_stm;
 
     typedef std::map<unsigned int, std::string> map_t;
     map_t m_filemap;
@@ -32,7 +32,7 @@ class TarFS: public VFS
     void ScanStream();
 
 public:
-    explicit TarFS(util::SeekableStreamPtr);
+    explicit TarFS(util::Stream*);
 
     unsigned int Stat(unsigned int fh,
 		      unsigned int *type, unsigned int *mode,

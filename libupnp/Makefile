@@ -3,24 +3,35 @@ DIR:=libupnp/
 LIBUPNP_DIR:=$(TOP)$(DIR)
 SRCS:=\
 	client.cpp \
+	data.cpp \
 	description.cpp \
 	device.cpp \
 	server.cpp \
 	soap.cpp \
+	soap_parser.cpp \
 	ssdp.cpp
 
 LIBUPNP_XML:= \
-	AVTransport2.xml \
-	ConnectionManager2.xml \
-	ContentDirectory3.xml \
+	AVTransport.xml \
+	ConnectionManager.xml \
+	ContentDirectory.xml \
+	ContentSync.xml \
+	DeviceSecurity.xml \
+	MSMediaReceiverRegistrar.xml \
 	OpticalDrive.xml \
-	RenderingControl2.xml \
-	ScheduledRecording2.xml \
+	RemoteUIClient.xml \
+	RemoteUIServer.xml \
+	RenderingControl.xml \
+	ScheduledRecording.xml \
 	TestService.xml
+
+# Munged versions with namespaces in
+LIBUPNP_XML2:=$(LIBUPNP_XML:%.xml=$(TOP)$(DIR)%.xml2)
 
 SRCS:=$(sort $(SRCS) $(LIBUPNP_XML:%.xml=%.cpp) $(LIBUPNP_XML:%.xml=%_server.cpp) $(LIBUPNP_XML:%.xml=%_client.cpp))
 
 TEST_SRCS:=\
+	description.cpp \
 	ssdp.cpp \
 	test_service.cpp
 
@@ -39,6 +50,9 @@ all-libupnp: $(libupnp)
 
 $(TOP)$(DIR)% : CXXFLAGS += $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) \
 	$(LIBCDIOP_CXXFLAGS)
+
+$(TOP)$(DIR)%.xml2: $(TOP)$(DIR)%.xml $(TOP)$(DIR)Makefile
+	sed -e 's/<scpd>/<scpd xmlns="urn:schemas-upnp-org:service-1-0">/' < $< > $@
 
 ifeq ($(HAVE_XSLTPROC),yes)
 
@@ -75,11 +89,12 @@ $(TOP)$(DIR)%_server.h : $(TOP)$(DIR)%.xml $(LIBUPNP_DIR)scpd.xsl
 		    -o $@ \
 		    $(LIBUPNP_DIR)scpd.xsl $<
 
-$(TOP)$(DIR)%_server.cpp : $(TOP)$(DIR)%.xml $(LIBUPNP_DIR)scpd.xsl
+$(TOP)$(DIR)%_server.cpp : $(TOP)$(DIR)%.xml \
+		$(LIBUPNP_DIR)scpd-serversource.xsl \
+		$(LIBUPNP_DIR)scpd-common.xsl
 	$(GEN_PRE)$(XSLTPROC) --stringparam class $* \
-		    --stringparam mode server \
 		    -o $@ \
-		    $(LIBUPNP_DIR)scpd.xsl $<
+		    $(LIBUPNP_DIR)scpd-serversource.xsl $<
 
 else
 
@@ -118,7 +133,7 @@ ifneq ($(EXCEPTIONAL_boost_thread_tss_hpp),)
 $(LIBUPNP_DIR)$(TARGETDIR)server%: CXXFLAGS += -fexceptions -UBOOST_NO_EXCEPTIONS
 endif
 
-$(libupnp): $(LIBUPNP_OBJS)
+$(libupnp): $(LIBUPNP_OBJS) $(LIBUPNP_XML2)
 	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(LIBUPNP_OBJS)
 

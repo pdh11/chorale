@@ -3,6 +3,7 @@
 #include "vfs.h"
 #include "libutil/trace.h"
 #include "libutil/endian.h"
+#include "libutil/counted_pointer.h"
 #include <errno.h>
 #include <string.h>
 
@@ -278,7 +279,7 @@ int main(int argc, char *argv[])
 								      NULL);
 	receiverd::Mount::Create(&poller, NULL, pmap.get());
 
-	util::SeekableStreamPtr stm;
+	std::auto_ptr<util::Stream> stm;
 	unsigned int rc = util::OpenFileStream(argv[1], util::READ, &stm);
 	if (rc != 0)
 	{
@@ -286,7 +287,7 @@ int main(int argc, char *argv[])
 	    return 1;
 	}
 
-	receiverd::TarFS tarfs(stm);
+	receiverd::TarFS tarfs(stm.get());
 
 	receiverd::NFSServer::Create(&poller, NULL, pmap.get(), &tarfs);
 

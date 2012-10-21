@@ -1,14 +1,13 @@
 #ifndef IMPORT_FILE_NOTIFIER
 #define IMPORT_FILE_NOTIFIER 1
 
-#include "libutil/pollable.h"
 #include "libutil/task.h"
 
 namespace util { class Scheduler; }
 
 namespace import {
 
-class FileNotifierTask: public util::Task, private util::Pollable
+class FileNotifierTask: public util::Task
 {
 public:
     class Observer
@@ -22,12 +21,9 @@ public:
 private:
     util::Scheduler *m_scheduler;
     Observer *m_obs;
-    util::PollHandle m_fd;
+    int m_fd;
 
     explicit FileNotifierTask(util::Scheduler*);
-
-    // Being a util::Pollable
-    util::PollHandle GetHandle() { return m_fd; }
 
     unsigned Run();
 

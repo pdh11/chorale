@@ -11,7 +11,14 @@ MediaServer::MediaServer(mediadb::Database *db,
 			       upnp::s_service_id_content_directory,
 			       "urn:schemas-upnp-org:service:ContentDirectory:1",
 			       "/upnp/ContentDirectory.xml",
-			       &m_contentdirectory)
+			       &m_contentdirectory),
+      m_connection_manager(ConnectionManagerImpl::SERVER,
+			   "http-get:*:*:*"),
+      m_connection_manager_server(this,
+				  upnp::s_service_id_connection_manager,
+				  "urn:schemas-upnp-org:service:ConnectionManager:3",
+				  "/upnp/ConnectionManager.xml",
+				  &m_connection_manager)
 {
 }
 

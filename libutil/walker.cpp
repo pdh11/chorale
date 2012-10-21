@@ -4,6 +4,7 @@
 #include "file.h"
 #include "counted_pointer.h"
 #include "counted_object.h"
+#include "bind.h"
 #include <dirent.h>
 #include "trace.h"
 #include <errno.h>
@@ -280,12 +281,13 @@ class TestObserver: public util::DirectoryWalker::Observer
 {
     size_t m_dircount;
     size_t m_filecount;
+    bool m_done;
 
     util::Mutex m_mutex;
     util::Condition m_finished;
 
 public:
-    TestObserver() : m_dircount(0), m_filecount(0) {}
+    TestObserver() : m_dircount(0), m_filecount(0), m_done(false) {}
 
     unsigned int OnEnterDirectory(dircookie parent_cookie,
 				  unsigned int index,
@@ -351,13 +353,19 @@ void TestObserver::OnFinished(unsigned int error)
 {
     assert(error == 0);
 
+    TRACE << "Done\n";
+
     util::Mutex::Lock lock(m_mutex);
+    m_done = true;
     m_finished.NotifyAll();
 }
 
 void TestObserver::WaitForCompletion()
 {
     util::Mutex::Lock lock(m_mutex);
+    if (m_done)
+	return;
+
     bool did_finish = m_finished.Wait(lock, 60);
     assert(did_finish);
 }

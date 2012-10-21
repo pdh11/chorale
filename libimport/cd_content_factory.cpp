@@ -1,13 +1,12 @@
 #include "cd_content_factory.h"
-#include "libutil/counted_pointer.h"
-#include <boost/format.hpp>
+#include "libutil/printf.h"
 #include <stdio.h>
 
 namespace import {
 
 std::string CDContentFactory::GetPrefix()
 {
-    return (boost::format("/cd%u/") % m_index).str();
+    return util::SPrintf("/cd%u/", m_index);
 }
 
 bool CDContentFactory::StreamForPath(const util::http::Request *rq, 
@@ -19,7 +18,7 @@ bool CDContentFactory::StreamForPath(const util::http::Request *rq,
 	&& index == m_index
 	&& m_audiocd)
     {
-	rs->ssp = util::SeekableStreamPtr(m_audiocd->GetTrackStream(track));
+	rs->body_source = m_audiocd->GetTrackStream(track);
 	rs->content_type = "audio/L16";
 	return true;
     }

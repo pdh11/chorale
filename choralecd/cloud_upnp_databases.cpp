@@ -1,7 +1,7 @@
 #include "cloud_upnp_databases.h"
 #include "cloud_database_widget.h"
 #include "cloud_window.h"
-#include "libdbupnp/db.h"
+#include "libdbupnp/database.h"
 #include "libmediadb/registry.h"
 #include "libutil/bind.h"
 #include "libutil/trace.h"
@@ -11,18 +11,18 @@ namespace cloud {
 class UpnpDatabase
 {
     Window *m_parent;
-    db::upnpav::Database *m_db;
+    db::upnp::Database *m_db;
     QWidget *m_widget;
 
 public:
-    UpnpDatabase(Window*, mediadb::Registry*, db::upnpav::Database*);
+    UpnpDatabase(Window*, mediadb::Registry*, db::upnp::Database*);
     ~UpnpDatabase();
 
     unsigned int OnSelect();
 };
 
 UpnpDatabase::UpnpDatabase(Window *parent, mediadb::Registry *registry,
-			   db::upnpav::Database *db)
+			   db::upnp::Database *db)
     : m_parent(parent),
       m_db(db),
       m_widget(new DatabaseWidget(parent, registry, db))
@@ -59,8 +59,8 @@ UpnpDatabases::UpnpDatabases(Window *parent, QPixmap *pixmap,
 void UpnpDatabases::OnService(const std::string& url,
 			      const std::string& udn)
 {
-    db::upnpav::Database *thedb = new db::upnpav::Database(m_client, m_server,
-							   m_poller);
+    db::upnp::Database *thedb = new db::upnp::Database(m_client, m_server,
+						       m_poller);
     thedb->Init(url, udn);
     TRACE << "udn=" << udn << "\n";
     m_registry->Add("upnp:" + udn, thedb);

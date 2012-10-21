@@ -50,7 +50,11 @@ public:
 } // namespace ssdp
 
 
-// Common search UUIDs
+/* Common search UUIDs
+ *
+ * Note that the service types are all the ":1" (version 1) versions,
+ * for maximum compatibility.
+ */
 
 extern const char s_device_type_media_renderer[];
 extern const char s_device_type_optical_drive[];
@@ -59,7 +63,9 @@ extern const char s_service_id_connection_manager[];
 extern const char s_service_id_content_directory[];
 extern const char s_service_id_optical_drive[];
 extern const char s_service_id_rendering_control[];
+extern const char s_service_id_ms_receiver_registrar[];
 extern const char s_service_type_av_transport[];
+extern const char s_service_type_av_transport2[];
 extern const char s_service_type_connection_manager[];
 extern const char s_service_type_content_directory[];
 extern const char s_service_type_optical_drive[];

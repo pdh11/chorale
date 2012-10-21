@@ -37,7 +37,7 @@ struct NotThreadSafe
 
 } // namespace empty
 
-#if defined(DEBUG) && !defined(WIN32)
+#if DEBUG && !defined(WIN32)
 namespace threadapi = posix;
 #else
 namespace threadapi = empty;

@@ -3,17 +3,19 @@
 #include "device.h"
 #include "soap.h"
 #include "ssdp.h"
+#include "data.h"
+#include "soap_parser.h"
 #include "libutil/trace.h"
 #include "libutil/string_stream.h"
 #include "libutil/partial_url.h"
 #include "libutil/http_client.h"
 #include "libutil/http_server.h"
+#include "libutil/printf.h"
 #include "libutil/xml.h"
 #include "libutil/xmlescape.h"
 #include <sstream>
 #include <errno.h>
 #include <stdio.h>
-#include <boost/format.hpp>
 #include <boost/thread/tss.hpp>
 #if HAVE_WS2TCPIP_H
 #include <ws2tcpip.h>  /* For gethostname */
@@ -42,6 +44,9 @@ class Server::Impl: public util::http::ContentFactory
 	Service *service;
 	std::string delivery_url;
 	unsigned int event_key;
+
+        Subscription(Service *s, const std::string& url)
+            : service(s), delivery_url(url), event_key(0) {}
     };
 
     typedef std::vector<Subscription> subscriptions_t;
@@ -155,12 +160,9 @@ std::string Server::Impl::MakeUUID(const std::string& resource)
     u.ui[2] = SimpleHash(hostname);
     u.ui[3] = SimpleHash(resource.c_str());
 
-    char buf[48];
-    sprintf(buf, "uuid:%08x-%04x-%04x-%04x-%04x%08x",
+    return util::SPrintf("uuid:%08x-%04x-%04x-%04x-%04x%08x",
 	    u.ui[0], u.ui[1] >> 16, u.ui[1] & 0xFFFF, u.ui[2] >> 16, 
 	    u.ui[2] & 0xFFFF, u.ui[3]);
-
-    return std::string(buf);
 }
 
 std::string Server::Impl::RegisterDevice(Device *d, 
@@ -184,8 +186,8 @@ std::string Server::Impl::DeviceDescription(Device *d)
         "<modelDescription>" PACKAGE_VERSION "</modelDescription>"
         "<modelName>" PACKAGE_NAME "</modelName>"
         "<modelNumber>" PACKAGE_VERSION "</modelNumber>"
+	"<modelURL>http://chorale.sf.net</modelURL>"
         "<UDN>" << d->GetUDN() << "</UDN>"
-        "<presentationURL>/</presentationURL>"
         "<iconList>"
 	"<icon><mimetype>image/png</mimetype>"
         " <width>32</width><height>32</height><depth>24</depth>"
@@ -233,8 +235,7 @@ std::string Server::Impl::Description(util::IPAddress ip)
     ipe.port = m_server->GetPort();
 
     std::string s =
-	"<?xml version=\"1.0\"?><root xmlns=\"urn:schemas-upnp-org:device-1-0\"><specVersion><major>1</major><minor>0</minor></specVersion>"
-	"<URLBase>http://" + ipe.ToString() + "/</URLBase>"
+	"<?xml version=\"1.0\"?><root xmlns=\"urn:schemas-upnp-org:device-1-0\" configId=\"1\"><specVersion><major>1</major><minor>0</minor></specVersion>"
 	"<device>"
 	+ DeviceDescription(*i);
 
@@ -245,13 +246,13 @@ std::string Server::Impl::Description(util::IPAddress ip)
 	do {
 	    s += "<device>";
 	    s += DeviceDescription(*i);
-	    s += "</device>";
+	    s += "<presentationURL>/</presentationURL></device>";
 	    ++i;
 	} while (i != m_devices.end());
 	s += "</deviceList>";
     }
 	
-    s += "</device>"
+    s += "<presentationURL>/</presentationURL></device>"
 	"</root>";
 
     LOG(UPNP) << "My description is:\n" << s << "\n";
@@ -268,8 +269,11 @@ unsigned int Server::Impl::Init()
 	 ++i)
     {
 	const Device *device = *i;
+
+	assert(!device->GetUDN().empty());
+
 	if (i == m_devices.begin())
-	    m_ssdp->Advertise("upnp::rootdevice",
+	    m_ssdp->Advertise("upnp:rootdevice",
 			      device->GetUDN(),
 			      &description_url);
 
@@ -294,12 +298,13 @@ unsigned int Server::Impl::Init()
     return 0;
 }
 
-class Notify: public util::http::Connection
+class Notify: public util::http::Recipient
 {
 public:
     Notify() {}
     ~Notify() {}
     
+    unsigned OnData(const void*, size_t) { return 0; }
     void OnDone(unsigned int)
     {
 //	TRACE << "notify" << (void*)this << " done(" << rc << "), deleting\n";
@@ -327,16 +332,20 @@ void Server::Impl::FireEvent(Service *service,
 	if (service == i->service)
 	{
 //	    TRACE << "Notifying " << i->delivery_url << "\n";
+
 	    std::string extra_headers =
+		util::Printf() <<
 		"NT: upnp:event\r\n"
 		"NTS: upnp:propchange\r\n"
 		"CONTENT-TYPE: text/xml; charset=\"utf-8\"\r\n"
-		"SID: " + i->delivery_url + "\r\n"
-		+ (boost::format("SEQ: %u\r\n") % i->event_key).str();
+		"SID: " << i->delivery_url << "\r\n"
+		"SEQ: " << i->event_key << "\r\n";
+
+	    TRACE << extra_headers;
 
 	    i->event_key++;
 
-	    util::http::ConnectionPtr ptr(new Notify);
+	    util::http::RecipientPtr ptr(new Notify);
 
 	    unsigned rc = m_client->Connect(m_scheduler,
 					    ptr,
@@ -361,92 +370,71 @@ static bool prefixcmp(const char *haystack, const char *needle,
     return false;
 }
 
-class Server::Impl::SoapReplier: public util::Stream,
-				 public xml::SaxParserObserver
+class Server::Impl::SoapReplier: public util::Stream
 {
     Service *m_service;
     util::http::Response *m_response;
     util::IPEndPoint m_ipe;
     unsigned int m_access;
     boost::thread_specific_ptr<Server::Impl::SoapInfo> *m_endpoints;
+    soap::Params m_args;
+    soap::Parser m_soap_parser;
     xml::SaxParser m_parser;
-    std::string m_action_name;
-    soap::Inbound m_args;
-    std::string m_key, m_value;
+    unsigned int m_action;
 
 public:
-    SoapReplier(Service *service, util::http::Response *response,
+    SoapReplier(Service *service, unsigned int action,
+		util::http::Response *response,
 		util::IPEndPoint ipe, unsigned int access,
-		boost::thread_specific_ptr<SoapInfo> *endpoints)
-	: m_service(service),
-	  m_response(response),
-	  m_ipe(ipe),
-	  m_access(access),
-	  m_endpoints(endpoints),
-	  m_parser(this)
-    {
-    }
+		boost::thread_specific_ptr<SoapInfo> *endpoints);
 
     ~SoapReplier()
     {
 	// End of body -- assemble reply
+	unsigned int rc = ENOSYS;
 
+	soap::Params result;
+	
 	SoapInfo *soap_info = new SoapInfo;
 	soap_info->ipe = m_ipe;
 	soap_info->access = m_access;
 	m_endpoints->reset(soap_info);
 
-	soap::Outbound result;
-	unsigned int rc = m_service->OnAction(m_action_name.c_str(), m_args,
-					      &result);
+	rc = m_service->OnAction(m_action, m_args, &result);
+
 	if (rc)
-	    return;
-
-	std::string body = result.CreateBody(m_action_name + "Response",
-					     m_service->GetServiceType());
-	
-	LOG(SOAP) << "Soap response is " << body << "\n";
-	
-	m_response->ssp = util::StringStream::Create(body);
-    }
-
-    unsigned int OnBegin(const char *tag)
-    {
-	LOG(SOAP) << "Arg: <" << tag << ">\n";
-	if (!strchr(tag, ':'))
 	{
-	    m_key = tag;
-	    m_value.clear();
+	    m_response->status_line = "HTTP/1.1 801 Error\r\n";
+
+	    std::string body(
+		"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n"
+		"<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\""
+		" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\r\n"
+		" <s:Body>"
+		"  <s:Fault><faultcode>soap:Server</faultcode>"
+		"  <faultstring>Service error ");
+	    body += util::SPrintf("%u", rc);
+	    body += "</faultstring></s:Fault></s:Body></s:Envelope>\r\n";
+	
+	    LOG(SOAP) << "Soap response is " << body << "\n";
+	
+	    m_response->body_source.reset(new util::StringStream(body));
 	}
 	else
 	{
-	    m_key.clear();
-	    if (*tag == 'u')
-		m_action_name = tag+2;
+	    std::string body = soap::CreateBody(m_service->GetData(),
+						m_action, true,
+						m_service->GetServiceType(),
+						result);
+	
+	    LOG(SOAP) << "Soap response is " << body << "\n";
+	
+	    m_response->body_source.reset(new util::StringStream(body));
 	}
-	return 0;
-    }
-
-    unsigned int OnContent(const char *content)
-    {
-	if (!m_key.empty())
-	    m_value += content;
-	return 0;
-    }
-
-    unsigned int OnEnd(const char*)
-    {
-	if (!m_key.empty())
-	{
-	    LOG(SOAP) << "Arg '" << m_key << "' = '" << m_value << "'\n";
-	    m_args.Set(m_key, m_value);
-	    m_key.clear();
-	    m_value.clear();
-	}
-	return 0;
     }
 
     // Being a Stream
+    unsigned GetStreamFlags() const { return WRITABLE; }
     unsigned Read(void *, size_t, size_t*) { return EPERM; }
     unsigned Write(const void *buffer, size_t len, size_t *pwrote)
     {
@@ -456,6 +444,22 @@ public:
 	return rc;
     }
 };
+
+Server::Impl::SoapReplier::SoapReplier(Service *service, unsigned int action,
+				       util::http::Response *response,
+				       util::IPEndPoint ipe, unsigned int access,
+				       boost::thread_specific_ptr<SoapInfo> *endpoints)
+    : m_service(service),
+      m_response(response),
+      m_ipe(ipe),
+      m_access(access),
+      m_endpoints(endpoints),
+      m_soap_parser(service->GetData(), 
+		    service->GetData()->action_args[action], &m_args),
+      m_parser(&m_soap_parser),
+      m_action(action)
+{
+}
 
 bool Server::Impl::StreamForPath(const util::http::Request *rq, 
 				 util::http::Response *rs)
@@ -468,7 +472,8 @@ bool Server::Impl::StreamForPath(const util::http::Request *rq,
     if (rq->path == s_description_path)
     {
 	LOG(UPNP) << "Serving description request\n";
-	rs->ssp = util::StringStream::Create(Description(rq->local_ep.addr));
+	rs->body_source.reset(
+	    new util::StringStream(Description(rq->local_ep.addr)));
 	rs->content_type = "text/xml; charset=\"utf-8\"";
 	return true;
     }
@@ -487,22 +492,43 @@ bool Server::Impl::StreamForPath(const util::http::Request *rq,
 		    delivery.erase(0,1);
 		    delivery.erase(delivery.size()-1);
 
-		    Subscription s;
-		    s.service = service;
-		    s.delivery_url = delivery;
-		    s.event_key = 0;
-
-		    m_subscriptions.push_back(s);
+		    m_subscriptions.push_back(Subscription(service, delivery));
 
 		    rs->headers["SID"] = delivery; // why not?
 		    rs->headers["TIMEOUT"] = "infinite";
-		    rs->ssp = util::StringStream::Create("");
+		    rs->body_source.reset(new util::StringStream(""));
 		}
 	    }
 	    else
 	    {
 		TRACE << "Can't find service " << usn << "\n";
 	    }
+	    return true;
+	}
+	else if (rq->verb == "UNSUBSCRIBE")
+	{
+	    LOG(UPNP) << "I'm being unsubscribed at\n" << rq->headers;
+
+	    Service *service = FindService(usn);
+	    if (service)
+	    {
+		std::string delivery = rq->GetHeader("SID");
+		
+		for (subscriptions_t::iterator i = m_subscriptions.begin();
+		     i != m_subscriptions.end();
+		     ++i)
+		{
+		    if (i->service == service
+			&& i->delivery_url == delivery)
+		    {
+			m_subscriptions.erase(i);
+			LOG(UPNP) << "Found and erased subscription\n";
+			rs->body_source.reset(new util::StringStream(""));
+			break;
+		    }
+		}
+	    }
+
 	    return true;
 	}
     }
@@ -514,10 +540,29 @@ bool Server::Impl::StreamForPath(const util::http::Request *rq,
 	    Service *svc = FindService(usn);
 	    if (svc)
 	    {
-		rs->content_type = "text/xml; charset=\"utf-8\"";
-		rs->body_sink.reset(new SoapReplier(svc, rs, rq->local_ep,
-						    rq->access, &m_endpoints));
-		return true;
+		std::string action_name = rq->GetHeader("SOAPACTION");
+		if (!action_name.empty())
+		{
+		    action_name.erase(0,action_name.rfind('#')+1);
+		    action_name.erase(action_name.rfind('\"'));
+		    LOG(UPNP) << "Soap action: " << action_name << "\n";
+
+		    const upnp::Data *data = svc->GetData();
+		    unsigned int action = data->actions.Find(action_name.c_str());
+		    if (action < data->actions.n)
+		    {
+			rs->content_type = "text/xml; charset=\"utf-8\"";
+			rs->body_sink.reset(new SoapReplier(svc, action, rs,
+							    rq->local_ep,
+							    rq->access, 
+							    &m_endpoints));
+			return true;
+		    }
+		    else
+		    {
+			LOG(UPNP) << "Action " << action_name << " not found\n";
+		    }
+		}
 	    }
 	    else
 	    {

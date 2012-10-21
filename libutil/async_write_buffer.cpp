@@ -3,12 +3,10 @@
 #include <string.h>
 #include <stdint.h>
 #include "task.h"
-#include "worker_thread_pool.h"
-#include "memory_stream.h"
-#include "file_stream.h"
-#include "stream_test.h"
 #include "mutex.h"
 #include "trace.h"
+#include "bind.h"
+#include "counted_pointer.h"
 
 namespace util {
 
@@ -21,7 +19,7 @@ class AsyncWriteBuffer::Impl
 
     enum { BUFSIZE = 128*1024 };
 
-    SeekableStreamPtr m_stream;
+    Stream *m_stream;
     TaskQueue *m_queue;
 
     util::Mutex m_mutex;
@@ -42,10 +40,11 @@ class AsyncWriteBuffer::Impl
     void SynchronousFlush();
 
 public:
-    Impl(SeekableStreamPtr stream, TaskQueue *queue);
+    Impl(Stream *stream, TaskQueue *queue);
     ~Impl();
 
-    unsigned Write(const void *buffer, size_t len, size_t *pwrote);
+    unsigned WriteAt(const void *buffer, uint64_t pos, size_t len,
+		     size_t *pwrote);
 };
 
 class AsyncWriteBuffer::Impl::Task: public util::Task
@@ -95,7 +94,7 @@ unsigned int AsyncWriteBuffer::Impl::Task::Run()
     return 0;
 }
 
-AsyncWriteBuffer::Impl::Impl(SeekableStreamPtr stream, TaskQueue *queue)
+AsyncWriteBuffer::Impl::Impl(Stream *stream, TaskQueue *queue)
     : m_stream(stream),
       m_queue(queue),
       m_filling(0),
@@ -143,7 +142,7 @@ AsyncWriteBuffer::Impl::~Impl()
     delete[] m_buf[1];
 }
 
-AsyncWriteBuffer::AsyncWriteBuffer(SeekableStreamPtr ptr, TaskQueue *queue)
+AsyncWriteBuffer::AsyncWriteBuffer(Stream *ptr, TaskQueue *queue)
     : m_impl(new Impl(ptr, queue))
 {
 }
@@ -153,32 +152,24 @@ AsyncWriteBuffer::~AsyncWriteBuffer()
     delete m_impl;
 }
 
-unsigned AsyncWriteBuffer::Create(SeekableStreamPtr backingstream,
-				  TaskQueue *queue,
-				  StreamPtr *result)
-{
-    *result = new AsyncWriteBuffer(backingstream, queue);
-    return 0;
-}
-
-unsigned AsyncWriteBuffer::Write(const void *buffer, size_t len, 
-				 size_t *pwrote)
+unsigned AsyncWriteBuffer::WriteAt(const void *buffer, uint64_t pos, size_t len, 
+				   size_t *pwrote)
 {
     if (m_impl->m_error)
 	return m_impl->m_error;
 
-    return m_impl->Write(buffer, len, pwrote);
+    return m_impl->WriteAt(buffer, pos, len, pwrote);
 }
 
-class FooTask: public Task
+unsigned AsyncWriteBuffer::Impl::WriteAt(const void *buffer, uint64_t pos,
+					 size_t len, size_t *pwrote)
 {
-public:
-    unsigned Run();
-};
+    if (pos != (m_current_buffer_offset + m_bufpos))
+    {
+	SynchronousFlush();
+	m_current_buffer_offset = pos;
+    }
 
-unsigned AsyncWriteBuffer::Impl::Write(const void *buffer, size_t len, 
-				 size_t *pwrote)
-{
     if (m_bufpos == 0)
     {
 	util::Mutex::Lock lock(m_mutex);
@@ -213,45 +204,59 @@ unsigned AsyncWriteBuffer::Impl::Write(const void *buffer, size_t len,
 
 /** Read, by contrast, goes straight to the underlying stream
  */
-unsigned AsyncWriteBuffer::Read(void *buffer, size_t len, size_t *pread)
+unsigned AsyncWriteBuffer::ReadAt(void *buffer, uint64_t pos, size_t len,
+				  size_t *pread)
 {
     m_impl->SynchronousFlush();
-    return m_impl->m_stream->Read(buffer, len, pread);
+    return m_impl->m_stream->ReadAt(buffer, pos, len, pread);
+}
+
+unsigned AsyncWriteBuffer::SetLength(uint64_t len)
+{
+    m_impl->SynchronousFlush();
+    unsigned rc = m_impl->m_stream->SetLength(len);
+    if (rc)
+	return rc;
+    if (Tell() > len)
+	Seek(len);
+    return 0;
+}
+
+uint64_t AsyncWriteBuffer::GetLength()
+{
+    m_impl->SynchronousFlush();
+    return m_impl->m_stream->GetLength();
 }
 
 } // namespace util
 
 #ifdef TEST
+# include "memory_stream.h"
+# include "file_stream.h"
+# include "stream_test.h"
+# include "worker_thread_pool.h"
 
 int main()
 {
-    util::MemoryStreamPtr msp;
-
 //    cpu_set_t cpus;
 //    CPU_ZERO(&cpus);
 //    CPU_SET(0, &cpus);
 //    int rc0 = sched_setaffinity(0, sizeof(cpus), &cpus);
 //    TRACE << "ssa returned " << rc0 << "\n";
 
-    unsigned int rc = util::MemoryStream::Create(&msp);
-    assert(rc == 0);
+    util::MemoryStream ms;
 
     util::WorkerThreadPool wtp(util::WorkerThreadPool::NORMAL);
+    util::AsyncWriteBuffer asp(&ms, &wtp);
+    TestSeekableStream(&asp);
 
-    util::StreamPtr asp;
-    rc = util::AsyncWriteBuffer::Create(msp, &wtp, &asp);
+    std::auto_ptr<util::Stream> fsp;
 
-//    TestSeekableStream(asp);
-
-    util::SeekableStreamPtr fsp;
-
-    rc = util::OpenFileStream("test2.tmp", util::TEMP, &fsp);
+    unsigned int rc = util::OpenFileStream("test2.tmp", util::TEMP, &fsp);
     assert(rc == 0);
 
-    util::StreamPtr asp2;
-    rc = util::AsyncWriteBuffer::Create(fsp, &wtp, &asp2);
-
-//  TestSeekableStream(asp2);
+    util::AsyncWriteBuffer asp2(fsp.get(), &wtp);
+    TestSeekableStream(&asp2);
 
     return 0;
 }

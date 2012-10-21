@@ -1,11 +1,13 @@
 #ifndef LIBUPNPD_MEDIARENDERER_H
 #define LIBUPNPD_MEDIARENDERER_H 1
 
-#include "libupnp/AVTransport2_server.h"
-#include "libupnp/RenderingControl2.h"
-#include "libupnp/RenderingControl2_server.h"
+#include "libupnp/AVTransport_server.h"
+#include "libupnp/RenderingControl.h"
+#include "libupnp/RenderingControl_server.h"
+#include "libupnp/ConnectionManager_server.h"
 #include "libupnp/device.h"
 #include "avtransport.h"
+#include "connection_manager.h"
 
 namespace output { class URLPlayer; }
 
@@ -19,10 +21,13 @@ namespace upnpd {
 class MediaRenderer: public upnp::Device
 {
     upnpd::AVTransportImpl m_avtransport;
-    upnp::AVTransport2Server m_avtransportserver;
+    upnp::AVTransportServer m_avtransportserver;
 
-    upnp::RenderingControl2 m_rcstub;
-    upnp::RenderingControl2Server m_rcserver;
+    upnp::RenderingControl m_rcstub;
+    upnp::RenderingControlServer m_rcserver;
+    
+    upnpd::ConnectionManagerImpl m_connection_manager;
+    upnp::ConnectionManagerServer m_connection_manager_server;
 
 public:
     explicit MediaRenderer(output::URLPlayer*);

@@ -1,0 +1,75 @@
+#!/usr/bin/python
+
+import os
+import sys
+import posix
+import string
+import re
+
+rethisclass = re.compile("<h1>(.*) Member List</h1>")
+member = re.compile("<td>(.*)</td><td>(.*)</td><td>.*virtual.*</td>")
+nohtml = re.compile("<[^>]*>")
+
+subclasses = {}
+superclasses = {}
+members = {}
+defined = {}
+
+for f in sys.argv[1:]:
+    thisclass = ""
+    for line in open(f).readlines():
+        matched = rethisclass.search(line)
+        if matched:
+            thisclass = matched.group(1)
+            thisclass = re.sub("&lt;.*&gt;","<>", thisclass)
+        else:
+            matched = member.search(line)
+            if matched:
+                name = nohtml.sub("",matched.group(1))
+                name = re.sub("=0","",name)
+                name = re.sub("\(.*\)","()",name)
+                name = re.sub(" ATTRIBUTE_WARNUNUSED","",name)
+                base = nohtml.sub("",matched.group(2))
+                base = re.sub("&lt;.*&gt;","<>", base)
+                if thisclass not in members:
+                    members[thisclass] = []
+                members[thisclass].append(name)
+                if thisclass not in defined:
+                    defined[thisclass] = []
+                if thisclass == base:
+                    defined[thisclass].append(name)
+                if thisclass != base:
+                    if base not in subclasses:
+                        subclasses[base] = []
+                    if thisclass not in subclasses[base]:
+                        subclasses[base].append(thisclass)
+                        
+                    if thisclass not in superclasses:
+                        superclasses[thisclass] = []
+                    if base not in superclasses[thisclass]:
+                        superclasses[thisclass].append(base)
+
+#print subclasses
+
+for (klass,subs) in subclasses.items():
+    if len(subs) == 1:
+        print klass, "has only one subclass", subs[0], "(consider merging)"
+        continue;
+    for mem in defined[klass]:
+        if mem.startswith("~"):
+            continue  # Don't care about destructors
+        newmem = True
+        if klass in superclasses:
+            for sc in superclasses[klass]:
+                if mem in members[sc]:
+                    newmem = False
+        if not newmem:
+            continue
+        #print " ", mem
+        subcount = 0
+        for sub in subs:
+            if sub != klass and mem in defined[sub]:
+                #print "   ", sub
+                subcount = subcount + 1
+        if subcount == 0:
+            print klass+"::"+mem, "never overridden (consider devirtualising)"

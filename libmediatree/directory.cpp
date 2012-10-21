@@ -1,6 +1,8 @@
 #include "directory.h"
 #include "node_enumerator.h"
+#include "libdb/db.h"
 #include "libdb/query.h"
+#include "libdb/recordset.h"
 #include "libmediadb/schema.h"
 #include "libutil/trace.h"
 

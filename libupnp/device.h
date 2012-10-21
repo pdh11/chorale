@@ -63,20 +63,22 @@ class Service: public soap::Server
     const char *m_service_type;
     const char *m_scpd_url;
 
+    const Data *m_data;
+
 public:
     Service(Device*, const char *service_id,
-	    const char *service_type, const char *scpd_url);
+	    const char *service_type, const char *scpd_url,
+	    const Data *data);
 
     const char *GetServiceID() const { return m_service_id; }
     const char *GetServiceType() const { return m_service_type; }
     const char *GetSCPDUrl() const { return m_scpd_url; }
+    const Data *GetData() const { return m_data; }
 
     // soap::Server::OnAction() not defined
 
     void FireEvent(const char *variable, const std::string& value);
     void FireEvent(const char *variable, unsigned int value);
-
-    virtual void GetEventedVariables(soap::Outbound *vars) = 0;
 };
 
 } // namespace upnp

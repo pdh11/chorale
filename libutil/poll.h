@@ -3,8 +3,11 @@
 
 #include <vector>
 #include "bind.h"
-#include "pollable.h"
 #include "task.h"
+#include "counted_pointer.h"
+
+#undef IN
+#undef OUT
 
 struct pollfd;
 
@@ -16,10 +19,12 @@ struct PollRecord
 {
     TaskCallback tc;
     void *internal;
-    util::PollHandle h;
+    int h;
     unsigned char direction;
     enum { IN = 1, OUT = 2 };
     bool oneshot;
+
+    PollRecord() : internal(NULL), h(0), direction(IN), oneshot(false) {}
 };
 
 namespace posix {
@@ -29,7 +34,7 @@ class PollerCore
     pollfd *m_array;
     size_t m_count;
 
-    util::PollHandle m_waker_fd[2];
+    int m_waker_fd[2];
 
 public:
     PollerCore();

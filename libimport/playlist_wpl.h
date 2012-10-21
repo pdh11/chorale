@@ -1,19 +1,17 @@
 #ifndef IMPORT_PLAYLIST_WPL_H
 #define IMPORT_PLAYLIST_WPL_H
 
-#include "playlist.h"
+#include "playlist_io.h"
 
 namespace import {
 
-class PlaylistWPL: public Playlist
+class PlaylistWPL: public PlaylistIO
 {
 public:
-    // Being a Playlist
-    unsigned int Load();
-    unsigned int Save();
-
-    /** Parser callback when an entry is found */
-    unsigned int OnSrc(const std::string&);
+    unsigned int Load(const std::string& filename,
+		      std::list<std::string> *entries);
+    unsigned int Save(const std::string& filename,
+		      const std::list<std::string> *entries);
 };
 
 } // namespace import

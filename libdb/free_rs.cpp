@@ -2,12 +2,13 @@
 #include <sstream>
 #include <errno.h>
 #include <stdlib.h>
+#include "libutil/counted_pointer.h"
 
 namespace db {
 
-db::RecordsetPtr FreeRecordset::Create()
+util::CountedPointer<Recordset> FreeRecordset::Create()
 {
-    return db::RecordsetPtr(new FreeRecordset());
+    return util::CountedPointer<Recordset>(new FreeRecordset());
 }
 
 bool FreeRecordset::IsEOF() const

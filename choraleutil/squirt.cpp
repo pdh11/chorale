@@ -3,6 +3,7 @@
 #include "libdblocal/file_scanner.h"
 #include "libdblocal/db.h"
 #include "libdb/query.h"
+#include "libdb/recordset.h"
 #include "libmediadb/schema.h"
 #include "libmediadb/xml.h"
 #include "libutil/worker_thread_pool.h"
@@ -10,6 +11,7 @@
 #include "libutil/trace.h"
 #include "libutil/file.h"
 #include "libutil/http_client.h"
+#include "libutil/counted_pointer.h"
 #include <boost/format.hpp>
 #include <getopt.h>
 
@@ -80,12 +82,14 @@ static const char *const codecmap[] = {
     "flac",
     "vorbis",
     "wav",
-    "pcm"
+    "pcm",
+    "aac",
+    "wma"
 };
 
 enum { NCODECS = sizeof(codecmap)/sizeof(codecmap[0]) };
 
-BOOST_STATIC_ASSERT((int)NCODECS == (int)mediadb::CODEC_COUNT);
+BOOST_STATIC_ASSERT((int)NCODECS == (int)mediadb::AUDIOCODEC_COUNT);
 
 static void MaybeWriteString(FILE *f, db::RecordsetPtr rs, const char *tag,
 			     unsigned int field)
@@ -210,7 +214,7 @@ void WriteFIDStructure(const char *outputdir, db::Database *thedb)
 		    std::string ebr =(boost::format("vs%u") % rate).str();
 		    fprintf(f, "bitrate=%s\n", ebr.c_str());
 		    fprintf(f, "codec=%s\n", 
-			    codecmap[rs->GetInteger(mediadb::CODEC)]);
+			    codecmap[rs->GetInteger(mediadb::AUDIOCODEC)]);
 		    fprintf(f, "duration=%u\n",
 			    rs->GetInteger(mediadb::DURATIONMS));
 		    fprintf(f, "samplerate=%u\n",

@@ -4,11 +4,11 @@
 #if HAVE_GSTREAMER
 
 #include <gst/gst.h>
-#include "libutil/trace.h"
-#include "libutil/observable.h"
-#include "libutil/mutex.h"
 #include "libutil/bind.h"
-#include <boost/format.hpp>
+#include "libutil/trace.h"
+#include "libutil/mutex.h"
+#include "libutil/printf.h"
+#include "libutil/observable.h"
 
 namespace output {
 
@@ -170,7 +170,7 @@ gboolean URLPlayer::Impl::OnStartup()
 
 	if (m_card >= 0 && m_device >= 0)
 	{
-	    alsadevice = (boost::format("plughw:%d,%d") % m_card % m_device).str();
+	    alsadevice = util::SPrintf("plughw:%d,%d", m_card, m_device);
 	    
 	    alsasink = gst_element_factory_make("alsasink", "audio-sink");
 	    g_object_set(m_play, "audio-sink", alsasink, NULL);

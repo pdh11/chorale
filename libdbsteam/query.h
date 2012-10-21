@@ -27,7 +27,7 @@ public:
     bool Match(db::Recordset *rs);
 
     // Being a db::QueryImpl
-    db::RecordsetPtr Execute();
+    util::CountedPointer<db::Recordset> Execute();
 };
 
 typedef util::CountedPointer<db::steam::Query> QueryPtr;

@@ -123,7 +123,7 @@ unsigned int PollerCore::DoCallbacks(std::vector<PollRecord> *pollables,
 	    if (record.oneshot)
 		record.direction = 0; // Mark for deletion
 
-	    if (record.tc)
+	    if (record.tc.IsValid())
 		task_callbacks.push_back(record.tc);
 	}
     }

@@ -271,6 +271,8 @@ static const db::Query::Subexpression Translate(db::Query *qp,
 		type = mediadb::DIR;
 	    else if (literal == "object.item.audioItem.musicTrack")
 		type = mediadb::TUNE;
+	    else if (literal == "object.item.audioItem")
+		type = mediadb::TUNE;
 	    else if (literal == "object.item.audioItem.audioBroadcast")
 		type = mediadb::RADIO;
 	    else if (literal == "object.item.imageItem.photo")
@@ -292,6 +294,11 @@ static const db::Query::Subexpression Translate(db::Query *qp,
 		qp->CollateBy(mediadb::ALBUM);
 		*collate = mediadb::ALBUM;
 		return qp->Restrict(mediadb::TYPE, db::EQ, mediadb::TUNE);
+	    }
+	    else
+	    {
+		TRACE << "Can't search for type '" << literal << "'\n";
+		return db::Query::Subexpression();
 	    }
 
 	    return qp->Restrict(which, rt, type);
@@ -348,6 +355,7 @@ using namespace boost::spirit;
 #endif
 
 # include "libdbsteam/db.h"
+# include "libutil/counted_pointer.h"
 # include "libmediadb/xml.h"
 
 static void Test(db::Database *db, const char *s)

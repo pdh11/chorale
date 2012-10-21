@@ -91,7 +91,7 @@ unsigned int WorkerThread::Run()
     for (;;)
     {
 	TaskCallback cb = m_owner->PopTaskOrQuit(this);
-	if (!cb)
+	if (!cb.IsValid())
 	{
 //	    TRACE << "No task, quitting\n";
 	    return 0;
@@ -168,7 +168,7 @@ void WorkerThreadPool::PushTaskFront(const TaskCallback& cb)
 TaskCallback WorkerThreadPool::PopTaskOrQuit(WorkerThread *wt)
 {
     TaskCallback cb = PopTask(10);
-    if (!cb)
+    if (!cb.IsValid())
     {
 	util::Mutex::Lock lock(m_mutex);
 	m_threads.remove(wt);

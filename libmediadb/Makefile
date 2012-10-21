@@ -54,6 +54,9 @@ $(MEDIADB_TESTS) : $(libdblocal) $(libmediadb) $(libdbsteam) $(libdb) $(libutil)
 ifneq ($(EXCEPTIONAL_boost_function_hpp),)
 $(LIBMEDIADB_DIR)$(TARGETDIR)didl%: CXXFLAGS += -fexceptions -UBOOST_NO_EXCEPTIONS
 endif
+ifneq ($(RTTI_boost_algorithm_string_split_hpp),)
+$(LIBMEDIADB_DIR)$(TARGETDIR)didl%: CXXFLAGS += -frtti
+endif
 
 $(libmediadb): $(MEDIADB_OBJS)
 	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \

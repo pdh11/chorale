@@ -1,8 +1,8 @@
 #include "xml.h"
-#include "xmlescape.h"
 #include "trace.h"
-#include "stream_test.h"
 #include "errors.h"
+#include "stream.h"
+#include "xmlescape.h"
 #include <string.h>
 #include <list>
 
@@ -16,7 +16,7 @@ SaxParser::SaxParser(SaxParserObserver *observer)
 {
 }
 
-unsigned int SaxParser::Parse(util::StreamPtr s)
+unsigned int SaxParser::Parse(util::Stream *s)
 {
     unsigned int rc = 0;
 
@@ -53,7 +53,7 @@ unsigned int SaxParser::WriteAll(const void *buffer, size_t len)
 	if (m_buffered < BUFSIZE)
 	{
 	    size_t lump = std::min(len, BUFSIZE - m_buffered);
-	    memcpy(m_buffer + m_buffered, (char*)buffer, lump);
+	    memcpy(m_buffer + m_buffered, (const char*)buffer, lump);
 	    m_buffered += lump;
 	    len -= lump;
 	    buffer = (const void*)((const char*)buffer + lump);
@@ -121,10 +121,66 @@ void SaxParser::Parse()
 	    }
 	    break;
 	}
+
+	case CDATA:
+	{
+	    char *ket = strchr(m_buffer, ']');
+	    if (ket == NULL)
+	    {
+		// No xmlunescape -- this is sparta^W cdata
+		m_observer->OnContent(m_buffer);
+		m_buffered = 0;
+	    }
+	    else
+	    {
+		if (ket > m_buffer)
+		{
+		    *ket = '\0';
+		    m_observer->OnContent(m_buffer);
+		    *ket = ']';
+		    size_t usedup = ket-m_buffer;
+		    memmove(m_buffer, ket, m_buffered - usedup + 1);
+		    m_buffered -= usedup;
+		    break;
+		}
+		if (m_buffered < 3)
+		{
+		    return;
+		}
+		if (m_buffer[1] == ']' && m_buffer[2] == '>')
+		{
+		    // "]]>" end-of-cdata sequence
+		    memmove(m_buffer, m_buffer+3, m_buffered-3 + 1);
+		    m_buffered -= 3;
+		    m_state = CONTENT;
+		    break;
+		}
+		// Not end-of-cdata sequence -- pass it on
+		m_observer->OnContent("]");
+		memmove(m_buffer, m_buffer+1, m_buffered-1 + 1);
+		--m_buffered;
+	    }
+	    break;
+	}
+
 	case TAG:
 	{
 	    bool end = false;
 	    size_t skip = 0;
+
+	    const size_t CDATASTART = strlen("![CDATA[");
+
+	    size_t tocompare = std::min(m_buffered, CDATASTART);
+	    if (!memcmp(m_buffer, "![CDATA[", tocompare))
+	    {
+		if (m_buffered < CDATASTART)
+		    return;
+		m_state = CDATA;
+		memmove(m_buffer, m_buffer+CDATASTART, m_buffered-CDATASTART+1);
+		m_buffered -= CDATASTART;
+		break;
+	    }
+	    
 	    if (*m_buffer == '/')
 	    {
 		end = true;
@@ -439,7 +495,7 @@ public:
     }
 };
 
-unsigned int Parse(util::StreamPtr sp, void *target,
+unsigned int Parse(util::Stream *sp, void *target,
 		   const internals::Data *table)
 {
     TableDrivenParser tdp(target, table);
@@ -482,7 +538,7 @@ can be done as follows:
 class WPLReader
 {
 public:
-    unsigned int Parse(StreamPtr stm);
+    unsigned int Parse(Stream *stm);
 
     unsigned int OnMediaSrc(const std::string& s)
     {
@@ -501,7 +557,7 @@ typedef xml::Parser<xml::Tag<WPL,
 						     &WPLReader::OnMediaSrc>
 > > > WPLParser;
 
-unsigned int WPLReader::Parse(StreamPtr stm)
+unsigned int WPLReader::Parse(Stream *stm)
 {
     WPLParser parser;
     return parser.Parse(stm, this);
@@ -512,7 +568,7 @@ unsigned int WPLReader::Parse(StreamPtr stm)
 ...where the nesting of the "xml::" templates, mirrors the nesting of
 the tags in the XML we're trying to parse. The typedef declares a
 class type WPLParser, with the single method Parse, which takes a
-StreamPtr (the usual abstraction for a byte stream in Chorale) and a
+Stream (the usual abstraction for a byte stream in Chorale) and a
 pointer to the <i>target object</i>: the object which receives
 callbacks and data from the parser. The <tt>unsigned int</tt> returned
 from these functions is the usual Chorale way of indicating an error:
@@ -718,14 +774,15 @@ on the number of non-NullSelector entries present.
 
 #ifdef TEST
 
-#include "string_stream.h"
+# include "string_stream.h"
+# include "stream_test.h"
 
 class WPLObserver
 {
 public:
-    unsigned int OnMediaSrc(const std::string& s)
+    unsigned int OnMediaSrc(const std::string&)
     {
-	TRACE << "src=" << s << "\n";
+//	TRACE << "src=" << s << "\n";
 	return 0;
     }
 };
@@ -819,13 +876,12 @@ void TestTableDriven()
 {
     WPLParser parser;
 
-    util::StringStreamPtr ss
-	= util::StringStream::Create("<wpl><media src=\"foo\">bar</media></wpl>");
+    util::StringStream ss("<wpl><media src=\"foo\">bar</media></wpl>");
 
     WPLObserver obs;
-    parser.Parse(ss, &obs);
+    parser.Parse(&ss, &obs);
 
-    ss->str() = 
+    ss.str() = 
 "<?xml version=\"1.0\"?>"
 "<root xmlns=\"urn:schemas-upnp-org:device-1-0\">"
 "<specVersion>"
@@ -930,16 +986,16 @@ void TestTableDriven()
 "<URLBase>http://192.168.168.1:49152/</URLBase>"
 	"</root>";
 
-    ss->Seek(0);
+    ss.Seek(0);
 
     DescObserver dobs;
     DescriptionParser dp;
-    unsigned int rc = dp.Parse(ss, &dobs);
+    unsigned int rc = dp.Parse(&ss, &dobs);
     assert(rc == 0);
     assert(dobs.url_base == "http://192.168.168.1:49152/");
     assert(dobs.root_device.type == "urn:schemas-upnp-org:device:MediaServer:1");
     assert(dobs.root_device.services.size() == 2);
-    TRACE << "sizeof(dp)=" << sizeof(dp) << "\n";
+//    TRACE << "sizeof(dp)=" << sizeof(dp) << "\n";
 }
 
 struct SaxEvent {
@@ -1053,6 +1109,7 @@ const struct {
     { "<wpl><foo \t wurdle \t \t ><bar \t name \t /></foo \t ></wpl>", events6 },
     { "<wpl><foo name wurdle><bar name=\"X&amp;Y\" frink/></foo></wpl>", events7 },
     { "<wpl>X&amp;Y</wpl>", events8 },
+    { "<wpl><![CDATA[X&Y]]></wpl>", events8 }
 };
 
 enum { TESTS = sizeof(saxtests)/sizeof(saxtests[0]) };
@@ -1089,7 +1146,7 @@ public:
     unsigned int OnBegin(const char *tag)
     {
 	CheckContent();
-//	TRACE << "OnBegin(" << tag << ")\n";
+	TRACE << "OnBegin(" << tag << ")\n";
 	assert(m_events[m_count].event == 'b');
 	assert(!strcmp(tag, m_events[m_count].arg1));
 	++m_count;
@@ -1098,7 +1155,7 @@ public:
     unsigned int OnEnd(const char *tag)
     {
 	CheckContent();
-//	TRACE << "OnEnd(" << tag << ")\n";
+	TRACE << "OnEnd(" << tag << ")\n";
 	assert(m_events[m_count].event == 'e');
 	assert(!strcmp(tag, m_events[m_count].arg1));
 	++m_count;
@@ -1106,7 +1163,7 @@ public:
     }
     unsigned int OnContent(const char *tag)
     {
-//	TRACE << "OnContent(" << tag << ")\n";
+	TRACE << "OnContent(" << tag << ")\n";
 	m_in_content = true;
 	m_content += tag;
 	return 0;
@@ -1114,7 +1171,7 @@ public:
     unsigned int OnAttribute(const char *tag, const char *value)
     {
 	assert(!m_in_content);
-//	TRACE << "OnAttribute(" << tag << "," << value << ")\n";
+	TRACE << "OnAttribute(" << tag << "," << value << ")\n";
 	assert(m_events[m_count].event == 'a');
 	assert(!strcmp(tag, m_events[m_count].arg1));
 	assert(!strcmp(value, m_events[m_count].arg2));
@@ -1127,19 +1184,17 @@ void TestSax()
 {
     for (unsigned int i=0; i<TESTS; ++i)
     {
-	util::StringStreamPtr ssp = util::StringStream::Create();
-	ssp->str() = saxtests[i].xml;
-	size_t len = ssp->str().length();
+	util::StringStream ss(saxtests[i].xml);
+	size_t len = ss.str().length();
 
 	for (size_t j=len; j; --j)
 	{
 //	    TRACE << "j=" << j << "\n";
-	    util::SeekableStreamPtr dribble
-		= util::DribbleStream::Create(ssp, j);
+	    util::DribbleStream dribble(&ss, j);
 
 	    SaxTestObserver sto(saxtests[i].events);
 	    xml::SaxParser saxp(&sto);
-	    unsigned int rc = saxp.Parse(dribble);
+	    unsigned int rc = saxp.Parse(&dribble);
 	    assert(rc == 0);
 	}
     }

@@ -2,6 +2,7 @@
 #define FILE_STREAM_H
 
 #include "stream.h"
+#include <memory>
 
 namespace util {
 
@@ -22,7 +23,7 @@ enum FileMode {
 };
 
 unsigned int OpenFileStream(const char *filename, unsigned int mode,
-			    SeekableStreamPtr*) ATTRIBUTE_WARNUNUSED;
+			    std::auto_ptr<Stream>*) ATTRIBUTE_WARNUNUSED;
 
 } // namespace util
 

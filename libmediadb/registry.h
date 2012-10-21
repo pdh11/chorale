@@ -2,7 +2,6 @@
 #define MEDIADB_REGISTRY_H
 
 #include "libutil/registry.h"
-#include "db.h"
 
 namespace mediadb {
 

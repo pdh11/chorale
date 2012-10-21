@@ -3,6 +3,7 @@
 
 #include <list>
 #include <assert.h>
+#include <stddef.h>
 #include "locking.h"
 
 namespace util {

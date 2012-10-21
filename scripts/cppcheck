@@ -1,0 +1,21 @@
+#!/bin/bash
+
+i=$1
+
+shift
+
+echo Testing $i
+
+trap 'rm -f $i.$$.*' 0
+
+IFS=$'\n'
+for j in `grep '#include "' $i | grep -v config.h` ; do
+    IFS=$' \n\t'
+    cat $i | sed -e "s,$j,//," > $i.$$.cpp
+    if gcc -c $i.$$.cpp -o $i.$$.o $* >/dev/null 2>&1 ; then
+	echo $i: $j not needed
+	# cat tmp.$$.h
+    fi
+done
+
+rm -f $i.$$.*

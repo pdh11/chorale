@@ -1,8 +1,10 @@
 #include "multi_stream.h"
+#include "bind.h"
+#include "task.h"
 #include "trace.h"
-#include "counted_pointer.h"
 #include "mutex.h"
-#include <errno.h>
+#include "errors.h"
+#include "counted_pointer.h"
 #include <string.h>
 #include <algorithm>
 
@@ -12,25 +14,26 @@ class MultiStream::Impl
 {
     class Output;
 
-    SeekableStreamPtr m_stm;
-    SeekableStream::pos64 m_size;
-    SeekableStream::pos64 m_inputpos;
+    std::auto_ptr<Stream> m_stm;
+    uint64_t m_size;
+    uint64_t m_inputpos;
     unsigned m_noutputs;
 
     enum { MAX_OP = 4 };
 
-    SeekableStream::pos64 m_outputposes[MAX_OP];
+    uint64_t m_outputposes[MAX_OP];
+    util::TaskCallback m_callbacks[MAX_OP];
 
     util::Mutex m_mutex;
-    util::Condition m_moredata;
 
     unsigned OutputRead(void *buffer, size_t len, size_t *pread, unsigned ix);
+    unsigned OutputWait(const util::TaskCallback& callback, unsigned ix);
 
 public:
-    Impl(SeekableStreamPtr stm, SeekableStream::pos64 size);
+    Impl(std::auto_ptr<Stream> stm, uint64_t size);
     ~Impl();
 
-    unsigned CreateOutput(MultiStream*, StreamPtr*);
+    unsigned CreateOutput(MultiStream*, std::auto_ptr<Stream>*);
     unsigned Write(const void*, size_t, size_t*);
 };
 
@@ -44,8 +47,10 @@ public:
 	: m_parent(parent), m_index(index) {}
 
     // Being a Stream (this is the output side, so no writing)
+    unsigned GetStreamFlags() const { return READABLE|WAITABLE; }
     unsigned Read(void *buffer, size_t len, size_t *pread);
     unsigned Write(const void*, size_t, size_t*) { return EACCES; }
+    unsigned Wait(const util::TaskCallback&);
 };
 
 
@@ -58,47 +63,69 @@ unsigned MultiStream::Impl::Output::Read(void *buffer, size_t len,
     return m_parent->m_impl->OutputRead(buffer, len, pread, m_index);
 }
 
+unsigned MultiStream::Impl::Output::Wait(const util::TaskCallback& callback)
+{
+    return m_parent->m_impl->OutputWait(callback, m_index);
+}
+
 
         /* MultiStream::Impl */
 
 
-MultiStream::Impl::Impl(SeekableStreamPtr stm, SeekableStream::pos64 size)
+MultiStream::Impl::Impl(std::auto_ptr<Stream> stm, uint64_t size)
     : m_stm(stm), m_size(size), m_inputpos(0), m_noutputs(0)
 {
-    memset(m_outputposes, 0, MAX_OP*sizeof(SeekableStream::pos64));
+    memset(m_outputposes, 0, MAX_OP*sizeof(uint64_t));
 }
 
 MultiStream::Impl::~Impl()
 {
 }
 
-unsigned MultiStream::Impl::CreateOutput(MultiStream *parent, StreamPtr *pp)
+unsigned MultiStream::Impl::CreateOutput(MultiStream *parent, 
+					 std::auto_ptr<Stream> *pp)
 {
     if (m_inputpos)
 	return EINVAL;
-    *pp = StreamPtr(new Output(parent, m_noutputs++));
+    pp->reset(new Output(parent, m_noutputs++));
     return 0;
 }
-
 
 unsigned MultiStream::Impl::OutputRead(void *buffer, size_t len,
 				       size_t *pread, unsigned ix)
 {
+    if (m_outputposes[ix] == m_size)
+    {
+	TRACE << "OutputRead at EOF (" << m_size << ")\n";
+	*pread = 0;
+	return 0;
+    }
+
     if (m_outputposes[ix] == m_size || len == 0)
     {
 	*pread = 0;
 	return 0;
     }
 
-    util::Mutex::Lock lock(m_mutex);
-
-    while (m_outputposes[ix] == m_inputpos)
+    uint64_t offset;
     {
-	m_moredata.Wait(lock, 60);
+	util::Mutex::Lock lock(m_mutex);
+
+	assert(m_inputpos >= m_outputposes[ix]);
+	offset = m_inputpos - m_outputposes[ix];
+//	TRACE << "inputpos=" << m_inputpos << " outputpos=" << m_outputposes[ix]
+//	      << " offset=" << offset << "\n";
     }
 
-    SeekableStream::pos64 offset = m_inputpos - m_outputposes[ix];
-    size_t nread = (size_t)std::min(offset, (SeekableStream::pos64)len);
+    if (!offset)
+    {
+//	TRACE << "MultiStream returns EWOULDBLOCK to #" << ix << "\n";
+	return EWOULDBLOCK;
+    }
+
+    size_t nread = (size_t)std::min(offset, (uint64_t)len);
+    assert(nread > 0);
+
     unsigned rc = m_stm->ReadAt(buffer, m_outputposes[ix], nread, &nread);
     if (rc)
     {
@@ -107,6 +134,32 @@ unsigned MultiStream::Impl::OutputRead(void *buffer, size_t len,
     }
     m_outputposes[ix] += nread;
     *pread = nread;
+    return 0;
+}
+
+unsigned MultiStream::Impl::OutputWait(const util::TaskCallback& callback,
+				       unsigned ix)
+{
+    bool doit = false;
+    {
+	util::Mutex::Lock lock(m_mutex);
+
+	/* Has more data been written in-between Write() returning EWOULDBLOCK,
+	 * and Wait() being called?
+	 */
+	if (m_outputposes[ix] != m_inputpos)
+	    doit = true;
+	else
+	{
+	    /* No, it's a real wait, store it
+	     */
+//	TRACE << "MultiStream stores callback for #" << ix << "\n";
+	    m_callbacks[ix] = callback;
+	}
+    }
+
+    if (doit) // With mutex not locked
+	callback();
     return 0;
 }
 
@@ -119,13 +172,25 @@ unsigned MultiStream::Impl::Write(const void *buffer, size_t len,
 	return 0;
     }
 
-    util::Mutex::Lock lock(m_mutex);
-    
-    unsigned rc = m_stm->WriteAt(buffer, m_inputpos, len, pwrote);
-    if (rc)
-	return rc;
-    m_inputpos += *pwrote;
-    m_moredata.NotifyAll();
+    {
+    	unsigned rc = m_stm->WriteAt(buffer, m_inputpos, len, pwrote);
+	if (rc)
+	    return rc;
+
+	util::Mutex::Lock lock(m_mutex);
+	m_inputpos += *pwrote;
+    }
+
+    for (unsigned int i=0; i<m_noutputs; ++i)
+    {
+	util::TaskCallback cb;
+	std::swap(cb, m_callbacks[i]);
+	if (cb.IsValid())
+	{
+//	    TRACE << "MultiStream makes callback for #" << i << "\n";
+	    cb();
+	}
+    }
     return 0;
 }
 
@@ -133,15 +198,12 @@ unsigned MultiStream::Impl::Write(const void *buffer, size_t len,
         /* MultiStream */
 
 
-unsigned MultiStream::Create(SeekableStreamPtr back,
-			     SeekableStream::pos64 size,
-			     MultiStreamPtr *result)
+MultiStreamPtr MultiStream::Create(std::auto_ptr<Stream> stm, uint64_t size)
 {
-    *result = MultiStreamPtr(new MultiStream(back, size));
-    return 0;
+    return MultiStreamPtr(new MultiStream(stm, size));
 }
 
-MultiStream::MultiStream(SeekableStreamPtr stm, SeekableStream::pos64 size)
+MultiStream::MultiStream(std::auto_ptr<Stream> stm, uint64_t size)
     : m_impl(new Impl(stm, size))
 {
 }
@@ -152,7 +214,7 @@ MultiStream::~MultiStream()
     delete m_impl;
 }
 
-unsigned MultiStream::CreateOutput(StreamPtr *pp)
+unsigned MultiStream::CreateOutput(std::auto_ptr<Stream> *pp)
 {
     return m_impl->CreateOutput(this, pp);
 }

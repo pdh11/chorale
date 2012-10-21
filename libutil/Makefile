@@ -1,7 +1,7 @@
 TOP?=../
 DIR:=libutil/
-SRCS:= \
-	async_write_buffer.cpp \
+LIBUTIL_DIR:=$(TOP)$(DIR)
+SRCS:=  async_write_buffer.cpp \
 	compare.cpp \
 	counted_object.cpp \
 	cpus.cpp \
@@ -14,6 +14,7 @@ SRCS:= \
 	file_stream_win32.cpp \
 	formatter.cpp \
 	hal.cpp \
+	http.cpp \
 	http_client.cpp \
 	http_fetcher.cpp \
 	http_parser.cpp \
@@ -26,9 +27,9 @@ SRCS:= \
 	multi_stream.cpp \
 	mutex.cpp \
 	partial_stream.cpp \
-	peeking_line_reader.cpp \
 	poll_posix.cpp \
 	poll_win32.cpp \
+	printf.cpp \
 	quote_escape.cpp \
 	scanf64.cpp \
 	scheduler.cpp \
@@ -63,6 +64,7 @@ TEST_SRCS:= \
 	file_stream_win32.cpp \
 	formatter.cpp \
 	hal.cpp \
+	http.cpp \
 	http_client.cpp \
 	http_fetcher.cpp \
 	http_server.cpp \
@@ -72,6 +74,7 @@ TEST_SRCS:= \
 	memory_stream.cpp \
 	mutex.cpp \
 	partial_stream.cpp \
+	printf.cpp \
 	quote_escape.cpp \
 	scanf64.cpp \
 	scheduler.cpp \
@@ -107,17 +110,18 @@ $(UTIL_TESTS): TEST_LIBS+= $(libutil) $(file_win32) $(BOOST_LIBS) $(DBUS_LIBS) $
 
 $(TOP)$(DIR)$(TARGETDIR)tcp_wrappers__%: LIBS += $(LIBWRAP)
 
-ifneq ($(EXCEPTIONAL_boost_thread_mutex_hpp),)
+ifneq ($(EXCEPTIONAL_boost_thread_mutex_hpp)$(EXCEPTIONAL_boost_thread_thread_hpp)$(EXCEPTIONAL_boost_thread_condition_hpp),)
 $(TOP)$(DIR)$(TARGETDIR)mutex%: CXXFLAGS += -fexceptions -UBOOST_NO_EXCEPTIONS
 endif
 
-ifneq ($(EXCEPTIONAL_boost_thread_tss_hpp),)
-$(TOP)$(DIR)$(TARGETDIR)trace%: CXXFLAGS += -fexceptions -UBOOST_NO_EXCEPTIONS
+ifneq ($(RTTI_boost_thread_mutex_hpp),)
+$(LIBUTIL_DIR)$(TARGETDIR)mutex%: CXXFLAGS += -frtti
 endif
 
 $(UTIL_TESTS): $(libutil)
 
 $(libutil): $(UTIL_OBJS)
+	@rm -f $@
 	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(UTIL_OBJS)
 

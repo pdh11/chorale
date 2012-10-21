@@ -3,6 +3,7 @@
 #include "libdb/query.h"
 #include <assert.h>
 #include "libutil/trace.h"
+#include "libutil/counted_pointer.h"
 
 namespace db {
 namespace steam {

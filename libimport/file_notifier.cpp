@@ -1,18 +1,19 @@
-#include "config.h"
 #include "file_notifier.h"
+#include "config.h"
 #include "libutil/bind.h"
+#include "libutil/file.h"
+#include "libutil/trace.h"
+#include "libutil/scheduler.h"
+#include "libutil/counted_pointer.h"
+#include <fcntl.h>
+#include <errno.h>
+#include <unistd.h>
+#include <assert.h>
+#include <stdlib.h>
 #if HAVE_INOTIFY_INIT
 #include <sys/inotify.h>
 #define HAVE_NOTIFY 1
 #endif
-#include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <assert.h>
-#include <stdlib.h>
-#include "libutil/trace.h"
-#include "libutil/file.h"
-#include "libutil/scheduler.h"
 #undef IN
 #undef OUT
 
@@ -58,7 +59,7 @@ FileNotifierPtr FileNotifierTask::Create(util::Scheduler *scheduler)
 FileNotifierTask::FileNotifierTask(util::Scheduler *scheduler)
     : m_scheduler(scheduler),
       m_obs(NULL),
-      m_fd(util::NOT_POLLABLE)
+      m_fd(-1)
 {
 }
 
@@ -83,7 +84,7 @@ unsigned int FileNotifierTask::Init()
     
     m_scheduler->WaitForReadable(
 	util::Bind(FileNotifierPtr(this)).To<&FileNotifierTask::Run>(),
-	this, false);
+	m_fd, false);
 
 //    TRACE << "Notifier started successfully\n";
 
@@ -134,6 +135,8 @@ unsigned int FileNotifierTask::Run()
 } // namespace import
 
 #ifdef TEST
+
+# include <stdio.h>
 
 class TestObserver: public import::FileNotifierTask::Observer
 {

@@ -5,12 +5,14 @@
 #include "libreceiverd/mount.h"
 #include "libreceiverd/tarfs.h"
 #include "libreceiverd/portmap.h"
+#include "libutil/counted_pointer.h"
 #include <errno.h>
 
 namespace choraled {
 
 class NFSService::Impl
 {
+    std::auto_ptr<util::Stream> m_stream;
     receiverd::PortMapperPtr m_portmap;
     util::TaskPtr m_mountd;
     receiverd::TarFS m_tarfs;
@@ -18,17 +20,18 @@ class NFSService::Impl
 
 public:
     Impl(util::Scheduler *poller, util::IPFilter *filter,
-	 util::SeekableStreamPtr arfstream);
+	 std::auto_ptr<util::Stream> arfstream);
 
     unsigned short GetPort() { return m_portmap->GetPort(); }
 };
 
 NFSService::Impl::Impl(util::Scheduler *poller, 
 		       util::IPFilter *filter,
-		       util::SeekableStreamPtr arfstream)
-    : m_portmap(receiverd::PortMapper::Create(poller, filter)),
+		       std::auto_ptr<util::Stream> arfstream)
+    : m_stream(arfstream),
+      m_portmap(receiverd::PortMapper::Create(poller, filter)),
       m_mountd(receiverd::Mount::Create(poller, filter, m_portmap.get())),
-      m_tarfs(arfstream),
+      m_tarfs(m_stream.get()),
       m_nfsd(receiverd::NFSServer::Create(poller, filter, m_portmap.get(),
 					  &m_tarfs))
 {
@@ -51,7 +54,7 @@ unsigned int NFSService::Init(util::Scheduler *poller,
     if (m_impl)
 	return EEXIST;
 
-    util::SeekableStreamPtr stm;
+    std::auto_ptr<util::Stream> stm;
     unsigned int rc = util::OpenFileStream(arf, util::READ, &stm);
     if (rc != 0)
     {

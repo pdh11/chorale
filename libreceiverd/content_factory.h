@@ -2,7 +2,6 @@
 #define LIBRECEIVERD_CONTENT_FACTORY_H 1
 
 #include "libutil/http_server.h"
-#include "libutil/stream.h"
 
 namespace mediadb { class Database; }
 

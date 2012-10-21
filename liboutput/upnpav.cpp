@@ -7,6 +7,8 @@
 #include "libupnp/description.h"
 #include "libupnp/ssdp.h"
 #include <errno.h>
+#include <stdio.h>
+#include <string.h>
 #include <boost/format.hpp>
 
 namespace output {
@@ -29,9 +31,9 @@ URLPlayer::URLPlayer(util::http::Client *client,
 		     util::http::Server *server,
 		     util::Scheduler *poller)
     : m_device_client(client, server, poller),
-      m_avtransport(&m_device_client, upnp::s_service_id_av_transport),
+      m_avtransport(&m_device_client, upnp::s_service_id_av_transport, this),
       m_connectionmanager(&m_device_client,
-			  upnp::s_service_id_connection_manager),
+			  upnp::s_service_id_connection_manager, this),
       m_state(STOP),
       m_poller(poller),
       m_timecode_task(new TimecodeTask(this, poller))
@@ -67,12 +69,14 @@ unsigned URLPlayer::Init(const std::string& url, const std::string& udn,
 			 InitCallback callback)
 {
     m_callback = callback;
+    TRACE << "Async init: calling DeviceClient::Init\n";
     return m_device_client.Init(url, udn,
 				util::Bind(this).To<unsigned int, &URLPlayer::OnDeviceInitialised>());
 }
 
 unsigned URLPlayer::OnDeviceInitialised(unsigned int rc)
 {
+    TRACE << "DCInit done(" << rc << ")\n";
     if (!rc)
     {
 	m_friendly_name = m_device_client.GetFriendlyName();
@@ -85,24 +89,36 @@ unsigned URLPlayer::OnDeviceInitialised(unsigned int rc)
 
 unsigned URLPlayer::OnTransportInitialised(unsigned int rc)
 {
+    TRACE << "AVTransport init done(" << rc << ")\n";
     if (!rc)
     {
 	m_avtransport.AddObserver(this);
 	rc = m_connectionmanager.Init(util::Bind(this).To<unsigned int, &URLPlayer::OnInitialised>());
-	if (rc) // Ignore errors from connectionmanager
-	{
-	    rc = 0;
-	    m_callback(0);
-	}
     }
     if (rc)
 	m_callback(rc);
     return rc;
 }
 
-unsigned URLPlayer::OnInitialised(unsigned int)
+unsigned URLPlayer::OnInitialised(unsigned int rc)
 {
-    return m_callback(0); // Ignore errors from connectionmanager
+    TRACE << "ConnectionManager init done(" << rc << ")\n";
+
+    if (rc)
+	return m_callback(rc);
+
+    return m_connectionmanager.GetProtocolInfo();
+}
+
+void URLPlayer::OnGetProtocolInfoDone(unsigned int rc,
+					  const std::string&,
+					  const std::string& sink)
+{
+    TRACE << "GetProtocolInfo done(" << rc << ")\n";
+    if (!rc)
+	m_supports_video = (strstr(sink.c_str(),"video") != NULL);
+
+     m_callback(rc);
 }
 
 unsigned int URLPlayer::OnTransportState(const std::string& state)
@@ -155,8 +171,8 @@ typedef xml::Parser<
 void URLPlayer::OnLastChange(const std::string& value)
 {
     LastChangeParser lcp;
-    util::StreamPtr sp = util::StringStream::Create(value);
-    lcp.Parse(sp, this);
+    util::StringStream sp(value);
+    lcp.Parse(&sp, this);
 }
 
 unsigned int URLPlayer::SetURL(const std::string& url,
@@ -179,7 +195,7 @@ unsigned int URLPlayer::SetPlayState(PlayState state)
     {
     case PLAY:
 	TRACE << "Play\n";
-	return m_avtransport.Play(0, upnp::AVTransport2::TRANSPORTPLAYSPEED_1);
+	return m_avtransport.Play(0, upnp::AVTransport::TRANSPORTPLAYSPEED_1);
     case STOP:
 	TRACE << "Stop\n";
 	return m_avtransport.Stop(0);
@@ -201,7 +217,7 @@ unsigned int URLPlayer::Seek(unsigned int ms)
     ms = ms % 1000;
     std::string t = (boost::format("%02u:%02u:%02u.%03u")
 		     % h % m % s % ms).str();
-    return m_avtransport.Seek(0, upnp::AVTransport2::SEEKMODE_ABS_TIME, t);
+    return m_avtransport.Seek(0, upnp::AVTransport::SEEKMODE_ABS_TIME, t);
 }
 
 void URLPlayer::AddObserver(URLObserver *obs)
@@ -214,35 +230,46 @@ void URLPlayer::RemoveObserver(URLObserver *obs)
     util::Observable<URLObserver>::RemoveObserver(obs);
 }
 
+void URLPlayer::OnGetPositionInfoDone(unsigned int rc,
+				      uint32_t,
+				      const std::string&,
+				      const std::string&,
+				      const std::string&,
+				      const std::string& rel_time,
+				      const std::string&,
+				      int32_t,
+				      uint32_t)
+{
+    if (rc != 0)
+    {
+	TRACE << "GetPositionInfo failed\n";
+	return;
+    }
+
+    unsigned int h, m, s;
+    if (sscanf(rel_time.c_str(), "%u:%u:%u", &h, &m, &s) == 3)
+    {
+	Fire(&URLObserver::OnTimeCode, h*3600 + m*60 + s);
+    }
+    else
+    {
+	TRACE << "Don't like timecode string '" << rel_time << "'\n";
+	m_poller->Remove(m_timecode_task);
+    }
+}
+
 
 /* TimecodeTask implementation */
 
 
 unsigned int URLPlayer::TimecodeTask::OnTimer()
 {
-    std::string tcstr;
-    unsigned int rc = m_parent->m_avtransport.GetPositionInfo(0, 
-							      NULL,
-							      NULL, NULL, NULL,
-							      &tcstr, NULL,
-							      NULL, NULL);
+    unsigned int rc = m_parent->m_avtransport.GetPositionInfo(0);
     if (rc != 0)
     {
 	TRACE << "Can't GetPositionInfo\n";
 	return rc;
     }
-
-    unsigned int h, m, s;
-    if (sscanf(tcstr.c_str(), "%u:%u:%u", &h, &m, &s) == 3)
-    {
-	m_parent->Fire(&URLObserver::OnTimeCode, h*3600 + m*60 + s);
-    }
-    else
-    {
-	TRACE << "Don't like timecode string '" << tcstr << "'\n";
-	m_parent->m_poller->Remove(util::TaskPtr(this));
-    }
-
     return 0;
 }
 

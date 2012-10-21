@@ -1,7 +1,7 @@
 #ifndef LIBUTIL_BIND_H
 #define LIBUTIL_BIND_H 1
 
-#include <stdio.h>
+#include <stddef.h>
 
 namespace util {
 
@@ -25,9 +25,9 @@ public:
 
     unsigned operator()() const { return (*m_pfn)(m_ptr); }
 
-    operator bool() const { return m_ptr != NULL; }
+    bool IsValid() const { return m_pfn != NULL; }
 
-    bool operator==(const Callback& other)
+    bool operator==(const Callback& other) const
     {
 	return m_ptr == other.m_ptr && m_pfn == other.m_pfn;
     }
@@ -56,9 +56,9 @@ public:
 
     unsigned operator()(A1 a1) const { return (*m_pfn)(m_ptr, a1); }
 
-    operator bool() const { return m_ptr != NULL; }
+    bool IsValid() const { return m_pfn != NULL; }
 
-    bool operator==(const Callback1<A1>& other)
+    bool operator==(const Callback1<A1>& other) const
     {
 	return m_ptr == other.m_ptr && m_pfn == other.m_pfn;
     }
@@ -66,11 +66,17 @@ public:
 
 /* -- */
 
+template <class A1, class A2, class T>
+unsigned Callback2__(void *p, A1 a1, A2 a2, unsigned (T::*fn)(A1,A2))
+{
+    T *t = (T*)p;
+    return (t->*fn)(a1, a2);
+}
+
 template <class A1, class A2, class T, unsigned (T::*FN)(A1,A2)>
 unsigned Callback2_(void *p, A1 a1, A2 a2)
 {
-    T *t = (T*)p;
-    return (t->*FN)(a1, a2);
+    return Callback2__(p, a1, a2, FN);
 }
 
 template <class A1, class A2>
@@ -87,9 +93,9 @@ public:
 
     unsigned operator()(A1 a1, A2 a2) const { return (*m_pfn)(m_ptr, a1, a2); }
 
-    operator bool() const { return m_ptr != NULL; }
+    bool IsValid() const { return m_pfn != NULL; }
 
-    bool operator==(const Callback2<A1,A2>& other)
+    bool operator==(const Callback2<A1,A2>& other) const
     {
 	return m_ptr == other.m_ptr && m_pfn == other.m_pfn;
     }
@@ -157,9 +163,9 @@ public:
 
     unsigned operator()() const { return (*m_pfn)((void*)m_ptr.get()); }
 
-    operator bool() const { return m_ptr; }
+    bool IsValid() const { return m_pfn != NULL; }
 
-    bool operator==(const PtrCallback& other)
+    bool operator==(const PtrCallback& other) const
     {
 	return m_ptr == other.m_ptr && m_pfn == other.m_pfn;
     }

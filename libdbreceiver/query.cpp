@@ -1,13 +1,13 @@
 #include "query.h"
-#include "db.h"
-#include "rs.h"
+#include "recordset.h"
 #include "libmediadb/schema.h"
 #include "libutil/trace.h"
+#include "libdb/db.h"
 
 namespace db {
 namespace receiver {
 
-Query::Query(Database *parent)
+Query::Query(Connection *parent)
     : m_parent(parent)
 {
 }

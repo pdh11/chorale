@@ -13,6 +13,7 @@
 #include "events.h"
 #include "settings.h"
 #include "libutil/trace.h"
+#include "libutil/bind.h"
 #include <qapplication.h>
 #include <qmessagebox.h>
 

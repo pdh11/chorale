@@ -24,8 +24,8 @@ struct IPAddress
 
     std::string ToString() const;
 
-    bool operator==(const IPAddress& other) { return addr == other.addr; }
-    bool operator!=(const IPAddress& other) { return addr != other.addr; }
+    bool operator==(const IPAddress& other) const { return addr == other.addr; }
+    bool operator!=(const IPAddress& other) const { return addr != other.addr; }
 };
 
 struct IPEndPoint

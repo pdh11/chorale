@@ -1,0 +1,114 @@
+
+superblock:
+
+format : 32
+version : 32
+pointers
+
+
+integrityblock:
+
+open_flag : 32
+
+
+datablock:
+
+type: 32
+parent: 32
+data as per type
+
+
+direct_key:
+struct {
+keylen_bytes : 16
+  0x8000 -> end of block
+datalen_bytes : 16
+  0x8000 -> blockno
+  0x8001 -> blockno, more key
+key : n;
+align-to-32bits
+data-or-blockno : n;
+align-to-32bits
+} []
+
+
+NB. Fanout pages are COMPLETELY POINTLESS as you can fan out 257 times
+or more in a direct page. A full-fanout direct page is
+
+  8 + 256 * (4 + 4 + 4) + 1 * (4 + 4) = 3,088 bytes
+
+which suggests a strategy -- migrate the LONGEST key fragments to
+child pages, only start offloading values if all key fragments are 0
+or 1 byte.
+
+pointers:
+
+array_indicator : 1
+nbits : 9
+direct_key_bits : 22
+data[(nbits+31)/32]
+block_t[]
+
+map_indicator : 1
+count : 9            <- 0 = something else
+direct_key_bits : 22
+data[(nbits+31)/32]
+struct {
+  data : 32
+  block_t : 32
+} []
+
+
+
+
+
+
+
+
+DB size?
+ block_t = 32bit -> 4096*4GB
+           16bit -> 4096*64K  -> 256MB -> not enough
+
+ 1 page of in-use bitmap -> 4096*8*4K -> 128MB -> not enough
+       one per 128MB -> OK then
+
+Key size?
+ firstbit = 16bit -> 64Kbit -> 8Kbyte -> not enough
+            22bit ->  4Mbit -> 512Kbyte
+            24bit -> 16Mbit -> 2Mbyte
+
+Map-block size?
+ count = 9bit -> 512 entries (8byte each, 4096 bytes)
+
+evo, no gold, 3h57m
+ start 19:46
+binutils 46m
+
+
+Plan for MoveNext()
+-------------------
+
+We can't keep prev and next pointers in the page -- locking them using
+page locks leads to obvious deadlock, and having a separate links-lock
+also leads to deadlocks (movenext must gain the next page lock while
+holding the links-lock, or the link might change under it).
+
+So we do it the hard way, of keeping as much of a hierarchy of read
+locks from the root as we need to make sure we have at least one entry
+ahead of the one we're searching from. This gets easier if empty key
+pages aren't allowed (if they're pruned at delete time).
+
+Oh look, delete isn't done yet either. (And pruning empty pages at
+delete time is hard because you don't have write locks going all the
+way back up.) (Ah, but you only need write locks as far up as the last
+page with >1 entry. Which is not so unlike the movenext lock chain.)
+
+Darn, each operation needs its own different LockChain.
+
+Movenext is much more common than delete, so delete gets the tricky
+lock chain and movenext gets the simple one. (OTOH movenext would be
+keeping lots of read locks, and delete lots of write locks, so maybe
+movenext would get in the way less? But OTGH delete only has two write
+locks in the most common case, whereas movenext needs all log(n) of
+them every time, AND it's contention on the PageLocking mutex itself
+rather than any of the page locks that's the biggest blocker.)

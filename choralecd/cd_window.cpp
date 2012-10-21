@@ -34,6 +34,8 @@
 #include <fcntl.h>
 #include <stdio.h>
 
+#include "imagery/cd.xpm"
+
 #if HAVE_CD
 
 namespace choraleqt {
@@ -54,6 +56,8 @@ struct CDWindow::Entry
     unsigned et1_percent;
     unsigned et2_percent;
     /// @todo bool cancelled
+
+    Entry() : rt_percent(0), et1_percent(0), et2_percent(0) {}
 };
 
 static const struct
@@ -107,6 +111,20 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
 
     QHBoxLayout *toplayout = new QHBoxLayout();//NULL, 0, 6);
 
+    QPixmap cd_pixmap(cd_xpm);
+
+    QLabel *cdlabel = new QLabel;
+    cdlabel->setPixmap(cd_pixmap);
+    toplayout->addWidget(cdlabel);
+
+    m_albumname = new QLineEdit("", this);
+#if QT_VERSION >= 0x040700
+    m_albumname->setPlaceholderText("Album Name");
+#endif
+    toplayout->addWidget(m_albumname, 10);
+
+    toplayout->addStretch(10);
+
     QRadioButton *rb1 = new QRadioButton("&Single-artist", this);
     rb1->setChecked(true);
     toplayout->addWidget(rb1);
@@ -124,12 +142,6 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
 
     toplayout->addStretch(10);
 
-    toplayout->addWidget(new QLabel("Album", this));
-    m_albumname = new QLineEdit("Album 1", this);
-    toplayout->addWidget(m_albumname, 10);
-
-    toplayout->addStretch(10);
-
     toplayout->addWidget(new QLabel("Track offset", this));
 
     m_trackoffset = new QSpinBox(this);
@@ -140,6 +152,7 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
     if (cddb)
     {
 	QPushButton *cddbalt = new QPushButton("&CDDB...", this);
+	cddbalt->setAutoDefault(false);
 	toplayout->addWidget(cddbalt);
 	toplayout->addStretch(1);
 	connect(cddbalt, SIGNAL(clicked()), this, SLOT(OnCDDB()));
@@ -149,7 +162,7 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
 
     m_table = new QTableWidget(m_ntracks, (sizeof(columns)/sizeof(*columns)),
 			       this);
-    vlayout->addWidget(m_table, 1);
+    vlayout->addWidget(m_table);
 
     int duration_column = 0;
 
@@ -169,7 +182,6 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
     m_table->setAlternatingRowColors(true);
     m_table->horizontalHeader()->resizeSection(0, 
 					       m_table->horizontalHeader()->sectionSize(0)*2);
-    m_table->horizontalHeader()->setStretchLastSection(true);
 
     for (unsigned int i=0; i<m_ntracks; ++i)
     {
@@ -194,6 +206,14 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
 	
 	m_table->setRowHeight(i, (QFontInfo(font()).pixelSize() * 5) /4 + 4);
     }
+    m_table->horizontalHeader()->setStretchLastSection(true);
+    m_table->verticalHeader()->setResizeMode(QHeaderView::Fixed);
+    // http://developer.qt.nokia.com/faq/answer/how_can_i_get_rid_of_the_white_space_outside_the_cells_of_my_table
+    m_table->setMaximumHeight(m_table->horizontalHeader()->height()
+			      // + 2*m_table->frameWidth()
+			      + m_ntracks * m_table->rowHeight(0)
+			      + m_table->horizontalScrollBar()->height());
+    m_table->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
 
     if (cddb)
 	SetUpCDDBStrings(0);
@@ -221,12 +241,21 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
 
     show();
 
+    TRACE << "ht=" << m_table->height()
+	  << " maxh=" << m_table->maximumHeight()
+	  << " minh=" << m_table->minimumHeight()
+	  << " mish=" << m_table->minimumSizeHint().height()
+	  << " sh="   << m_table->sizeHint().height()
+	  << "\n";
+
     size_t newheight = maximumHeight();
     size_t screenheight = QApplication::desktop()->height();
 
     if (newheight > (screenheight*7/8))
+    {
 	newheight = screenheight *7/8;
-    resize((int)newheight, width());
+	resize((int)newheight, width());
+    }
 }
 
 CDWindow::~CDWindow()
@@ -328,6 +357,8 @@ void CDWindow::OnDone()
 	m_rip.SetTemplates("Artists/%A/%c/%02n %t", "");
 	break;
     }
+    
+    m_rip.SetAlbumName(QStringToUTF8(m_albumname->text()).c_str());
 
     for (unsigned int i=0; i<m_ntracks; ++i)
     {

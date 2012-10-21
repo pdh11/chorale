@@ -47,6 +47,10 @@ public:
     const Services& GetServices() const { return m_services; };
 };
 
+extern const char SERVICELIST[], SERVICE[], SERVICETYPE[], SERVICEID[],
+    CONTROLURL[], EVENTSUBURL[], SCPDURL[], UDN[], FRIENDLYNAME[],
+    PRESENTATIONURL[], ROOT[], URLBASE[], DEVICE[], DEVICELIST[], DEVICETYPE[];
+
 } // namespace upnp
 
 #endif

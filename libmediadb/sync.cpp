@@ -3,11 +3,13 @@
 #include "db.h"
 #include "schema.h"
 #include "libdb/query.h"
+#include "libdb/recordset.h"
 #include "libutil/diff.h"
 #include "libutil/file.h"
 #include "libutil/trace.h"
 #include "libutil/stream.h"
 #include "libutil/errors.h"
+#include "libutil/counted_pointer.h"
 #include <time.h>
 #include <string.h>
 #if HAVE_SYS_TIME_H
@@ -589,15 +591,15 @@ unsigned int Synchroniser::AddTune(unsigned int srcid,
     /** @todo SinkFromFile optimisation to allow sendfile()
      */
 
-    util::SeekableStreamPtr ssps = m_src->OpenRead(srcid);
-    if (!ssps)
+    std::auto_ptr<util::Stream> ssps = m_src->OpenRead(srcid);
+    if (!ssps.get())
     {
 	TRACE << "Can't open for read\n";
 	return EIO;
     }
 
-    util::SeekableStreamPtr sspd = m_dest->OpenWrite(destid);
-    if (!sspd)
+    std::auto_ptr<util::Stream> sspd = m_dest->OpenWrite(destid);
+    if (!sspd.get())
     {
 	TRACE << "Can't open for write\n";
 	return EPERM;

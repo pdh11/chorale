@@ -11,14 +11,14 @@ Query::Query()
 
 Query::~Query() {}
 
-Query::Subexpression Query::Restrict(field_t which, RestrictionType rt,
+Query::Subexpression Query::Restrict(unsigned int which, RestrictionType rt,
 				     const std::string& val)
 {
     m_restrictions.push_back(Restriction(which, rt, val));
     return Subexpression((int)m_restrictions.size());
 }
 
-Query::Subexpression Query::Restrict(field_t which, RestrictionType rt,
+Query::Subexpression Query::Restrict(unsigned int which, RestrictionType rt,
 				     uint32_t val)
 {
     m_restrictions.push_back(Restriction(which, rt, val));
@@ -85,7 +85,7 @@ unsigned int Query::Where(const Subexpression& expr)
 
 /** Impose a sort order on the results (like SQL "ORDER BY ...")
  */
-unsigned int Query::OrderBy(field_t which)
+unsigned int Query::OrderBy(unsigned int which)
 {
     m_orderby.push_back(which);
     return 0;
@@ -97,7 +97,7 @@ unsigned int Query::OrderBy(field_t which)
  * different schema. Field 0 is the first collation field, field 1 the second,
  * and so on.
  */
-unsigned int Query::CollateBy(field_t which)
+unsigned int Query::CollateBy(unsigned int which)
 {
     m_collateby.push_back(which);
     return 0;

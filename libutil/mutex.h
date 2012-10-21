@@ -16,6 +16,9 @@ public:
     Mutex();
     ~Mutex();
 
+    void Acquire();
+    void Release();
+
     class Lock: public Wrapper<Lock, SIZEOF_BOOST__MUTEX__SCOPED_LOCK>
     {
     public:

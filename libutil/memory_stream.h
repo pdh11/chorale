@@ -2,38 +2,31 @@
 #define MEMORY_STREAM_H
 
 #include "stream.h"
-#include <boost/noncopyable.hpp>
+#include <memory>
 
 namespace util {
-
-template <class T> class CountedPointer;
 
 /** A SeekableStream kept entirely in memory.
  *
  * Optimised for big streams -- allocates memory in 1Mb chunks!
  */
-class MemoryStream: public SeekableStream, private boost::noncopyable
+class MemoryStream: public SeekableStream
 {
     class Impl;
     Impl *m_impl;
 
+public:
     explicit MemoryStream(size_t sizeHint = 0);
     ~MemoryStream();
 
-public:
-    typedef util::CountedPointer<MemoryStream> MemoryStreamPtr;
-
-    static unsigned Create(MemoryStreamPtr*, size_t sizeHint = 0);
-
     // Being a SeekableStream
-    unsigned ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread);
-    unsigned WriteAt(const void *buffer, pos64 pos, size_t len, 
+    unsigned GetStreamFlags() const { return READABLE|WRITABLE|SEEKABLE; }
+    unsigned ReadAt(void *buffer, uint64_t pos, size_t len, size_t *pread);
+    unsigned WriteAt(const void *buffer, uint64_t pos, size_t len, 
 		     size_t *pwrote);
-    pos64 GetLength();
-    unsigned SetLength(pos64);
+    uint64_t GetLength();
+    unsigned SetLength(uint64_t);
 };
-
-typedef util::CountedPointer<MemoryStream> MemoryStreamPtr;
 
 } // namespace util
 

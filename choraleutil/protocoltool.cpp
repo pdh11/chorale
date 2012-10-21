@@ -7,6 +7,7 @@
 #include "libdbsteam/db.h"
 #include "libdblocal/file_scanner.h"
 #include "libdb/query.h"
+#include "libdb/recordset.h"
 #include "libempeg/discovery.h"
 #include "libempeg/protocol_client.h"
 #include "libutil/scheduler.h"
@@ -321,14 +322,14 @@ static int Update()
 
     if (update_xml)
     {
-	util::SeekableStreamPtr fsp;
+	std::auto_ptr<util::Stream> fsp;
 	rc = util::OpenFileStream(update_xml, util::READ, &fsp);
 	if (rc)
 	{
 	    fprintf(stderr, "Can't open %s: %u\n", update_xml, rc);
 	    return 1;
 	}
-	rc = mediadb::ReadXML(&dbsrc, fsp);
+	rc = mediadb::ReadXML(&dbsrc, fsp.get());
 	if (rc)
 	{
 	    fprintf(stderr, "Can't parse %s: %u\n", update_xml, rc);

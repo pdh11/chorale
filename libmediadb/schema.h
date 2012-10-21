@@ -23,7 +23,7 @@ enum {
     COMMENT,
     YEAR,
     DURATIONMS,
-    CODEC, // Specifically, the audio codec
+    AUDIOCODEC,
 
     SIZEBYTES, // 10
     BITSPERSEC,
@@ -47,7 +47,7 @@ enum {
     IDHIGH,   ///< High-quality (FLAC) version of the file, or 0
     IDPARENT, ///< (An arbitrary one of) the parent directories of this file
     VIDEOCODEC,
-    CONTAINER,
+    CONTAINER, ///< i.e. file format
 
     FIELD_COUNT
 };
@@ -62,7 +62,12 @@ enum {
     TV_ROOT     =  0xd0
 };
 
-/** Values of TYPE field */
+/** Values of TYPE field
+ *
+ * TYPE=TUNE/TUNEHIGH/SPOKEN/RADIO has an AUDIO_CODEC tag
+ * TYPE=IMAGE has a CONTAINER tag
+ * TYPE=VIDEO/TV has AUDIOCODEC, VIDEOCODEC and CONTAINER tags
+ */
 enum {
     FILE = 0, ///< i.e. not one of the other types of file
     TUNE,
@@ -81,7 +86,7 @@ enum {
     TYPE_COUNT
 };
 
-/** Values of CODEC field */
+/** Values of AUDIOCODEC field */
 enum {
     NONE = 0,
     MP2,
@@ -90,8 +95,10 @@ enum {
     VORBIS,
     WAV,
     PCM,
+    AAC,
+    WMA,
 
-    CODEC_COUNT
+    AUDIOCODEC_COUNT
 };
 
 /** Values of VIDEOCODEC field */
@@ -101,6 +108,8 @@ enum {
     MPEG4,   /* MPEG-4 part 2 */
     H264,    /* MPEG-4 part 10, AVC */
     FLV,
+    WMV,
+    THEORA,
 
     VIDEOCODEC_COUNT
 };
@@ -113,7 +122,9 @@ enum {
     AVI, 
     MPEGPS, /* MPEG-1 or -2 program stream */
     MP4,    /* MPEG-4 part 14 */
-
+    MOV,    /* Quicktime */
+    JPEG,   /* and/or JFIF */
+    
     CONTAINER_COUNT
 };
 

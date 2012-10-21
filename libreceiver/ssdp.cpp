@@ -10,6 +10,9 @@
 #include <map>
 #include <sstream>
 #include <string.h>
+#include <stdio.h>
+
+// We need IFF_BROADCAST
 #if HAVE_NET_IF_H
 # include <netinet/in.h>
 # include <net/if.h>
@@ -76,7 +79,7 @@ unsigned Server::Task::Init(util::Scheduler *poller)
 	m_socket.SetNonBlocking(true);
     if (rc == 0)
 	poller->WaitForReadable(
-	    util::Bind(TaskPtr(this)).To<&Task::Run>(), &m_socket,
+	    util::Bind(TaskPtr(this)).To<&Task::Run>(), m_socket.GetHandle(),
 	    false);
 
 //    TRACE << "Server init returned " << rc << "\n";
@@ -190,7 +193,7 @@ unsigned Client::Task::Init(util::Scheduler *poller,
 	m_socket.SetNonBlocking(true);
     if (rc == 0)
 	poller->WaitForReadable(
-	    util::Bind(TaskPtr(this)).To<&Task::Run>(), &m_socket,
+	    util::Bind(TaskPtr(this)).To<&Task::Run>(), m_socket.GetHandle(),
 	    false);
 
     m_callback = cb;

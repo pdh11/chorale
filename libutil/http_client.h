@@ -1,7 +1,7 @@
 #ifndef HTTP_CLIENT_H
 #define HTTP_CLIENT_H 1
 
-#include "stream.h"
+#include "counted_object.h"
 #include <string>
 
 namespace util {
@@ -9,30 +9,24 @@ namespace util {
 class Scheduler;
 class IPEndPoint;
 
-/** Classes implementing HTTP/1.1
- */
 namespace http {
 
-/** An asynchronous HTTP client connection.
+/** A recipient of data from an asynchronous HTTP client connection.
  *
  * For a simple, synchronous fetcher, see util::http::Fetcher. To use
  * the asynchronous API, inherit from Connection and override (some or
  * all of) Write(), OnHeader(), OnEndPoint(), and OnDone(), all of
  * which are called as necessary by the implementation.
  */
-class Connection: public util::Stream
+class Recipient: public util::CountedObject<>
 {
 public:
-    virtual ~Connection() {}
+    virtual ~Recipient() {}
 
     /** Called with data from the returned HTTP body (if transaction
      * succeeds).
      */
-    virtual unsigned Write(const void *buffer, size_t len, size_t *pwrote);
-
-    /** Never called (but must be present because we inherit Stream).
-     */
-    unsigned Read(void*, size_t, size_t*);
+    virtual unsigned OnData(const void *buffer, size_t len) = 0;
 
     /** Called with each incoming HTTP header (if connection succeeds).
      */
@@ -48,7 +42,7 @@ public:
     virtual void OnDone(unsigned int error_code) = 0;
 };
 
-typedef util::CountedPointer<Connection> ConnectionPtr;
+typedef CountedPointer<Recipient> RecipientPtr;
 
 /** A central pool of HTTP connections.
  *
@@ -58,6 +52,7 @@ typedef util::CountedPointer<Connection> ConnectionPtr;
 class Client
 {
     class Task;
+    std::string m_useragent_header;
 
 public:
     Client();
@@ -72,7 +67,7 @@ public:
      * returns an error.
      */
     unsigned int Connect(util::Scheduler *poller,
-			 ConnectionPtr target,
+			 RecipientPtr recipient,
 			 const std::string& url,
 			 const std::string& extra_headers = std::string(),
 			 const std::string& body = std::string(),

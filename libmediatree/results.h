@@ -1,7 +1,7 @@
 #ifndef MEDIATREE_RESULTS_H
 #define MEDIATREE_RESULTS_H 1
 
-#include "libutil/counted_object.h"
+#include "libutil/counted_pointer.h"
 #include <vector>
 #include "node.h"
 
@@ -14,7 +14,7 @@ class Results: public Node
     db::Database *m_db;
     int m_field;
     std::string m_value;
-    db::RecordsetPtr m_info;
+    util::CountedPointer<db::Recordset> m_info;
 
     Results(db::Database*, int field, const std::string& value);
 
@@ -30,7 +30,7 @@ public:
     bool HasCompoundChildren();
 
     EnumeratorPtr GetChildren();
-    db::RecordsetPtr GetInfo();
+    util::CountedPointer<db::Recordset> GetInfo();
 };
 
 } // namespace mediatree

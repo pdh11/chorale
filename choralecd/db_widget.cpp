@@ -13,10 +13,12 @@
 #include <qpushbutton.h>
 #include <qlabel.h>
 #include "explorer_window.h"
-#include "libdbreceiver/db.h"
-#include "libdbupnp/db.h"
+#include "libdbreceiver/database.h"
+#include "libdbupnp/database.h"
 #include "libdbempeg/db.h"
 #include "libmediadb/registry.h"
+#include "libutil/http.h"
+#include "imagery/portcullis.xpm"
 
 namespace choraleqt {
 
@@ -73,6 +75,36 @@ void ReceiverDBWidgetFactory::OnService(const util::IPEndPoint& ep)
 }
 
 
+        /* UpnpDBWidget */
+
+
+UpnpDBWidget::UpnpDBWidget(QWidget *parent, const std::string& name,
+			   QPixmap icon, db::upnp::Database *db,
+			   mediadb::Registry *registry)
+    : DBWidget(parent, name, icon, db, registry),
+      m_upnpdb(db)
+{
+}
+
+unsigned int UpnpDBWidget::OnInitialised(unsigned int rc)
+{
+    if (rc)
+	setEnabled(false);
+    else
+    {
+	SetLabel(m_upnpdb->GetFriendlyName());
+	if (m_upnpdb->IsForbidden())
+	{
+	    SetResourcePixmap(QPixmap(portcullis_xpm));
+	    setEnabled(false);
+	}
+	else
+	    setEnabled(true);
+    }
+    return 0;
+}
+
+
         /* UpnpDBWidgetFactory */
 
 
@@ -100,31 +132,33 @@ void UpnpDBWidgetFactory::OnService(const std::string& url,
 {
     std::string dbname = "upnpav:" + udn;
 
-    db::upnpav::Database *thedb = (db::upnpav::Database*)m_registry->Get(dbname);
+    db::upnp::Database *thedb = (db::upnp::Database*)m_registry->Get(dbname);
     if (thedb == NULL)
     {
-	thedb = new db::upnpav::Database(m_client, m_server, m_poller);
-	thedb->Init(url, udn);
-
+	thedb = new db::upnp::Database(m_client, m_server, m_poller);
 	m_registry->Add(dbname, thedb);
     }
-    else
-    {
-	/* Re-Init()-ing updates the URL, in case the port number has changed
-	 */
-	thedb->Init(url, udn);
-	m_widgets[udn]->setEnabled(true);
-    }
 
-    widgets_t::const_iterator i = m_widgets.find(udn);
-    if (i == m_widgets.end())
+    // Use the hostname as a stand-in until we know the friendly-name
+    std::string hostpart, pathpart;
+    util::http::ParseURL(url, &hostpart, &pathpart);
+    std::string host;
+    unsigned short port;
+    util::http::ParseHost(hostpart, 80, &host, &port);
+
+    UpnpDBWidget *widget = m_widgets[udn];
+    if (!widget)
     {
-	m_widgets[udn] = new choraleqt::DBWidget(m_parent,
-						 thedb->GetFriendlyName(),
-						 *m_pixmap, thedb, m_registry);
+	widget = new choraleqt::UpnpDBWidget(m_parent, host, 
+					     *m_pixmap, thedb, m_registry);
+	m_widgets[udn] = widget;
     }
-    else
-	i->second->setEnabled(true);
+    widget->setEnabled(false);
+
+    /* Re-Init()-ing updates the URL, in case the port number has changed
+     */
+    thedb->Init(url, udn,
+		util::Bind(widget).To<unsigned int,&UpnpDBWidget::OnInitialised>());
 }
 
 void UpnpDBWidgetFactory::OnServiceLost(const std::string&, 

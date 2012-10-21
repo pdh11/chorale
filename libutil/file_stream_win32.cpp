@@ -1,7 +1,6 @@
 #include "file_stream_win32.h"
 #include "trace.h"
 #include "utf8.h"
-#include "stream_test.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -73,7 +72,7 @@ FileStream::~FileStream()
 	CloseHandle(m_fd);
 }
 
-unsigned FileStream::ReadAt(void *buffer, pos64 pos, size_t len, 
+unsigned FileStream::ReadAt(void *buffer, uint64_t pos, size_t len, 
 			    size_t *pread)
 {
     OVERLAPPED ov;
@@ -95,7 +94,7 @@ unsigned FileStream::ReadAt(void *buffer, pos64 pos, size_t len,
     return 0;
 }
 
-unsigned FileStream::WriteAt(const void *buffer, pos64 pos, size_t len, 
+unsigned FileStream::WriteAt(const void *buffer, uint64_t pos, size_t len, 
 			     size_t *pwrote)
 {
     OVERLAPPED ov;
@@ -113,16 +112,16 @@ unsigned FileStream::WriteAt(const void *buffer, pos64 pos, size_t len,
     return 0;
 }
 
-SeekableStream::pos64 FileStream::GetLength()
+uint64_t FileStream::GetLength()
 {
     DWORD hi;
     DWORD lo = GetFileSize(m_fd, &hi);
     if (lo == INVALID_FILE_SIZE && GetLastError() != NO_ERROR)
 	return 0;
-    return (((pos64)hi) << 32) + lo;
+    return (((uint64_t)hi) << 32) + lo;
 }
 
-unsigned FileStream::SetLength(pos64 len)
+unsigned FileStream::SetLength(uint64_t len)
 {
     /* Although atomic pread() and pwrite are implemented (in NT-derived
      * Windows only), atomic ftruncate() is not -- except on Vista. :(
@@ -143,15 +142,16 @@ unsigned FileStream::SetLength(pos64 len)
 #endif // WIN32
 
 #ifdef TEST
+# include "stream_test.h"
 
 int main()
 {
-    util::SeekableStreamPtr msp;
+    std::auto_ptr<util::Stream> msp;
 
-    unsigned int rc = util::OpenFileStream("./test.tmp", util::TEMP, &msp);
+    unsigned int rc = util::OpenFileStream("test.tmp", util::TEMP, &msp);
     assert(rc == 0);
 
-    TestSeekableStream(msp);
+    TestSeekableStream(msp.get());
 
     return 0;
 }

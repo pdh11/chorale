@@ -3,6 +3,7 @@
 #ifndef OUTPUT_WIDGET_H
 #define OUTPUT_WIDGET_H
 
+#include <map>
 #include <qwidget.h>
 #include "resource_widget.h"
 #include "widget_factory.h"
@@ -17,6 +18,8 @@ namespace output { namespace upnpav { class URLPlayer; } }
 namespace util { class Scheduler; }
 namespace util { namespace http { class Client; } }
 namespace util { namespace http { class Server; } }
+
+class QAction;
 
 namespace choraleqt {
 
@@ -72,14 +75,19 @@ class UpnpOutputWidget: public OutputWidget
 {
     Q_OBJECT
     
-    output::upnpav::URLPlayer *m_player;
+    QAction *m_show_properties_action;
     
 public:
     UpnpOutputWidget(QWidget *parent, const std::string& name, QPixmap,
-		     output::upnpav::URLPlayer*,
 		     output::Queue*, mediadb::Registry*, const std::string&);
 
     unsigned int OnInitialised(unsigned int error_code);
+
+    // Being a QWidget
+    void contextMenuEvent(QContextMenuEvent*);
+
+public slots:
+    void showProperties(void);
 };
 
 /** A WidgetFactory which creates OutputWidget items for UPnP media
@@ -95,6 +103,8 @@ class UpnpOutputWidgetFactory: public WidgetFactory,
     util::Scheduler *m_poller;
     util::http::Client *m_client;
     util::http::Server *m_server;
+    typedef std::map<std::string, UpnpOutputWidget*> widgets_t;
+    widgets_t m_widgets;
 
 public:
     UpnpOutputWidgetFactory(QPixmap*, mediadb::Registry*, 
@@ -107,6 +117,7 @@ public:
 
     // Being a upnp::ssdp::Responder::Callback
     void OnService(const std::string& url, const std::string& udn);
+    void OnServiceLost(const std::string& url, const std::string& udn);
 };
 
 } // namespace choraleqt

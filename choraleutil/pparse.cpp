@@ -10,13 +10,16 @@ int main(int /*argc*/, char *argv[])
 	printf("%s\n", *pp);
 	std::string canon = util::Canonicalise(*pp);
 
-	import::PlaylistPtr pls = import::Playlist::Create(canon);
-	if (pls)
+	import::Playlist pls;
+	std::list<std::string> entries;
+	if (pls.Init(canon) == 0
+	    && pls.Load(&entries) == 0)
 	{
-	    pls->Load();
-	    for (size_t i = 0; i < pls->GetLength(); ++i)
+	    for (std::list<std::string>::const_iterator i = entries.begin();
+		 i != entries.end();
+		 ++i)
 	    {
-		canon = util::Canonicalise(pls->GetEntry(i));
+		canon = util::Canonicalise(*i);
 		printf("  %s\n", canon.c_str());
 	    }
 	}

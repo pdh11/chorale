@@ -2,15 +2,17 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(chorale, [0.19], pdh@utter.chaos.org.uk)
+AC_INIT(chorale, [0.20a3], pdh@utter.chaos.org.uk)
 AC_SUBST(PACKAGE_WEBSITE, [http://chorale.sf.net])
 AC_DEFINE_UNQUOTED([PACKAGE_WEBSITE], ["${PACKAGE_WEBSITE}"], [Define to the package's website])
+
 
 AC_MSG_NOTICE([Required: Boost.])
 AC_MSG_NOTICE([Optional: Taglib, Qt4, gstreamer, cdparanoia or libcdio, libcddb, lame, flac, dbus, hal, libmpg123, inkscape, xsltproc, imagemagick.])
 AC_MSG_NOTICE([])
 
 AC_CONFIG_SRCDIR([libdb/db.h])
+AC_CONFIG_MACRO_DIR([autotools])
 AC_CONFIG_AUX_DIR([autotools])
 
 AC_DEFUN([PDH_REQUISITIONS],
@@ -26,8 +28,6 @@ CFLAGS="-O2" # Override -g
 
 AC_PROG_CXX
 CXXFLAGS="-O2" # Override -g
-
-AC_PROG_OBJC
 
 AC_PROG_LIBTOOL
 AC_C_BIGENDIAN
@@ -47,8 +47,8 @@ AC_CHECK_DECL([__WIN32__],[WIN32="yes"],[WIN32="no"])
 if test "$WIN32" = "yes"; then
   DOTEXE=".exe"
   # We need at least 0x500 (Win2K) not the default 0x400 (95/NT4)
-  CFLAGS="$CFLAGS -DWINVER=0x500 -DTAGLIB_STATIC"
-  CXXFLAGS="$CXXFLAGS -DWINVER=0x500 -DTAGLIB_STATIC"
+  CFLAGS="$CFLAGS -DWINVER=0x500 -DTAGLIB_STATIC -DBOOST_THREAD_USE_LIB"
+  CXXFLAGS="$CXXFLAGS -DWINVER=0x500 -DTAGLIB_STATIC -DBOOST_THREAD_USE_LIB"
 else
   DOTEXE=""
 fi
@@ -64,7 +64,7 @@ AC_DEFUN([PDH_C_WARNING],
     CFLAGS="$CFLAGS $1"
     AC_COMPILE_IFELSE([AC_LANG_PROGRAM()],
 		      [AC_MSG_RESULT([yes])],
-		      [AC_MSG_RESULT([no]); CFLAGS=$ok_CFLAGS])
+		      [AC_MSG_RESULT([no]); CFLAGS=$ok_CFLAGS; $2])
 ])
 
 PDH_C_WARNING([-W])
@@ -72,7 +72,9 @@ PDH_C_WARNING([-Wall])
 PDH_C_WARNING([-Wextra])
 PDH_C_WARNING([-Wundef])
 PDH_C_WARNING([-Wshadow])
+PDH_C_WARNING([-Wswitch])
 PDH_C_WARNING([-Waddress])
+PDH_C_WARNING([-std=gnu1x], PDH_C_WARNING([-std=gnu99]))
 PDH_C_WARNING([-Wcoercion])
 PDH_C_WARNING([-Wcast-align])
 PDH_C_WARNING([-Wconversion])
@@ -81,9 +83,32 @@ PDH_C_WARNING([-Wpointer-arith])
 PDH_C_WARNING([-Wbad-function-cast])
 PDH_C_WARNING([-Wstrict-prototypes])
 PDH_C_WARNING([-Wmissing-prototypes])
+PDH_C_WARNING([-Wmissing-declarations])
 PDH_C_WARNING([-pedantic -Wno-long-long])
 PDH_C_WARNING([-fdiagnostics-show-option])
 PDH_C_WARNING([-Wdeclaration-after-statement])
+
+AC_MSG_CHECKING(bitfield ordering in structs)
+AC_LINK_IFELSE([
+int conftest_undefined_reference_();
+int main() {
+  union {
+    unsigned int x;
+    struct {
+      unsigned int x0: 1;
+      unsigned int x1: 31;
+    } s;
+  } u;
+
+  u.x = 0;
+  u.s.x0 = 1;
+  if (u.x == 1)
+    return conftest_undefined_reference_();
+  return 0;
+}
+], [bf_lsbf=0; AC_MSG_RESULT(MSB first);], [bf_lsbf=1; AC_MSG_RESULT(LSB first);])
+AC_DEFINE_UNQUOTED(BITFIELDS_LSB_FIRST, $bf_lsbf,
+	[Define to 1 if C bitfields start from the LSB, or 0 for MSB])
 
 AC_DEFUN([PDH_LD_MAP],
 [
@@ -142,9 +167,14 @@ PDH_CXX_WARNING([-Wshadow])
 PDH_CXX_WARNING([-mthreads])
 PDH_CXX_WARNING([-Waddress])
 PDH_CXX_WARNING([-pedantic])
+PDH_CXX_WARNING([-Wnoexcept])
+PDH_CXX_WARNING([-Wcast-qual])
+PDH_CXX_WARNING([-std=gnu++0x], PDH_CXX_WARNING([-std=gnu++98]))
 PDH_CXX_WARNING([-Wlogical-op])
 PDH_CXX_WARNING([-Wcast-align])
 PDH_CXX_WARNING([-Wconversion])
+PDH_CXX_WARNING([-Wc++0x-compat])
+PDH_CXX_WARNING([-fstrict-enums])
 PDH_CXX_WARNING([-Wno-long-long])
 PDH_CXX_WARNING([-Wwrite-strings])
 PDH_CXX_WARNING([-Wpointer-arith])
@@ -152,93 +182,9 @@ PDH_CXX_WARNING([-Wnon-virtual-dtor])
 PDH_CXX_WARNING([-Wstrict-overflow=5])
 PDH_CXX_WARNING([-Woverloaded-virtual])
 PDH_CXX_WARNING([-Wno-sign-conversion])
+PDH_CXX_WARNING([-Wmissing-declarations])
+PDH_CXX_WARNING([-Wunused-but-set-variable])
 PDH_CXX_WARNING([-fdiagnostics-show-option])
-
-AC_PROG_OBJCXX
-
-if test "$DARWIN" = "yes" ; then
-
-# Libtool 2.2.6 / Autoconf 2.64 don't have this built-in
-
-#AC_LANG_DEFINE([Objective C++], [objcxx], [OBJCXX], [C],
-#[ac_ext=mm
-#ac_cpp='$OBJCPP $CPPFLAGS'
-#ac_compile='$OBJCXX -c $OBJCXXFLAGS $CPPFLAGS conftest.$ac_ext >&AS_MESSAGE_LOG_FD'
-#ac_link='$OBJCXX -o conftest$ac_exeext $OBJCXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&AS_MESSAGE_LOG_FD'
-#ac_compiler_gnu=$ac_cv_objcxx_compiler_gnu
-#])
-
-#AN_MAKEVAR([OBJCXX],  [AC_PROG_OBJCXX])
-#AN_PROGRAM([objc++],  [AC_PROG_OBJCXX])
-#AN_PROGRAM([objc],    [AC_PROG_OBJCXX])
-
-#AC_DEFUN([PDH_PROG_OBJCXX],
-#[
-#AC_LANG_PUSH([Objective C++])
-#AC_ARG_VAR([OBJCXX],      [Objective C++ compiler command])dnl
-#AC_ARG_VAR([OBJCXXFLAGS], [Objective C++ compiler flags])dnl
-#_AC_ARG_VAR_LDFLAGS()dnl
-#_AC_ARG_VAR_LIBS()dnl
-#_AC_ARG_VAR_CPPFLAGS()dnl
-#_AC_ARG_VAR_PRECIOUS([OBJCXX])dnl
-#AC_CHECK_TOOLS(OBJCXX,
-#	       [m4_default([], [gcc objc++ objc cc CC])],
-#	       gcc)
-#_AC_LANG_COMPILER_GNU
-#if test $ac_compiler_gnu = yes; then
-#  GOBJCXX=yes
-#else
-#  GOBJCXX=
-#fi
-#AC_LANG_POP
-#])
-
-#AC_DEFUN([AC_LANG_COMPILER(Objective C++)],
-#[AC_REQUIRE([PDH_PROG_OBJCXX])])
-
-#PDH_PROG_OBJCXX
-
-AC_DEFUN([PDH_OBJCXX_WARNING],
-[
-    AC_MSG_CHECKING([whether ${OBJCXX} accepts $1])
-
-    AC_LANG_PUSH([Objective C++])
-
-    ok_OBJCXXFLAGS="$OBJCXXFLAGS"
-    OBJCXXFLAGS="$OBJCXXFLAGS $1"
-    AC_COMPILE_IFELSE([AC_LANG_PROGRAM()],
-		      [AC_MSG_RESULT([yes])],
-		      [AC_MSG_RESULT([no]); OBJCXXFLAGS=$ok_OBJCXXFLAGS])
-
-    AC_LANG_POP
-])
-
-PDH_OBJCXX_WARNING([-W])
-PDH_OBJCXX_WARNING([-Wall])
-PDH_OBJCXX_WARNING([-Wextra])
-PDH_OBJCXX_WARNING([-Wundef])
-PDH_OBJCXX_WARNING([-Wshadow])
-PDH_OBJCXX_WARNING([-Waddress])
-PDH_OBJCXX_WARNING([-Wno-import])
-PDH_OBJCXX_WARNING([-Wlogical-op])
-#PDH_OBJCXX_WARNING([-Wcast-align])
-PDH_OBJCXX_WARNING([-Wconversion])
-PDH_OBJCXX_WARNING([-march=armv6])
-PDH_OBJCXX_WARNING([-Wwrite-strings])
-PDH_OBJCXX_WARNING([-Wpointer-arith])
-#PDH_OBJCXX_WARNING([-Wsign-conversion])
-#PDH_OBJCXX_WARNING([-Wl,-bind_at_load])
-PDH_OBJCXX_WARNING([-Wnon-virtual-dtor])
-PDH_OBJCXX_WARNING([-mcpu=arm1176jzf-s])
-PDH_OBJCXX_WARNING([-Wstrict-overflow=5])
-PDH_OBJCXX_WARNING([-Woverloaded-virtual])
-PDH_OBJCXX_WARNING([-fobjc-call-cxx-cdtors])
-PDH_OBJCXX_WARNING([-pedantic -Wno-long-long])
-PDH_OBJCXX_WARNING([-fdiagnostics-show-option])
-PDH_OBJCXX_WARNING([-Wl,-multiply_defined,suppress])
-
-fi # DARWIN
-
 
 AC_CHECK_TOOL([GCOV], [gcov], [:])
 AC_CHECK_TOOL([SIZE], [size], [:])
@@ -471,26 +417,47 @@ AC_DEFUN([PDH_CHECK_CDPARANOIA],[
 AC_DEFUN([PDH_CHECK_BOOST], [
   AC_MSG_CHECKING([for Boost])
   if test "$WIN32" = "yes" ; then
-    BOOST_LIBS="-lboost_thread_win32 -lboost_regex"
+    MAYBE_BOOST_THREAD="-lboost_thread_win32-mt -lboost_thread_win32 -lboost_thread-mt -lboost_thread"
   else
-    BOOST_LIBS="-lboost_thread -lboost_regex"
+    MAYBE_BOOST_THREAD="-lboost_thread-mt -lboost_thread"
   fi
   AC_LANG_PUSH([C++])
-  ok_LIBS=$LIBS
-  LIBS="$LIBS $BOOST_LIBS"
-  AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <boost/thread/mutex.hpp>
-#include <boost/regex.hpp>
+  BOOST_THREAD=
+  for i in $MAYBE_BOOST_THREAD ; do
+    ok_LIBS=$LIBS
+    LIBS="$LIBS $i"
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <boost/thread.hpp>
 ]],
-  [[
-boost::regex rx("*foo*");
-boost::mutex mx;
-
-boost::mutex::scoped_lock lock(mx);
-boost::regex_match("afooa", rx);
-  ]])],
-    [BOOST="yes"],
-    [BOOST="no"])
-  LIBS=$ok_LIBS
+[[
+	boost::thread t;
+]])],
+	[BOOST_THREAD=$i ; break;],
+	[])
+    LIBS=$ok_LIBS
+  done
+  if test "$BOOST_THREAD" = "" ; then
+    BOOST="no"
+  else
+    BOOST_REGEX=
+    for i in -lboost_regex-mt -lboost_regex ; do
+      ok_LIBS=$LIBS
+      LIBS="$LIBS $i"
+      AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <boost/regex.hpp>
+]],
+[[
+	boost::regex rx("foo");
+	boost::regex_match("afooa", rx);
+]])],
+	[BOOST_REGEX=$i ; break],[])
+      LIBS=$ok_LIBS
+    done
+    if test "$BOOST_REGEX" = "" ; then
+      BOOST="no"
+    else
+      BOOST="yes"
+      BOOST_LIBS="$BOOST_THREAD $BOOST_REGEX"
+    fi
+  fi
   AC_LANG_POP
   AC_MSG_RESULT($BOOST)
   AC_SUBST(BOOST_LIBS)
@@ -623,6 +590,7 @@ PDH_PKGCONFIG(TAGLIB,    taglib,    1.4,   $disable_lgpl)
 PDH_PKGCONFIG(LIBCDDB,   libcddb,   1.2.1, $disable_lgpl)
 PDH_PKGCONFIG(MPG123,    libmpg123, 1.2.0, $disable_lgpl)
 PDH_CHECK_CDPARANOIA
+PDH_PKGCONFIG(AVFORMAT,  libavformat, 50.0.0, $disable_lgpl)
 PDH_CHECK_TCP_WRAPPERS
 PDH_PKGCONFIG(GSTREAMER, gstreamer-0.10, 0.10.13, $disable_lgpl)
 PDH_PKGCONFIG(LIBCDIOP,  libcdio_paranoia, 0.76,  $disable_gpl)
@@ -630,13 +598,9 @@ PDH_PKGCONFIG(LIBCDIOP,  libcdio_paranoia, 0.76,  $disable_gpl)
 # NB do NOT use LIBFLAC_CFLAGS/LIBFLACPP_CFLAGS -- they introduce a directory
 # with a bogus <assert.h>.
 
-
 # Checks for header files.
-PDH_CHECK_HEADERS_AND_ADD([io.h poll.h errno.h fcntl.h sched.h netdb.h direct.h dirent.h net/if.h stdint.h stdlib.h string.h unistd.h windows.h pthread.h ws2tcpip.h sys/disk.h sys/poll.h sys/time.h sys/stat.h net/if_dl.h sys/types.h sys/socket.h sys/syslog.h netinet/in.h sys/utsname.h netinet/tcp.h sys/inotify.h sys/resource.h CoreFoundation/CFRunLoop.h])
+PDH_CHECK_HEADERS_AND_ADD([io.h poll.h errno.h fcntl.h sched.h netdb.h stdio.h direct.h dirent.h net/if.h stdint.h stdlib.h string.h unistd.h windows.h pthread.h ws2tcpip.h sys/disk.h sys/poll.h sys/time.h sys/stat.h lame/lame.h net/if_dl.h sys/types.h sys/socket.h sys/syslog.h netinet/in.h sys/eventfd.h sys/utsname.h netinet/tcp.h sys/inotify.h sys/resource.h CoreFoundation/CFRunLoop.h])
 PDH_CHECK_HEADERS([linux/cdrom.h linux/unistd.h linux/inotify.h linux/dvb/dmx.h linux/dvb/frontend.h]) # No AND_ADD as they may conflict with libc
-AC_LANG_PUSH([Objective C++])
-PDH_CHECK_HEADER([AVFoundation/AVAudioPlayer.h]) # No AND_ADD as it's ObjC++
-AC_LANG_POP
 AC_LANG_PUSH([C++])
 PDH_CHECK_HEADER([boost/spirit/include/classic.hpp]) # No AND_ADD as it's C++
 AC_LANG_POP
@@ -658,6 +622,17 @@ if test "$ac_cv_header_linux_cdrom_h" = "yes"; then
   fi
 fi
 
+AC_DEFUN([PDH_CHECK_RTTI], [
+  AC_MSG_CHECKING([whether <$1> compiles with -fno-rtti])
+  pdh_CXXFLAGS=$CXXFLAGS
+  CXXFLAGS="$CXXFLAGS -fno-rtti -DBOOST_NO_TYPEID"
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <$1>]],$2)],
+    [AC_MSG_RESULT([yes]); AS_TR_SH([RTTI_$1])=""],
+    [AC_MSG_RESULT([no]); AS_TR_SH([RTTI_$1])="yes"])
+  CXXFLAGS=$pdh_CXXFLAGS
+  AC_SUBST(AS_TR_SH([RTTI_$1]))
+])
+
 AC_DEFUN([PDH_CHECK_EXCEPTIONS], [
   AC_MSG_CHECKING([whether <$1> compiles with -fno-exceptions])
   pdh_CXXFLAGS=$CXXFLAGS
@@ -670,12 +645,18 @@ AC_DEFUN([PDH_CHECK_EXCEPTIONS], [
 ])
 
 AC_LANG_PUSH([C++])
+PDH_CHECK_RTTI([boost/thread/mutex.hpp])
+PDH_CHECK_RTTI([boost/algorithm/string/split.hpp])
 PDH_CHECK_EXCEPTIONS([boost/regex.hpp],
 	[ boost::regex rx("*foo*", boost::regex::icase);
 	return boost::regex_match("barfoobar", rx); ])
 PDH_CHECK_EXCEPTIONS([boost/function.hpp])
-PDH_CHECK_EXCEPTIONS([boost/thread/tss.hpp])
+PDH_CHECK_EXCEPTIONS([boost/thread/tss.hpp],
+	[ boost::thread_specific_ptr<int> t; return 0; ])
 PDH_CHECK_EXCEPTIONS([boost/thread/mutex.hpp])
+PDH_CHECK_EXCEPTIONS([boost/thread/thread.hpp],
+	[ boost::thread t(main,NULL, NULL); return 0; ])
+PDH_CHECK_EXCEPTIONS([boost/thread/condition.hpp])
 AC_LANG_POP
 
 AC_DEFUN([PDH_CHECK_FUNC], [
@@ -691,7 +672,20 @@ AC_DEFUN([PDH_CHECK_FUNCS], [
 m4_foreach_w([pdh_func], $1, [PDH_CHECK_FUNC(pdh_func)])
 ])
 
-PDH_CHECK_FUNCS([pipe fsync mkdir _wstat _wmkdir pread64 mkstemp scandir gmtime_r pwrite64 realpath localtime_r setpriority getaddrinfo inotify_init gettimeofday posix_fadvise FindFirstFileW gethostbyname_r sync_file_range GetFullPathNameW sched_setscheduler canonicalize_file_name])
+PDH_CHECK_FUNCS([pipe fsync mkdir _wstat gettid _wmkdir eventfd pread64 mkstemp scandir gmtime_r pwrite64 realpath vasprintf ftruncate _vscprintf CreateEvent localtime_r setpriority getaddrinfo inotify_init gettimeofday posix_fadvise FindFirstFileW posix_fallocate gethostbyname_r sync_file_range GetFullPathNameW __mingw_vsnprintf GetCurrentThreadId sched_setscheduler lame_get_lametag_frame canonicalize_file_name])
+pdh_nr_gettid=0
+if test "$ac_cv_func_gettid$ac_cv_header_sys_types_h" = "noyes"; then
+  AC_MSG_CHECKING([for syscall(__NR_gettid)])
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([$pdh_all_headers
+#include <linux/unistd.h>],[
+ int fd = syscall(__NR_gettid);
+])],
+	[AC_MSG_RESULT([yes]); pdh_nr_gettid=1],
+	[AC_MSG_RESULT([no])])
+fi
+AC_DEFINE_UNQUOTED([HAVE_NR_GETTID], $pdh_nr_gettid,
+      [Define to 1 if you have __NR_gettid but not gettid(), or to 0 otherwise])
+
 pdh_nr_inotify_init=0
 if test "$ac_cv_func_inotify_init$ac_cv_header_unistd_h" = "noyes"; then
   AC_MSG_CHECKING([for syscall(__NR_inotify_init) for Debian's benefit])

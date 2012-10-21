@@ -3,7 +3,26 @@
 
 namespace util {
 
-void TestSeekableStream(SeekableStreamPtr msp)
+#if 0
+SlowStream::SlowStream(Scheduler *poller,
+		       size_t size, unsigned int interval_ms,
+		       unsigned int count)
+    : m_poller(poller),
+      m_size(size),
+      m_interval_ms(interval_ms),
+      m_count(count),
+      m_offset(0)
+{
+}
+
+void SlowStream::Init()
+{
+    m_poller->Wait(util::Bind(TaskPtr(this)).To<&SlowStream::OnTimer>(),
+		   0, m_interval_ms);
+}
+#endif
+
+void TestSeekableStream(Stream *msp)
 {
     unsigned int rc;
 
@@ -83,9 +102,8 @@ void TestSeekableStream(SeekableStreamPtr msp)
     assert(rc == 0);
     assert(line == "wurdle");
     assert(msp->Tell() == msp->GetLength());
-
     msp->Seek(0);
-    rc = DiscardStream(msp.get());
+    rc = DiscardStream(msp);
     assert(rc == 0);
     assert(msp->Tell() == msp->GetLength());
 }

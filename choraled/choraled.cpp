@@ -234,7 +234,7 @@ int ParseArgs(int argc, char *argv[], Settings *settings,
 	    settings->dvb_channels_file = optarg;
 	    break;
 	case 'a':
-	    settings->flags |= AUDIO;
+	    settings->flags &= ~AUDIO;
 	    break;
 	case 'm':
 	    settings->flags &= ~MEDIA_SERVER;

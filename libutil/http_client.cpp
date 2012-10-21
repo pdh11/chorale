@@ -2,19 +2,27 @@
 #include "config.h"
 #include "errors.h"
 #include "scheduler.h"
-#include "http_fetcher.h"
 #include "bind.h"
 #include "magic.h"
-#include "peeking_line_reader.h"
 #include "counted_pointer.h"
+#include "http.h"
 #include "http_parser.h"
 #include "trace.h"
 #include "scanf64.h"
+#include "printf.h"
+#include "socket.h"
+#include "line_reader.h"
 #include <string.h>
 #include <limits.h>
 #include <boost/format.hpp>
 #include <boost/tokenizer.hpp>
 #include <boost/scoped_array.hpp>
+#if HAVE_SYS_UTSNAME_H
+#include <sys/utsname.h>
+#endif
+#if HAVE_WINDOWS_H
+#include <windows.h>
+#endif
 
 LOG_DECL(HTTP);
 LOG_DECL(HTTP_CLIENT);
@@ -24,35 +32,20 @@ namespace util {
 namespace http {
 
 
-        /* util::http::Connection */
-
-
-unsigned int Connection::Read(void*, size_t, size_t*)
-{
-    return EINVAL;
-}
-
-unsigned int Connection::Write(const void*, size_t len, size_t *pwrote)
-{
-    *pwrote = len;
-    return 0;
-}
-
-
         /* util::http::Client::Task */
 
 
 class Client::Task: public util::Task
 {
     Client *m_parent;
-    ConnectionPtr m_target;
+    RecipientPtr m_target;
     std::string m_extra_headers;
     std::string m_body;
     const char *m_verb;
     util::IPEndPoint m_remote_endpoint;
 
     util::Scheduler *m_scheduler;
-    util::StreamSocketPtr m_socket;
+    util::StreamSocket m_socket;
     std::string m_host;
     std::string m_path;
     std::string m_headers;
@@ -61,7 +54,7 @@ class Client::Task: public util::Task
     boost::scoped_array<char> m_buffer;
     size_t m_buffer_fill;
 
-    PeekingLineReader m_line_reader;
+    GreedyLineReader m_line_reader;
     Parser m_parser;
 
     enum {
@@ -91,24 +84,49 @@ class Client::Task: public util::Task
 
     typedef CountedPointer<Client::Task> TaskPtr;
 
-    void WaitForWritable(util::StreamPtr stream)
+    void WaitForWritable()
     {
 	m_scheduler->WaitForWritable(
 	    Bind(TaskPtr(this)).To<&Task::Run>(), 
-	    stream.get());
+	    m_socket.GetHandle());
     }
 
-    void WaitForReadable(util::StreamPtr stream)
+    void WaitForReadable()
     {
 	m_scheduler->WaitForReadable(
 	    Bind(TaskPtr(this)).To<&Task::Run>(), 
-	    stream.get());
+	    m_socket.GetHandle());
+    }
+
+    class CallbackTask: public util::Task
+    {
+	RecipientPtr m_target;
+	unsigned int m_rc;
+
+    public:
+	CallbackTask(RecipientPtr target, unsigned rc)
+	    : m_target(target),
+	      m_rc(rc)
+	{
+	}
+
+	unsigned int Run()
+	{
+	    m_target->OnDone(m_rc);
+	    return 0;
+	}
+    };
+    
+    void SendDone(unsigned int rc)
+    {
+	m_scheduler->Wait(
+	    Bind(util::TaskPtr(new CallbackTask(m_target,rc))).To<&util::Task::Run>(), 0, 0);
     }
 
 public:
     Task(Client *parent,
 	 util::Scheduler *scheduler,
-	 ConnectionPtr target,
+	 RecipientPtr target,
 	 const std::string& url,
 	 const std::string& extra_headers,
 	 const std::string& body,
@@ -122,7 +140,7 @@ public:
  
 Client::Task::Task(Client *parent,
 		   util::Scheduler *scheduler,
-		   ConnectionPtr target,
+		   RecipientPtr target,
 		   const std::string& url,
 		   const std::string& extra_headers,
 		   const std::string& body,
@@ -133,15 +151,17 @@ Client::Task::Task(Client *parent,
       m_body(body),
       m_verb(verb),
       m_scheduler(scheduler),
-      m_socket(StreamSocket::Create()),
+      m_socket(),
       m_buffer_fill(0),
-      m_line_reader(m_socket),
+      m_line_reader(&m_socket),
       m_parser(&m_line_reader),
       m_state(UNINITIALISED)
 {
-    ParseURL(url, &m_host, &m_path);
+    std::string host; // "http://ip:port"
+    ParseURL(url, &host, &m_path);
     std::string hostonly;
-    ParseHost(m_host, 80, &hostonly, &m_remote_endpoint.port);
+    ParseHost(host, 80, &hostonly, &m_remote_endpoint.port);
+    m_host = util::Printf() << hostonly << ":" << m_remote_endpoint.port;
     m_remote_endpoint.addr = util::IPAddress::Resolve(hostonly.c_str());
 }
 
@@ -157,11 +177,10 @@ unsigned int Client::Task::Init()
 	return ENOENT;
 	
     m_state = CONNECTING;
-    m_socket->SetNonBlocking(true);
-    m_socket->SetTimeoutMS(0);
-    WaitForWritable(m_socket);
+    m_socket.SetNonBlocking(true);
+    WaitForWritable();
 
-    unsigned int rc = m_socket->Connect(m_remote_endpoint);
+    unsigned int rc = m_socket.Connect(m_remote_endpoint);
     if (rc && rc != EINPROGRESS && rc != EWOULDBLOCK && rc != EISCONN)
     {
 	TRACE << "Connect failed: " << rc << "\n";
@@ -174,7 +193,7 @@ unsigned int Client::Task::Init()
 
 Client::Task::~Task()
 {
-    LOG(HTTP_CLIENT) << "ct" << this << ": ~Client::Task in state "
+    LOG(HTTP_CLIENT) << "ct" << this << ": ~Client::Task(" << m_path << ") in state "
 		     << m_state << "\n";
 //    m_scheduler->Remove(m_socket.get());
     LOG(HTTP_CLIENT) << "~Client::Task" << " done\n";
@@ -195,15 +214,15 @@ unsigned int Client::Task::Run()
     switch (m_state)
     {
     case CONNECTING:
-//	TRACE << "Connecting\n";
-	rc = m_socket->Connect(m_remote_endpoint);
+	LOG(HTTP_CLIENT) << "Connecting\n";
+	rc = m_socket.Connect(m_remote_endpoint);
 
 	/* Windows rather delightfully, can return EINVAL here whether the
 	 * connection has succeeded or not.
 	 */
 	if (rc == EINVAL)
 	{
-	    if (m_socket->IsWritable())
+	    if (m_socket.IsWritable())
 		rc = EISCONN;
 	}
 
@@ -211,8 +230,8 @@ unsigned int Client::Task::Run()
 	{
 	    if (rc == EINPROGRESS || rc == EWOULDBLOCK)
 	    {
-//		TRACE << "Connection in progress (" << rc << ")\n";
-		WaitForWritable(m_socket);
+		LOG(HTTP_CLIENT) << "Connection in progress (" << rc << ")\n";
+		WaitForWritable();
 		return 0;
 	    }
 
@@ -220,43 +239,65 @@ unsigned int Client::Task::Run()
 	    m_target->OnDone(rc);
 	    return rc;
 	}
-//	TRACE << "Connected\n";
+	LOG(HTTP_CLIENT) << "Connected from "
+			 << m_socket.GetLocalEndPoint().ToString() << "\n";
 
 	/* Now we're connected, we can work out which of our IP
 	 * addresses got used.
 	 */
-	m_target->OnEndPoint(m_socket->GetLocalEndPoint());
+	m_target->OnEndPoint(m_socket.GetLocalEndPoint());
 
 	m_headers = m_verb ? m_verb : (m_body.empty() ? "GET" : "POST");
 	m_headers += " " + m_path + " HTTP/1.1\r\n"
 	    "Host: " + m_host + "\r\n"
-	    "Connection: close\r\n"
-	    "User-Agent: " PACKAGE_NAME "/" PACKAGE_VERSION "\r\n";
-	if (!m_body.empty())
-	    m_headers += (boost::format("Content-Length: %u\r\n") % m_body.size()).str();
+	    "Connection: close\r\n";
+	m_headers += m_parent->m_useragent_header;
+	m_headers += "Accept: */*\r\n";
 	m_headers += m_extra_headers;
+	if (!m_body.empty())
+	    m_headers += util::Printf() << "Content-Length: " << m_body.size()
+					<< "\r\n";
 	m_headers += "\r\n";
 	m_state = SEND_HEADERS;
 	/* fall through */
 
+	LOG(HTTP_CLIENT) << "Sending headers:\n" << m_headers << "\n";
+
     case SEND_HEADERS:
     {
-//	TRACE << "Sending headers\n";
+	LOG(HTTP_CLIENT) << "Sending headers and body\n";
+
+	Socket::Buffer iovec[2];
+	iovec[0].ptr = m_headers.c_str();
+	iovec[0].len = m_headers.size();
+	iovec[1].ptr = m_body.c_str();
+	iovec[1].len = m_body.size();
 
 	size_t nwrote;
-	rc = m_socket->Write(m_headers.c_str(), m_headers.length(), &nwrote);
+	rc = m_socket.WriteV(iovec, 2, &nwrote);
 	if (rc == 0)
-	    m_headers.erase(0,nwrote);
+	{
+	    if (nwrote < m_headers.size())
+	    {
+		m_headers.erase(0,nwrote);
+	    }
+	    else
+	    {
+		m_body.erase(0, nwrote - m_headers.size());
+		m_headers.clear();
+	    }
+	}
 	else if (rc != EWOULDBLOCK)
 	{
 	    TRACE << "Write error " << rc << "\n";
 	    m_target->OnDone(rc);
 	    return rc;
 	}
+
 	if (!m_headers.empty())
 	{
-//	    TRACE << "EWOULDBLOCK(sendheaders), waiting for write\n";
-	    WaitForWritable(m_socket);
+	    TRACE << "EWOULDBLOCK(sendheaders), waiting for write\n";
+	    WaitForWritable();
 	    return 0;
 	}
 
@@ -267,10 +308,10 @@ unsigned int Client::Task::Run()
     }
 
     case SEND_BODY:
-	if (!m_body.empty())
+	if (!m_body.empty()) /// @todo writev(headers, body)
 	{
 	    size_t nwrote;
-	    rc = m_socket->Write(m_body.c_str(), m_body.size(), &nwrote);
+	    rc = m_socket.Write(m_body.c_str(), m_body.size(), &nwrote);
 	    if (rc == 0)
 		m_body.erase(0, nwrote);
 	    else if (rc != EWOULDBLOCK)
@@ -282,15 +323,18 @@ unsigned int Client::Task::Run()
 
 	    if (!m_body.empty())
 	    {
-//		TRACE << "EWOULDBLOCK(sendbody), waiting for write\n";
-		WaitForWritable(m_socket);
+		WaitForWritable();
 		return 0;
 	    }
 	}
-
-	/// @todo Remove this once pooling implemented
-	m_socket->ShutdownWrite();
-
+	
+	/** @todo Remove this once pooling implemented
+	 *
+	 * For some reason, enabling this kills all SOAP access to WMP12. So
+	 * we remove it anyway.
+	m_socket.ShutdownWrite();
+	 */
+	
 	m_state = WAITING;
 	/* fall through */
 
@@ -298,15 +342,13 @@ unsigned int Client::Task::Run()
     {
 	unsigned int http_code;
 
-//	TRACE << "Waiting\n";
-
 	rc = m_parser.GetResponseLine(&http_code, NULL);
 	LOG(HTTP) << "GRL returned " << rc << "\n";
 	if (rc)
 	{
 	    if (rc == EWOULDBLOCK)
 	    {
-		WaitForReadable(m_socket);
+		WaitForReadable();
 		return 0;
 	    }
 	    m_target->OnDone(rc);
@@ -328,7 +370,7 @@ unsigned int Client::Task::Run()
 	    {
 		if (rc == EWOULDBLOCK)
 		{
-		    WaitForReadable(m_socket);
+		    WaitForReadable();
 		    return 0;
 		}
 		m_target->OnDone(rc);
@@ -412,13 +454,24 @@ unsigned int Client::Task::Run()
 	    if (lump)
 	    {
 		size_t nread;
-		rc = m_socket->Read(m_buffer.get() + m_buffer_fill,
+		m_line_reader.ReadLeftovers(m_buffer.get() + m_buffer_fill,
+					    lump, &nread);
+		m_buffer_fill += nread;
+		m_entity.transfer_length -= nread;
+		lump -= nread;
+//		TRACE << "Got " << nread << " bytes of body from leftovers\n";
+	    }
+
+	    if (lump)
+	    {
+		size_t nread;
+		rc = m_socket.Read(m_buffer.get() + m_buffer_fill,
 				    lump, &nread);
 		if (rc == EWOULDBLOCK)
 		{
 		    if (m_buffer_fill == 0)
 		    {
-			WaitForReadable(m_socket);
+			WaitForReadable();
 			return 0;
 		    }
 		}
@@ -441,30 +494,19 @@ unsigned int Client::Task::Run()
 		}
 	    }
 
-	    size_t nwrote;
-
-	    rc = m_target->Write(m_buffer.get(), m_buffer_fill, &nwrote);
-	    if (rc == EWOULDBLOCK)
+	    rc = m_target->OnData(m_buffer.get(), m_buffer_fill);
+	    if (rc)
 	    {
-		if (lump == 0)
-		{
-		    TRACE << "Waiting for body sink writability\n";
-		    WaitForWritable(m_target);
-		    return 0;
-		}
+		TRACE << "Body write failed (" << rc << ")\n";
+		return rc;
 	    }
-
-	    if (nwrote < m_buffer_fill)
-	    {
-		memmove(m_buffer.get(),
-			m_buffer.get() + nwrote, m_buffer_fill - nwrote);
-	    }
-	    m_buffer_fill -= nwrote;	   
+	    m_buffer_fill = 0;
 	}
 
 	LOG(HTTP_CLIENT) << "Done\n";
 
-	m_target->OnDone(0);
+	SendDone(0);
+	m_socket.Close();
 	m_target.reset(NULL);
 	m_entity.Clear();
 
@@ -481,7 +523,8 @@ unsigned int Client::Task::Run()
 	//     m_parent->PoolMe(this)
 
 	break;
-	
+
+    case UNINITIALISED:
     default:
 	assert(false);
 	break;
@@ -507,7 +550,7 @@ unsigned int Client::Task::Read(void *buffer, size_t len, size_t *pread)
 	return 0;
     }
 
-    unsigned int rc = m_socket->Read(buffer, len, pread);
+    unsigned int rc = m_socket.Read(buffer, len, pread);
     if (rc)
     {
 //	TRACE << "ct" << this << ": Read(" << m_socket
@@ -535,10 +578,30 @@ unsigned int Client::Task::Read(void *buffer, size_t len, size_t *pread)
 
 Client::Client()
 {
+#ifdef WIN32
+    OSVERSIONINFO osvi;
+    memset(&osvi, '\0', sizeof(osvi));
+    osvi.dwOSVersionInfoSize = sizeof(osvi);
+    GetVersionEx(&osvi);
+
+    m_useragent_header = (boost::format("User-Agent: Windows/%u.%u UPnP/1.0 " 
+				     PACKAGE_NAME "/" PACKAGE_VERSION "\r\n"
+			   ) % osvi.dwMajorVersion % osvi.dwMinorVersion).str();
+
+#else
+    struct utsname ubuf;
+
+    uname(&ubuf);
+
+    m_useragent_header
+	= util::Printf() << "User-Agent: "
+			 << ubuf.sysname << "/" << ubuf.release
+			 << " UPnP/1.0 " PACKAGE_NAME "/" PACKAGE_VERSION "\r\n";
+#endif
 }
 
 unsigned int Client::Connect(util::Scheduler *scheduler,
-			     ConnectionPtr target,
+			     RecipientPtr target,
 			     const std::string& url,
 			     const std::string& extra_headers,
 			     const std::string& body,
@@ -566,28 +629,20 @@ class EchoContentFactory: public util::http::ContentFactory
 public:
     bool StreamForPath(const util::http::Request *rq, util::http::Response *rs)
     {
-	util::StringStreamPtr ssp = util::StringStream::Create();
-	ssp->str() = rq->path;
-	rs->ssp = ssp;
+	rs->body_source.reset(new util::StringStream(rq->path));
 	return true;
     }
 };
 
-class TestObserver: public util::http::Connection
+class TestObserver: public util::http::Recipient
 {
     std::string m_reply;
-    util::http::ConnectionPtr m_stream;
     bool m_done;
 
 public:
     TestObserver()
 	: m_done(false)
     {
-    }
-
-    void SetStream(util::http::ConnectionPtr stream)
-    {
-	m_stream = stream;
     }
 
     const std::string& GetReply() const { return m_reply; }
@@ -597,10 +652,9 @@ public:
 //	TRACE << "Header '" << key << "' = '" << value << "'\n";
     }
     
-    unsigned Write(const void *buffer, size_t len, size_t *nwrote)
+    unsigned OnData(const void *buffer, size_t len)
     {
 	m_reply.append((const char*)buffer, len);
-	*nwrote = len;
 	return 0;
     }
 

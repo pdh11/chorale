@@ -7,25 +7,19 @@
 #define LIBUTIL_TRACE_H
 
 #include <string>
-#include "mutex.h"
-#include "attributes.h"
 
 namespace util {
 
 class Tracer
 {
-    static Mutex sm_mutex;
-    Mutex::Lock m_lock;
     bool m_emit;
-
 public:
     Tracer(const char *env_var, const char *file, unsigned int line);
     ~Tracer();
 
-    void Printf(const char *format, ...) const ATTRIBUTE_PRINTF(2,3);
+    void Printf(const char *format, ...) const;
 
-    // scoped_lock is noncopyable in older versions of Boost
-    Tracer(const Tracer& o) : m_lock(sm_mutex), m_emit(o.m_emit) {}
+    Tracer(const Tracer& other);
 };
 
 inline const Tracer& operator<<(const Tracer& n, const char* s) { n.Printf("%s",s?s:"NULL"); return n; }
@@ -157,13 +151,13 @@ struct NullTracer {
 };
 
 template<typename T>
-inline const NullTracer& operator<<(const NullTracer& n, T) { return n; }
+inline const NullTracer& operator<<(const NullTracer& n, const T&) { return n; }
 
 inline const NullTracer& operator<<(const NullTracer& n, int) { return n; }
 
 } // namespace util
 
-#ifdef WITH_DEBUG
+#if DEBUG
 #define TRACE ::util::Tracer(NULL, __FILE__, __LINE__)
 #define LOG(x) ::util::Tracer(::LOG_IMPL_ ##x, __FILE__, __LINE__)
 #define LOG_DECL(x) \

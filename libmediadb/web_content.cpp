@@ -1,8 +1,10 @@
 #include "web_content.h"
-#include "registry.h"
 #include "db.h"
 #include "schema.h"
+#include "registry.h"
 #include "libdb/query.h"
+#include "libdb/recordset.h"
+#include "libutil/counted_pointer.h"
 #include <stdio.h>
 
 namespace mediadb {
@@ -21,8 +23,8 @@ bool WebContent::StreamForPath(const util::http::Request *rq,
 	    db::RecordsetPtr rsp = qp->Execute();
 	    if (rsp && !rsp->IsEOF())
 	    {
-		rs->ssp = db->OpenRead(id);
-		switch (rsp->GetInteger(mediadb::CODEC))
+		rs->body_source = db->OpenRead(id);
+		switch (rsp->GetInteger(mediadb::AUDIOCODEC))
 		{
 		case mediadb::MP2: rs->content_type = "audio/x-mp2"; break;
 		case mediadb::MP3: rs->content_type = "audio/mpeg"; break;

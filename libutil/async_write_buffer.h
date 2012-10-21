@@ -8,24 +8,27 @@ namespace util {
 class TaskQueue;
 
 /** Buffers writes into big lumps and does them on a background thread
+ *
+ * Non-streaming (non-consecutive) writes still work, but are less efficient
+ * (probably synchronous).
  */
-class AsyncWriteBuffer: public Stream
+class AsyncWriteBuffer: public SeekableStream
 {
     class Impl;
     Impl *m_impl;
 
-    explicit AsyncWriteBuffer(SeekableStreamPtr, TaskQueue *queue);
-    ~AsyncWriteBuffer();
-
 public:
-    static unsigned Create(SeekableStreamPtr backingstream,
-			   TaskQueue *queue,
-			   StreamPtr *result)
-	ATTRIBUTE_WARNUNUSED;
+    AsyncWriteBuffer(Stream *backing_stream, TaskQueue *queue);
+    ~AsyncWriteBuffer();
     
-    // Being a Stream
-    unsigned Read(void *buffer, size_t len, size_t *pread);
-    unsigned Write(const void *buffer, size_t len, size_t *pwrote);
+    // Being a SeekableStream
+    uint64_t GetLength();
+    unsigned SetLength(uint64_t);
+    unsigned ReadAt(void *buffer, uint64_t pos, size_t len, size_t *pread);
+    unsigned WriteAt(const void *buffer, uint64_t pos, size_t len, 
+		     size_t *pwrote);
+
+    unsigned GetStreamFlags() const { return READABLE|WRITABLE|SEEKABLE; }
 };
 
 } // namespace util

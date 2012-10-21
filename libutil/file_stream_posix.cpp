@@ -1,7 +1,6 @@
 #include "config.h"
 #include "file_stream_posix.h"
 #include "trace.h"
-#include "stream_test.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -56,7 +55,7 @@ FileStream::~FileStream()
 	close(m_fd);
 }
 
-unsigned FileStream::ReadAt(void *buffer, pos64 pos, size_t len, 
+unsigned FileStream::ReadAt(void *buffer, uint64_t pos, size_t len, 
 			    size_t *pnread)
 {
 #if HAVE_PREAD64
@@ -70,11 +69,15 @@ unsigned FileStream::ReadAt(void *buffer, pos64 pos, size_t len,
 	*pnread = 0;
 	return (unsigned)errno;
     }
+    if (rc == 0)
+    {
+	TRACE << "FS::Read EOF at pos=" << pos << "\n";
+    }
     *pnread = (size_t)rc;
     return 0;
 }
 
-unsigned FileStream::WriteAt(const void *buffer, pos64 pos, size_t len, 
+unsigned FileStream::WriteAt(const void *buffer, uint64_t pos, size_t len, 
 			     size_t *pwrote)
 {
 #if HAVE_PWRITE64
@@ -85,11 +88,12 @@ unsigned FileStream::WriteAt(const void *buffer, pos64 pos, size_t len,
     if (rc < 0)
     {
 	*pwrote = 0;
+	TRACE << "FS::Write failed " << errno << "\n";
 	return (unsigned)errno;
     }
 
 #if HAVE_SYNC_FILE_RANGE
-    const pos64 PAGE_SIZE = 4096; // A plausible guess
+    const uint64_t PAGE_SIZE = 4096; // A plausible guess
 
     if ((m_mode & SEQUENTIAL) && (pos+rc >= PAGE_SIZE))
 	sync_file_range(m_fd, 0, (pos+rc) & ~(PAGE_SIZE-1), 
@@ -101,22 +105,23 @@ unsigned FileStream::WriteAt(const void *buffer, pos64 pos, size_t len,
     return 0;
 }
 
-SeekableStream::pos64 FileStream::GetLength()
+uint64_t FileStream::GetLength()
 {
     struct stat st;
     int rc = fstat(m_fd, &st);
     if (rc < 0)
 	return 0;
-    return (pos64)st.st_size;
+    return (uint64_t)st.st_size;
 }
 
-unsigned FileStream::SetLength(pos64 len)
+unsigned FileStream::SetLength(uint64_t len)
 {
     int rc = ftruncate(m_fd, (off_t)len);
     if (rc<0)
 	return (unsigned)errno;
     if (Tell() > len)
 	Seek(len);
+    posix_fallocate(m_fd, 0, len);
     return 0;
 }
 
@@ -128,14 +133,16 @@ unsigned FileStream::SetLength(pos64 len)
 
 #ifdef TEST
 
+# include "stream_test.h"
+
 int main()
 {
-    util::SeekableStreamPtr msp;
+    std::auto_ptr<util::Stream> msp;
 
     unsigned int rc = util::OpenFileStream("test.tmp", util::TEMP, &msp);
     assert(rc == 0);
 
-    TestSeekableStream(msp);
+    TestSeekableStream(msp.get());
 
     return 0;
 }

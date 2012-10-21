@@ -18,8 +18,17 @@ man pages (!)
 more doxy comments
 DVB-T recording conflicts
 gateway UPnP server to Receiver clients
-investigate optimisation with throw()
 asynchronous stream (GetPollHandle) + sync-to-async wrapper for remote CD rip
+  Problem here is that ripper will be doing WaitForReadable, but during async
+    connect the right call is WaitForWritable. Return EWAITREAD/EWAITWRITE
+      instead of EWOULDBLOCK? Or give Pollable itself a method Wait(Callback)?
+        What if you're EWOULDBLOCK because you want to wait on a condition?
+	  Scheduler should have WaitForEvent(const Callback&, Event*) where
+	    Event is an HEVENT on Win32 and a pipe (or eventfd) on posix. But
+              how does client of Stream know whether to wait on event or fd?
+                Pollable having Wait(Scheduler&,Callback&) seems too coupled.
+		  Pollable::GetEvent/GetPollHandle, where GPH also returns
+		    direction?
 Convert EncodingTask to PollableTask (wait for readability)
 Rewrite http::Stream in terms of http::Client
 Pass a name mapper to Synchronise for carv2/Jupiter (UTF8->Latin1)
@@ -27,16 +36,15 @@ Split out libcd (+libcdupnp) from libimport, find better name for what's left?
 Writable db::local
 Writable db::upnp
 If Queue'd URLs refer to localhost, rewrite ITO IP as seen by target
-MultiStream could be a LOT simpler now, see tv::dvb::Service::CountedStream
 Pool http::Clients
-Let util::http::ContentFactory return *either* Stream or SeekableStream
-  (receiverd::ContentFactory knows which 'cos of type==radio)
 Fix dvb_recording test vs frontend retuning
 Figure out how DVB icons and "DAB-like" messages work (DVB-SI?)
 Finish libisam (move next)
-FileScannerThread really doesn't need its own thread
 Transfer-Encoding: chunked
 Digest auth
+Investigate shocking memory leak on CD rip!
+Tag early and retag later only if needed
+Allow streaming reads/writes of huge UPnP strings (StringSink?)
 
   2.0
   ---
@@ -54,6 +62,5 @@ i18n (gettext)
 libreceiverd: split RCF into separate content-factories
 libutil: boost::asio instead of class Socket? (no, can't use ui::qt::Scheduler)
 libutil: bind.h instead of Task::Run/OnActivity/OnTimer?
-How much Boost do we lose out on if we insist on -fno-rtti -fno-exceptions?
 new empeg receiver distribution (freetype, ...)
 Turn Stream/SeekableStream into BufferPtr factories?

@@ -11,30 +11,31 @@ namespace util {
 
 class PartialSeekableStream: public SeekableStream
 {
-    SeekableStreamPtr m_stream;
-    pos64 m_begin;
-    pos64 m_end;
+    Stream* m_stream;
+    uint64_t m_begin;
+    uint64_t m_end;
 
 public:
-    PartialSeekableStream(SeekableStreamPtr, pos64, pos64);
+    PartialSeekableStream(Stream*, uint64_t, uint64_t);
 
     // Being a SeekableStream
-    unsigned ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread);
-    unsigned WriteAt(const void *buffer, pos64 pos, size_t len, 
+    unsigned int GetStreamFlags() const { return m_stream->GetStreamFlags(); }
+    unsigned ReadAt(void *buffer, uint64_t pos, size_t len, size_t *pread);
+    unsigned WriteAt(const void *buffer, uint64_t pos, size_t len, 
 		     size_t *pwrote);
-    pos64 GetLength();
-    unsigned SetLength(pos64);
+    uint64_t GetLength();
+    unsigned SetLength(uint64_t);
 
-    util::PollHandle GetHandle() { return m_stream->GetHandle(); }
+    int GetHandle() { return m_stream->GetHandle(); }
 };
 
-PartialSeekableStream::PartialSeekableStream(SeekableStreamPtr s, pos64 begin,
-					     pos64 end)
+PartialSeekableStream::PartialSeekableStream(Stream *s, uint64_t begin,
+					     uint64_t end)
     : m_stream(s), m_begin(begin), m_end(end)
 {
 }
 
-unsigned PartialSeekableStream::ReadAt(void *buffer, pos64 pos, size_t len, 
+unsigned PartialSeekableStream::ReadAt(void *buffer, uint64_t pos, size_t len, 
 				       size_t *pread)
 {
 //    TRACE << "PSRA pos=" << pos << " len=" << len << " m_end=" << m_end << "\n";
@@ -44,7 +45,7 @@ unsigned PartialSeekableStream::ReadAt(void *buffer, pos64 pos, size_t len,
     return rc;
 }
 
-unsigned PartialSeekableStream::WriteAt(const void *buffer, pos64 pos, 
+unsigned PartialSeekableStream::WriteAt(const void *buffer, uint64_t pos, 
 					size_t len, size_t *pwrote)
 {
     if (pos + len + m_begin > m_end)
@@ -53,12 +54,12 @@ unsigned PartialSeekableStream::WriteAt(const void *buffer, pos64 pos,
     return rc;
 }
 
-SeekableStream::pos64 PartialSeekableStream::GetLength()
+uint64_t PartialSeekableStream::GetLength()
 {
     return m_end - m_begin;
 }
 
-unsigned PartialSeekableStream::SetLength(pos64)
+unsigned PartialSeekableStream::SetLength(uint64_t)
 {
     return EINVAL;
 }
@@ -69,20 +70,21 @@ unsigned PartialSeekableStream::SetLength(pos64)
 
 class PartialStream: public Stream
 {
-    StreamPtr m_stream;
+    Stream* m_stream;
     unsigned long long m_length;
 
 public:
-    PartialStream(StreamPtr, unsigned long long len);
+    PartialStream(Stream*, uint64_t len);
 
     // Being a Stream
+    unsigned int GetStreamFlags() const { return m_stream->GetStreamFlags(); }
     unsigned Read(void *buffer, size_t len, size_t *pread);
     unsigned Write(const void *buffer, size_t len, size_t *pwrote);
 
-    util::PollHandle GetHandle() { return m_stream->GetHandle(); }
+    int GetHandle() { return m_stream->GetHandle(); }
 };
 
-PartialStream::PartialStream(StreamPtr s, unsigned long long length)
+PartialStream::PartialStream(Stream *s, uint64_t length)
     : m_stream(s), m_length(length)
 {
 }
@@ -119,16 +121,17 @@ unsigned PartialStream::Write(const void *buffer, size_t len, size_t *pwrote)
         /* Exposed functions */
 
 
-StreamPtr CreatePartialStream(StreamPtr s, unsigned long long length)
+std::auto_ptr<Stream> CreatePartialStream(Stream *s, uint64_t begin,
+					  uint64_t end)
 {
-    return StreamPtr(new PartialStream(s, length));
-}
+    std::auto_ptr<Stream> r;
 
-SeekableStreamPtr CreatePartialStream(SeekableStreamPtr s, 
-				      unsigned long long begin,
-				      unsigned long long end)
-{
-    return SeekableStreamPtr(new PartialSeekableStream(s,begin,end));
+    if (s->GetStreamFlags() & Stream::SEEKABLE)
+	r.reset(new PartialSeekableStream(s, begin, end));
+    else
+	r.reset(new PartialStream(s, end));
+
+    return r;
 }
 
 } // namespace util
@@ -139,19 +142,18 @@ SeekableStreamPtr CreatePartialStream(SeekableStreamPtr s,
 
 int main(int, char*[])
 {
-    util::StringStreamPtr ss1 = util::StringStream::Create();
-    ss1->str() = "ABCDEFGHIJ";
+    util::StringStream ss1("ABCDEFGHIJ");
 
-    util::SeekableStreamPtr ps = util::CreatePartialStream(ss1, 4, 8);
+    std::auto_ptr<util::Stream> ps = util::CreatePartialStream(&ss1, 4, 8);
 
-    util::StringStreamPtr ss2 = util::StringStream::Create();
+    util::StringStream ss2;
 
-    unsigned int rc = CopyStream(ps.get(), ss2.get());
+    unsigned int rc = CopyStream(ps.get(), &ss2);
 
-//    TRACE << "Expect 'EFGH', got '" << ss2->str() << "'\n";
+//    TRACE << "Expect 'EFGH', got '" << ss2.str() << "'\n";
 
     assert(rc == 0);
-    assert(ss2->str() == "EFGH");
+    assert(ss2.str() == "EFGH");
     return 0;
 }
 

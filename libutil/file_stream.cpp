@@ -1,7 +1,7 @@
 #include "file_stream.h"
 #include "file_stream_posix.h"
 #include "file_stream_win32.h"
-#include "stream_test.h"
+#include "counted_pointer.h"
 
 namespace util {
 
@@ -12,7 +12,7 @@ using posix::FileStream;
 #endif
 
 unsigned int OpenFileStream(const char *filename, unsigned int mode,
-			    SeekableStreamPtr *pstm)
+			    std::auto_ptr<Stream> *pstm)
 {
     FileStream *f = new FileStream();
 
@@ -23,7 +23,7 @@ unsigned int OpenFileStream(const char *filename, unsigned int mode,
 	return rc;
     }
 
-    *pstm = SeekableStreamPtr(f);
+    pstm->reset(f);
 
     return 0;
 }
@@ -31,15 +31,16 @@ unsigned int OpenFileStream(const char *filename, unsigned int mode,
 } // namespace util
 
 #ifdef TEST
+# include "stream_test.h"
 
 int main()
 {
-    util::SeekableStreamPtr msp;
+    std::auto_ptr<util::Stream> msp;
 
     unsigned int rc = util::OpenFileStream("test2.tmp", util::TEMP, &msp);
     assert(rc == 0);
 
-    TestSeekableStream(msp);
+    TestSeekableStream(msp.get());
 
     return 0;
 }

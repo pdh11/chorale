@@ -3,19 +3,19 @@
 #include "libutil/file.h"
 #include "libutil/utf8.h"
 #include "libutil/trace.h"
-#include "libutil/http_fetcher.h"
+#include "libutil/http.h"
 #include "libutil/counted_pointer.h"
-#include <boost/format.hpp>
+#include "libutil/printf.h"
 #include <locale.h>
 #include <string.h>
 
 namespace import {
 
-unsigned int PlaylistPLS::Load()
+unsigned int PlaylistPLS::Load(const std::string& filename,
+			       std::list<std::string> *entries)
 {
-    util::SeekableStreamPtr ss;
-    unsigned int rc = util::OpenFileStream(GetFilename().c_str(), util::READ,
-					   &ss);
+    std::auto_ptr<util::Stream> ss;
+    unsigned int rc = util::OpenFileStream(filename.c_str(), util::READ, &ss);
     if (rc)
 	return rc;
 
@@ -36,11 +36,12 @@ unsigned int PlaylistPLS::Load()
 	    {
 		if (util::http::IsHttpURL(ptr+1))
 		{
-		    AppendEntry(ptr+1);
+		    entries->push_back(ptr+1);
 		}
 		else
 		{
-		    AppendEntry(util::MakeAbsolutePath(GetFilename(), ptr+1));
+		    entries->push_back(util::MakeAbsolutePath(filename,
+							      ptr+1));
 		}
 	    }
 	}
@@ -50,31 +51,34 @@ unsigned int PlaylistPLS::Load()
     return 0;
 }
 
-unsigned int PlaylistPLS::Save()
+unsigned int PlaylistPLS::Save(const std::string& filename,
+			       const std::list<std::string> *entries)
 {
-    util::SeekableStreamPtr ss;
-    unsigned int rc = util::OpenFileStream(GetFilename().c_str(), util::WRITE,
-					   &ss);
+    std::auto_ptr<util::Stream> ss;
+    unsigned int rc = util::OpenFileStream(filename.c_str(), util::WRITE, &ss);
     
     if (rc)
 	return rc;
 
     rc = ss->WriteString("[playlist]\n");
     if (!rc)
-	rc = ss->WriteString((boost::format("numberofentries=%u\n")
-			     % GetLength()).str());
+	rc = ss->WriteString(util::Printf() << "numberofentries="
+			     << entries->size() << "\n");
     if (rc)
 	return rc;
 
-    for (unsigned int i=0; i < GetLength(); ++i)
+    unsigned int n=0;
+    for (std::list<std::string>::const_iterator i = entries->begin();
+	 i != entries->end();
+	 ++i)
     {
-	std::string s = util::UTF8ToLocalEncoding(GetEntry(i).c_str());
+	std::string s = util::UTF8ToLocalEncoding(i->c_str());
 
 	if (!util::http::IsHttpURL(s))
-	    s = util::MakeRelativePath(GetFilename(), s);
-
-	rc = ss->WriteString((boost::format("File%u=%s\n")
-			      % (i+1) % s).str());
+	    s = util::MakeRelativePath(filename, s);
+	
+	rc = ss->WriteString(util::Printf() << "File" << ++n
+			     << "=" << s << "\n");
 	if (rc)
 	    return rc;
     }
@@ -85,6 +89,9 @@ unsigned int PlaylistPLS::Save()
 } // namespace import
 
 #ifdef TEST
+
+# include "playlist.h"
+# include "libutil/http.h"
 
 static const char *const tests[] = {
     "sibling.mp3",
@@ -100,46 +107,45 @@ enum { TESTS = sizeof(tests)/sizeof(tests[0]) };
 
 void DoAllTests()
 {
-//    const char *loc = setlocale(LC_ALL, NULL);
-//    if (loc)
-//	TRACE << "Locale: " << loc << "\n";
+    std::string name = util::Canonicalise("test.pls");
+    import::Playlist pp;
 
-    std::string plsname = util::Canonicalise("test.pls");
-    import::PlaylistPtr pp = import::Playlist::Create(plsname);
+    unsigned int rc = pp.Init(name);
+    assert(rc == 0);
+
+    std::list<std::string> entries;
 
     for (unsigned int i=0; i<TESTS; ++i)
     {
-	if (!strncmp(tests[i], "http://", 7))
-	    pp->SetEntry(i, tests[i]);
+	if (util::http::IsHttpURL(tests[i]))
+	    entries.push_back(tests[i]);
 	else
-	    pp->SetEntry(i, util::MakeAbsolutePath(plsname, tests[i]));
+	    entries.push_back(util::MakeAbsolutePath(name, tests[i]));
     }
-    unsigned int rc = pp->Save();
+    rc = pp.Save(&entries);
     assert(rc == 0);
 
-    pp = NULL;
-    pp = import::Playlist::Create(plsname);
-    rc = pp->Load();
+    entries.clear();
+
+    rc = pp.Load(&entries);
     assert(rc == 0);
 
-    assert(pp->GetLength() == TESTS);
+    assert(entries.size() == TESTS);
 
     for (unsigned int i=0; i<TESTS; ++i)
     {
 	if (!strncmp(tests[i], "http://", 7))
 	{
-	    assert(pp->GetEntry(i) == tests[i]);
+	    assert(entries.front() == tests[i]);
 	}
 	else
 	{
-	    assert(pp->GetEntry(i) == util::MakeAbsolutePath(plsname, 
-							     tests[i]));
+	    assert(entries.front() == util::MakeAbsolutePath(name, tests[i]));
 	}
+	entries.pop_front();
     }
-
-    pp = NULL;
     
-    unlink(plsname.c_str());
+    unlink(name.c_str());
 }
 
 int main()

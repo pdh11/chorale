@@ -4,22 +4,22 @@
 #include "libdb/query.h"
 
 namespace db {
-namespace upnpav {
+namespace upnp {
 
-class Database;
+class Connection;
 
 class Query: public db::Query
 {
-    Database *m_parent;
+    Connection *m_connection;
 
     std::string QueryElement(ssize_t);
     
 public:
-    explicit Query(Database *parent) : m_parent(parent) {}
+    explicit Query(Connection *parent) : m_connection(parent) {}
 
     // Being a Query
-    RecordsetPtr Execute();
-    unsigned int CollateBy(field_t which);
+    util::CountedPointer<db::Recordset> Execute();
+    unsigned int CollateBy(unsigned int which);
 };
 
 } // namespace upnpav

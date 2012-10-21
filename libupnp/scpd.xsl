@@ -79,6 +79,7 @@
       <xsl:when test="$type='ui1'">uint8_t</xsl:when>
       <xsl:when test="$type='i2'">int16_t</xsl:when>
       <xsl:when test="$type='ui2'">uint16_t</xsl:when>
+      <xsl:when test="$type='int'">int32_t</xsl:when>
       <xsl:when test="$type='i4'">int32_t</xsl:when>
       <xsl:when test="$type='ui4'">uint32_t</xsl:when>
       <xsl:when test="$type='uri'">std::string</xsl:when>
@@ -99,6 +100,7 @@
       <xsl:when test="$type='ui1'">uint8_t</xsl:when>
       <xsl:when test="$type='i2'">int16_t</xsl:when>
       <xsl:when test="$type='ui2'">uint16_t</xsl:when>
+      <xsl:when test="$type='int'">int32_t</xsl:when>
       <xsl:when test="$type='i4'">int32_t</xsl:when>
       <xsl:when test="$type='ui4'">uint32_t</xsl:when>
       <xsl:when test="$type='uri'">const std::string&amp;</xsl:when>
@@ -244,17 +246,15 @@ class <xsl:value-of select="$class"/>Server: public Service, public <xsl:value-o
 
 public:
     <xsl:value-of select="$class"/>Server(Device *device, const char *service_id, const char *type, const char *scpdurl, <xsl:value-of select="$class"/> *impl)
-        : Service(device, service_id, type, scpdurl),
+        : Service(device, service_id, type, scpdurl, &amp;<xsl:value-of select="$class"/>::sm_data),
           m_impl(impl)
     {
         m_impl->AddObserver(this);
     }
 
     // Being a soap::Server
-    unsigned int OnAction(const char *name, const soap::Inbound&amp; in,
-                          soap::Outbound *out);
-    // Being a upnp::Service
-    void GetEventedVariables(soap::Outbound*);
+    unsigned int OnAction(unsigned int which, const soap::Params&amp; in,
+                          soap::Params *out);
 
     // Being a <xsl:value-of select="$class"/>Observer <xsl:for-each select="//stateVariable">
         <xsl:if test="sendEventsAttribute='yes'">
@@ -330,6 +330,7 @@ unsigned int <xsl:value-of select="$class"/>Server::OnAction(const char *name, c
       <xsl:when test="$type='ui1'">(uint8_t)in.GetUInt</xsl:when>
       <xsl:when test="$type='i2'">(short)in.GetInt</xsl:when>
       <xsl:when test="$type='ui2'">(unsigned short)in.GetUInt</xsl:when>
+      <xsl:when test="$type='int'">in.GetInt</xsl:when>
       <xsl:when test="$type='i4'">in.GetInt</xsl:when>
       <xsl:when test="$type='ui4'">in.GetUInt</xsl:when>
       <xsl:when test="$type='uri' or $type='string'">in.GetString</xsl:when>
@@ -551,7 +552,7 @@ void <xsl:value-of select="$class"/>Client::OnEvent(const char *var, const std::
           <xsl:variable name="type" select="dataType"/>if (!strcmp(var, &quot;<xsl:value-of select="name"/>&quot;))
         Fire(&amp;<xsl:value-of select="$class"/>Observer::On<xsl:value-of select="name"/>, <xsl:choose>
         <xsl:when test="$type='boolean'">GenaBool(value)</xsl:when>
-        <xsl:when test="$type='i2'or $type='i4'">GenaInt(value)</xsl:when>
+        <xsl:when test="$type='i2'or $type='i4' or $type='int'">GenaInt(value)</xsl:when>
         <xsl:when test="$type='ui2' or $type='ui4'">GenaUInt(value)</xsl:when>
         <xsl:when test="$type='uri' or $type='string'">value</xsl:when>
           <xsl:otherwise><xsl:value-of select="$type"/></xsl:otherwise>
@@ -603,24 +604,6 @@ unsigned int <xsl:value-of select="$class"/>::<xsl:value-of select="$getter"/>(<
     </xsl:for-each>
 </xsl:if>
 <xsl:if test="$ss">
-
-void <xsl:value-of select="$class"/>Server::GetEventedVariables(soap::Outbound *vars)
-{
-  <xsl:for-each select="//stateVariable">
-    <xsl:if test="not(contains(name,'A_ARG_TYPE')) and sendEventsAttribute='yes'">
-      <xsl:variable name="getter" select="concat('Get',name)"/>
-      <xsl:if test="not(//action[name=$getter])">
-    {
-        <xsl:call-template name="cpptype">
-        <xsl:with-param name="type" select="dataType"/>
-        </xsl:call-template> val;
-        if (m_impl-><xsl:value-of select="$getter"/>(&amp;val) == 0)
-            vars->Add("<xsl:value-of select="name"/>", val);
-    }
-</xsl:if>
-    </xsl:if>
-  </xsl:for-each>
-}
 
 </xsl:if>
 

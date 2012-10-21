@@ -3,12 +3,12 @@
 
 #include "counted_object.h"
 #include <stddef.h>
-#include "bind.h"
-#include "counted_pointer.h"
+#include <string>
 
 namespace util {
 
 template <class T> class CountedPointer;
+template <class T> class PtrCallback;
 
 class Task;
 
@@ -29,6 +29,7 @@ public:
  */
 class Task: public util::CountedObject<util::PerObjectRecursiveLocking>
 {
+    std::string m_name;
     TaskObserver *m_observer;
     bool m_done;
 
@@ -38,10 +39,14 @@ protected:
 
 public:
     Task();
+    explicit Task(const std::string& name);
+
     virtual ~Task() {}
     virtual unsigned int Run() = 0; ///< Remove this once TaskCallback is everywhere
     virtual void Cancel() {} // NYI
     void SetObserver(TaskObserver*);
+
+    const std::string& Name() const { return m_name; }
 };
 
 typedef util::CountedPointer<Task> TaskPtr;

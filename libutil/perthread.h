@@ -3,7 +3,6 @@
 #define LIBUTIL_PERTHREAD_H 1
 
 #include <pthread.h>
-#include "libutil/trace.h"
 
 namespace util {
 
@@ -28,9 +27,9 @@ public:
        
     ~PerThread()
     {
-	TRACE << "Calling pthread_key_delete\n";
+//	TRACE << "Calling pthread_key_delete\n";
 	pthread_key_delete(m_key);
-	TRACE << "pthread_key_delete done\n";
+//	TRACE << "pthread_key_delete done\n";
     }
     
     T *Get() const

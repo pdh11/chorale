@@ -175,7 +175,7 @@ void ChildrenToVector(const std::string& children_field,
 
 #ifdef TEST
 
-static void Test(const std::vector<unsigned int> in)
+static void Test(const std::vector<unsigned int>& in)
 {
     std::string s = mediadb::VectorToChildren(in);
     std::vector<unsigned int> out;

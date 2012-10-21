@@ -3,7 +3,6 @@
 
 #include "socket.h"
 #include "stream.h"
-#include "counted_pointer.h"
 #include <string>
 
 namespace util {
@@ -25,10 +24,10 @@ class Stream: public util::SeekableStream
     IPEndPoint m_ipe;
     std::string m_host;
     std::string m_path;
-    StreamSocketPtr m_socket;
-    pos64 m_len;
+    StreamSocket m_socket;
+    uint64_t m_len;
     bool m_need_fetch;
-    pos64 m_last_pos;
+    uint64_t m_last_pos;
 
     Stream(Client *client, const IPEndPoint& ipe, const std::string& host,
 	   const std::string& path);
@@ -36,22 +35,20 @@ class Stream: public util::SeekableStream
 public:
     ~Stream();
 
-    typedef util::CountedPointer< ::util::http::Stream> StreamPtr;
-
-    static unsigned Create(StreamPtr*, Client *client, const char *url);
+    static unsigned Create(std::auto_ptr<util::Stream>*, Client *client,
+			   const char *url);
 
     // Being a Pollable
-    PollHandle GetHandle() { return m_socket->GetHandle(); }
+    int GetHandle() { return m_socket.GetHandle(); }
 
     // Being a SeekableStream
-    unsigned ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread);
-    unsigned WriteAt(const void *buffer, pos64 pos, size_t len, 
+    unsigned GetStreamFlags() const { return READABLE|SEEKABLE|POLLABLE; }
+    unsigned ReadAt(void *buffer, uint64_t pos, size_t len, size_t *pread);
+    unsigned WriteAt(const void *buffer, uint64_t pos, size_t len, 
 		     size_t *pwrote);
-    pos64 GetLength();
-    unsigned SetLength(pos64);
+    uint64_t GetLength();
+    unsigned SetLength(uint64_t);
 };
-
-typedef util::CountedPointer<Stream> StreamPtr;
 
 } // namespace http
 

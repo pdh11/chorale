@@ -1,11 +1,11 @@
 #ifndef LINE_READER_H
 #define LINE_READER_H 1
 
-#include "stream.h"
-#include "counted_pointer.h"
 #include <string>
 
 namespace util {
+
+class Stream;
 
 /** Returns single lines of text from a Stream.
  *
@@ -28,14 +28,14 @@ public:
  */
 class GreedyLineReader: public LineReader
 {
-    StreamPtr m_stream;
+    Stream *m_stream;
     size_t m_buffered;
 
     enum { MAX_LINE = 1024 };
     char m_buffer[MAX_LINE];
 
 public:
-    explicit GreedyLineReader(StreamPtr);
+    explicit GreedyLineReader(Stream*);
 
     /** Repeatedly Read()s the stream until CR, LF, EOF, or maximum.
      */
@@ -44,9 +44,10 @@ public:
     /** Returns anything that hasn't been assembled into a line yet.
      *
      * Because this is a greedy line-reader, and can't peek ahead in
-     * the stream, there might be quite a lot of this.
+     * the stream, there might be quite a lot of this (up to nearly
+     * MAX_LINE bytes).
      */
-    const char *GetLeftovers(size_t *nbytes);
+    void ReadLeftovers(void *buffer, size_t n, size_t *nread);
 };
 
 } // namespace util

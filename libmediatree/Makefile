@@ -2,6 +2,7 @@ TOP?=../
 DIR:=libmediatree/
 SRCS:=\
 	directory.cpp \
+	node.cpp \
 	query.cpp \
 	results.cpp \
 	root.cpp

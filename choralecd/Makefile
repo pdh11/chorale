@@ -113,6 +113,7 @@ endif
 ifeq ($(QT),yes)
 
 $(libchoralecd): $(CHORALECD_OBJS)
+	rm -f $@
 	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(CHORALECD_OBJS)
 
@@ -125,7 +126,8 @@ $(choralecd): $(libchoralecd) $(libutil) $(libimport) $(libdbreceiver) \
 		$(libdbsteam) $(libdb) $(liboutput) $(libuiqt) \
 		$(CHORALECD_RESOURCES)
 	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
-		$(CXX) -o $@ $(TOP)$(CHORALECD_DIR)$(TARGETDIR)choralecd.lo \
+		$(CXX) -o $@ $(LDFLAGS) \
+		$(TOP)$(CHORALECD_DIR)$(TARGETDIR)choralecd.lo \
 		$(CHORALECD_RESOURCES) \
 		$(libchoralecd) $(libuiqt) \
 		$(libmediatree) $(libdbupnp) $(libimport) $(libdbempeg) \
@@ -138,20 +140,28 @@ $(choralecd): $(libchoralecd) $(libutil) $(libimport) $(libdbreceiver) \
 		-Wl,-Map,map-choralecd-$(FULLTARGET).txt
 ifneq ($(FINAL),no)
 	@$(RM) $@
-	@grep ^$(TOP)[a-z].*\.a\( map-choralecd-$(FULLTARGET).txt | sed -e 's,/obj-.*[\(],/,' -e 's,.o[\)],.cpp",' -e 's,^,#include ",' | \
+	@grep ^$(TOP)[a-z].*\.a\( map-choralecd-$(FULLTARGET).txt | sed -e 's,/obj-.*[\(],/,' -e 's,.o[\)],.cpp",' -e 's,^,#include ",' -e 's,/[a-z0-9_]*.moc.cpp,/obj-$(FULLTARGET)&,' | \
 		grep -v tcp_wrappers_c.c | grep -v mutex.cpp | \
 		grep -v search.cpp | sort \
-		 > $(TOP)choralecd/all-$(FULLTARGET).h
+		 > $(TOP)choralecd/all-$(FULLTARGET).cpp
+	@$(CXX) $(CXXFLAGS) -I$(TOP). \
+		-include $(TOP)choralecd/all-$(FULLTARGET).cpp \
+		-c $(TOP)choralecd/choralecd.cpp \
+		-o $(TOP)choralecd/all-$(FULLTARGET).i \
+		-fwhole-program $(BOOST_CXXFLAGS) \
+		$(TAGLIB_CXXFLAGS) -E -C -dD \
+		$(DBUS_CXXFLAGS) $(HAL_CXXFLAGS) $(GSTREAMER_CXXFLAGS) &
 	$(CC_PRE)libtool --tag=CXX --mode=compile --silent \
 		$(CXX) $(CXXFLAGS) -I$(TOP). \
-		-include $(TOP)choralecd/all-$(FULLTARGET).h \
+		-include $(TOP)choralecd/all-$(FULLTARGET).cpp \
 		-c $(TOP)choralecd/choralecd.cpp \
 		-o $(TOP)choralecd/$(TARGETDIR)all-cpp.lo \
 		-fwhole-program $(BOOST_CXXFLAGS) \
 		$(TAGLIB_CXXFLAGS) \
 		$(DBUS_CXXFLAGS) $(HAL_CXXFLAGS) $(GSTREAMER_CXXFLAGS)
 	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
-		$(CXX) -o $@ $(TOP)choralecd/$(TARGETDIR)all-cpp.lo \
+		$(CXX) -o $@ $(LDFLAGS) \
+		$(TOP)choralecd/$(TARGETDIR)all-cpp.lo \
 		$(CHORALECD_RESOURCES) \
 		-Wl,-Map,map-choralecd-$(FULLTARGET)-final.txt \
 		$(libchoralecd) $(libuiqt) \
@@ -173,7 +183,8 @@ $(cloud): $(libchoralecd) $(libutil) $(libimport) $(libdbreceiver) \
 		$(libdbsteam) $(libdb) $(liboutput) $(libuiqt) \
 		$(CHORALECD_RESOURCES)
 	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
-		$(CXX) -o $@ $(TOP)$(CHORALECD_DIR)$(TARGETDIR)cloud.lo \
+		$(CXX) -o $@ $(LDFLAGS) \
+		$(TOP)$(CHORALECD_DIR)$(TARGETDIR)cloud.lo \
 		$(CHORALECD_RESOURCES) \
 		$(libchoralecd) $(libuiqt) \
 		$(libmediatree) $(libdbupnp) $(libimport) $(libdbempeg) \
@@ -189,13 +200,15 @@ $(cloud): $(libchoralecd) $(libutil) $(libimport) $(libdbreceiver) \
 $(tageditor): $(libchoralecd) $(libutil) $(libimport) $(libdblocal) $(libdb) \
 		$(libuiqt) $(libmediatree) $(libdbsteam) $(CHORALECD_RESOURCES)
 	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
-		$(CXX) -o $@ $(TOP)$(CHORALECD_DIR)$(TARGETDIR)tageditor.lo \
+		$(CXX) -o $@ $(LDFLAGS) \
+		$(TOP)$(CHORALECD_DIR)$(TARGETDIR)tageditor.lo \
 		$(CHORALECD_RESOURCES) \
 		$(libchoralecd) $(libuiqt) \
 		$(libmediatree) \
 		$(libmediadb) $(libdblocal) \
 		$(libdbsteam) $(libdb) $(libimport) \
 		$(libutil) \
+		$(LIBCDIOP_LIBS) $(LIBCDDB_LIBS) \
 		$(TAGLIB_LIBS) $(BOOST_LIBS) $(QT_LIBS) $(LIBS)
 
 else

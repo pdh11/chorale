@@ -1,15 +1,17 @@
-#include "config.h"
 #include "didl.h"
+#include "config.h"
 #include "libutil/trace.h"
 #include "db.h"
 #include "schema.h"
 #include "libdb/query.h"
+#include "libdb/recordset.h"
 #include "libutil/xmlescape.h"
 #include "libutil/xml.h"
 #include "libutil/string_stream.h"
 #include "libutil/http_client.h"
+#include "libutil/printf.h"
+#include "libutil/counted_pointer.h"
 #include <stdio.h>
-#include <boost/format.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
 #include <sstream>
@@ -98,7 +100,8 @@ MetadataList Parse(const std::string& xml)
     MetadataList results;
     ParserObserver po(&results);
     xml::SaxParser parser(&po);
-    parser.Parse(util::StringStream::Create(xml));
+    util::StringStream ss(xml);
+    parser.Parse(&ss);
     return results;
 }
 
@@ -143,6 +146,8 @@ unsigned int ToRecord(const Metadata& md, db::RecordsetPtr rs)
 		type = mediadb::TUNE;
 	    else if (i->content == "object.item.videoItem.videoBroadcast")
 		type = mediadb::TV;
+	    else if (prefixeq(i->content, "object.item.imageItem"))
+		type = mediadb::IMAGE;
 	    else if (prefixeq(i->content, "object.item.videoItem"))
 		type = mediadb::VIDEO;
 	    else if (i->content == "object.container.playlistContainer")
@@ -244,7 +249,7 @@ unsigned int ToRecord(const Metadata& md, db::RecordsetPtr rs)
 
     if (map_codec_to_url.empty())
     {
-	rs->SetInteger(mediadb::CODEC, mediadb::NONE);
+	rs->SetInteger(mediadb::AUDIOCODEC, mediadb::NONE);
     }
     else
     {
@@ -255,7 +260,7 @@ unsigned int ToRecord(const Metadata& md, db::RecordsetPtr rs)
 	    unsigned int codec = codec_preference[i];
 	    if (map_codec_to_url.find(codec) != map_codec_to_url.end())
 	    {
-		rs->SetInteger(mediadb::CODEC, codec);
+		rs->SetInteger(mediadb::AUDIOCODEC, codec);
 		rs->SetString(mediadb::PATH, map_codec_to_url[codec]);
 		rs->SetInteger(mediadb::SIZEBYTES, map_codec_to_size[codec]);
 		break;
@@ -270,7 +275,8 @@ static std::string IfPresent(const char *tag, const std::string& value)
 {
     if (value.empty())
 	return std::string();
-    return (boost::format("<%s>%u</%s>") % tag % util::XmlEscape(value) % tag).str();
+    return util::SPrintf("<%s>%s</%s>", tag, util::XmlEscape(value).c_str(),
+			 tag);
 }
 
 static std::string IfPresent2(const char *tag, const char *attr,
@@ -278,14 +284,15 @@ static std::string IfPresent2(const char *tag, const char *attr,
 {
     if (value.empty())
 	return std::string();
-    return (boost::format("<%s %s>%u</%s>") % tag % attr % util::XmlEscape(value) % tag).str();
+    return util::SPrintf("<%s %s>%s</%s>", tag, attr, 
+			 util::XmlEscape(value).c_str(), tag);
 }
 
 static std::string IfPresent(const char *tag, unsigned int value)
 {
     if (!value)
 	return std::string();
-    return (boost::format("<%s>%u</%s>") % tag % value % tag).str();
+    return util::SPrintf("<%s>%u</%s>", tag, value, tag);
 }
 
 static std::string ResItem(mediadb::Database *db, db::RecordsetPtr rs,
@@ -299,7 +306,7 @@ static std::string ResItem(mediadb::Database *db, db::RecordsetPtr rs,
      */
 
     unsigned int type = rs->GetInteger(mediadb::TYPE);
-    unsigned int codec = rs->GetInteger(mediadb::CODEC);
+    unsigned int codec = rs->GetInteger(mediadb::AUDIOCODEC);
     switch (type)
     {
     case mediadb::TUNE:
@@ -361,7 +368,7 @@ static std::string ResItem(mediadb::Database *db, db::RecordsetPtr rs,
     if ( /* strncmp(url.c_str(), "http:", 5) && */
 	urlprefix)
     {
-	url = (boost::format("%s%x") % urlprefix % id).str();
+	url = util::SPrintf("%s%x", urlprefix, id);
     }
 
     url = util::XmlEscape(url);
@@ -375,16 +382,16 @@ static std::string ResItem(mediadb::Database *db, db::RecordsetPtr rs,
     }
     if ((filter & RES_SIZE) && type != mediadb::RADIO)
     {
-	result += (boost::format(" size=\"%u\"")
-		   % rs->GetInteger(mediadb::SIZEBYTES)).str();
+	result += util::Printf() << " size=\""
+				 << rs->GetInteger(mediadb::SIZEBYTES) << "\"";
     }
     if ((filter & RES_DURATION) && type != mediadb::RADIO)
     {
 	unsigned int durationms = rs->GetInteger(mediadb::DURATIONMS);
-	result += (boost::format(" duration=\"%u:%02u:%02u.00\"")
-		   % (durationms/3600000)
-		   % ((durationms/ 60000) % 60)
-		   % ((durationms/  1000) % 60)).str();
+	result += util::SPrintf(" duration=\"%u:%02u:%02u.00\"",
+				(durationms/3600000),
+				((durationms/ 60000) % 60),
+				((durationms/  1000) % 60));
     }
     return result + ">" + url + "</res>";
 }

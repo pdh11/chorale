@@ -17,22 +17,16 @@ public:
     explicit StringStream(const std::string&);
     ~StringStream();
 
-    typedef util::CountedPointer<StringStream> StringStreamPtr;
-
-    static StringStreamPtr Create();
-    static StringStreamPtr Create(const std::string&);
-
     // Being a SeekableStream
-    unsigned ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread);
-    unsigned WriteAt(const void *buffer, pos64 pos, size_t len, 
+    unsigned GetStreamFlags() const { return READABLE|WRITABLE|SEEKABLE; }
+    unsigned ReadAt(void *buffer, uint64_t pos, size_t len, size_t *pread);
+    unsigned WriteAt(const void *buffer, uint64_t pos, size_t len, 
 		     size_t *pwrote);
-    pos64 GetLength();
-    unsigned SetLength(pos64);
+    uint64_t GetLength();
+    unsigned SetLength(uint64_t);
 
     std::string& str() { return m_string; }
 };
-
-typedef util::CountedPointer<StringStream> StringStreamPtr;
 
 } // namespace util
 

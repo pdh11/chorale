@@ -1,3 +1,9 @@
+9999-XXX-99: Version 0.20 released; changes since 0.19:
+
+	* libdblocal: fix paper-bag bug in file scanning
+	* configure: find Cairo includes properly
+	* configure: find Boost libs on systems where they have "-mt" suffix
+	
 2010-Mar-28: Version 0.19 released; changes since 0.18:
 
 	* choralecd: new tageditor
@@ -14,10 +20,13 @@
 	* Make.common: moc files are potentially different per-target
 	* configure: deal with <linux/cdrom.h> not being compatible with C++
 	* configure: update libtool (needed for Obj-C++)
+	152 files changed, 12210 insertions, 6757 deletions (mostly libtool)
+	151 files changed, 4863 insertions, 866 deletions (excluding libtool)
 	
 2009-Oct-18: Version 0.18 released; changes since 0.17:
 
 	* libutil: paper-bag bug in http::Client::Task
+	3 files changed, 25 insertions, 9 deletions
 	
 2009-Oct-18: Version 0.17 released; changes since 0.16:
 
@@ -31,6 +40,7 @@
 	* libtv: record DVB as MPEG PS (not MPEG TS)
 	* choralecd: reduce reliance on Qt3Support (not quite eliminated)
 	* choralecd: use asynchronous API for initial UPnP output connect
+	366 files changed, 14714 insertions, 5229 deletions (since 0.15)
 	
 2009-Jul-19: Version 0.16 [not, in fact] released; changes since 0.15:
 

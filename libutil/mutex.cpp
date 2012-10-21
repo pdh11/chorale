@@ -4,7 +4,6 @@
 #include <boost/thread/condition.hpp>
 #include <boost/thread/thread.hpp>
 #include "bind.h"
-#include "trace.h"
 
 namespace util {
 
@@ -20,6 +19,16 @@ Mutex::Mutex()
 
 Mutex::~Mutex()
 {
+}
+
+void Mutex::Acquire()
+{
+    Unwrap().lock();
+}
+
+void Mutex::Release()
+{
+    Unwrap().unlock();
 }
 
 template<>

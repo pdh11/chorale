@@ -2,10 +2,12 @@
 #define OUTPUT_UPNP_H
 
 #include "urlplayer.h"
+#include "libutil/bind.h"
 #include "libutil/task.h"
+#include "libutil/counted_pointer.h"
 #include "libutil/observable.h"
-#include "libupnp/AVTransport2_client.h"
-#include "libupnp/ConnectionManager2_client.h"
+#include "libupnp/AVTransport_client.h"
+#include "libupnp/ConnectionManager_client.h"
 
 namespace util { class Scheduler; }
 
@@ -17,7 +19,9 @@ namespace upnpav {
 
 /** Implementation of URLPlayer which drives a remote UPnP A/V MediaRenderer.
  */
-class URLPlayer: public output::URLPlayer, public upnp::AVTransport2Observer,
+class URLPlayer: public output::URLPlayer, public upnp::AVTransportObserver,
+		 public upnp::AVTransportAsyncObserver,
+		 public upnp::ConnectionManagerAsyncObserver,
 		 public util::Observable<URLObserver>
 {
 public:
@@ -25,11 +29,12 @@ public:
 
 private:
     upnp::DeviceClient m_device_client;
-    upnp::AVTransport2Client m_avtransport; ///<@todo AVTransport2ClientAsync
-    upnp::ConnectionManager2Client m_connectionmanager;
+    upnp::AVTransportClientAsync m_avtransport;
+    upnp::ConnectionManagerClientAsync m_connectionmanager;
     PlayState m_state;
     util::Scheduler *m_poller;
     std::string m_friendly_name;
+    bool m_supports_video;
     InitCallback m_callback;
 
     class TimecodeTask;
@@ -53,6 +58,8 @@ public:
 
     const std::string& GetFriendlyName() const { return m_friendly_name; }
 
+    bool SupportsVideo() const { return m_supports_video; }
+
     // Being an URLPlayer
     unsigned int SetURL(const std::string& url, const std::string& metadata);
     unsigned int SetNextURL(const std::string& url,
@@ -66,6 +73,22 @@ public:
     
     // Being an AVTransport2Observer
     void OnLastChange(const std::string& value);
+    
+    // Being an AVTransport2AsyncObserver
+    void OnGetPositionInfoDone(unsigned int rc,
+			       uint32_t track,
+			       const std::string& track_duration,
+			       const std::string& track_meta_data,
+			       const std::string& track_uri,
+			       const std::string& rel_time,
+			       const std::string& abs_time,
+			       int32_t rel_count,
+			       uint32_t abs_count);
+    
+    // Being a ConnectionManager2AsyncObserver
+    void OnGetProtocolInfoDone(unsigned int rc,
+			       const std::string& source,
+			       const std::string& sink);
 
     // XML callbacks
     unsigned int OnTransportState(const std::string&);

@@ -1,0 +1,23 @@
+#!/bin/sh
+#
+# Usage: fan <dot-file>
+
+gvpr -i '
+BEGIN { node_t n; int fanin[]; int fanout[]; int fan[] }
+E { fanin[tail]++; fanout[head]++; fan[head]++; fan[tail]++ }
+END_G {
+  for (fan[n]) {
+    printf("%d %d %d %s\n", fanin[n], fanout[n], fanin[n]*fanout[n], n.name);
+  };
+}' $1 > $1.fan
+
+echo 'Top ten included files:'
+awk -- '{ print $2, $4; }' < $1.fan | sort -n -r | head -n 10
+echo
+
+echo 'Top ten includers:'
+grep -v ' /' $1.fan | awk -- '{ print $1, $4; }' | sort -n -r | head -n 10
+echo
+
+echo 'Top ten pinch points (includes times included):'
+grep -v ' /' $1.fan | awk -- '{ print $3, $4; }' | sort -n -r | head -n 10

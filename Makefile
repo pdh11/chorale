@@ -44,6 +44,7 @@ config.status: $(TOP)configure $(TOP)stamp-h.in
 	./config.status --recheck
 
 $(TOP)aclocal.m4: $(TOP)configure.ac
+	(cd ./$(TOP) && libtoolize -c)
 	(cd ./$(TOP) && aclocal -I autotools)
 
 doc:
@@ -65,10 +66,11 @@ maintainerclean: distclean
 
 install: $(choraled)
 	$(INSTALL) -d $(datadir)/chorale/upnp
-	$(INSTALL) libupnp/AVTransport2.xml $(datadir)/chorale/upnp/AVTransport.xml
-	$(INSTALL) libupnp/RenderingControl2.xml $(datadir)/chorale/upnp/RenderingControl.xml
-	$(INSTALL) libupnp/ContentDirectory3.xml $(datadir)/chorale/upnp/ContentDirectory.xml
-	$(INSTALL) libupnp/OpticalDrive.xml $(datadir)/chorale/upnp/OpticalDrive.xml
+	$(INSTALL) libupnp/AVTransport.xml2 $(datadir)/chorale/upnp/AVTransport.xml
+	$(INSTALL) libupnp/RenderingControl.xml2 $(datadir)/chorale/upnp/RenderingControl.xml
+	$(INSTALL) libupnp/ContentDirectory.xml2 $(datadir)/chorale/upnp/ContentDirectory.xml
+	$(INSTALL) libupnp/ConnectionManager.xml2 $(datadir)/chorale/upnp/ConnectionManager.xml
+	$(INSTALL) libupnp/OpticalDrive.xml2 $(datadir)/chorale/upnp/OpticalDrive.xml
 	$(INSTALL) -d $(datadir)/chorale/layout
 	$(INSTALL) -m644 imagery/default.css $(datadir)/chorale/layout/default.css
 	$(INSTALL) -m644 imagery/icon32.png  $(datadir)/chorale/layout/icon.png
@@ -96,6 +98,7 @@ install: $(choraled)
 install-choralecd: $(choralecd)
 	$(INSTALL) -d $(bindir)
 	$(INSTALL) -s $(choralecd) $(bindir)
+	$(INSTALL) -s $(tageditor) $(bindir)
 
 CHORALE:=chorale-$(CHORALE_VERSION)
 
@@ -103,7 +106,7 @@ release: distclean
 	rm -f chorale*.tar.bz2
 	tar cf $(CHORALE).tar --transform=s,./,$(CHORALE)/, \
 		--exclude=$(CHORALE).tar --exclude=CVS --exclude=doc \
-		--exclude=.libs --exclude=.cvsignore \
+		--exclude=.libs --exclude=.cvsignore --exclude=.svn \
 		 .
 	bzip2 -9 $(CHORALE).tar
 
@@ -182,7 +185,7 @@ headerdeps.dot: Makefile
 	for i in `find . -maxdepth 2 -name '*.h'` ; do \
 		g++ -MP -M $$i -I. 2>/dev/null $(QT_CXXFLAGS) \
 			$(TAGLIB_CXXFLAGS) $(HAL_CXXFLAGS) \
-			$(GSTREAMER_CXXFLAGS) $(CXXFLAGS) \
+			$(GSTREAMER_CXXFLAGS) $(CXXFLAGS) $(CAIRO_CXXFLAGS) \
 			| grep '^[a-z].*:$$' \
 			| sed -e 's,^,"'$$i'" -> ",' -e 's,:$$,",' \
 				-e 's,^"./,",' ; \
@@ -190,12 +193,12 @@ headerdeps.dot: Makefile
 	echo "}" >> $@
 
 # Dependencies among all Chorale files
-filedeps.dot: Makefile
+filedeps.dot:
 	echo "digraph G {" > $@
 	for i in `find . -maxdepth 2 -name '*.h' -o -name '*.cpp'` ; do \
-		g++ -MP -M $$i -I. 2>/dev/null $(QT_CXXFLAGS) \
+		g++ -MP -M $$i -I.  $(QT_CXXFLAGS) \
 			$(TAGLIB_CXXFLAGS) $(HAL_CXXFLAGS) \
-			$(GSTREAMER_CXXFLAGS) $(CXXFLAGS) \
+			$(GSTREAMER_CXXFLAGS) $(CXXFLAGS) $(CAIRO_CXXFLAGS) \
 			| grep '^[a-z].*:$$' \
 			| sed -e 's,^,"'$$i'" -> ",' -e 's,:$$,",' \
 				-e 's,^"./,",' ; \
@@ -203,13 +206,53 @@ filedeps.dot: Makefile
 	echo "}" >> $@
 	scripts/fan $@
 
+# Headers such that whenever A.h is included, B.h is too
+coheaders.dot: filedeps.dot Makefile scripts/coheaders.gvpr
+	gvpr -f scripts/coheaders.gvpr < filedeps.dot > coheaders.dot
+
+coheaders.svg: coheaders.dot
+	tred coheaders.dot | fdp -Tsvg -o $@
+
+# Dependencies among "components" (Lakos's definition)
+# Allow for foo, foo_posix, and foo_win32 to be one component not three.
+# Allow for bar and bar_internal to be one component not two.
+# Allow for Baz, Baz_client, and Baz_server to be one component not three
+compdeps.dot: filedeps.dot Makefile
+	sed -e 's/[.]cpp//g' -e 's/[.]h//g' -e 's/_posix//g'  -e 's/_linux//g' -e 's/_win32//g' \
+	    -e 's,libupnp/\([A-Z][a-zA-Z0-9]*\)_client,libupnp/\1,g' \
+	    -e 's,libupnp/\([A-Z][a-zA-Z0-9]*\)_server,libupnp/\1,g' \
+	    -e 's/_internal//g' < filedeps.dot > compdeps.dot
+
+compdeps2.dot: compdeps.dot
+	echo "strict digraph {" > compdeps2.dot
+	for i in $(SUBDIRS) ; do \
+		echo "subgraph cluster_$$i {" ; \
+		echo "label=$$i" ; \
+		grep "$$i/.*->.*$$i/" compdeps.dot ;  \
+		echo "}" ; \
+	done >> compdeps2.dot
+	sed -e 's, -> ,,' \
+		-e 's,"\([a-z]*\)/\([a-zA-Z_0-9]*\)","\1/\2" [label="\2"]\n,g' \
+		< compdeps.dot | grep label | sort | uniq >> compdeps2.dot
+	echo "}" >> compdeps2.dot
+
+cycles.png: compdeps.dot
+	echo "strict digraph {" > cycles.dot
+	sccmap compdeps.dot \
+		| sed -e 's/digraph cluster_/subgraph sg/' \
+		      -e 's/scc_map/cluster/' \
+		| awk -F '[; \t]' '{ if ($$2 != $$4 || $$2 == "") print }' \
+		| grep -v cluster >> cycles.dot
+	circo -Tsvg -Nfontname="Luxi Sans" -Gfontnames=gd -o compdeps.svg cycles.dot
+	inkscape -z -b white -y 1.0 -e $@ compdeps.svg -d60 > /dev/null
+
 # All dependencies including on system headers
 alldeps.dot: Makefile
 	echo "digraph G {" > $@
 	for i in `find . -maxdepth 2 -name '*.h' -o -name '*.cpp'` ; do \
 		g++ -MP -M $$i -I. $(QT_CXXFLAGS) \
 			$(TAGLIB_CXXFLAGS) $(HAL_CXXFLAGS) \
-			$(GSTREAMER_CXXFLAGS) $(CXXFLAGS) \
+			$(GSTREAMER_CXXFLAGS) $(CXXFLAGS) $(CAIRO_CXXFLAGS) \
 			| grep '^[a-z/].*:$$' \
 			| sed -e 's,:$$,,' \
 			| sed -e 's,^,"'$$i'" -> ",' -e 's,$$,",' \

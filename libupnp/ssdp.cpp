@@ -203,7 +203,9 @@ void Responder::Task::Advertisement::SendNotify(bool alive)
 	    ipe.port = 1900;
 	    m_socket->Write(message, ipe);
 
-	    LOG(SSDP) << "Sending from " << i->address.ToString() << "\n" << message;
+	    //LOG(SSDP) << "Sending from " << i->address.ToString() << "\n" << message;
+	    
+	    LOG(SSDP) << "NOTIFY(NT=" << nt << ", USN=" << usn << ")\n";
 	}
     }
 
@@ -227,17 +229,23 @@ void Responder::Task::Advertisement::SendReply(const util::IPEndPoint& them,
 	? m_unique_device_name
 	: m_unique_device_name + "::" + m_service_type;
 
+    std::string st = service_type.empty()
+	? m_unique_device_name
+	: service_type;
+
     /** @todo DATE, server OS */
     std::string message = "HTTP/1.1 200 OK\r\n"
 	"CACHE-CONTROL: max-age=1800\r\n"
 	"EXT:\r\n"
 	"LOCATION: " + m_partial_url.Resolve(us) + "\r\n"
-	"SERVER:  UPnP/1.0 " PACKAGE_NAME "/" PACKAGE_VERSION "\r\n"
-	"ST: " + service_type + "\r\n"
+	"SERVER: UPnP/1.0 " PACKAGE_NAME "/" PACKAGE_VERSION "\r\n"
+	"ST: " + st + "\r\n"
 	"USN: " + usn + "\r\n"
 	"\r\n";
 
-    LOG(SSDP) << "replying to " << them.ToString() << ":\n" << message << "\n";
+//    LOG(SSDP) << "replying to " << them.ToString() << ":\n" << message << "\n";
+
+    LOG(SSDP) << "REPLY(ST=" << st << ", USN=" << usn << ")\n";
 
     m_socket->Write(message, them);
 }
@@ -292,10 +300,10 @@ Responder::Task::Task(util::Scheduler *scheduler, util::IPFilter *filter)
     m_search_socket.SetNonBlocking(true);
     scheduler->WaitForReadable(
 	util::Bind(TaskPtr(this)).To<&Task::OnMulticastActivity>(),
-	&m_multicast_socket, false);
+	m_multicast_socket.GetHandle(), false);
     scheduler->WaitForReadable(
 	util::Bind(TaskPtr(this)).To<&Task::OnSearchActivity>(),
-	&m_search_socket, false);
+	m_search_socket.GetHandle(), false);
 
     util::IPEndPoint ipe;
     ipe.addr = util::IPAddress::ANY;
@@ -387,10 +395,10 @@ unsigned Responder::Task::OnPacket(const std::string& packet,
     LOG(SSDP) << packet;
     LOG(SSDP) << "wasto: " << wasto.ToString() << "\n";
 
-    util::StringStreamPtr ssp = util::StringStream::Create(packet);
+    util::StringStream ssp(packet);
 
     // SSDP packets look like HTTP headers
-    util::GreedyLineReader glr(ssp);
+    util::GreedyLineReader glr(&ssp);
     util::http::Parser hh(&glr);
     std::string verb, path;
     unsigned int rc = hh.GetRequestLine(&verb, &path, NULL);
@@ -577,6 +585,7 @@ unsigned Responder::Advertise(const std::string& service_type,
 			      const std::string& unique_device_name,
 			      const util::PartialURL *url)
 {
+    assert(!unique_device_name.empty());
     return m_task->Advertise(service_type, unique_device_name, url);
 }
 
@@ -606,9 +615,12 @@ const char s_service_id_connection_manager[] =
     
 const char s_service_id_rendering_control[] =
     "urn:upnp-org:serviceId:RenderingControl";
+    
+const char s_service_id_ms_receiver_registrar[] =
+    "urn:microsoft.com:serviceId:X_MS_MediaReceiverRegistrar";
 
 const char s_service_type_optical_drive[] =
-     "urn:chorale-sf-net:service:OpticalDrive:1";
+    "urn:chorale-sf-net:service:OpticalDrive:1";
 
 const char s_service_type_content_directory[] =
     "urn:schemas-upnp-org:service:ContentDirectory:1";
@@ -616,8 +628,14 @@ const char s_service_type_content_directory[] =
 const char s_service_type_av_transport[] =
     "urn:schemas-upnp-org:service:AVTransport:1";
 
+const char s_service_type_av_transport2[] =
+    "urn:schemas-upnp-org:service:AVTransport:2";
+
 const char s_service_type_connection_manager[] =
     "urn:schemas-upnp-org:service:ConnectionManager:1";
+
+const char s_service_type_ms_receiver_registrar[] =
+    "urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1";
 
 
 } // namespace upnp

@@ -1,8 +1,8 @@
 #ifndef LIBDB_DELEGATING_RS_H
 #define LIBDB_DELEGATING_RS_H
 
-#include "db.h"
 #include "recordset.h"
+#include "libutil/counted_pointer.h"
 
 namespace db {
 
@@ -13,16 +13,17 @@ namespace db {
 class DelegatingRecordset: public Recordset
 {
 protected:
-    db::RecordsetPtr m_rs;
+    util::CountedPointer<Recordset> m_rs;
 
 public:
-    explicit DelegatingRecordset(db::RecordsetPtr rs) : m_rs(rs) {}
+    explicit DelegatingRecordset(util::CountedPointer<Recordset> rs)
+	: m_rs(rs) {}
 
     bool IsEOF() const;
-    uint32_t GetInteger(field_t which) const;
-    std::string GetString(field_t which) const;
-    unsigned int SetInteger(field_t which, uint32_t value);
-    unsigned int SetString(field_t which, const std::string& value);
+    uint32_t GetInteger(unsigned int which) const;
+    std::string GetString(unsigned int which) const;
+    unsigned int SetInteger(unsigned int which, uint32_t value);
+    unsigned int SetString(unsigned int which, const std::string& value);
     void MoveNext();
     unsigned int AddRecord();
     unsigned int Commit();

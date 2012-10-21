@@ -1,5 +1,5 @@
 #include "registry.h"
-#include "urlplayer.h"
+#include "queue.h"
 
 namespace output {
 

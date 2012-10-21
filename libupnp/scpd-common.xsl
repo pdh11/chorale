@@ -10,6 +10,7 @@
   <xsl:variable name="lcase" select="'abcdefghijklmnopqrstuvwxyz'" />
   <xsl:variable name="letters" select="concat($ucase, $lcase)" />
   <xsl:variable name="digits" select="'0123456789'" />
+  <xsl:variable name="punc" select="'/'" />
 
   <xsl:key name="arguments" match="argument/name" use="."/>
 
@@ -22,7 +23,7 @@
       <xsl:variable name="a" select="."/>
       <xsl:variable name="b" select="following::*[1]"/>
       <xsl:variable name="c" select="following::*[2]"/>
-      <xsl:value-of select="translate(., $ucase, $lcase)"/>
+      <xsl:value-of select="translate(translate(., $ucase, $lcase), $punc, '')"/>
       <xsl:if test="($b and contains($lcase, $a) and contains($ucase, $b))
                     or ($b and contains($digits, $a)
                         and contains($letters, $b))
@@ -42,7 +43,7 @@
       <xsl:variable name="a" select="."/>
       <xsl:variable name="b" select="following::*[1]"/>
       <xsl:variable name="c" select="following::*[2]"/>
-      <xsl:value-of select="translate(., $lcase, $ucase)"/>
+      <xsl:value-of select="translate(translate(., $lcase, $ucase), $punc, '')"/>
       <xsl:if test="($b and contains($lcase, $a) and contains($ucase, $b))
                     or ($b and contains($digits, $a)
                         and contains($letters, $b))
@@ -65,10 +66,12 @@
       <xsl:when test="$type='ui1'">uint8_t</xsl:when>
       <xsl:when test="$type='i2'">int16_t</xsl:when>
       <xsl:when test="$type='ui2'">uint16_t</xsl:when>
+      <xsl:when test="$type='int'">int32_t</xsl:when>
       <xsl:when test="$type='i4'">int32_t</xsl:when>
       <xsl:when test="$type='ui4'">uint32_t</xsl:when>
       <xsl:when test="$type='uri'">std::string</xsl:when>
       <xsl:when test="$type='string'">std::string</xsl:when>
+      <xsl:when test="$type='bin.base64'">std::string</xsl:when>
       <xsl:otherwise>upnp::scpd::<xsl:value-of select="$type"/></xsl:otherwise>
     </xsl:choose>
   </xsl:template>
@@ -85,10 +88,12 @@
       <xsl:when test="$type='ui1'">uint8_t</xsl:when>
       <xsl:when test="$type='i2'">int16_t</xsl:when>
       <xsl:when test="$type='ui2'">uint16_t</xsl:when>
+      <xsl:when test="$type='int'">int32_t</xsl:when>
       <xsl:when test="$type='i4'">int32_t</xsl:when>
       <xsl:when test="$type='ui4'">uint32_t</xsl:when>
       <xsl:when test="$type='uri'">const std::string&amp;</xsl:when>
       <xsl:when test="$type='string'">const std::string&amp;</xsl:when>
+      <xsl:when test="$type='bin.base64'">const std::string&amp;</xsl:when>
       <xsl:otherwise>upnp::scpd::<xsl:value-of select="$type"/></xsl:otherwise>
     </xsl:choose>
   </xsl:template>
@@ -132,6 +137,17 @@
         <xsl:with-param name="type"
           select="//stateVariable[name=$var]/dataType"/>
       </xsl:call-template>*<xsl:text />
+    </xsl:if>
+  </xsl:template>
+
+  <!-- convert SCPD type into simplified C++ type (uint32_t or string) -->
+  <xsl:template name="simpletype">
+    <xsl:param name="var"/>
+    <xsl:if test="//stateVariable[name=$var]/allowedValueList">uint32_t</xsl:if>
+    <xsl:if test="not(//stateVariable[name=$var]/allowedValueList)">
+      <xsl:variable name="type" select="//stateVariable[name=$var]/dataType"/>
+      <xsl:if test="$type='uri' or $type='string' or $type='bin.base64'">std::string</xsl:if>
+      <xsl:if test="$type!='uri' and $type!='string' and $type!='bin.base64'">uint32_t</xsl:if>
     </xsl:if>
   </xsl:template>
 

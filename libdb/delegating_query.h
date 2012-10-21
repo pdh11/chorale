@@ -2,6 +2,7 @@
 #define LIBDB_DELEGATING_QUERY_H 1
 
 #include "query.h"
+#include "libutil/counted_pointer.h"
 
 namespace db {
 
@@ -12,21 +13,22 @@ namespace db {
 class DelegatingQuery: public Query
 {
 protected:
-    db::QueryPtr m_qp;
+    util::CountedPointer<db::Query> m_qp;
 
 public:
-    explicit DelegatingQuery(db::QueryPtr qp) : m_qp(qp) {}
+    explicit DelegatingQuery(util::CountedPointer<db::Query> qp) : m_qp(qp) {}
 
     // Being a Query
-    Subexpression Restrict(field_t which, RestrictionType rt, 
+    Subexpression Restrict(unsigned int which, RestrictionType rt, 
 			   const std::string& val);
-    Subexpression Restrict(field_t which, RestrictionType rt, uint32_t val);
+    Subexpression Restrict(unsigned int which, RestrictionType rt,
+			   uint32_t val);
     Subexpression And(const Subexpression&, const Subexpression&);
     Subexpression Or(const Subexpression&, const Subexpression&);
     unsigned int Where(const Subexpression&);
-    unsigned int OrderBy(field_t which);
-    unsigned int CollateBy(field_t which);
-    RecordsetPtr Execute();
+    unsigned int OrderBy(unsigned int which);
+    unsigned int CollateBy(unsigned int which);
+    util::CountedPointer<Recordset> Execute();
 };
 
 } // namespace db

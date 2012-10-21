@@ -2,8 +2,10 @@
 #define MEDIATREE_NODE_H 1
 
 #include "libutil/counted_object.h"
-#include "libdb/db.h"
 #include <string>
+
+namespace util { template <class T> class CountedPointer; }
+namespace db { class Recordset; }
 
 /** An abstract tree of items for accessing media, eg for use as a menu.
  */
@@ -20,7 +22,7 @@ public:
     virtual ~Node() {}
 
     virtual std::string GetName() = 0;
-    virtual bool IsCompound() { return GetChildren()->IsValid(); }
+    virtual bool IsCompound();
     virtual bool HasCompoundChildren() = 0;
 
     typedef util::CountedPointer<Node> Pointer;
@@ -37,7 +39,7 @@ public:
     typedef util::CountedPointer<Enumerator> EnumeratorPtr;
 
     virtual EnumeratorPtr GetChildren() = 0;
-    virtual db::RecordsetPtr GetInfo() = 0;
+    virtual util::CountedPointer<db::Recordset> GetInfo() = 0;
 
     /** If node->GetValidity() != parent->GetValidity(), you need to call
      * parent->GetChildren() again.

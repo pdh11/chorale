@@ -36,11 +36,11 @@ ResourceWidget::ResourceWidget(QWidget *parent, const std::string& label,
 
     left->addStretch(1);
 
-    QLabel *cdlabel = new QLabel(this);
-    cdlabel->setPixmap(pm);
-    left->addWidget(cdlabel, 1, Qt::AlignCenter);
+    m_icon_widget = new QLabel(this);
+    m_icon_widget->setPixmap(pm);
+    left->addWidget(m_icon_widget, 1, Qt::AlignCenter);
     if (!tooltip.empty())
-	cdlabel->setToolTip(QString::fromUtf8(tooltip.c_str()));
+	m_icon_widget->setToolTip(QString::fromUtf8(tooltip.c_str()));
 
     m_label_widget = new QLabel(this);
     m_label_widget->setText(QString::fromUtf8(label.c_str()));
@@ -90,6 +90,11 @@ void ResourceWidget::EnableBottom(bool whether)
 void ResourceWidget::SetLabel(const std::string& s)
 {
     m_label_widget->setText(QString::fromUtf8(s.c_str()));
+}
+
+void ResourceWidget::SetResourcePixmap(QPixmap pm)
+{
+    m_icon_widget->setPixmap(pm);
 }
 
 } // namespace choraleqt

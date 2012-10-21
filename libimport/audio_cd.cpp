@@ -1,10 +1,12 @@
-#include "config.h"
 #include "audio_cd.h"
-
-#if HAVE_LIBCDIOP || HAVE_PARANOIA
-
+#include "config.h"
+#include "libutil/stream.h"
 #include "libutil/trace.h"
 #include "libutil/counted_pointer.h"
+#include <errno.h>
+#include <string.h>
+
+#if HAVE_LIBCDIOP || HAVE_PARANOIA
 
 #if HAVE_PARANOIA
 // Oh joy, not C++-compatible
@@ -23,8 +25,6 @@ typedef unsigned int track_t;
 #include <cdio/paranoia.h>
 typedef cdrom_paranoia_t cdrom_paranoia;
 #endif
-#include <errno.h>
-#include <string.h>
 
 #if !HAVE_DECL_PARANOIA_CB_CACHEERR
 // CDParanoia has this, libcdio doesn't. Define to something innocuous.
@@ -175,6 +175,7 @@ public:
 	  m_skip(2352)
     {
 	sm_speed = 64;
+	cdda_speed_set(cdt, 64);
 
 	TRACE << "Read starting\n";
 	paranoia_modeset(m_paranoia, 
@@ -188,19 +189,20 @@ public:
     }
 
     // Being a SeekableStream
-    unsigned ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread);
-    unsigned WriteAt(const void *buffer, pos64 pos, size_t len,
+    unsigned GetStreamFlags() const { return READABLE|SEEKABLE; }
+    unsigned ReadAt(void *buffer, uint64_t pos, size_t len, size_t *pread);
+    unsigned WriteAt(const void *buffer, uint64_t pos, size_t len,
 		     size_t *pwrote);
-    void Seek(pos64 pos);
-    pos64 Tell();
-    pos64 GetLength();
-    unsigned SetLength(pos64);
+    unsigned int Seek(uint64_t pos);
+    uint64_t Tell();
+    uint64_t GetLength();
+    unsigned SetLength(uint64_t);
 };
 
 cdrom_drive *ParanoiaStream::sm_current_drive = NULL;
 unsigned int ParanoiaStream::sm_speed = 64;
 
-unsigned ParanoiaStream::ReadAt(void *buffer, pos64 pos, size_t len,
+unsigned ParanoiaStream::ReadAt(void *buffer, uint64_t pos, size_t len,
 				size_t *pread)
 {
     /** @todo Isn't thread-safe like the other ReadAt's. Add a mutex. */
@@ -254,17 +256,17 @@ unsigned ParanoiaStream::ReadAt(void *buffer, pos64 pos, size_t len,
     return 0;
 }
 
-unsigned ParanoiaStream::WriteAt(const void*, pos64, size_t, size_t*)
+unsigned ParanoiaStream::WriteAt(const void*, uint64_t, size_t, size_t*)
 {
     return EPERM; // We're read-only
 }
 
-void ParanoiaStream::Seek(pos64 pos)
+unsigned ParanoiaStream::Seek(uint64_t pos)
 {
     if (pos == Tell())
-	return;
+	return 0;
 
-    pos64 current = Tell();
+    uint64_t current = Tell();
     TRACE << "Tell()=" << current/2352 << ":" << current%2352
 	  << " pos=" << pos/2352 << ":" << pos%2352 << ", seeking\n";
 
@@ -278,28 +280,30 @@ void ParanoiaStream::Seek(pos64 pos)
     paranoia_seek(m_paranoia, m_sector, SEEK_SET);
 
     m_data = NULL;
+    return 0;
 }
 
-util::SeekableStream::pos64 ParanoiaStream::Tell()
+uint64_t ParanoiaStream::Tell()
 {
     return (m_sector - m_first_sector) * 2352 + m_skip;
 }
 
-util::SeekableStream::pos64 ParanoiaStream::GetLength()
+uint64_t ParanoiaStream::GetLength()
 {
     return (m_last_sector - m_first_sector + 1) * 2352;
 }
 
-unsigned int ParanoiaStream::SetLength(pos64)
+unsigned int ParanoiaStream::SetLength(uint64_t)
 {
     return EPERM;
 }
 
-util::SeekableStreamPtr LocalAudioCD::GetTrackStream(unsigned int track)
+std::auto_ptr<util::Stream> LocalAudioCD::GetTrackStream(unsigned int track)
 {
-    return util::SeekableStreamPtr(new ParanoiaStream((cdrom_drive*)m_cdt,
-						      m_toc[track].first_sector,
-						      m_toc[track].last_sector));
+    return std::auto_ptr<util::Stream>(
+	new ParanoiaStream((cdrom_drive*)m_cdt,
+			   m_toc[track].first_sector,
+			   m_toc[track].last_sector));
 }
 
 } // namespace import

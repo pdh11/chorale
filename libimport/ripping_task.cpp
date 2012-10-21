@@ -3,7 +3,9 @@
 #include "libutil/file_stream.h"
 #include "libutil/memory_stream.h"
 #include "libutil/multi_stream.h"
+#include "libutil/printf.h"
 #include "libutil/trace.h"
+#include "libutil/bind.h"
 #include <time.h>
 #include "audio_cd.h"
 
@@ -24,7 +26,8 @@ RippingTask::RippingTask(AudioCDPtr cd, unsigned int track,
 			 EncodingTaskPtr etp1, EncodingTaskPtr etp2,
 			 util::TaskQueue *encode_queue, 
 			 util::TaskQueue *disk_queue)
-    : m_cd(cd), 
+    : Task(util::Printf() << "rip-" << (track+1)),
+      m_cd(cd), 
       m_track(track),
       m_filename(filename),
       m_etp1(etp1),
@@ -51,18 +54,15 @@ unsigned int RippingTask::Run()
     unsigned int rc;
 
     // If there's CPU to spare, back to RAM, else back to disk
-    util::SeekableStreamPtr backingstream;
-    if (m_encode_queue->AnyWaiting())
+    std::auto_ptr<util::Stream> backingstream;
+    if (0 && m_encode_queue->AnyWaiting())
     {
-	util::MemoryStreamPtr msp;
-	util::MemoryStream::Create(&msp, pcmsize);
-	backingstream = msp;
-//	TRACE << "Chosen to rip via RAM\n";
+	backingstream.reset(new util::MemoryStream(pcmsize));
+	TRACE << "Chosen to rip via RAM\n";
     }
     else
     {
-	util::SeekableStreamPtr fsp;
-	rc = util::OpenFileStream(m_filename.c_str(), util::TEMP, &fsp);
+	rc = util::OpenFileStream(m_filename.c_str(), util::TEMP, &backingstream);
 	if (rc != 0)
 	{
 	    TRACE << "Can't create temporary\n";
@@ -71,22 +71,18 @@ unsigned int RippingTask::Run()
 
 //	StreamPtr awb;
 //	AsyncWriteBuffer::Create(fsp, m_disk_queue, &awb);
-	backingstream = fsp;
-//	TRACE << "Chosen to rip via disk\n";
-    }
-    util::MultiStreamPtr ms;
-    rc = util::MultiStream::Create(backingstream, pcmsize, &ms);
-    if (rc != 0)
-    {
-	FireError(rc);
-	return rc;
+	TRACE << "Chosen to rip via disk\n";
     }
 
-    util::StreamPtr pcmforflac;
-    ms->CreateOutput(&pcmforflac);
+    util::MultiStreamPtr msp = util::MultiStream::Create(backingstream,
+							 pcmsize);
+    // Note that msp now owns the backingstream
 
-    util::StreamPtr pcmformp3;
-    ms->CreateOutput(&pcmformp3);
+    std::auto_ptr<util::Stream> pcmforflac;
+    msp->CreateOutput(&pcmforflac);
+
+    std::auto_ptr<util::Stream> pcmformp3;
+    msp->CreateOutput(&pcmformp3);
 
     m_etp1->SetInputStream(pcmforflac, pcmsize);
     m_encode_queue->PushTask(util::Bind(m_etp1).To<&EncodingTask::Run>());
@@ -94,15 +90,15 @@ unsigned int RippingTask::Run()
     m_etp2->SetInputStream(pcmformp3, pcmsize);
     m_encode_queue->PushTask(util::Bind(m_etp2).To<&EncodingTask::Run>());
 
-    util::StreamPtr cdstream = m_cd->GetTrackStream(m_track);
-    if (!cdstream)
+    std::auto_ptr<util::Stream> cdstream = m_cd->GetTrackStream(m_track);
+    if (!cdstream.get())
     {
 	TRACE << "Can't make CD stream\n";
 	FireError(ENOENT);
 	return ENOENT;
     }
 
-    char buf[2352*10];
+    char buf[2352*20];
 
     time_t t = time(NULL);
 
@@ -115,13 +111,13 @@ unsigned int RippingTask::Run()
 
 	size_t nread;
 	rc = cdstream->Read(buf, lump, &nread);
-	if (rc != 0)
+	if (rc != 0 || nread == 0)
 	{
 	    FireError(rc);
 	    TRACE << "Read error " << rc << "\n";
 	    return rc;
 	}
-	rc = ms->WriteAll(buf, nread);
+	rc = msp->WriteAll(buf, nread);
 	if (rc != 0)
 	{
 	    TRACE << "Write error " << rc << "\n";
@@ -138,9 +134,12 @@ unsigned int RippingTask::Run()
     
     t = time(NULL) - t;
 
-    double x = ((end-start+1)/75.0)/(double)t;
+    if (t)
+    {
+	double x = ((end-start+1)/75.0)/(double)t;
 
-    TRACE << "Rip track " << (m_track+1) << " done " << x << "x\n";
+	TRACE << "Rip track " << (m_track+1) << " done " << x << "x\n";
+    }
     return 0;
 }
 

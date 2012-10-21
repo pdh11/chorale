@@ -4,7 +4,10 @@
 #include <map>
 #include <string>
 #include <list>
-#include "libdb/db.h"
+
+namespace util { template<class> class CountedPointer; }
+namespace db { class Recordset; }
+namespace db { typedef util::CountedPointer<Recordset> RecordsetPtr; }
 
 namespace mediadb {
 

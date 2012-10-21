@@ -32,11 +32,6 @@ public:
 			   size_t /*num*/, size_t /*denom*/) {}
     virtual void OnAmendMetadata(unsigned int /*srcid*/, 
 				 size_t /*num*/, size_t /*denom*/) {}
-
-#ifdef DEBUG
-    virtual class ThisMethodIsObsolete *OnAdd(unsigned int) { return NULL; }
-    virtual class ThisMethodIsObsolete *OnAmend(unsigned int) { return NULL; }
-#endif
 };
 
 /** Synchronise one mediadb::Database with another.

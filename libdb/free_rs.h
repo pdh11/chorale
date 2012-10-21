@@ -6,7 +6,6 @@
 #include <vector>
 #include <string>
 #include "recordset.h"
-#include "db.h"
 
 namespace db {
 
@@ -19,7 +18,7 @@ class FreeRecordset: public db::Recordset
 
     FreeRecordset() : m_eof(false) {}
 public:
-    static RecordsetPtr Create();
+    static util::CountedPointer<Recordset> Create();
 
     // Being a Recordset
     bool IsEOF() const;

@@ -2,7 +2,7 @@
 #define WRITE_TAGS_FLAC_H
 
 #include <string>
-#include "tags.h"
+#include "tag_writer.h"
 
 namespace import {
 
@@ -10,15 +10,10 @@ namespace import {
  */
 namespace flac {
 
-class Tags: public import::Tags::Impl
+class TagWriter: public import::TagWriterBase
 {
 public:
-    Tags(const std::string& filename): import::Tags::Impl(filename) {}
-
-    // Being a Tags
-    unsigned Write(const db::Recordset*);
-
-    // No Read() -- use the default one for now
+    unsigned Write(const std::string& filename, const db::Recordset*);
 };
 
 } // namespace flac

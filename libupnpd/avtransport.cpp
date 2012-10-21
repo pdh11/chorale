@@ -3,7 +3,7 @@
 #include "libutil/trace.h"
 #include "liboutput/urlplayer.h"
 #include "libutil/xmlescape.h"
-#include <boost/format.hpp>
+#include "libutil/printf.h"
 #include <stdio.h>
 
 namespace upnpd {
@@ -69,6 +69,7 @@ std::string AVTransportImpl::GetStateChange()
     case output::PLAY:
 	sstate = "PLAYING";
 	break;
+    case output::STOP:
     default:
 	sstate = "STOPPED";
 	break;
@@ -85,7 +86,7 @@ void AVTransportImpl::OnPlayState(output::PlayState state)
 	std::string change = sm_change_header + GetStateChange()
 	    + sm_change_footer;
 	TRACE << "Emitting LastChange\n" << change << "\n";
-	Fire(&upnp::AVTransport2Observer::OnLastChange, change);
+	Fire(&upnp::AVTransportObserver::OnLastChange, change);
     }
 }
 
@@ -109,7 +110,7 @@ void AVTransportImpl::OnURL(const std::string& url)
 	m_metadata = m_next_metadata;
     std::string change = sm_change_header + GetURLChange() + sm_change_footer;
     TRACE << "Emitting LastChange\n" << change << "\n";
-    Fire(&upnp::AVTransport2Observer::OnLastChange, change);
+    Fire(&upnp::AVTransportObserver::OnLastChange, change);
 }
 
 void AVTransportImpl::OnTimeCode(unsigned int sec)
@@ -180,7 +181,7 @@ unsigned int AVTransportImpl::GetPositionInfo(uint32_t,
 					      std::string *rel_time,
 					      std::string *abs_time,
 					      int32_t *rel_count,
-					      int32_t *abs_count)
+					      uint32_t *abs_count)
 {
     if (track)
 	*track = 1;
@@ -196,7 +197,7 @@ unsigned int AVTransportImpl::GetPositionInfo(uint32_t,
 	unsigned int h = m_timecodesec/3600;
 	unsigned int m = (m_timecodesec/60) % 60;
 	unsigned int s = m_timecodesec % 60;
-	std::string t = (boost::format("%02u:%02u:%02u") % h % m % s).str();
+	std::string t = util::SPrintf("%02u:%02u:%02u", h, m, s);
 	if (rel_time)
 	    *rel_time = t;
 	if (abs_time)

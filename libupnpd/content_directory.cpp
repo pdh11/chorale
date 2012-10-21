@@ -4,15 +4,18 @@
 #include "libmediadb/didl.h"
 #include "libmediadb/db.h"
 #include "libdb/query.h"
+#include "libdb/recordset.h"
+#include "libutil/counted_pointer.h"
 #include "libutil/trace.h"
 #include "libutil/xmlescape.h"
 #include "libutil/socket.h"
+#include "libutil/printf.h"
 #include "libupnp/soap_info_source.h"
 #include "search.h"
 #include <sstream>
 #include <errno.h>
 #include <string.h>
-#include <boost/format.hpp>
+#include <stdlib.h>
 
 LOG_DECL(CDS);
 
@@ -179,7 +182,8 @@ unsigned int ContentDirectoryImpl::Search(const std::string& container_id,
 					  uint32_t *total_matches,
 					  uint32_t *update_id)
 {
-    LOG(CDS) << "Search(" << search_criteria << ")\n";
+    LOG(CDS) << "Search(" << search_criteria
+	     << "," << starting_index << "," << requested_count << ")\n";
 
     db::QueryPtr qp = m_db->CreateQuery();
 
@@ -275,6 +279,12 @@ unsigned int ContentDirectoryImpl::Search(const std::string& container_id,
     }
     ss << mediadb::didl::s_footer;
 
+    while (rs && !rs->IsEOF())
+    {
+	rs->MoveNext();
+	++n;
+    }
+
     LOG(CDS) << "Search result is " << ss.str() << " (" << nok << " items)\n";
 
     *result = ss.str();
@@ -310,19 +320,19 @@ unsigned int ContentDirectoryImpl::GetSystemUpdateID(uint32_t *pui)
 
 unsigned int ContentDirectoryImpl::GetFeatureList(std::string *fl)
 {
-    *fl = (boost::format(
+    *fl = util::Printf() <<
 	"<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
 	"<Features xmlns=\"urn:schemas-upnp-org:av:avs\">"
 	" <Feature name=\"TUNER\" version=\"1\">"
-	"  <objectIDs>%u,%u</objectIDs>"
+	"  <objectIDs>"
+			 << (unsigned)mediadb::RADIO_ROOT << ","
+			 << (unsigned)mediadb::TV_ROOT
+			 << "</objectIDs>"
 	" </Feature>"
 	" <Feature name=\"EPG\" version=\"1\">"
-	"  <objectIDs>%u</objectIDs>"
+	"  <objectIDs>" << (unsigned)mediadb::EPG_ROOT << "</objectIDs>"
 	" </Feature>"
-	"</Features>")
-	   % (unsigned)mediadb::RADIO_ROOT
-	   % (unsigned)mediadb::TV_ROOT
-	   % (unsigned)mediadb::EPG_ROOT).str();
+	"</Features>";
     
     return 0;
 }
@@ -347,19 +357,20 @@ unsigned int ContentDirectoryImpl::GetServiceResetToken(std::string *srt)
 # include "libutil/worker_thread_pool.h"
 # include "libdblocal/db.h"
 # include "libdbsteam/db.h"
-# include "libdbupnp/db.h"
+# include "libdbupnp/database.h"
 # include "libupnp/ssdp.h"
 # include "libupnp/server.h"
-# include "libupnp/ContentDirectory3_client.h"
+# include "libupnp/ContentDirectory_client.h"
 # include "libmediadb/xml.h"
 # include "media_server.h"
+# include <boost/format.hpp>
 #if HAVE_WINDOWS_H
 # include <windows.h>
 #endif
 
 static const struct {
     const char *objectid;
-    upnp::ContentDirectory3::BrowseFlag flag;
+    upnp::ContentDirectory::BrowseFlag flag;
     const char *filter;
     unsigned int start;
     unsigned int requestcount;
@@ -369,7 +380,7 @@ static const struct {
     unsigned int n;
     unsigned int total;
 } browsetests[] = {
-    { "0", upnp::ContentDirectory3::BROWSEFLAG_BROWSE_METADATA, "*", 0, 0, "",
+    { "0", upnp::ContentDirectory::BROWSEFLAG_BROWSE_METADATA, "*", 0, 0, "",
 
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
@@ -388,7 +399,7 @@ static const struct {
       "</container></DIDL-Lite>",
       1, 1 },
 
-    { "0", upnp::ContentDirectory3::BROWSEFLAG_BROWSE_DIRECT_CHILDREN, "*", 0, 0, "",
+    { "0", upnp::ContentDirectory::BROWSEFLAG_BROWSE_DIRECT_CHILDREN, "*", 0, 0, "",
 
 "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
 " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
@@ -427,7 +438,7 @@ static const struct {
       "</DIDL-Lite>", 5, 5 },
 
     // Browses with filters
-    { "291", upnp::ContentDirectory3::BROWSEFLAG_BROWSE_DIRECT_CHILDREN, "upnp:genre,dc:date", 0, 2, "",
+    { "291", upnp::ContentDirectory::BROWSEFLAG_BROWSE_DIRECT_CHILDREN, "upnp:genre,dc:date", 0, 2, "",
 
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
@@ -447,7 +458,7 @@ static const struct {
       "</item>"
       "</DIDL-Lite>", 2, 4 },
 
-    { "0", upnp::ContentDirectory3::BROWSEFLAG_BROWSE_METADATA, "", 0, 0, "",
+    { "0", upnp::ContentDirectory::BROWSEFLAG_BROWSE_METADATA, "", 0, 0, "",
 
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
@@ -459,7 +470,7 @@ static const struct {
       "</container></DIDL-Lite>",
       1, 1 },
 
-    { "0", upnp::ContentDirectory3::BROWSEFLAG_BROWSE_METADATA, "upnp:searchClass", 0, 0, "",
+    { "0", upnp::ContentDirectory::BROWSEFLAG_BROWSE_METADATA, "upnp:searchClass", 0, 0, "",
 
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
@@ -477,7 +488,7 @@ static const struct {
       "</container></DIDL-Lite>",
       1, 1 },
 
-    { "0", upnp::ContentDirectory3::BROWSEFLAG_BROWSE_METADATA, "upnp:storageUsed", 0, 0, "",
+    { "0", upnp::ContentDirectory::BROWSEFLAG_BROWSE_METADATA, "upnp:storageUsed", 0, 0, "",
 
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
@@ -490,7 +501,7 @@ static const struct {
       "</container></DIDL-Lite>",
       1, 1 },
 
-    { "302", upnp::ContentDirectory3::BROWSEFLAG_BROWSE_METADATA, "", 0, 0, "",
+    { "302", upnp::ContentDirectory::BROWSEFLAG_BROWSE_METADATA, "", 0, 0, "",
 
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
@@ -501,7 +512,7 @@ static const struct {
       "</item></DIDL-Lite>",
       1, 1 },
 
-    { "302", upnp::ContentDirectory3::BROWSEFLAG_BROWSE_METADATA, "*", 0, 0, "",
+    { "302", upnp::ContentDirectory::BROWSEFLAG_BROWSE_METADATA, "*", 0, 0, "",
 
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
@@ -519,7 +530,7 @@ static const struct {
       "</item></DIDL-Lite>",
       1, 1 },
 
-    { "302", upnp::ContentDirectory3::BROWSEFLAG_BROWSE_METADATA, "upnp:artist,upnp:album", 0, 0, "",
+    { "302", upnp::ContentDirectory::BROWSEFLAG_BROWSE_METADATA, "upnp:artist,upnp:album", 0, 0, "",
 
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
@@ -532,7 +543,7 @@ static const struct {
       "</item></DIDL-Lite>",
       1, 1 },
 
-    { "302", upnp::ContentDirectory3::BROWSEFLAG_BROWSE_METADATA, "upnp:genre,upnp:originalTrackNumber", 0, 0, "",
+    { "302", upnp::ContentDirectory::BROWSEFLAG_BROWSE_METADATA, "upnp:genre,upnp:originalTrackNumber", 0, 0, "",
 
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
@@ -545,7 +556,7 @@ static const struct {
       "</item></DIDL-Lite>",
       1, 1 },
 
-    { "302", upnp::ContentDirectory3::BROWSEFLAG_BROWSE_METADATA, "dc:date,didl-lite:res@size", 0, 0, "",
+    { "302", upnp::ContentDirectory::BROWSEFLAG_BROWSE_METADATA, "dc:date,didl-lite:res@size", 0, 0, "",
 
       "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""
       " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
@@ -896,8 +907,8 @@ int main(int, char**)
     rc = client.Init(descurl, ms.GetUDN());
     assert(rc == 0);
 
-    upnp::ContentDirectory3Client cdc(&client,
-				      upnp::s_service_id_content_directory);
+    upnp::ContentDirectoryClient cdc(&client,
+				     upnp::s_service_id_content_directory);
     rc = cdc.Init();
     assert(rc == 0);
     
@@ -959,6 +970,7 @@ int main(int, char**)
     assert(rc == 0);
     assert(caps == "" );
     rc = cdc.GetFeatureList(&caps);
+    TRACE << "caps='" << caps << "'\n";
     assert(caps ==
 	"<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
 	"<Features xmlns=\"urn:schemas-upnp-org:av:avs\">"
@@ -972,7 +984,7 @@ int main(int, char**)
 
     // Now via a dbupnp
 
-    db::upnpav::Database udb(&wc, &ws, &poller);
+    db::upnp::Database udb(&wc, &ws, &poller);
     rc = udb.Init(descurl, ms.GetUDN());
     assert(rc == 0);
     

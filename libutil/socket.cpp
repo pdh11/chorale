@@ -44,7 +44,9 @@ LOG_DECL(HTTP);
 
 namespace util {
 
-static const struct {
+namespace {
+
+const struct {
     unsigned from;
     unsigned to;
 } errnomap[] = {
@@ -73,7 +75,7 @@ static const struct {
 
 };
 
-static unsigned int MappedError(unsigned int e)
+unsigned int MappedError(unsigned int e)
 {
     for (unsigned int i=0; i<sizeof(errnomap)/sizeof(*errnomap); ++i)
 	if (e == errnomap[i].from)
@@ -101,7 +103,7 @@ static SocketStartup g_ss;
 
 enum { NO_SOCKET = (int)-1 };
 
-static void SetUpSockaddr(const IPEndPoint& ep, struct sockaddr_in *sin)
+void SetUpSockaddr(const IPEndPoint& ep, struct sockaddr_in *sin)
 {
     memset(sin, 0, sizeof(*sin));
     sin->sin_family = AF_INET;
@@ -109,17 +111,15 @@ static void SetUpSockaddr(const IPEndPoint& ep, struct sockaddr_in *sin)
     sin->sin_addr.s_addr = ep.addr.addr;
 }
 
+} // anon namespace
+
 Socket::Socket()
-    : m_fd(NO_SOCKET),
-      m_timeout_ms(5000),
-      m_peeked(0)
+    : m_fd(NO_SOCKET)
 {
 }
 
 Socket::Socket(int fd)
-    : m_fd(fd),
-      m_timeout_ms(5000),
-      m_peeked(0)
+    : m_fd(fd)
 {
 }
 
@@ -342,43 +342,10 @@ unsigned Socket::WaitForWrite(unsigned int ms)
 #endif
 }
 
-unsigned Socket::ReadPeek(void *buffer, size_t len, size_t *pread)
-{   
-#ifdef WIN32
-    ssize_t rc = ::recv(m_fd, (char*)buffer, len, MSG_NOSIGNAL|MSG_PEEK);
-//    TRACE << "recv(peek) returned " << rc << "\n";
-
-    if (rc < 0)
-    {
-	unsigned rc3 = SocketError();
-//	TRACE << "Socket readpeek failed:" << rc3 << "\n";
-	return rc3;
-    }
-    m_peeked = rc;
-    *pread = (size_t)rc;
-#else
-    ssize_t rc = ::recv(m_fd, (char*)buffer, len, MSG_NOSIGNAL|MSG_PEEK);
-
-    if (rc < 0)
-	return (unsigned int)errno;
-    m_peeked = (unsigned int)rc;
-    *pread = (size_t)rc;
-#endif
-    return 0;
-}
-
 unsigned Socket::Read(void *buffer, size_t len, size_t *pread)
 {
 #ifdef WIN32
     ssize_t rc = ::recv(m_fd, (char*)buffer, len, MSG_NOSIGNAL);
-
-    if (rc < 0 && WSAGetLastError() == WSAEWOULDBLOCK && m_timeout_ms)
-    {
-	unsigned rc2 = WaitForRead(m_timeout_ms);
-	if (rc2 != 0)
-	    return rc2;
-	rc = ::recv(m_fd, (char*)buffer, len, MSG_NOSIGNAL);
-    }
 
     if (rc < 0)
     {
@@ -386,11 +353,6 @@ unsigned Socket::Read(void *buffer, size_t len, size_t *pread)
 	return SocketError();
     }
     *pread = (size_t)rc;
-
-    if (rc > (ssize_t)m_peeked)
-	m_peeked = 0;
-    else
-	m_peeked -= rc;
 #else
     if (len == 0)
     {
@@ -399,14 +361,6 @@ unsigned Socket::Read(void *buffer, size_t len, size_t *pread)
     }
 
     ssize_t rc = ::recv(m_fd, (char*)buffer, len, MSG_NOSIGNAL);
-
-    if (rc < 0 && errno == EWOULDBLOCK && m_timeout_ms)
-    {
-	unsigned rc2 = WaitForRead(m_timeout_ms);
-	if (rc2 != 0)
-	    return rc2;
-	rc = ::recv(m_fd, (char*)buffer, len, MSG_NOSIGNAL);
-    }
 
     if (rc < 0)
     {
@@ -423,14 +377,6 @@ unsigned Socket::Write(const void *buffer, size_t len, size_t *pwrote)
     ssize_t rc = ::send(m_fd, (const char*)buffer, len,
 			MSG_NOSIGNAL);
 
-    if (rc < 0 && WSAGetLastError() == WSAEWOULDBLOCK && m_timeout_ms)
-    {
-	unsigned rc2 = WaitForWrite(m_timeout_ms);
-	if (rc2 != 0)
-	    return rc2;
-	rc = ::send(m_fd, (const char*)buffer, len, MSG_NOSIGNAL);
-    }
-
     if (rc < 0)
     {
 	return SocketError();
@@ -440,19 +386,38 @@ unsigned Socket::Write(const void *buffer, size_t len, size_t *pwrote)
     ssize_t rc = ::send(m_fd, (const char*)buffer, len, MSG_NOSIGNAL);
 //    TRACE << "Send() returned " << rc << " errno " << errno << "\n";
 
-    if (rc < 0 && errno == EWOULDBLOCK && m_timeout_ms)
-    {
-	unsigned rc2 = WaitForWrite(m_timeout_ms);
-	if (rc2 != 0)
-	    return rc2;
-	rc = ::send(m_fd, (const char*)buffer, len, MSG_NOSIGNAL);
-    }
-
     if (rc < 0)
 	return (unsigned int)errno;
     *pwrote = (size_t)rc;
 #endif
     return 0;
+}
+
+unsigned Socket::WriteV(const Buffer *buffers, unsigned int nbuffers,
+			size_t *pwrote)
+{
+#ifdef WIN32
+    assert(nbuffers <= 4);
+    WSABUF wsab[4];
+    for (unsigned int i=0; i<nbuffers; ++i)
+    {
+	wsab[i].len = buffers[i].len;
+	wsab[i].buf = (char*)buffers[i].ptr;
+    }
+    DWORD nwrote = 0;
+    int rc = ::WSASend(m_fd, wsab, nbuffers, &nwrote, 0, NULL, NULL);
+    if (rc < 0 && WSAGetLastError() != WSAEWOULDBLOCK)
+	return SocketError();
+    *pwrote = nwrote;
+    return 0;
+#else
+    *pwrote = 0;
+    ssize_t rc = writev(m_fd, (const struct iovec*)buffers, nbuffers);
+    if (rc < 0)
+	return (unsigned int)errno;
+    *pwrote = (size_t)rc;
+    return 0;
+#endif
 }
 
 
@@ -653,15 +618,6 @@ unsigned DatagramSocket::Read(void *buffer, size_t buflen, size_t *nread,
     if (rc != 0)
 	return SocketError();
     *nread = bytesread;
-
-    if (m_peeked)
-    {
-//	TRACE << "Read(2) resets m_peeked\n";
-	if (bytesread >= m_peeked)
-	    m_peeked = 0;
-	else
-	    m_peeked -= bytesread;
-    }
 
     if (wasfrom)
     {
@@ -880,26 +836,18 @@ StreamSocket::StreamSocket(int fd)
 {
 }
 
-StreamSocketPtr StreamSocket::Create()
+StreamSocket::~StreamSocket()
 {
-    return StreamSocketPtr(new StreamSocket); 
 }
 
 unsigned StreamSocket::Open()
 {
     m_fd = ::socket(PF_INET, SOCK_STREAM, 0);
-    int i = 1;
-    int rc = ::setsockopt(m_fd, IPPROTO_TCP, TCP_NODELAY,
-			  (const char*)&i, sizeof(i));
-    if (rc < 0)
-    {
-	TRACE << "Can't turn off Nagle: " << SocketError() << "\n";
-    }
 
 #ifdef WIN32
     /** http://support.microsoft.com/kb/823764/EN-US/
      */
-    i = 65537;
+    unsigned i = 65537;
     ::setsockopt(m_fd, SOL_SOCKET, SO_SNDBUF, (const char*)&i, sizeof(i));
 #endif
     return 0;
@@ -913,7 +861,7 @@ unsigned StreamSocket::Listen(unsigned int queue)
     return 0;
 }
 
-unsigned StreamSocket::Accept(StreamSocketPtr *accepted)
+unsigned StreamSocket::Accept(std::auto_ptr<StreamSocket> *accepted)
 {
     struct sockaddr sa;
     socklen_t sl = sizeof(sa);
@@ -937,7 +885,7 @@ unsigned StreamSocket::Accept(StreamSocketPtr *accepted)
 
 //    TRACE << "Accepted fd " << rc << "\n";
 
-    *accepted = StreamSocketPtr(new StreamSocket(rc));
+    accepted->reset(new StreamSocket(rc));
     return 0;
 }
 

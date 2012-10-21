@@ -14,7 +14,10 @@ unsigned int MkdirParents(const char *leafname)
 {
     const char *rslash = strrchr(leafname, '/');
     if (!rslash)
+    {
+	TRACE << "MkdirParents(" << leafname << ") no slash\n";
 	return ENOTDIR;
+    }
     std::string parent(leafname, rslash);
     if (DirExists(parent.c_str()))
 	return 0;
@@ -22,16 +25,39 @@ unsigned int MkdirParents(const char *leafname)
     unsigned int rc = MkdirParents(parent.c_str());
     if (rc)
 	return rc;
-    return Mkdir(parent.c_str());
+
+    rc = Mkdir(parent.c_str());
+
+    /* This is completely racy with other threads doing the same thing, so
+     * EEXIST is a non-problem here.
+     */
+    if (rc == EEXIST)
+	rc = 0;
+
+    if (rc)
+    {
+	TRACE << "mkdir(" << parent << ") failed, " << rc << "\n";
+    }
+    return rc;
 }
 
-void RenameWithMkdir(const char *oldname, const char *newname)
+unsigned int RenameWithMkdir(const char *oldname, const char *newname)
 {
-    MkdirParents(newname);
+    unsigned int rc = MkdirParents(newname);
+    if (rc)
+    {
+	TRACE << "MkdirParents failed: " << rc << "\n";
+	return rc;
+    }
 //    TRACE << "Rename " << oldname << " to " << newname << "\n";
-
-    /// @bug These names are UTF-8 on Windows
-    ::rename(oldname, newname);
+    
+    int rc2 = ::rename(oldname, newname);
+    if (rc2 < 0)
+    {
+	TRACE << "Rename failed: " << errno << "\n";
+	return errno;
+    }
+    return 0;
 }
 
 std::string ProtectLeafname(const std::string& s)

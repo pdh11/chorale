@@ -1,13 +1,13 @@
 #include "line_reader.h"
 #include "trace.h"
-#include "string_stream.h"
-#include "counted_pointer.h"
+#include "stream.h"
 #include <errno.h>
+#include <assert.h>
 #include <string.h>
 
 namespace util {
 
-GreedyLineReader::GreedyLineReader(StreamPtr stream)
+GreedyLineReader::GreedyLineReader(Stream *stream)
     : m_stream(stream), m_buffered(0)
 {
 }
@@ -48,21 +48,26 @@ unsigned GreedyLineReader::GetLine(std::string *line)
 	    size_t toskip = (size_t)(cr - m_buffer);
 	    m_buffered -= toskip;
 	    memmove(m_buffer, cr, m_buffered);
+//	    TRACE << "Returning line, " << m_buffered << " more bytes buffered\n";
 	    return 0;
 	}
     }
 }
 
-const char *GreedyLineReader::GetLeftovers(size_t *nbytes)
+void GreedyLineReader::ReadLeftovers(void *buffer, size_t n, size_t *nread)
 {
-    *nbytes = m_buffered;
-    m_buffered = 0;
-    return m_buffer;
+    if (n > m_buffered)
+	n = m_buffered;
+    *nread = n;
+    memcpy(buffer, m_buffer, n);
+    m_buffered -= n;
+    memmove(m_buffer, m_buffer+n, m_buffered);
 }
 
 } // namespace util
 
 #ifdef TEST
+# include "string_stream.h"
 
 struct Test 
 {
@@ -84,10 +89,9 @@ static const Test tests[] = {
 
 void DoTest(const Test *t)
 {
-    util::StringStreamPtr ss = util::StringStream::Create();
-    ss->str() = t->input;
+    util::StringStream ss(t->input);
 
-    util::GreedyLineReader lr(ss);
+    util::GreedyLineReader lr(&ss);
     const char *const *ptr = &t->lines[0];
 
     while (*ptr)
@@ -104,8 +108,9 @@ void DoTest(const Test *t)
 	++ptr;
     }
 
+    char buffer;
     size_t nbytes;
-    lr.GetLeftovers(&nbytes);
+    lr.ReadLeftovers(&buffer, 1, &nbytes);
     assert(nbytes == 0);
 }
 

@@ -1,6 +1,8 @@
 #include "ip_config.h"
 #include "trace.h"
 #include "errors.h"
+#include <assert.h>
+#include <unistd.h>
 
 #ifdef WIN32
 

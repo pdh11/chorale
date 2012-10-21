@@ -23,9 +23,9 @@ public:
 	: QEvent((QEvent::Type)EventType())
     {}
     
-    CustomEvent(const T& t)
+    CustomEvent(const T& tt)
 	: QEvent((QEvent::Type)EventType()),
-	  m_data(t)
+	  m_data(tt)
     {}
 
     T m_data;

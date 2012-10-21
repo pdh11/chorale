@@ -19,6 +19,7 @@ class ResourceWidget: public QFrame
     
     std::string m_label;
     QLabel *m_label_widget;
+    QLabel *m_icon_widget;
     QPushButton *m_top;
     QPushButton *m_bottom;
     
@@ -30,6 +31,7 @@ public:
     void EnableBottom(bool enabled);
 
     void SetLabel(const std::string&);
+    void SetResourcePixmap(QPixmap);
 
 public slots:
     virtual void OnTopButton() = 0;

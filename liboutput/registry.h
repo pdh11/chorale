@@ -5,9 +5,9 @@
 
 namespace output {
 
-class URLPlayer;
+class Queue;
 
-class Registry: public util::Registry<URLPlayer>
+class Registry: public util::Registry<Queue>
 {
 public:
     Registry();

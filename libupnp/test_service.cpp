@@ -1,12 +1,13 @@
 #include "TestService_server.h"
 #include "TestService_client.h"
+#include "libutil/bind.h"
+#include "libutil/trace.h"
 #include "libutil/scheduler.h"
 #include "libutil/http_client.h"
 #include "libutil/http_server.h"
-#include "libutil/trace.h"
 #include "libutil/worker_thread_pool.h"
-#include "server.h"
 #include "ssdp.h"
+#include "server.h"
 #include <boost/format.hpp>
 #if HAVE_WINDOWS_H
 #include <windows.h>
@@ -28,17 +29,70 @@ public:
     TestServiceImpl() : m_ptang(0) {}
 
     // Being a TestService
-    unsigned int Wurdle(uint32_t fnoo, uint32_t *fnaa);
+    unsigned int Wurdle(
+	bool boolin,
+	bool *boolout,
+            int8_t scharin,
+            uint8_t ucharin,
+            int8_t *scharout,
+            uint8_t *ucharout,
+            int16_t shalfin,
+            uint16_t uhalfin,
+            int16_t *shalfout,
+            uint16_t *uhalfout,
+            int32_t swordin,
+            uint32_t uwordin,
+            int32_t *swordout,
+            uint32_t *uwordout,
+            const std::string& strin,
+            std::string *strout,
+            const std::string& urlin,
+            std::string *urlout,
+            Enum enumin,
+            Enum *enumout);
     unsigned int GetPtang(uint32_t*);
 };
 
-unsigned int TestServiceImpl::Wurdle(uint32_t fnoo, uint32_t *fnaa)
+unsigned int TestServiceImpl::Wurdle(
+    bool boolin,
+    bool *boolout,
+            int8_t scharin,
+            uint8_t ucharin,
+            int8_t *scharout,
+            uint8_t *ucharout,
+            int16_t shalfin,
+            uint16_t uhalfin,
+            int16_t *shalfout,
+            uint16_t *uhalfout,
+            int32_t swordin,
+            uint32_t uwordin,
+            int32_t *swordout,
+            uint32_t *uwordout,
+            const std::string& strin,
+            std::string *strout,
+            const std::string& urlin,
+            std::string *urlout,
+            Enum enumin,
+            Enum *enumout)
 {
-//    TRACE << "Wurdling\n";
-    *fnaa = fnoo + 1;
-    m_ptang = fnoo - 1;
-//    TRACE << "Firing ptang=" << m_ptang << "\n";
+    TRACE << "Wurdling\n";
+
+    m_ptang = uwordin + 1;
+
+    *boolout = !boolin;
+    *scharout = ++scharin;
+    *ucharout = --ucharin;
+    *shalfout = ++shalfin;
+    *uhalfout = --uhalfin;
+    *swordout = ++swordin;
+    *uwordout = --uwordin;
+    *strout = strin + "+";
+    *urlout = urlin + "#";
+    *enumout = (Enum)(enumin+1);
+
+    TRACE << "Firing ptang=" << m_ptang << "\n";
     Fire(&upnp::TestServiceObserver::OnPtang, m_ptang);
+    TRACE << "Fired\n";
     return 0;
 }
 
@@ -86,15 +140,38 @@ void DoTest(upnp::TestService *service)
 
     service->AddObserver(&pto);
     
-    uint32_t fnaa;
-    unsigned rc = service->Wurdle(6, &fnaa);
+    bool b = false;
+    int8_t i1 = 0;
+    uint8_t ui1 = 0;
+    int16_t i2;
+    uint16_t ui2;
+    int32_t i4;
+    uint32_t ui4;
+    std::string str;
+    std::string url;
+    upnp::TestService::Enum en;
+    unsigned rc = service->Wurdle(false, &b, -42, 221, &i1, &ui1,
+				  -2001, 50000, &i2, &ui2,
+				  -80386, 3u*1000*1000*1000, &i4, &ui4,
+				  "foo", &str,
+				  "http", &url,
+				  upnp::TestService::ENUM_FRINK, &en);
     assert(rc == 0);
-    assert(fnaa == 7);
+    assert(b);
+    assert(i1 == -41);
+    assert(ui1 == 220);
+    assert(i2 == -2000);
+    assert(ui2 == 49999);
+    assert(i4 == -80385);
+    assert(ui4 == 2999999999u);
+    assert(str == "foo+");
+    assert(url == "http#");
+    assert(en == upnp::TestService::ENUM_WAAH);
 
     int tries = 0;
     for (;;)
     {
-	if (pto.ptang == 5) // set via eventing
+	if (pto.ptang) // set via eventing
 	    break;
 
 	assert(++tries < 30);
@@ -111,29 +188,47 @@ void DoTest(upnp::TestService *service)
 //    assert(rc == 0);
 //    assert(ptang == 5);
 
-    assert(pto.ptang == 5); // set via eventing
+    assert(pto.ptang == 3000000001u); // set via eventing
 
     service->RemoveObserver(&pto);
 }
 
-class AsyncTest
+class AsyncTest: public upnp::TestServiceAsyncObserver
 {
     upnp::DeviceClient *m_client;
     upnp::TestServiceClientAsync m_tsca;
     bool m_done;
 
-    unsigned int DoWurdle(unsigned int rc, const uint32_t *fnaa)
+    void OnWurdleDone(unsigned int rc,
+		      bool boolout,
+		      int8_t scharout,
+		      uint8_t ucharout,
+		      int16_t shalfout,
+		      uint16_t uhalfout,
+		      int32_t swordout,
+		      uint32_t uwordout,
+		      const std::string& strout,
+		      const std::string& urlout,
+		      upnp::TestService::Enum enumout)
     {
-	TRACE << "In DoWurdle\n";
+	TRACE << "In OnWurdleDone\n";
 	assert(rc == 0);
-	assert(*fnaa == 17);
+	assert(!boolout);
+	assert(scharout == 70);
+	assert(ucharout == 220);
+	assert(shalfout == 748);
+	assert(uhalfout == 49999);
+	assert(swordout == 68009);
+	assert(uwordout == 2999999999u);
+	assert(strout == "foonly+");
+	assert(urlout == "gopher#");
+	assert(enumout == upnp::TestService::ENUM_GIBILISCO);
 	m_done = true;
-	return rc;
     }
 public:
     AsyncTest(upnp::DeviceClient *client)
 	: m_client(client),
-	  m_tsca(client, s_test_service_id),
+	  m_tsca(client, s_test_service_id, this),
 	  m_done(false)
 	{}
 
@@ -169,9 +264,11 @@ public:
 	TRACE << "In OnInit2\n";
 	assert(rc == 0);
 
-	rc = m_tsca.Wurdle(16, 
-			   util::Bind(this).To<unsigned int, const uint32_t*,
-			               &AsyncTest::DoWurdle>());
+	rc = m_tsca.Wurdle(true, 69, 221,
+			   747, 50000,
+			   68008, 3u*1000*1000*1000,
+			   "foonly", "gopher", upnp::TestService::ENUM_WAAH);
+			   
         assert(rc == 0);
 	return rc;
     }

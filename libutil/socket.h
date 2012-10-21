@@ -2,10 +2,11 @@
 #define LIBUTIL_SOCKET_H
 
 #include <string>
+#include <memory>
 #include <stdint.h>
 #include "stream.h"
-#include "trace.h"
 #include "ip.h"
+#include "attributes.h"
 
 namespace util {
 
@@ -17,12 +18,6 @@ class Socket: public Stream
 {
 protected:
     int m_fd;
-
-    /** Timeout for synchronous operations */
-    unsigned int m_timeout_ms;
-
-    /** How many bytes have we Peek'd but not yet read? */
-    unsigned int m_peeked;
 
     Socket();
     ~Socket();
@@ -54,18 +49,18 @@ public:
     unsigned Connect(const IPEndPoint&);
 
     // Being a Pollable
-    PollHandle GetHandle() { return m_fd; }
+    int GetHandle() { return m_fd; }
+
+    /** Returns stream flags.
+     *
+     * Note that a socket, by itself, isn't WAITABLE, as it has no connection
+     * to a scheduler or task queue. Only a higher-level object such as an
+     * http::Client can be WAITABLE.
+     */
+    unsigned GetStreamFlags() const { return READABLE|WRITABLE|POLLABLE; }
 
     bool IsOpen() const;
     unsigned Close();
-
-    /** Reads up to len bytes without removing them from the input buffer.
-     *
-     * Note that on Windows (http://support.microsoft.com/kb/140263) you can't
-     * just go on peeking waiting for enough to arrive; you have to do a real
-     * read and then peek again.
-     */
-    unsigned ReadPeek(void *buffer, size_t len, size_t *pread);
 
     /** Get amount of data in input buffer (i.e. how much we can Read)
      */
@@ -79,27 +74,14 @@ public:
     unsigned Read(void *buffer, size_t len, size_t *pread);
     unsigned Write(const void *buffer, size_t len, size_t *pwrote);
 
-    /** Set the (automatic) timeout on Read and Write. Default is 5000ms.
-     *
-     * Clients which deal with EWOULDBLOCK themselves can use 0.
-     */
-    void SetTimeoutMS(unsigned int ms) { m_timeout_ms = ms; }
-
-    friend const Tracer& operator<<(const Tracer& n, const Socket* s);
-    friend const Tracer& operator<<(const Tracer& n, const Socket& s);
+    struct Buffer
+    {
+	const void *ptr;
+	size_t len;
+    };
+    unsigned WriteV(const Buffer *buffers, unsigned int nbuffers,
+		    size_t *pwrote);
 };
-
-inline const Tracer& operator<<(const Tracer& n, const Socket* s)
-{
-    n << "sock" << s->m_fd;
-    return n;
-}
-
-inline const Tracer& operator<<(const Tracer& n, const Socket& s)
-{
-    n << "sock" << s.m_fd;
-    return n;
-}
 
 /** UDP socket
  *
@@ -137,16 +119,14 @@ public:
 /** TCP socket */
 class StreamSocket: public Socket
 {
-    explicit StreamSocket(int fd);
+    StreamSocket(int fd);
 
-    StreamSocket();
 public:
-    typedef util::CountedPointer<StreamSocket> StreamSocketPtr;
-
-    static StreamSocketPtr Create();
+    StreamSocket();
+    ~StreamSocket();
     
     unsigned Listen(unsigned int queue = 64);
-    unsigned Accept(StreamSocketPtr *accepted);
+    unsigned Accept(std::auto_ptr<StreamSocket> *accepted);
    
     unsigned Open();
 
@@ -160,8 +140,6 @@ public:
      */
     unsigned ShutdownWrite();
 };
-
-typedef util::CountedPointer<StreamSocket> StreamSocketPtr;
 
 } // namespace util
 

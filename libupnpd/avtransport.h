@@ -1,7 +1,7 @@
 #ifndef UPNPD_AVTRANSPORT_H
 #define UPNPD_AVTRANSPORT_H 1
 
-#include "libupnp/AVTransport2.h"
+#include "libupnp/AVTransport.h"
 #include "liboutput/urlplayer.h"
 
 namespace upnpd {
@@ -9,7 +9,7 @@ namespace upnpd {
 /** Actual implementation of upnp::AVTransport2 base class in terms of an
  * output::URLPlayer.
  */
-class AVTransportImpl: public upnp::AVTransport2,
+class AVTransportImpl: public upnp::AVTransport,
 		       public output::URLObserver
 {
     output::URLPlayer *m_player;
@@ -29,7 +29,7 @@ public:
     explicit AVTransportImpl(output::URLPlayer *player);
     ~AVTransportImpl();
 
-    // Being an AVTransport2
+    // Being an AVTransport
     unsigned int SetAVTransportURI(uint32_t InstanceID,
 				   const std::string& CurrentURI,
 				   const std::string& CurrentURIMetaData);
@@ -49,7 +49,7 @@ public:
 				 std::string *rel_time,
 				 std::string *abs_time,
 				 int32_t *rel_count,
-				 int32_t *abs_count);
+				 uint32_t *abs_count);
     unsigned int GetLastChange(std::string*);
 
     // Being a URLObserver

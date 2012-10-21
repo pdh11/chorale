@@ -8,16 +8,16 @@
 namespace db {
 namespace receiver {
 
-class Database;
+class Connection;
 
 class Query: public db::Query
 {
-    Database *m_parent;
+    Connection *m_parent;
 public:
-    explicit Query(Database *parent);
+    explicit Query(Connection *parent);
 
-    // Being a QueryImpl
-    RecordsetPtr Execute();
+    // Being a Query
+    util::CountedPointer<db::Recordset> Execute();
 };
 
 } // namespace receiver

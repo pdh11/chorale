@@ -3,47 +3,24 @@
 #include <stdint.h>
 #include "config.h"
 #include "utf8.h"
-#include <boost/thread/tss.hpp>
+#include "mutex.h"
 #include <boost/format.hpp>
 #include <stdarg.h>
 #include <string.h>
 #include <sys/time.h>
 #include <errno.h>
 #include <stdio.h>
+#include <map>
+#if HAVE_WINDOWS_H
+#include <windows.h>
+#endif
+#if HAVE_LINUX_UNISTD_H
+#include <linux/unistd.h>
+#endif
 
 namespace util {
 
-class ThreadID
-{
-    static boost::thread_specific_ptr<unsigned int> sm_ptr;
-    static util::Mutex sm_mutex;
-    static unsigned int sm_next_id;
-
-public:
-    static unsigned int Get();
-};
-
-unsigned int ThreadID::Get()
-{
-    unsigned int *ptr = sm_ptr.get();
-    if (ptr)
-	return *ptr;
-
-    util::Mutex::Lock lock(sm_mutex);
-    ptr = sm_ptr.get(); // Double-checked locking pattern
-    if (ptr)
-	return *ptr;
-
-    unsigned int id = ++sm_next_id;
-    sm_ptr.reset(new unsigned int(id));
-    return id;
-}
-
-boost::thread_specific_ptr<unsigned int> ThreadID::sm_ptr;
-util::Mutex ThreadID::sm_mutex;
-unsigned int ThreadID::sm_next_id = 0;
-
-Mutex Tracer::sm_mutex;
+static Mutex s_trace_mutex;
 
 static FILE *s_logfile = NULL;
 
@@ -82,14 +59,15 @@ LogFileOpener::~LogFileOpener()
     }
 }
 
-#ifdef WITH_DEBUG
+#if DEBUG
 LogFileOpener s_logfile_opener;
 #endif
 
 Tracer::Tracer(const char *env_var, const char *file, unsigned int line)
-    : m_lock(sm_mutex),
-      m_emit(false)
+    : m_emit(false)
 {
+    s_trace_mutex.Acquire();
+
 #ifdef __APPLE__
     m_emit = true;
 #endif
@@ -121,13 +99,37 @@ Tracer::Tracer(const char *env_var, const char *file, unsigned int line)
 	    else
 		printf("%09u.%06u:", (unsigned)tv.tv_sec,
 		       (unsigned)tv.tv_usec);
+
+//	    struct timespec tp;
+//	    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp);
+//	    printf("%02u.%09u:", (unsigned)tp.tv_sec,
+//		   (unsigned)tp.tv_nsec);
 	}
 	if (getenv("LOG_TID"))
 	{
+	    /// @todo boost::thread_id
+#if HAVE_GETTID
+	    unsigned int raw_tid = gettid();
+#elif HAVE_NR_GETTID
+	    unsigned int raw_tid = (unsigned int)syscall(__NR_gettid);
+#elif HAVE_GETCURRENTTHREADID
+	    unsigned int raw_tid = ::GetCurrentThreadId();
+#else
+#warning "No thread id implementation on this platform"
+	    unsigned int raw_tid = 0;
+#endif
+	    static std::map<unsigned int, unsigned int> tidmap;
+	    if (tidmap.find(raw_tid) == tidmap.end())
+	    {
+		// We're still under the Tracer sm_mutex so this is safe
+		unsigned int tid = (unsigned int)tidmap.size();
+		tidmap[raw_tid] = tid;
+	    }
+
 	    if (s_logfile)
-		fprintf(s_logfile, "%03u:", ThreadID::Get());
+		fprintf(s_logfile, "%03u:", tidmap[raw_tid]);
 	    else
-		printf("%03u:", ThreadID::Get());
+		printf("%03u:", tidmap[raw_tid]);
 	}
 
 	if (!strncmp(file, "../", 3))
@@ -138,6 +140,11 @@ Tracer::Tracer(const char *env_var, const char *file, unsigned int line)
 	else
 	    printf("%-25s:%4u: ", file, line);
     }
+}
+
+Tracer::Tracer(const Tracer&)
+    : m_emit(false)
+{
 }
 
 void Tracer::Printf(const char *format, ...) const
@@ -165,6 +172,8 @@ Tracer::~Tracer()
     }
 
     fflush(stdout);
+
+    s_trace_mutex.Release();
 }
 
 
@@ -257,10 +266,10 @@ const Tracer& operator<<(const Tracer& n, const std::wstring& ws)
 const Tracer& operator<<(const Tracer& n, unsigned long long ull)
 {
     /* When compiling with mingw, GCC checks the format argument as if
-     * it's Posix (where unsigned long is %llu), but printf and scanf
-     * are actually implemented inside the C runtime, where unsigned
-     * long is %I64u. Yet GCC warns if you use %I64u. So we tell the
-     * pair of them to get knotted, and use Boost instead.
+     * it's Posix (where unsigned long long is %llu), but printf and
+     * scanf are actually implemented inside the C runtime, where
+     * unsigned long long is %I64u. Yet GCC warns if you use %I64u. So
+     * we tell the pair of them to get knotted, and use Boost instead.
      */
     n.Printf("%s", (boost::format("%llu") % ull).str().c_str());
     return n;

@@ -1,20 +1,21 @@
 #include "http_server.h"
 #include "config.h"
 #include "file.h"
-#include "file_stream.h"
-#include "http_client.h"
-#include "http_fetcher.h"
-#include "http_parser.h"
-#include "ip_filter.h"
-#include "line_reader.h"
-#include "partial_stream.h"
+#include "bind.h"
+#include "http.h"
+#include "trace.h"
 #include "socket.h"
 #include "errors.h"
-#include "string_stream.h"
-#include "peeking_line_reader.h"
-#include "trace.h"
+#include "printf.h"
 #include "scanf64.h"
 #include "scheduler.h"
+#include "ip_filter.h"
+#include "http_parser.h"
+#include "file_stream.h"
+#include "line_reader.h"
+#include "string_stream.h"
+#include "partial_stream.h"
+#include "counted_pointer.h"
 #include "worker_thread_pool.h"
 #include <sys/stat.h>
 #if HAVE_SYS_UTSNAME_H
@@ -45,7 +46,7 @@ void Response::Clear()
     status_line = NULL;
     headers.clear();
     length = 0;
-    ssp.reset(NULL);
+    body_source.reset(NULL);
 }
 
 /** Per-socket HTTP server subtask
@@ -53,19 +54,19 @@ void Response::Clear()
 class Server::DataTask: public util::Task
 {
     Server *m_parent;
-    StreamSocketPtr m_socket;
+    std::auto_ptr<StreamSocket> m_socket;
 
     /** Count of requests serviced on this socket.
      */
     unsigned m_count;
 
-    PeekingLineReader m_line_reader;
+    GreedyLineReader m_line_reader;
     Parser m_parser;
 
     Request m_rq;
     Response m_rs;
     std::string m_last_path;
-    util::SeekableStreamPtr m_response_stream;
+    std::auto_ptr<util::Stream> m_response_stream;
     bool m_reuse_stream;
 
     std::string m_headers;
@@ -100,18 +101,18 @@ class Server::DataTask: public util::Task
 
     typedef util::CountedPointer<DataTask> DataTaskPtr;
 
-    void WaitForReadable(util::StreamPtr sock)
+    void WaitForReadable(util::Stream* sock)
     {
 	m_parent->m_scheduler->WaitForReadable(
 	    Bind(DataTaskPtr(this)).To<&DataTask::OnActivity>(),
-	    sock.get());
+	    sock->GetHandle());
     }
 
-    void WaitForWritable(util::StreamPtr sock)
+    void WaitForWritable(util::Stream* sock)
     {
 	m_parent->m_scheduler->WaitForWritable(
 	    Bind(DataTaskPtr(this)).To<&DataTask::OnActivity>(),
-	    sock.get());
+	    sock->GetHandle());
     }
 
     /** Called from polling thread; punts work to background thread */
@@ -122,28 +123,29 @@ class Server::DataTask: public util::Task
 	return 0;
     }
 
-    DataTask(Server *parent, StreamSocketPtr client);
+    DataTask(Server *parent, std::auto_ptr<StreamSocket> client);
 
 public:
     ~DataTask();
 
-    static TaskCallback Create(Server*, StreamSocketPtr);
+    static TaskCallback Create(Server*, std::auto_ptr<StreamSocket>);
 
     /** Called on background thread */
     unsigned int Run();
 };
 
-TaskCallback Server::DataTask::Create(Server *parent, StreamSocketPtr client)
+TaskCallback Server::DataTask::Create(Server *parent,
+				      std::auto_ptr<StreamSocket> client)
 {
     DataTaskPtr ptr(new DataTask(parent, client));
     return util::Bind(ptr).To<&DataTask::Run>();
 }
 
-Server::DataTask::DataTask(Server *parent, StreamSocketPtr client)
+Server::DataTask::DataTask(Server *parent, std::auto_ptr<StreamSocket> client)
     : m_parent(parent),
       m_socket(client),
       m_count(0),
-      m_line_reader(m_socket),
+      m_line_reader(m_socket.get()),
       m_parser(&m_line_reader),
       m_reuse_stream(false),
       m_buffer_fill(0),
@@ -153,7 +155,6 @@ Server::DataTask::DataTask(Server *parent, StreamSocketPtr client)
 	<< "st" << this << ": accepted fd "
 	<< client << "\n";
     m_socket->SetNonBlocking(true);
-    m_socket->SetTimeoutMS(0);
     m_rq.Clear();
     m_rq.local_ep = m_socket->GetLocalEndPoint();
     m_rs.Clear();
@@ -174,6 +175,8 @@ unsigned int Server::DataTask::Run()
 		     << "\n";
 
     unsigned int rc;
+
+again:
 
     switch (m_state)
     {
@@ -199,7 +202,7 @@ unsigned int Server::DataTask::Run()
 	if (rc == EWOULDBLOCK)
 	{
 //	    TRACE << "st" << this << " going idle waiting for request " << m_socket << "\n";
-	    WaitForReadable(m_socket);
+	    WaitForReadable(m_socket.get());
 	    return 0;
 	}
 	if (rc)
@@ -243,7 +246,7 @@ unsigned int Server::DataTask::Run()
 	    if (rc == EWOULDBLOCK)
 	    {
 //		TRACE << "Going idle waiting for header " << m_socket << "\n";
-		WaitForReadable(m_socket);
+		WaitForReadable(m_socket.get());
 		return 0;
 	    }
 	    if (rc)
@@ -317,8 +320,7 @@ unsigned int Server::DataTask::Run()
 //	else
 //	    TRACE << "No body\n";
 
-
-	if (!m_reuse_stream)
+	if (!m_reuse_stream || !m_rs.body_source.get())
 	{
 	    m_rs.Clear();
 	    LOG(HTTP) << "st" << this << " calling SFP\n";
@@ -337,8 +339,11 @@ unsigned int Server::DataTask::Run()
 	 */
 	size_t remain = (size_t)m_entity.post_body_length;
 
-	while (remain || (m_rs.body_sink && m_buffer_fill))
+	while (remain || (m_rs.body_sink.get() && m_buffer_fill))
 	{
+//	    TRACE << "remain=" << remain << " m_buffer_fill=" 
+//		  << m_buffer_fill << "\n";
+
 	    if (!m_buffer)
 	    {
 		m_buffer.reset(new char[BUFFER_SIZE]);
@@ -347,20 +352,35 @@ unsigned int Server::DataTask::Run()
 
 	    size_t lump = std::min(remain, BUFFER_SIZE - m_buffer_fill);
 
+//	    TRACE << "lump=" << lump << "\n";
+
+	    if (lump)
+	    {
+		size_t nread;
+		m_line_reader.ReadLeftovers(m_buffer.get() + m_buffer_fill,
+					    lump, &nread);
+		m_buffer_fill += nread;
+		remain -= nread;
+		lump -= nread;
+//		TRACE << "Got " << nread << " bytes of body from leftovers\n";
+	    }
+
 	    if (lump)
 	    {
 		size_t nread;
 		rc = m_socket->Read(m_buffer.get() + m_buffer_fill,
 				    lump, &nread);
+//		TRACE << "Read returned " << rc << " nread=" << nread << "\n";
 		if (rc == EWOULDBLOCK)
 		{
 		    if (m_buffer_fill == 0)
 		    {
-			WaitForReadable(m_socket);
+			m_entity.post_body_length = remain;
+			WaitForReadable(m_socket.get());
 			return 0;
 		    }
 		}
-		else if (rc)
+		else if (rc || nread == 0)
 		{
 		    TRACE << "Read failed (" << rc << ")\n";
 		    return rc;
@@ -372,7 +392,7 @@ unsigned int Server::DataTask::Run()
 		}
 	    }
 
-	    if (m_rs.body_sink)
+	    if (m_rs.body_sink.get())
 	    {
 		size_t nwrote;
 
@@ -383,7 +403,8 @@ unsigned int Server::DataTask::Run()
 		    if (lump == 0)
 		    {
 			TRACE << "Waiting for body sink writability\n";
-			WaitForWritable(m_rs.body_sink);
+			m_entity.post_body_length = remain;
+			WaitForWritable(m_rs.body_sink.get());
 			return 0;
 		    }
 		}
@@ -395,10 +416,16 @@ unsigned int Server::DataTask::Run()
 		}
 		m_buffer_fill -= nwrote;	   
 	    }
+	    else
+	    {
+		LOG(HTTP) << "No body sink -- discarding " << m_buffer_fill 
+			  << " bytes\n";
+		m_buffer_fill = 0;
+	    }
 	}
 
 	// Signal successful completion with a 0-byte write
-	if (m_rs.body_sink)
+	if (m_rs.body_sink.get())
 	    rc = m_rs.body_sink->Write(&remain, 0, &remain);
 
 	m_rs.body_sink.reset(NULL);
@@ -406,22 +433,22 @@ unsigned int Server::DataTask::Run()
 
 	uint64_t len;
 
-	if (!m_rs.ssp)
+	if (!m_rs.body_source.get())
 	{
 	    if (m_rs.status_line)
 		m_headers = m_rs.status_line;
 	    else
 		m_headers = "HTTP/1.1 404 Not Found\r\n";
-	    StringStreamPtr ssp = StringStream::Create();
-	    ssp->str() = "<i>404, dude, it's just not there</i>";
-	    m_rs.ssp = ssp;
+	    m_rs.body_source.reset(
+		new StringStream("<i>404, dude, it's just not there</i>"));
 	    m_rs.content_type = "text/html";
-	    len = ssp->GetLength();
+	    len = m_rs.body_source->GetLength();
 	    m_entity.do_range = false;
+	    TRACE << "404ing " << m_rq.path << "\n";
 	}
 	else
 	{
-	    len = m_rs.length ? m_rs.length : m_rs.ssp->GetLength();
+	    len = m_rs.length ? m_rs.length : m_rs.body_source->GetLength();
 
 	    if (m_entity.do_range)
 	    {
@@ -491,28 +518,24 @@ unsigned int Server::DataTask::Run()
 	     * bogus (the '=' should be whitespace), but is what
 	     * Receivers expect.
 	     */
-	    m_headers += (boost::format("Content-Range: bytes=%llu-%llu\r\n")
-			  % m_entity.range_min
-			  % (m_entity.range_max-1)).str();
-//	   headers += (boost::format("Content-Range: bytes %llu-%llu/%llu\r\n")
-//			    % range_min
-//			    % (range_max-1)
-//			    % len).str();
+	    m_headers += util::Printf() << "Content-Range: bytes="
+					<< m_entity.range_min << "-"
+					<< (m_entity.range_max-1) << "\r\n";
 
 	    if (m_entity.range_min > 0 || m_entity.range_max != len)
-		m_response_stream = util::CreatePartialStream(m_rs.ssp, 
-							  m_entity.range_min,
-							  m_entity.range_max);
+		m_response_stream = util::CreatePartialStream(m_rs.body_source.get(), 
+							      m_entity.range_min,
+							      m_entity.range_max);
 	    else
-		m_response_stream = m_rs.ssp;
+		m_response_stream = m_rs.body_source;
 	}
 	else
-	    m_response_stream = m_rs.ssp;
+	    m_response_stream = m_rs.body_source;
 
 	m_response_stream->Seek(0);
 
-	m_headers += (boost::format("Content-Length: %llu\r\n") % len).str();
-	m_headers += "\r\n";
+	m_headers += util::Printf() << "Content-Length: " << len
+				    << "\r\n" "\r\n";
 
 	LOG(HTTP) << "Response headers:\n" << m_headers;
 
@@ -523,23 +546,30 @@ unsigned int Server::DataTask::Run()
     }
 
     case SEND_HEADERS:
-	do {
-	    size_t nwrote;
-	    rc = m_socket->Write(m_headers.c_str(), m_headers.length(),
-				 &nwrote);
-	    if (rc == EWOULDBLOCK)
-	    {
+	/* This is a separate step only if there isn't a body; if
+	 * there is, we try and send it and the headers in a single
+	 * packet, i.e. in a single operation.
+	 */
+	if (!m_response_stream.get() || m_rq.verb == "HEAD")
+	{
+	    do {
+		size_t nwrote;
+		rc = m_socket->Write(m_headers.c_str(), m_headers.length(),
+				     &nwrote);
+		if (rc == EWOULDBLOCK)
+		{
 //		TRACE << "Going idle waiting for header writability\n";
-		WaitForWritable(m_socket);
-		return 0;
-	    }
-	    if (rc)
-	    {
-		TRACE << "Writing headers failed " << rc << "\n";
-		return rc;
-	    }
-	    m_headers.erase(0, nwrote);
-	} while (!m_headers.empty());
+		    WaitForWritable(m_socket.get());
+		    return 0;
+		}
+		if (rc)
+		{
+		    TRACE << "Writing headers failed " << rc << "\n";
+		    return rc;
+		}
+		m_headers.erase(0, nwrote);
+	    } while (!m_headers.empty());
+	}
 
 //	TRACE << "st" << this << ": wrote headers\n";
 
@@ -548,7 +578,7 @@ unsigned int Server::DataTask::Run()
 
     case SEND_BODY:
 
-	if (m_response_stream && m_rq.verb != "HEAD")
+	if (m_response_stream.get() && m_rq.verb != "HEAD")
 	{
 	    if (!m_buffer)
 	    {
@@ -569,7 +599,8 @@ unsigned int Server::DataTask::Run()
 
 		    if (rc)
 		    {
-			if (rc == EWOULDBLOCK && m_buffer_fill == 0)
+			if (rc == EWOULDBLOCK && m_buffer_fill == 0
+			    && m_headers.empty())
 			{
 			    // Quickly check for socket death first
 			    rc = m_socket->Write(m_buffer.get(), 0, &nread);
@@ -580,14 +611,14 @@ unsigned int Server::DataTask::Run()
 				return 0;
 			    }
 
-			    PollHandle h = m_response_stream->GetHandle();
+			    int h = m_response_stream->GetHandle();
 			    if (h == NOT_POLLABLE)
 			    {
 				TRACE << "st" << this << ": ** Problem, non-pollable stream returned EWOULDBLOCK\n";
 				return rc;
 			    }
 			    LOG(HTTP) << "Waiting for body readability\n";
-			    WaitForReadable(m_response_stream);
+			    WaitForReadable(m_response_stream.get());
 			    return 0;
 			}
 
@@ -605,20 +636,30 @@ unsigned int Server::DataTask::Run()
 		    }
 		}
 
-		if (eof && !m_buffer_fill)
+		if (eof && !m_buffer_fill && m_headers.empty())
 		    break;
 
 		LOG(HTTP_SERVER) << "Attempting to write " << m_buffer_fill
 				 << "\n";
 		size_t nwrote = 0;
 
-		rc = m_socket->Write(m_buffer.get(), m_buffer_fill, 
-				     &nwrote);
+		if (m_headers.empty())
+		{
+		    rc = m_socket->Write(m_buffer.get(), m_buffer_fill, 
+					 &nwrote);
+		}
+		else
+		{
+		    Socket::Buffer iovec[2];
+		    iovec[0].ptr = m_headers.c_str();
+		    iovec[0].len = m_headers.size();
+		    iovec[1].ptr = m_buffer.get();
+		    iovec[1].len = m_buffer_fill;
+		    rc = m_socket->WriteV(iovec, 2, &nwrote);
+		}
 		LOG(HTTP_SERVER) << "st" << this << ": " << m_socket
 				 << " write returned " << rc
 				 << " nwrote=" << nwrote << "\n";
-
-		m_entity.total_written += nwrote;
 
 		if (rc)
 		{
@@ -626,22 +667,32 @@ unsigned int Server::DataTask::Run()
 		    {
 			LOG(HTTP_SERVER) << "Waiting for body writability "
 					 << m_socket << "\n";
-			WaitForWritable(m_socket);
+			WaitForWritable(m_socket.get());
 			return 0;
 		    }
 		    TRACE << "Writing stream failed " << rc << "\n";
 		    return rc;
 		}
-		if (nwrote < m_buffer_fill)
+
+		if (!m_headers.empty())
+		{
+		    size_t hsize = m_headers.size();
+		    m_headers.erase(0, nwrote);
+		    nwrote -= (hsize - m_headers.size());
+		}
+
+		if (nwrote && nwrote < m_buffer_fill)
 		{
 		    memmove(m_buffer.get(),
 			    m_buffer.get() + nwrote, m_buffer_fill - nwrote);
 		}
 		m_buffer_fill -= nwrote;
 
+		m_entity.total_written += nwrote;
+
 //		TRACE << "eof=" << eof << " fill=" << m_buffer_fill << "\n";
 
-	    } while (!eof || m_buffer_fill);
+	    } while (!eof || m_buffer_fill || !m_headers.empty());
 
 	    m_buffer.reset(NULL);
 
@@ -665,11 +716,7 @@ unsigned int Server::DataTask::Run()
 	m_rq.Clear();
 
 	m_state = WAITING;
-	
-	LOG(HTTP) << "st" << this << ": going idle waiting for next request "
-		  << m_socket << "\n";
-	WaitForReadable(m_socket);
-	return 0;
+	goto again;
 
     default:
 	assert(false);
@@ -685,20 +732,18 @@ unsigned int Server::DataTask::Run()
 class Server::AcceptorTask: public util::Task
 {
     Server *m_parent;
-    StreamSocketPtr m_socket;
+    StreamSocket m_socket;
 
-    typedef CountedPointer<AcceptorTask> AcceptorTaskPtr;
-
-    AcceptorTask(Server *parent, StreamSocketPtr socket)
-	: m_parent(parent), m_socket(socket)
+    explicit AcceptorTask(Server *parent)
+	: m_parent(parent)
     {}
 
 public:
+    typedef util::CountedPointer<AcceptorTask> AcceptorTaskPtr;
 
-    static TaskCallback Create(Server *parent, StreamSocketPtr socket)
+    static AcceptorTaskPtr Create(Server *parent)
     {
-	AcceptorTaskPtr ptr(new AcceptorTask(parent, socket));
-	return util::Bind(ptr).To<&AcceptorTask::Run>();
+	return AcceptorTaskPtr(new AcceptorTask(parent));
     }
 
     ~AcceptorTask()
@@ -706,12 +751,36 @@ public:
 	LOG(HTTP_SERVER) << "~AcceptorTask\n";
     }
 
+    unsigned Init(unsigned short port, Scheduler *scheduler)
+    {
+	IPEndPoint ep = { IPAddress::ANY, port };
+	unsigned int rc = m_socket.Bind(ep);
+	if (rc != 0)
+	{
+	    TRACE << "Server bind failed " << rc << "\n";
+	    return rc;
+	}
+
+	m_socket.SetNonBlocking(true);
+	m_socket.Listen();
+
+	scheduler->WaitForReadable(util::Bind(AcceptorTaskPtr(this)).To<&AcceptorTask::Run>(),
+				   m_socket.GetHandle(), false);
+	return 0;
+    }
+
+    unsigned short GetPort()
+    {
+	IPEndPoint ep = m_socket.GetLocalEndPoint();
+	return ep.port;
+    }
+
     unsigned Run()
     {
 //	TRACE << "Got activity, trying to accept\n";
 
-	StreamSocketPtr ssp;
-	unsigned int rc = m_socket->Accept(&ssp);
+	std::auto_ptr<StreamSocket> ssp;
+	unsigned int rc = m_socket.Accept(&ssp);
 	if (rc == 0)
 	{
 	    m_parent->m_pool->PushTask(DataTask::Create(m_parent, ssp));
@@ -745,7 +814,7 @@ Server::Server(util::Scheduler *scheduler,
     osvi.dwOSVersionInfoSize = sizeof(osvi);
     GetVersionEx(&osvi);
 
-    m_server_header = (boost::format("Server: Windows/%u.%u UPNP/1.0 " 
+    m_server_header = (boost::format("Server: Windows/%u.%u UPnP/1.0 " 
 				     PACKAGE_NAME "/" PACKAGE_VERSION "\r\n"
 			   ) % osvi.dwMajorVersion % osvi.dwMinorVersion).str();
 
@@ -754,9 +823,10 @@ Server::Server(util::Scheduler *scheduler,
 
     uname(&ubuf);
 
-    m_server_header = (boost::format("Server: %s/%s UPNP/1.0 " 
-				     PACKAGE_NAME "/" PACKAGE_VERSION "\r\n"
-			   ) % ubuf.sysname % ubuf.release).str();
+    m_server_header
+	= util::Printf() << "Server: "
+			 << ubuf.sysname << "/" << ubuf.release
+			 << " UPnP/1.0 " PACKAGE_NAME "/" PACKAGE_VERSION "\r\n";
 #endif
 
     LOG(HTTP_SERVER) << m_server_header;
@@ -774,24 +844,12 @@ Server::~Server()
 
 unsigned Server::Init(unsigned short port)
 {
-    StreamSocketPtr server_socket(StreamSocket::Create());
-    IPEndPoint ep = { IPAddress::ANY, port };
-    unsigned int rc = server_socket->Bind(ep);
-    if (rc != 0)
-    {
-	TRACE << "Server bind failed " << rc << "\n";
+    AcceptorTask::AcceptorTaskPtr atp = AcceptorTask::Create(this);
+    unsigned rc = atp->Init(port, m_scheduler);
+    if (rc)
 	return rc;
-    }
-
-    server_socket->SetNonBlocking(true);
-    server_socket->Listen();
-
-    m_scheduler->WaitForReadable(AcceptorTask::Create(this, server_socket),
-				 server_socket.get(), false);
-
-    ep = server_socket->GetLocalEndPoint();
-    TRACE << "http::Server got port " << ep.port << "\n";
-    m_port = ep.port;
+    m_port = atp->GetPort();
+    TRACE << "http::Server got port " << m_port << "\n";
     return 0;
 }
 
@@ -818,7 +876,7 @@ void Server::StreamForPath(const Request *rq, Response *rs)
 	/* We don't support any options, but send 200 and an empty
 	 * body to say so.
 	 */
-	rs->ssp = util::StringStream::Create();
+	rs->body_source.reset(new util::StringStream());
     }
 }
 
@@ -833,6 +891,26 @@ void Server::AddContentFactory(const std::string&, ContentFactory *cf)
 
 FileContentFactory::~FileContentFactory()
 {
+}
+
+static const struct { const char *extension; const char *mimetype; }
+    mimemap[] = {
+	{ "ico", "image/x-icon" },
+	{ "jpg", "image/jpeg" },
+	{ "png", "image/png" },
+	{ "xml", "text/xml" },
+    };
+
+static const char *ContentType(const std::string& path)
+{
+    std::string extension = GetExtension(path.c_str());
+
+    for (unsigned int i=0; i<sizeof(mimemap)/sizeof(*mimemap); ++i)
+    {
+	if (extension == mimemap[i].extension)
+	    return mimemap[i].mimetype;
+    }
+    return NULL;
 }
 
 bool FileContentFactory::StreamForPath(const Request *rq, Response *rs)
@@ -870,13 +948,17 @@ bool FileContentFactory::StreamForPath(const Request *rq, Response *rs)
     }
 
     unsigned int rc = util::OpenFileStream(path2.c_str(), util::READ,
-					   &rs->ssp);
+					   &rs->body_source);
     if (rc != 0)
     {
 	TRACE << "Resolved file '" << path2 << "' won't open " << rc
 	      << "\n";
 	return false;
     }
+
+    rs->content_type = ContentType(path2);
+    if (!rs->content_type)
+	rs->content_type = ContentType(rq->path);
 
     LOG(HTTP) << "Path '" << rq->path << "' is file '" << path2 << "'\n";
     return true;
@@ -888,7 +970,9 @@ bool FileContentFactory::StreamForPath(const Request *rq, Response *rs)
 
 #ifdef TEST
 
-#include "worker_thread_pool.h"
+# include "worker_thread_pool.h"
+# include "http_client.h"
+# include "http_fetcher.h"
 
 class FetchTask: public util::Task
 {
@@ -929,13 +1013,70 @@ class EchoContentFactory: public util::http::ContentFactory
 public:
     bool StreamForPath(const util::http::Request *rq, util::http::Response *rs)
     {
-	util::StringStreamPtr ssp = util::StringStream::Create();
-	ssp->str() = rq->path;
-	rs->ssp = ssp;
-//	TRACE << "returned stream for path " << rq->path << "\n";
+	rs->body_source.reset(new util::StringStream(rq->path));
 	return true;
     }
 };
+
+static bool EqualButForStars(const char *got, const char *pattern)
+{
+    while (*got && *pattern)
+    {
+	if (*pattern != '*' && *got != *pattern)
+	{
+	    return false;
+	}
+	if (*pattern != '*' || got[1] == pattern[1])
+	    ++pattern;
+	++got;
+    }
+    return !*got && !*pattern;
+}
+
+static void HttpTest(util::BackgroundScheduler *poller, unsigned short port,
+		     const char *tx, const char *rx)
+{
+    util::StreamSocket ss;
+    util::IPEndPoint ipe;
+    ipe.addr = util::IPAddress::FromDottedQuad(127,0,0,1);
+    ipe.port = port;
+    unsigned rc = ss.Connect(ipe);
+    assert(rc == 0);
+    rc = ss.WriteAll(tx, strlen(tx));
+    assert(rc == 0);
+
+    ss.SetNonBlocking(true);
+
+    std::string rxs;
+    time_t start = time(NULL);
+    time_t finish = start + 10;
+
+    do {
+	time_t now = time(NULL);
+	if (now >= finish)
+	    break;
+
+	rc = poller->Poll(1000);
+	assert(rc == 0);
+
+	char buffer[1024];
+	size_t nread;
+	do {
+	    rc = ss.Read(buffer, sizeof(buffer), &nread);
+	    if (rc == 0)
+	    {
+		rxs += std::string(buffer, buffer+nread);
+	    }
+	} while (rc == 0 && nread > 0);
+    } while (rxs.size() < strlen(rx));
+
+    bool ok = EqualButForStars(rxs.c_str(), rx);
+    if (!ok)
+    {
+	fprintf(stderr, "Expected:%s\nGot:%s\n", rx, rxs.c_str());
+    }
+    assert(ok);
+}
 
 int main(int, char*[])
 {
@@ -957,6 +1098,78 @@ int main(int, char*[])
     ws.AddContentFactory("/", &ecf);
 
     assert(rc == 0);
+
+    // Simple test
+    HttpTest(&poller,
+	     ws.GetPort(),
+	     "GET / HTTP/1.1\r\n"
+	     "\r\n",
+	     "HTTP/1.1 200 OK\r\n"
+	     "Date: *\r\n"
+	     "Server: * UPnP/1.0 chorale/*\r\n"
+	     "Accept-Ranges: bytes\r\n"
+	     "Content-Type: text/html\r\n"
+	     "Content-Length: 1\r\n"
+	     "\r\n"
+	     "/");
+
+    // Pipelining test
+    HttpTest(&poller,
+	     ws.GetPort(),
+	     "GET /foo HTTP/1.1\r\n"
+	     "\r\n"
+	     "GET /bar HTTP/1.1\r\n"
+	     "\r\n",
+
+	     "HTTP/1.1 200 OK\r\n"
+	     "Date: *\r\n"
+	     "Server: * UPnP/1.0 chorale/*\r\n"
+	     "Accept-Ranges: bytes\r\n"
+	     "Content-Type: text/html\r\n"
+	     "Content-Length: 4\r\n"
+	     "\r\n"
+	     "/foo"
+
+	     "HTTP/1.1 200 OK\r\n"
+	     "Date: *\r\n"
+	     "Server: * UPnP/1.0 chorale/*\r\n"
+	     "Accept-Ranges: bytes\r\n"
+	     "Content-Type: text/html\r\n"
+	     "Content-Length: 4\r\n"
+	     "\r\n"
+	     "/bar"
+	);
+
+    // Pipelining test with bodies
+    HttpTest(&poller,
+	     ws.GetPort(),
+	     "POST /foo HTTP/1.1\r\n"
+	     "Content-Length: 6\r\n"
+	     "\r\n"
+	     "ptang\n"
+	     "POST /bar HTTP/1.1\r\n"
+	     "Content-Length: 6\r\n"
+	     "\r\n"
+	     "frink\n",
+
+	     "HTTP/1.1 200 OK\r\n"
+	     "Date: *\r\n"
+	     "Server: * UPnP/1.0 chorale/*\r\n"
+	     "Accept-Ranges: bytes\r\n"
+	     "Content-Type: text/html\r\n"
+	     "Content-Length: 4\r\n"
+	     "\r\n"
+	     "/foo"
+
+	     "HTTP/1.1 200 OK\r\n"
+	     "Date: *\r\n"
+	     "Server: * UPnP/1.0 chorale/*\r\n"
+	     "Accept-Ranges: bytes\r\n"
+	     "Content-Type: text/html\r\n"
+	     "Content-Length: 4\r\n"
+	     "\r\n"
+	     "/bar"
+	);
 
     std::string url = (boost::format("http://127.0.0.1:%u/zootle/wurdle.html")
 		       % ws.GetPort()

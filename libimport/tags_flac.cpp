@@ -14,11 +14,12 @@
 namespace import {
 namespace flac {
 
-unsigned Tags::Write(const db::Recordset *tags)
+unsigned TagWriter::Write(const std::string& filename, 
+			  const db::Recordset *tags)
 {
     util::Mutex::Lock lock(s_taglib_mutex);
 
-//    TRACE << "Opening '" << m_filename << "'\n";
+//    TRACE << "Opening '" << filename << "'\n";
 	    
     typedef std::map<std::string, std::string> tagmap_t;
     tagmap_t tagmap;
@@ -33,7 +34,7 @@ unsigned Tags::Write(const db::Recordset *tags)
 	}
     }
 
-    TagLib::FLAC::File tff(m_filename.c_str());
+    TagLib::FLAC::File tff(filename.c_str());
     TagLib::Ogg::XiphComment *oxc = tff.xiphComment(true);
     for (tagmap_t::const_iterator i = tagmap.begin(); i != tagmap.end(); ++i)
     {

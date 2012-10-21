@@ -7,7 +7,7 @@
 namespace db {
 namespace steam {
 
-Database::Database(field_t nfields, const InitialFieldInfo *ifi)
+Database::Database(unsigned int nfields, const InitialFieldInfo *ifi)
     : m_nfields(nfields),
       m_next_recno(0)
 {

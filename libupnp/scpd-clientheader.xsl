@@ -15,6 +15,8 @@
 
 namespace upnp {
 
+namespace soap { struct Params; }
+
 /** Client implementation generated automatically from SCPD <xsl:value-of select="$class"/>.xml
  *
  * This client is synchronous, which is probably not what you want; see <xsl:value-of select="$class"/>ClientAsync.
@@ -23,12 +25,12 @@ class <xsl:value-of select="$class"/>Client: public <xsl:value-of select="$class
 {
 public:
     <xsl:value-of select="$class"/>Client(DeviceClient *device, const char *service_id)
-      : ServiceClient(device, service_id)
+      : ServiceClient(device, service_id, &amp;sm_data)
     {}
 
     // Being a ServiceObserver
     void OnEvent(const char *var, const std::string&amp; value);
-    <xsl:for-each select="//action">
+    <xsl:for-each select="//action"><xsl:sort select="name"/>
     unsigned int <xsl:value-of select="name"/>(
       <xsl:for-each select="argumentList/argument">
       <xsl:text>      </xsl:text>
@@ -60,17 +62,21 @@ public:
 };
 
 class <xsl:value-of select="$class"/>ClientAsync: public <xsl:value-of select="$class"/>Async, public ServiceClient
-{ <xsl:for-each select="//action">
-    class <xsl:value-of select="name"/>Responder;</xsl:for-each>
+{
+    <xsl:value-of select="$class"/>AsyncObserver *m_observer;
+    <xsl:for-each select="//action"><xsl:sort select="name"/>
+    unsigned int On<xsl:value-of select="name"/>Done(unsigned int rc, const soap::Params*); </xsl:for-each>
 
 public:
-    <xsl:value-of select="$class"/>ClientAsync(DeviceClient *device, const char *service_id)
-      : ServiceClient(device, service_id)
+    <xsl:value-of select="$class"/>ClientAsync(DeviceClient *device, const char *service_id,
+            <xsl:value-of select="$class"/>AsyncObserver *observer)
+      : ServiceClient(device, service_id, &amp;sm_data),
+        m_observer(observer)
     {}
 
-    // Being a ServiceObserver
+    // Being a ServiceClient
     void OnEvent(const char *var, const std::string&amp; value);
-    <xsl:for-each select="//action">
+    <xsl:for-each select="//action"><xsl:sort select="name"/>
     unsigned int <xsl:value-of select="name"/>(
             <xsl:for-each select="argumentList/argument[direction='in']">
       <xsl:if test="//stateVariable[name=current()/relatedStateVariable]/allowedValueList">
@@ -93,9 +99,10 @@ public:
     </xsl:if>
         <xsl:call-template name="camelcase-to-underscore">
           <xsl:with-param name="camelcase" select="name"/>
-        </xsl:call-template>,
-            </xsl:for-each>
-        <xsl:value-of select="name"/>Callback callback);
+        </xsl:call-template>
+      <xsl:if test="not(position()=last())">,
+            </xsl:if>
+            </xsl:for-each>);
 </xsl:for-each>
 };
 

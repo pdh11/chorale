@@ -77,34 +77,34 @@ SetlistWindow::SetlistWindow(output::Queue *queue, mediadb::Registry *registry)
 
     m_toplayout = new QHBoxLayout(NULL, 6, 0);
 
-    QPixmap stop_pixmap((const char**)stop_xpm);
+    QPixmap stop_pixmap(stop_xpm);
     m_stop_button = new QPushButton(stop_pixmap, "", this);
     m_stop_button->setAutoDefault(false);
     m_toplayout->addWidget(m_stop_button);
     connect(m_stop_button, SIGNAL(clicked()),
 	    this, SLOT(Stop()));
 
-    QPixmap rew_pixmap((const char**)rew_xpm);
+    QPixmap rew_pixmap(rew_xpm);
     QPushButton *rew = new QPushButton(rew_pixmap, "", this);
     rew->setAutoDefault(false);
     m_toplayout->addWidget(rew);
     connect(rew, SIGNAL(clicked()), this, SLOT(Rewind()));
 
-    QPixmap pause_pixmap((const char**)pause_xpm);
+    QPixmap pause_pixmap(pause_xpm);
     m_pause_button = new QPushButton(pause_pixmap, "", this);
     m_pause_button->setAutoDefault(false);
     m_toplayout->addWidget(m_pause_button);
     connect(m_pause_button, SIGNAL(clicked()),
 	    this, SLOT(Pause()));
 
-    QPixmap play_pixmap((const char**)play_xpm);
+    QPixmap play_pixmap(play_xpm);
     m_play_button = new QPushButton(play_pixmap, "", this);
     m_play_button->setAutoDefault(false);
     m_toplayout->addWidget(m_play_button);
     connect(m_play_button, SIGNAL(clicked()),
 	    this, SLOT(Play()));
 
-    QPixmap ffwd_pixmap((const char**)ffwd_xpm);
+    QPixmap ffwd_pixmap(ffwd_xpm);
     QPushButton *ffwd = new QPushButton(ffwd_pixmap, "", this);
     ffwd->setAutoDefault(false);
     m_toplayout->addWidget(ffwd);
@@ -112,7 +112,7 @@ SetlistWindow::SetlistWindow(output::Queue *queue, mediadb::Registry *registry)
 
     m_toplayout->addSpacing(6);
 
-    QPixmap shuffle_pixmap((const char**)shuffle_xpm);
+    QPixmap shuffle_pixmap(shuffle_xpm);
     QPushButton *shuffle = new QPushButton(shuffle_pixmap, "", this);
     shuffle->setCheckable(true);
     shuffle->setAutoDefault(false);
@@ -121,7 +121,7 @@ SetlistWindow::SetlistWindow(output::Queue *queue, mediadb::Registry *registry)
 
     m_toplayout->addSpacing(6);
 
-    QPixmap norepeat_pixmap((const char**)norepeat_xpm);
+    QPixmap norepeat_pixmap(norepeat_xpm);
     QPushButton *norepeat =
 	new QPushButton(norepeat_pixmap, "", this);
     norepeat->setAutoDefault(false);
@@ -131,14 +131,14 @@ SetlistWindow::SetlistWindow(output::Queue *queue, mediadb::Registry *registry)
     m_toplayout->addWidget(norepeat);
 
    QPushButton *repeatall =
-	new QPushButton(QPixmap((const char**)repeatall_xpm), "", this);
+	new QPushButton(QPixmap(repeatall_xpm), "", this);
     repeatall->setAutoDefault(false);
     repeatall->setAutoExclusive(true);
     repeatall->setCheckable(true);
     m_toplayout->addWidget(repeatall);
 
     QPushButton *repeatone =
-	new QPushButton(QPixmap((const char**)repeatone_xpm), "", this);
+	new QPushButton(QPixmap(repeatone_xpm), "", this);
     repeatone->setAutoDefault(false);
     repeatone->setAutoExclusive(true);
     repeatone->setCheckable(true);

@@ -45,13 +45,14 @@ static const struct
 
 enum { NUM_TAGS = sizeof(tagmap)/sizeof(tagmap[0]) };
 
-unsigned Tags::Write(const db::Recordset *tags)
+unsigned TagWriter::Write(const std::string& filename, 
+			  const db::Recordset *tags)
 {
     util::Mutex::Lock lock(s_taglib_mutex);
 
-//    TRACE << "Opening '" << m_filename << "'\n";
+//    TRACE << "Opening '" << filename << "'\n";
 
-    TagLib::MPEG::File tff(m_filename.c_str());
+    TagLib::MPEG::File tff(filename.c_str());
     TagLib::ID3v2::Tag *tag = tff.ID3v2Tag(true);
 
     for (unsigned int i=0; i<NUM_TAGS; ++i)
@@ -95,11 +96,11 @@ static std::string safe(const TagLib::String& s)
     return s.to8Bit(true);
 }
 
-unsigned Tags::Read(db::Recordset *tags)
+unsigned TagReader::Read(const std::string& filename, db::Recordset *tags)
 {
     util::Mutex::Lock lock(s_taglib_mutex);
 
-    TagLib::MPEG::File tff(m_filename.c_str());
+    TagLib::MPEG::File tff(filename.c_str());
 
     if (!tff.tag() || !tff.audioProperties())
     {
@@ -108,14 +109,14 @@ unsigned Tags::Read(db::Recordset *tags)
     }
 
     tags->SetInteger(mediadb::TYPE, mediadb::TUNE);
-    tags->SetString(mediadb::PATH, m_filename);
-    tags->SetInteger(mediadb::CODEC, mediadb::MP3);
+    tags->SetString(mediadb::PATH, filename);
+    tags->SetInteger(mediadb::AUDIOCODEC, mediadb::MP3);
 //    tags->SetInteger(mediadb::OFFSET, tff.firstFrameOffset());
 
-//    TRACE << m_filename << " offset=" << tff.firstFrameOffset() << "\n";
+//    TRACE << filename << " offset=" << tff.firstFrameOffset() << "\n";
 
     struct stat st;
-    if (stat(m_filename.c_str(), &st) == 0)
+    if (stat(filename.c_str(), &st) == 0)
     {
 	tags->SetInteger(mediadb::MTIME, (unsigned int)st.st_mtime);
 	tags->SetInteger(mediadb::CTIME, (unsigned int)st.st_ctime);
@@ -176,7 +177,7 @@ unsigned Tags::Read(db::Recordset *tags)
     }
 
     if (tags->GetString(mediadb::TITLE).empty())
-	tags->SetString(mediadb::TITLE, util::StripExtension(util::GetLeafName(m_filename.c_str()).c_str()));
+	tags->SetString(mediadb::TITLE, util::StripExtension(util::GetLeafName(filename.c_str()).c_str()));
 
     return 0;
 }

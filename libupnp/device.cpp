@@ -2,8 +2,9 @@
 #include "device.h"
 #include "server.h"
 #include "libutil/trace.h"
+#include "libutil/printf.h"
 #include <string.h>
-#include <boost/format.hpp>
+#include <stdio.h>
 
 namespace upnp {
 
@@ -21,6 +22,7 @@ Device::~Device()
 unsigned int Device::Init(Server *server, const std::string& resource)
 {
     m_udn = server->RegisterDevice(this, resource);
+    assert(!m_udn.empty());
     m_server = server;
     return 0;
 }
@@ -53,12 +55,16 @@ void Device::FireEvent(Service *service, const char *variable,
 
 
 Service::Service(Device* device, const char *service_id, 
-		 const char *service_type, const char *scpd_url)
+		 const char *service_type, const char *scpd_url,
+		 const Data *data)
     : m_device(device),
       m_service_id(service_id),
       m_service_type(service_type),
-      m_scpd_url(scpd_url)
+      m_scpd_url(scpd_url),
+      m_data(data)
 {
+    assert(service_type != NULL);
+    assert(service_type[0] != '\0');
     device->RegisterService(this);
 }
 
@@ -69,7 +75,7 @@ void Service::FireEvent(const char *var, const std::string& value)
 
 void Service::FireEvent(const char *var, unsigned int value)
 {
-    std::string s = (boost::format("%u") % value).str();
+    std::string s = util::Printf() << value;
     m_device->FireEvent(this, var, s);
 }
 

@@ -5,10 +5,9 @@
 #ifndef MEDIADB_XML_H
 #define MEDIADB_XML_H
 
-#include "libutil/stream.h"
-
 #include <stdio.h>
 
+namespace util { class Stream; }
 namespace db { class Database; }
 
 namespace mediadb {
@@ -23,7 +22,7 @@ unsigned int ReadXML(db::Database*, const char *filename);
 
 /** Read a db::Database (assumed to be a mediadb::Database) from a stream.
  */
-unsigned int ReadXML(db::Database*, util::StreamPtr);
+unsigned int ReadXML(db::Database*, util::Stream*);
 
 } // namespace mediadb
 

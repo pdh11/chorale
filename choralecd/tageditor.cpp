@@ -12,6 +12,7 @@
 #include "explorer_window.h"
 #include "events.h"
 #include <getopt.h>
+#include <stdio.h>
 
 #if HAVE_TAGLIB
 #define LICENCE "  This program is free software under the GNU Lesser General Public Licence.\n\n"

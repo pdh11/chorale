@@ -4,7 +4,13 @@
 #include "libutil/counted_object.h"
 #include <vector>
 #include <string>
-#include "libutil/stream.h"
+#include <memory>
+#include "config.h"
+#if HAVE_STDINT_H
+#include <stdint.h>
+#endif
+
+namespace util { class Stream; }
 
 namespace import {
 
@@ -42,9 +48,9 @@ public:
      */
     unsigned int GetTotalSectors() { return m_total_sectors; }
 
-    /** Returns a SeekableStream of the raw PCM data for a particular track
+    /** Returns a Stream of the raw PCM data for a particular track
      */
-    virtual util::SeekableStreamPtr GetTrackStream(unsigned int track) = 0;
+    virtual std::auto_ptr<util::Stream> GetTrackStream(unsigned int track) = 0;
 };
 
 typedef util::CountedPointer<AudioCD> AudioCDPtr;
@@ -55,15 +61,29 @@ class LocalAudioCD: public AudioCD
 
     void *m_cdt;
     std::string m_device_name;
+    int m_fd;
+
+    struct FullSector {
+	uint8_t pcm[2352]; // 16-bit sample pairs
+	uint8_t errors[294];
+	uint8_t all_errors;
+	uint8_t reserved;  // With the all_errors and reserved bytes, is aligned
+	uint8_t subchannel[96];
+    };
+
+    unsigned m_first_sector;
+    FullSector *m_sectors;
 
 public:
-    LocalAudioCD() : m_cdt(NULL) {}
+    LocalAudioCD() : m_cdt(NULL), m_fd(-1), m_sectors(NULL) {}
     ~LocalAudioCD();
 
     static unsigned int Create(const std::string& device, AudioCDPtr *result);
 
+    unsigned ReadSector(unsigned int n, const uint8_t **pdata);
+
     // Being an AudioCD
-    util::SeekableStreamPtr GetTrackStream(unsigned int track);
+    std::auto_ptr<util::Stream> GetTrackStream(unsigned int track);
 };
 
 } // namespace import

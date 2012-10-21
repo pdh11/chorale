@@ -21,8 +21,11 @@ db::RecordsetPtr Query::Execute()
     for (unsigned int i=0; i<m_restrictions.size(); ++i)
     {
 	if (m_restrictions[i].rt == db::LIKE)
+	{
+	    TRACE << i << " compiling '" << m_restrictions[i].sval << "'\n";
 	    m_regexes[i] = boost::regex(m_restrictions[i].sval, 
 					boost::regex::icase);
+	}
     }
 
     if (!m_collateby.empty())
@@ -96,6 +99,7 @@ bool Query::MatchElement(db::Recordset *rs, ssize_t elem)
 		break;
 	    case db::LIKE:
 	    {
+		TRACE << elem-1 << ": '" << val << "' like '" << r.sval << "'\n";
 		bool rc = boost::regex_match(val, 
 					     m_regexes[(unsigned int)(elem-1)]);
 //		TRACE << "'" << val << "' like '" << r.sval << "' : " << rc

@@ -4,83 +4,45 @@
 #include "playlist_asx.h"
 #include "playlist_pls.h"
 #include "playlist_wpl.h"
-#include "libutil/counted_pointer.h"
 
 #include <vector>
 
 namespace import {
 
-struct Playlist::Impl
-{
-    std::string filename;
-    std::vector<std::string> entries;
+template<>
+const util::ChooseByExtension<PlaylistIO>::ExtensionMap 
+util::ChooseByExtension<PlaylistIO>::sm_map[] = {
+    { "wpl",  &Factory<import::PlaylistWPL> },
+    { "asx",  &Factory<import::PlaylistASX> },
+    { "pls",  &Factory<import::PlaylistPLS> },
 };
 
-PlaylistPtr Playlist::Create(const std::string& filename)
-{
-    std::string ext = util::GetExtension(filename.c_str());
-
-    Playlist *result = NULL;
-
-    if (ext == "asx")
-    {
-	result = new PlaylistASX;
-	result->m_impl->filename = filename;
-    }
-    else if (ext == "wpl")
-    {
-	result = new PlaylistWPL;
-	result->m_impl->filename = filename;
-    }
-    else if (ext == "pls")
-    {
-	result = new PlaylistPLS;
-	result->m_impl->filename = filename;
-    }
-    else
-    {
-	TRACE << "Unexpected playlist file " << filename << "\n";
-    }
-
-    return PlaylistPtr(result);
-}
-
 Playlist::Playlist()
-    : m_impl(new Impl)
 {
 }
 
 Playlist::~Playlist()
 {
-    delete m_impl;
-    m_impl = NULL;
 }
 
-std::string Playlist::GetFilename() const
+unsigned Playlist::Init(const std::string& filename)
 {
-    return m_impl->filename;
+    return m_chooser.Init(filename);
 }
 
-void Playlist::SetEntry(size_t index, const std::string& path)
+unsigned Playlist::Load(std::list<std::string> *entries)
 {
-    if (index >= m_impl->entries.size())
-	m_impl->entries.resize(index+1);
-    m_impl->entries[index] = path;
+    entries->clear();
+    if (!m_chooser.IsValid())
+	return EINVAL;
+    return m_chooser->Load(m_chooser.GetFilename(), entries);
 }
 
-void Playlist::AppendEntry(const std::string& path)
+unsigned Playlist::Save(const std::list<std::string> *entries)
 {
-    m_impl->entries.push_back(path);
-}
-
-std::string Playlist::GetEntry(size_t index) const
-{
-    return m_impl->entries[index];
-}
-
-size_t Playlist::GetLength() const
-{
-    return m_impl->entries.size();
+    if (!m_chooser.IsValid())
+	return EINVAL;
+    return m_chooser->Save(m_chooser.GetFilename(), entries);
 }
 
 } // namespace import

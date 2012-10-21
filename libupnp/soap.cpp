@@ -1,12 +1,11 @@
-#include "config.h"
 #include "soap.h"
+#include "data.h"
 #include "libutil/trace.h"
+#include "libutil/printf.h"
 #include "libutil/xmlescape.h"
-#include <sstream>
-#include <iomanip>
 #include <string.h>
 #include <errno.h>
-#include <boost/format.hpp>
+#include <stdio.h>
 
 namespace upnp {
 namespace soap {
@@ -21,132 +20,114 @@ bool ParseBool(const std::string& s)
     return false;
 }
 
-Outbound::Outbound() {}
-Outbound::~Outbound() {}
-
-void Outbound::Add(const char *tag, const char *value)
+unsigned int ParseEnum(const std::string& s, const char *const *alternatives,
+		       unsigned int count)
 {
-    m_params.push_back(std::make_pair(tag,value));
+    return ParseEnum(s.c_str(), alternatives, count);
 }
 
-void Outbound::Add(const char *tag, const std::string& value)
+unsigned int ParseEnum(const char *s, const char *const *alternatives,
+		       unsigned int count)
 {
-    m_params.push_back(std::make_pair(tag,value));
-}
-
-void Outbound::Add(const char *tag, int32_t value)
-{
-    m_params.push_back(std::make_pair(tag, 
-				      (boost::format("%d") % value).str()));
-}
-
-void Outbound::Add(const char *tag, uint32_t value)
-{
-    m_params.push_back(std::make_pair(tag, 
-				      (boost::format("%u") % value).str()));
-}
-
-std::string Outbound::CreateBody(const std::string& action_name,
-				 const std::string& service_type) const
-{
-    std::ostringstream os;
-    os << "<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\""
-	" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">"
-	"<s:Body>"
-	"<u:" << action_name << " xmlns:u=\"" << service_type
-       << "\">";
-
-    for (soap::Outbound::const_iterator i = begin(); i != end(); ++i)
-	os << "<" << i->first << ">" << util::XmlEscape(i->second)
-	   << "</" << i->first << ">";
-
-    os << "</u:" << action_name << ">"
-       << "</s:Body></s:Envelope>\n";
-
-    return os.str();
-}
-
-Inbound::Inbound() {}
-Inbound::~Inbound() {}
-
-void Inbound::Get(std::string *ps, const char *tag) const
-{
-    if (ps)
-	*ps = GetString(tag);
-}
-
-void Inbound::Get(uint32_t *ps, const char *tag) const
-{
-    if (ps)
-	*ps = (uint32_t)strtoul(GetString(tag).c_str(), NULL, 10);
-}
-
-void Inbound::Get(int32_t *ps, const char *tag) const
-{
-    if (ps)
-	*ps = (int32_t)strtol(GetString(tag).c_str(), NULL, 10);
-}
-
-void Inbound::Get(uint16_t *ps, const char *tag) const
-{
-    if (ps)
-	*ps = (uint16_t)strtoul(GetString(tag).c_str(), NULL, 10);
-}
-
-void Inbound::Get(int16_t *ps, const char *tag) const
-{
-    if (ps)
-	*ps = (int16_t)strtol(GetString(tag).c_str(), NULL, 10);
-}
-
-void Inbound::Get(uint8_t *ps, const char *tag) const
-{
-    if (ps)
-	*ps = (uint8_t)strtol(GetString(tag).c_str(), NULL, 10);
-}
-
-void Inbound::Get(bool *ps, const char *tag) const
-{
-    if (ps)
-	*ps = ParseBool(GetString(tag));
-}
-
-std::string Inbound::GetString(const char *tag) const
-{
-    params_t::const_iterator ci = m_params.find(tag);
-    return ci == m_params.end() ? std::string() : ci->second;
-}
-
-uint32_t Inbound::GetUInt(const char *tag) const
-{
-    params_t::const_iterator ci = m_params.find(tag);
-    return ci == m_params.end() ? 0 : (uint32_t)strtoul(ci->second.c_str(), NULL, 10);
-}
-
-int32_t Inbound::GetInt(const char *tag) const
-{
-    params_t::const_iterator ci = m_params.find(tag);
-    return ci == m_params.end() ? 0 : (int32_t)strtol(ci->second.c_str(), NULL, 10);
-}
-
-bool Inbound::GetBool(const char *tag) const
-{
-    params_t::const_iterator ci = m_params.find(tag);
-    return ci == m_params.end() ? false : ParseBool(ci->second);
-}
-
-uint32_t Inbound::GetEnum(const char *tag, const char *const *alternatives,
-			  uint32_t n) const
-{
-    params_t::const_iterator ci = m_params.find(tag);
-    if (ci == m_params.end())
-	return n;
-    for (uint32_t i=0; i<n; ++i)
+    for (unsigned i=0; i<count; ++i)
     {
-	if (!strcmp(ci->second.c_str(), alternatives[i]))
+	if (!strcmp(s, alternatives[i]))
 	    return i;
     }
-    return n;
+    return count;
+}
+
+Params::Params()
+{
+}
+
+Params::~Params()
+{
+}
+
+std::string CreateBody(const upnp::Data *data, unsigned int action,
+		       bool response, const char *service_type,
+		       const Params& params)
+{
+    std::string s = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n"
+	"<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\""
+	" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\r\n"
+	" <s:Body>"
+	"<u:";
+    s += data->actions.alternatives[action];
+    if (response)
+	s += "Response";
+    s += " xmlns:u=\"";
+    s += service_type;
+    s += "\">\r\n";
+
+    const uint32_t *ptr32 = params.ints;
+    const uint16_t *ptr16 = params.shorts;
+    const uint8_t *ptr8 = params.bytes;
+    const std::string *ptrstr = params.strings;
+    
+    for (const unsigned char *ptr = response ? data->action_results[action]
+	     : data->action_args[action];
+	 *ptr;
+	 ++ptr)
+    {
+	unsigned param = *ptr - 48;
+	uint8_t type = data->param_types[param];
+	s += " <";
+	s += data->params.alternatives[param];
+	s += ">";
+	if (type == Data::STRING)
+	{
+	    s += util::XmlEscape(*ptrstr++);
+	}
+	else if (type >= Data::ENUM)
+	{
+	    unsigned int which = type - Data::ENUM;
+	    unsigned int n = *ptr32++;
+	    s += data->enums[which].alternatives[n];
+	}
+	else if (type == Data::BOOL)
+	{
+	    s += *ptr8++ ? "1" : "0";
+	}
+	else
+	{
+	    // Numeric type
+	    char buffer[16];
+	    switch (type)
+	    {
+	    case Data::I8:
+		sprintf(buffer, "%d", *ptr8++);
+		break;
+	    case Data::UI8:
+		sprintf(buffer, "%u", *ptr8++);
+		break;
+	    case Data::I16:
+		sprintf(buffer, "%d", *ptr16++);
+		break;
+	    case Data::UI16:
+		sprintf(buffer, "%u", *ptr16++);
+		break;
+	    case Data::I32:
+		sprintf(buffer, "%d", *ptr32++);
+		break;
+	    case Data::UI32:
+		sprintf(buffer, "%u", *ptr32++);
+		break;
+	    }
+	    s += buffer;
+	}
+	s += "</";
+	s += data->params.alternatives[param];
+	s += ">\r\n";
+    }
+
+    s += "</u:";
+    s += data->actions.alternatives[action];
+    if (response)
+	s += "Response";
+    s += ">\r\n</s:Body>\r\n</s:Envelope>\r\n";
+    return s;
 }
 
 } // namespace soap

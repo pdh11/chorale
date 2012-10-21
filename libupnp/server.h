@@ -2,7 +2,6 @@
 #define LIBUPNP_SERVER_H 1
 
 #include <string>
-#include "soap.h"
 #include "soap_info_source.h"
 
 namespace util { namespace http { class Client; } }

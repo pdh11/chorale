@@ -3,6 +3,7 @@
 
 #include <QTableWidget>
 #include "libmediatree/node.h"
+#include "libutil/counted_pointer.h"
 #include <vector>
 
 namespace choraleqt {
@@ -17,6 +18,16 @@ class TagEditorWidget: public QTableWidget
 
     // Being a QAbstractItemView
     void commitData(QWidget*);
+
+    struct Column
+    {
+	unsigned int field;
+	const char *title;
+    };
+
+    static const Column sm_columns[];
+    static const unsigned int NCOLUMNS;
+    static QColor ColourFor(const QString&);
 
 public:
     enum {

@@ -2,6 +2,7 @@
 #define LIBIMPORT_CD_CONTENT_FACTORY_H 1
 
 #include "libutil/http_server.h"
+#include "libutil/counted_pointer.h"
 #include "audio_cd.h"
 
 namespace import {

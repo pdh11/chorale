@@ -1,12 +1,13 @@
 TOP?=../
 DIR:=libdbupnp/
 SRCS:=\
-	db.cpp \
+	connection.cpp \
+	database.cpp \
 	query.cpp \
-	rs.cpp
+	recordset.cpp
 
 TEST_SRCS:= \
-	db.cpp
+	database.cpp
 
 all-libdbupnp:
 

@@ -4,14 +4,18 @@ CHORALE_VERSION := @PACKAGE_VERSION@
 
 CFLAGS     := @CFLAGS@       @LARGEFILES@ -I@abs_top_builddir@ -DCONFIG_ARCH_H=\"config.@TARGET@.h\"
 CXXFLAGS   := @CXXFLAGS@     @LARGEFILES@ -I@abs_top_builddir@ -DCONFIG_ARCH_H=\"config.@TARGET@.h\"
-OBJCXXFLAGS := @OBJCXXFLAGS@ @LARGEFILES@ -I@abs_top_builddir@ -DCONFIG_ARCH_H=\"config.@TARGET@.h\"
 MOCFLAGS   := -I@abs_top_builddir@ -DCONFIG_ARCH_H=\"config.@TARGET@.h\"
 LDFLAGS    := @LDFLAGS@
 LDMAP      = @LDMAP@
 
+AVFORMAT_LIBS     := @AVFORMAT_LIBS@
+AVFORMAT_CXXFLAGS := @AVFORMAT_CFLAGS@
+
 BOOST_LIBS     := @BOOST_LIBS@
 
-CAIRO := @CAIRO@
+CAIRO          := @CAIRO@
+CAIRO_CXXFLAGS := @CAIRO_CFLAGS@
+CAIRO_LIBS     := @CAIRO_LIBS@
 
 HAVE_CONVERT := @HAVE_CONVERT@
 CONVERT := @CONVERT@
@@ -86,7 +90,6 @@ INSTALL:=@INSTALL@
 LIBTOOL:=@LIBTOOL@
 CC:=@CC@
 CXX:=@CXX@
-OBJCXX:=@OBJCXX@
 WINDRES:=@WINDRES@
 GCOV:=@GCOV@
 LIBS:=@LIBS@
@@ -102,6 +105,11 @@ EXCEPTIONAL_boost_regex_hpp=@EXCEPTIONAL_boost_regex_hpp@
 EXCEPTIONAL_boost_function_hpp=@EXCEPTIONAL_boost_function_hpp@
 EXCEPTIONAL_boost_thread_tss_hpp=@EXCEPTIONAL_boost_thread_tss_hpp@
 EXCEPTIONAL_boost_thread_mutex_hpp=@EXCEPTIONAL_boost_thread_mutex_hpp@
+EXCEPTIONAL_boost_thread_thread_hpp=@EXCEPTIONAL_boost_thread_thread_hpp@
+EXCEPTIONAL_boost_thread_condition_hpp=@EXCEPTIONAL_boost_thread_condition_hpp@
+
+RTTI_boost_thread_mutex_hpp=@RTTI_boost_thread_mutex_hpp@
+RTTI_boost_algorithm_string_split_hpp=@RTTI_boost_algorithm_string_split_hpp@
 
 # Overridable on 'make' command line, see Autoconf manual 4.7.2
 prefix=@prefix@

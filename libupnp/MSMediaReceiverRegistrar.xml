@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- See "Building A Network Device Compatible With Windows Media Connect" -->
+
+<scpd>
+  <specVersion>
+    <major>1</major>
+    <minor>0</minor>
+  </specVersion>
+  <actionList>
+    <action>
+    <name>IsAuthorized</name>
+      <argumentList>
+        <argument>
+          <name>DeviceID</name>
+          <direction>in</direction>
+          <retval/>
+        <relatedStateVariable>A_ARG_TYPE_DeviceID</relatedStateVariable>
+        </argument>
+        <argument>
+          <name>Result</name>
+          <direction>out</direction>
+          <retval/>
+          <relatedStateVariable>A_ARG_TYPE_Result</relatedStateVariable>
+        </argument>
+      </argumentList>
+    </action>
+    <action>
+    <name>RegisterDevice</name>
+      <argumentList>
+        <argument>
+          <name>RegisterInput</name>
+          <direction>in</direction>
+          <retval/>
+    <relatedStateVariable>A_ARG_TYPE_GenericData</relatedStateVariable>
+        </argument>
+        <argument>
+          <name>RegisterResponse</name>
+          <direction>out</direction>
+          <retval/>
+      <relatedStateVariable>A_ARG_TYPE_GenericData</relatedStateVariable>
+        </argument>
+      </argumentList>
+    </action>
+    <action>
+    <name>IsValidated</name>
+      <argumentList>
+        <argument>
+         <name>DeviceID</name>
+          <direction>in</direction>
+          <retval/>
+        <relatedStateVariable>A_ARG_TYPE_DeviceID</relatedStateVariable>
+        </argument>
+        <argument>
+          <name>Result</name>
+          <direction>out</direction>
+          <retval/>
+          <relatedStateVariable>A_ARG_TYPE_Result</relatedStateVariable>
+        </argument>
+      </argumentList>
+    </action>
+    </actionList>
+  <serviceStateTable>
+    <stateVariable sendEvents="no">
+      <name>A_ARG_TYPE_DeviceID</name>
+      <dataType>string</dataType>
+    </stateVariable>
+    <stateVariable sendEvents="no">
+      <name>A_ARG_TYPE_Result</name>
+      <dataType>boolean</dataType>
+    </stateVariable>
+    <stateVariable sendEvents="no">
+      <name>A_ARG_TYPE_UpdateID</name>
+      <dataType>ui4</dataType>
+    </stateVariable>
+    <stateVariable sendEvents="yes">
+      <name>AuthorizationGrantedUpdateID</name>
+      <dataType>ui4</dataType>
+<sendEventsAttribute>yes</sendEventsAttribute>
+    </stateVariable>
+    <stateVariable sendEvents="yes">
+      <name>AuthorizationDeniedUpdateID</name>
+      <dataType>ui4</dataType>
+<sendEventsAttribute>yes</sendEventsAttribute>
+    </stateVariable>
+    <stateVariable sendEvents="no">
+      <name>A_ARG_TYPE_GenericData</name>
+      <dataType>bin.base64</dataType>
+    </stateVariable>
+    <stateVariable sendEvents="yes">
+      <name>ValidationSucceededUpdateID</name>
+      <dataType>ui4</dataType>
+<sendEventsAttribute>yes</sendEventsAttribute>
+    </stateVariable>
+    <stateVariable sendEvents="yes">
+      <name>ValidationRevokedUpdateID</name>
+      <dataType>ui4</dataType>
+<sendEventsAttribute>yes</sendEventsAttribute>
+    </stateVariable>
+  </serviceStateTable>
+</scpd>

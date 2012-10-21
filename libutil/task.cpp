@@ -1,10 +1,19 @@
 #include "task.h"
 #include "trace.h"
+#include "printf.h"
 
 namespace util {
 
 Task::Task()
-    : m_observer(NULL),
+    : m_name(Printf() << this),
+      m_observer(NULL),
+      m_done(false)
+{
+}
+
+Task::Task(const std::string& name)
+    : m_name(name),
+      m_observer(NULL),
       m_done(false)
 {
 }

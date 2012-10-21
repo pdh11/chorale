@@ -1,54 +1,72 @@
 #ifndef ENCODING_TASK_H
 #define ENCODING_TASK_H
 
-#include "libutil/task.h"
-#include <string>
-#include "libutil/mutex.h"
-#include "libutil/stream.h"
 #include "libdb/db.h"
+#include "libutil/task.h"
+#include "libutil/mutex.h"
+#include "libutil/counted_pointer.h"
+#include <string>
+#include <memory>
+#include <boost/scoped_array.hpp>
+
+namespace util { class Stream; }
 
 namespace import {
 
+class AudioEncoder;
+
 /** A generic encoding task.
  *
- * Subclasses EncodingTaskFlac and EncodingTaskMP3 do all the work.
+ * The AudioEncoder class does the real work
  */
 class EncodingTask: public util::Task
 {
-protected:
-    util::StreamPtr m_input_stream;
-    size_t m_input_size;
+    util::TaskQueue *m_cpu_queue;
+    util::TaskQueue *m_disk_queue;
     std::string m_output_filename;
+    AudioEncoder *m_encoder;
+    boost::scoped_array<short> m_buffer;
 
     enum {
 	EARLY,
 	LATE
     } m_rename_stage;
 
+    enum {
+	STARTING,
+	RUNNING,
+	DONE
+    } m_state;
+
+    std::auto_ptr<util::Stream> m_input_stream;
+    std::auto_ptr<util::Stream> m_buffer_stream;
+    std::auto_ptr<util::Stream> m_output_stream;
+    size_t m_input_size;
+    size_t m_input_done;
+
     util::Mutex m_rename_mutex;
     std::string m_rename_filename;
     db::RecordsetPtr m_rename_tags;
 
-    explicit EncodingTask(const std::string& output_filename);
-    ~EncodingTask();
+    unsigned int OnReadable();
 
 public:
+    EncodingTask(const std::string& task_name,
+		 util::TaskQueue *cpu_queue,
+		 util::TaskQueue *disk_queue,
+		 const std::string& output_filename,
+		 AudioEncoder* (*encoder_factory)());
+    ~EncodingTask();
 
     /** Stream is read once sequentially until EOF. Stream must be set before
      * Run() is called, i.e. before task is queued anywhere.
      */
-    void SetInputStream(util::StreamPtr stm, size_t size) 
-    {
-	m_input_stream = stm; 
-	m_input_size = size; 
-    }
+    void SetInputStream(std::auto_ptr<util::Stream> stm, size_t size);
 
-    /** Implemented in subclasses */
-    virtual unsigned int Run() = 0;
+    unsigned int Run();
 
     /** Called from UI thread once tags decided */
-    void RenameAndTag(const std::string& new_filename,
-		      db::RecordsetPtr tags, util::TaskQueue *queue);
+    void RenameAndTag(const std::string& new_filename, db::RecordsetPtr tags);
 };
 
 typedef util::CountedPointer<EncodingTask> EncodingTaskPtr;

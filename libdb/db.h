@@ -6,15 +6,13 @@
 #ifndef DB_DB_H
 #define DB_DB_H
 
-#include "libutil/counted_pointer.h"
+namespace util { template <class T> class CountedPointer; }
 
 /** Interface classes for a generic database abstraction.
  *
  * Implementations of this interface can be found in db::steam and elsewhere.
  */
 namespace db {
-
-typedef unsigned int field_t;
 
 class Recordset;
 typedef util::CountedPointer<Recordset> RecordsetPtr;

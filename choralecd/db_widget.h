@@ -15,7 +15,7 @@ namespace mediadb { class Registry; }
 namespace util { namespace http { class Client; } }
 namespace util { namespace http { class Server; } }
 
-namespace db { namespace upnpav { class Database; } }
+namespace db { namespace upnp { class Database; } }
 
 namespace choraleqt {
 
@@ -61,6 +61,22 @@ public:
     void OnService(const util::IPEndPoint&);
 };
 
+/** A widget for the MainWindow's device list, representing a (remote)
+ * music server.
+ */
+class UpnpDBWidget: public DBWidget
+{
+    Q_OBJECT
+
+    db::upnp::Database *m_upnpdb;
+    
+public:
+    UpnpDBWidget(QWidget *parent, const std::string& name, QPixmap,
+		 db::upnp::Database*, mediadb::Registry *registry);
+
+    unsigned OnInitialised(unsigned rc);
+};
+
 /** A WidgetFactory which creates DBWidget items for UPnP A/V media servers.
  */
 class UpnpDBWidgetFactory: public WidgetFactory,
@@ -72,7 +88,7 @@ class UpnpDBWidgetFactory: public WidgetFactory,
     util::http::Client *m_client;
     util::http::Server *m_server;
     util::Scheduler *m_poller;
-    typedef std::map<std::string, DBWidget*> widgets_t;
+    typedef std::map<std::string, UpnpDBWidget*> widgets_t;
     widgets_t m_widgets;
 
 public:

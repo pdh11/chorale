@@ -3,6 +3,7 @@
 #include "libdb/recordset.h"
 #include "libutil/file.h"
 #include "libutil/trace.h"
+#include "libutil/bind.h"
 
 namespace import {
 
@@ -23,13 +24,22 @@ util::TaskCallback TagRenameTask::Create(const std::string& oldname,
 
 unsigned int TagRenameTask::Run()
 {
-    util::RenameWithMkdir(m_oldname.c_str(), m_newname.c_str());
     TRACE << "Tag point 3\n";
-    import::Tags tags;
-    unsigned int rc = tags.Open(m_newname);
+    unsigned int rc = util::RenameWithMkdir(m_oldname.c_str(),
+					    m_newname.c_str());
     if (rc)
+    {
+	TRACE << "Rename failed!\n";
+	FireError(rc);
 	return rc;
-    return tags.Write(m_tags.get());
+    }
+    import::TagWriter tags;
+    rc = tags.Init(m_newname);
+    if (!rc)
+	rc = tags.Write(m_tags.get());
+    if (rc)
+	FireError(rc);
+    return rc;
 }
 
 } // namespace import

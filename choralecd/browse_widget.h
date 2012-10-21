@@ -4,6 +4,7 @@
 #include <QListWidget>
 #include <vector>
 #include "libmediatree/node.h"
+#include "libutil/counted_pointer.h"
 
 namespace choraleqt {
 

@@ -1,8 +1,10 @@
 #include "query.h"
 #include "results.h"
+#include "libdb/db.h"
 #include "libdb/query.h"
-#include "libutil/trace.h"
+#include "libdb/recordset.h"
 #include "libdb/free_rs.h"
+#include "libutil/trace.h"
 #include "libmediadb/schema.h"
 #include "node_enumerator.h"
 

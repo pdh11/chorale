@@ -1,7 +1,6 @@
 #ifndef MEDIATREE_ROOT_H
 #define MEDIATREE_ROOT_H 1
 
-#include "libutil/counted_object.h"
 #include <vector>
 #include <stdint.h>
 #include "node.h"
@@ -32,7 +31,7 @@ public:
     bool HasCompoundChildren();
 
     EnumeratorPtr GetChildren();
-    db::RecordsetPtr GetInfo();
+    util::CountedPointer<db::Recordset> GetInfo();
 };
 
 } // namespace mediatree

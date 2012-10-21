@@ -1,6 +1,4 @@
 #include "stream.h"
-#include "stream_test.h"
-#include "memory_stream.h"
 #include "trace.h"
 #include <errno.h>
 #include <string.h>
@@ -10,6 +8,51 @@ namespace util {
 
         /* Stream */
 
+
+unsigned Stream::Read(void*, size_t, size_t*)
+{
+    return EPERM;
+}
+
+unsigned Stream::Write(const void*, size_t, size_t*)
+{
+    return EPERM;
+}
+
+unsigned Stream::Seek(uint64_t)
+{
+    return ESPIPE;
+}
+
+uint64_t Stream::Tell()
+{
+    return 0;
+}
+
+uint64_t Stream::GetLength()
+{
+    return 0;
+}
+
+unsigned Stream::SetLength(uint64_t)
+{
+    return ESPIPE;
+}
+
+unsigned Stream::ReadAt(void*, uint64_t, size_t, size_t*)
+{
+    return ESPIPE;
+}
+
+unsigned Stream::WriteAt(const void*, uint64_t, size_t, size_t*)
+{
+    return ESPIPE;
+}
+
+unsigned Stream::Wait(const TaskCallback&)
+{
+    return ENOSYS;
+}
 
 unsigned Stream::WriteAll(const void *buffer, size_t len)
 {
@@ -45,6 +88,75 @@ unsigned Stream::ReadAll(void *buffer, size_t len)
     return 0;
 }
 
+unsigned Stream::WriteAllAt(const void *buffer, uint64_t pos, size_t len)
+{
+    if (!(GetStreamFlags() & WRITABLE))
+	return EACCES;
+    if (!(GetStreamFlags() & SEEKABLE))
+	return ESPIPE;
+
+    while (len)
+    {
+	size_t nwritten;
+	unsigned int rc = WriteAt(buffer, pos, len, &nwritten);
+	if (rc)
+	    return rc;
+	if (!nwritten)
+	    return EIO;
+	len -= nwritten;
+	pos += nwritten;
+	buffer = ((const char*)buffer) + nwritten;
+    }
+    return 0;
+}
+
+unsigned Stream::WriteString(const std::string& s)
+{
+    return WriteAll(s.c_str(), s.length());
+}
+
+unsigned Stream::ReadLine(std::string *result)
+{
+    if (!(GetStreamFlags() & READABLE))
+	return EACCES;
+    if (!(GetStreamFlags() & SEEKABLE))
+	return ESPIPE;
+
+    char buffer[1024];
+    
+    uint64_t pos = Tell();
+    std::string s;
+    
+    for (;;)
+    {
+	size_t nread;
+	unsigned rc = Read(buffer, sizeof(buffer), &nread);
+
+	if (rc)
+	    return rc;
+	if (!nread)
+	{
+	    *result = s;
+	    return 0;
+	}
+
+	char *nul = (char*)memchr(buffer, '\0', nread);
+	char *lf  = (char*)memchr(buffer, '\n', nread);
+
+	if (nul || lf)
+	{
+	    if (lf && (!nul || nul > lf))
+		nul = lf;
+	    s += std::string(buffer, nul);
+	    Seek(pos + s.length() + 1);
+	    *result = s;
+	    return 0;
+	}
+
+	s += std::string(buffer, buffer+nread);
+    }
+}
+
 
         /* SeekableStream */
 
@@ -78,65 +190,6 @@ unsigned SeekableStream::Write(const void *buffer, size_t len, size_t *pwrote)
     return rc;
 }
 
-unsigned SeekableStream::WriteAllAt(const void *buffer, pos64 pos, size_t len)
-{
-    while (len)
-    {
-	size_t nwritten;
-	unsigned int rc = WriteAt(buffer, pos, len, &nwritten);
-	if (rc)
-	    return rc;
-	if (!nwritten)
-	    return EIO;
-	len -= nwritten;
-	pos += nwritten;
-	buffer = ((char*)buffer) + nwritten;
-    }
-    return 0;
-}
-
-unsigned SeekableStream::WriteString(const std::string& s)
-{
-    return WriteAll(s.c_str(), s.length());
-}
-
-unsigned SeekableStream::ReadLine(std::string *result)
-{
-    char buffer[1024];
-    
-    pos64 pos = m_pos;
-    std::string s;
-    
-    for (;;)
-    {
-	size_t nread;
-	unsigned rc = Read(buffer, sizeof(buffer), &nread);
-
-	if (rc)
-	    return rc;
-	if (!nread)
-	{
-	    *result = s;
-	    return 0;
-	}
-
-	char *nul = (char*)memchr(buffer, '\0', nread);
-	char *lf  = (char*)memchr(buffer, '\n', nread);
-
-	if (nul || lf)
-	{
-	    if (lf && (!nul || nul > lf))
-		nul = lf;
-	    s += std::string(buffer, nul);
-	    m_pos = pos + s.length() + 1;
-	    *result = s;
-	    return 0;
-	}
-
-	s += std::string(buffer, buffer+nread);
-    }
-}
-
 
         /* Utility functions */
 
@@ -162,7 +215,7 @@ unsigned CopyStream(Stream *from, Stream *to)
 
 unsigned CopyStream(SeekableStream *from, Stream *to)
 {
-    SeekableStream::pos64 pos = 0;
+    uint64_t pos = 0;
     enum { BUFSIZE = 8192 };
     char buffer[BUFSIZE];
 
@@ -204,14 +257,13 @@ unsigned DiscardStream(Stream *s)
 
 #ifdef TEST
 
+# include "memory_stream.h"
+# include "stream_test.h"
+
 int main()
 {
-    util::MemoryStreamPtr msp;
-
-    unsigned int rc = util::MemoryStream::Create(&msp);
-    assert(rc == 0);
-
-    TestSeekableStream(msp);
+    util::MemoryStream ms;
+    TestSeekableStream(&ms);
     return 0;
 }
 

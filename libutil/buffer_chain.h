@@ -5,7 +5,6 @@
 #include "counted_pointer.h"
 #include "bind.h"
 #include "not_thread_safe.h"
-#include "trace.h"
 #include <stdlib.h>
 #include <stdint.h>
 

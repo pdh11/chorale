@@ -1,4 +1,5 @@
 #include "client.h"
+#include "libutil/bind.h"
 #include "libutil/trace.h"
 #include "libutil/errors.h"
 #include "libutil/http_fetcher.h"
@@ -9,9 +10,13 @@
 #include "libutil/xml.h"
 #include "libutil/xmlescape.h"
 #include "libutil/scheduler.h"
-#include "libupnp/description.h"
-#include "libupnp/soap.h"
-#include <boost/format.hpp>
+#include "libutil/printf.h"
+#include "libutil/counted_pointer.h"
+#include "data.h"
+#include "soap.h"
+#include "soap_parser.h"
+#include "description.h"
+#include <stdarg.h>
 
 LOG_DECL(UPNP);
 
@@ -42,7 +47,6 @@ class DeviceClient::Impl: public util::http::ContentFactory
     friend class DeviceClient;
 
     class EventXMLObserver;
-    class SoapXMLObserver;
     class Response;
     class AsyncSoapHandler;
     class AsyncInitHandler;
@@ -55,9 +59,10 @@ public:
 	: m_client(client),
 	  m_server(server),
 	  m_scheduler(scheduler),
-	  m_gena_callback((boost::format("/upnp/gena/%u")
-			   % (sm_gena_generation++)).str())
+	  m_gena_callback(util::Printf() << "/upnp/gena/"
+			  << sm_gena_generation++)
     {
+	TRACE << m_gena_callback << "\n";
 	server->AddContentFactory(m_gena_callback, this);
     }
 
@@ -69,13 +74,15 @@ public:
     void UnregisterClient(const char *service_id, ServiceClient*);
 
     /** Synchronous SOAP */
-    unsigned int SoapAction(const char *service_id, const char *action_name,
-			    const soap::Outbound& in, soap::Inbound *result);
+    unsigned int SoapAction(const char *service_id,
+			    const upnp::Data *data, unsigned int action,
+			    const soap::Params& in, soap::Params *result);
 
     /** Asynchronous SOAP */
-    unsigned int SoapAction(const char *service_id, const char *action_name,
-			    const soap::Outbound& in, 
-			    ServiceClient::SoapCallback callback);
+    unsigned int SoapAction(const char *service_id, 
+			    const upnp::Data *data, unsigned int action,
+			    const soap::Params& in, 
+			    const ServiceClient::SoapCallback& callback);
 
     // Being a ContentFactory
     bool StreamForPath(const util::http::Request*, util::http::Response*);
@@ -126,7 +133,7 @@ unsigned int DeviceClient::Init(const std::string& descurl,
     return 0;
 }
 
-class DeviceClient::Impl::AsyncInitHandler: public util::http::Connection
+class DeviceClient::Impl::AsyncInitHandler: public util::http::Recipient
 {
     DeviceClient::Impl *m_dci;
     DeviceClient::InitCallback m_callback;
@@ -142,18 +149,16 @@ public:
     {
     }
 
-    // Being a util::http::Connection
-    unsigned Write(const void*, size_t, size_t*);
+    // Being a util::http::Recipient
+    unsigned OnData(const void*, size_t);
     void OnEndPoint(const util::IPEndPoint&);
     void OnDone(unsigned int rc);
 };
 
-unsigned DeviceClient::Impl::AsyncInitHandler::Write(const void *buffer,
-						     size_t len,
-						     size_t *nwrote)
+unsigned DeviceClient::Impl::AsyncInitHandler::OnData(const void *buffer,
+						      size_t len)
 {
     m_description.append((const char*)buffer, len);
-    *nwrote = len;
     return 0;
 }
 
@@ -164,14 +169,14 @@ void DeviceClient::Impl::AsyncInitHandler::OnEndPoint(const util::IPEndPoint& en
 
 void DeviceClient::Impl::AsyncInitHandler::OnDone(unsigned int rc)
 {
-//    TRACE << "aih" << this << " in OnDone(" << rc << ")\n";
+    TRACE << "aih" << this << " in OnDone(" << rc << ")\n";
     if (!rc)
     {
-//	TRACE << "Description: " << m_description << "\n";
+	TRACE << "Description: " << m_description << "\n";
 	rc = m_dci->m_desc.Parse(m_description, m_descurl, m_udn);
     }
 
-//    TRACE << "aih" << this << " calls callback\n";
+    TRACE << "aih" << this << " calls callback(" << rc << ")\n";
     m_callback(rc);
 }
 
@@ -179,9 +184,9 @@ unsigned int DeviceClient::Init(const std::string& descurl,
 				const std::string& udn,
 				DeviceClient::InitCallback callback)
 {
-    util::http::ConnectionPtr hcp(new Impl::AsyncInitHandler(m_impl, 
-							     descurl, udn,
-							     callback));
+    util::http::RecipientPtr hcp(new Impl::AsyncInitHandler(m_impl, 
+							    descurl, udn,
+							    callback));
 
     unsigned int rc = m_impl->m_client->Connect(m_impl->m_scheduler, hcp,
 						descurl);
@@ -245,9 +250,12 @@ public:
     }
 
     // Being a Stream
+    unsigned GetStreamFlags() const { return WRITABLE; }
     unsigned Read(void *, size_t, size_t*) { return EPERM; }
     unsigned Write(const void *buffer, size_t len, size_t *pwrote)
     {
+//	std::string s((const char*)buffer, len);
+//	TRACE << "GENA: " << s << "\n";
 	unsigned rc = m_parser.WriteAll(buffer, len);
 	if (!rc)
 	    *pwrote = len;
@@ -261,7 +269,7 @@ bool DeviceClient::Impl::StreamForPath(const util::http::Request *rq,
 //    TRACE << "In SfP\n";
     if (rq->path == m_gena_callback)
     {
-	std::map<std::string, std::string>::const_iterator ci
+	util::http::Request::headers_t::const_iterator ci
 	    = rq->headers.find("SID");
 	if (ci != rq->headers.end())
 	{
@@ -275,7 +283,7 @@ bool DeviceClient::Impl::StreamForPath(const util::http::Request *rq,
 //		TRACE << "Connection=" << connection << "\n";
 
 		rs->body_sink.reset(new EventXMLObserver(connection));
-		rs->ssp = util::StringStream::Create("");
+		rs->body_source.reset(new util::StringStream(""));
 		return true;
 	    }
 	}
@@ -292,6 +300,8 @@ unsigned int DeviceClient::Impl::RegisterClient(const char *service_id,
 	TRACE << "ServiceClient already registered for " << service_id << "\n";
 	return EEXIST;
     }
+
+    TRACE << "Getting services\n";
 
     const upnp::Services& svc = m_desc.GetServices();
 
@@ -345,7 +355,7 @@ unsigned int DeviceClient::Impl::RegisterClient(const char *service_id,
 }
 
 
-class DeviceClient::Impl::AsyncSubscribeHandler: public util::http::Connection
+class DeviceClient::Impl::AsyncSubscribeHandler: public util::http::Recipient
 {
     DeviceClient::Impl *m_dci;
     const char *m_service_id;
@@ -365,7 +375,8 @@ public:
     {
     }
 
-    // Being a util::http::Connection
+    // Being a util::http::Recipient
+    unsigned int OnData(const void*, size_t) { return 0; }
     void OnHeader(const std::string&, const std::string&);
     void OnDone(unsigned int rc);
 };
@@ -397,7 +408,7 @@ unsigned int DeviceClient::Impl::RegisterClient(const char *service_id,
 						ServiceClient *sc,
 						ServiceClient::InitCallback callback)
 {
-//    TRACE << "In async RegisterClient\n";
+    TRACE << "In async RegisterClient\n";
 
     servicemap_t::const_iterator i = m_services.find(service_id);
     if (i != m_services.end() && i->second != sc)
@@ -429,8 +440,8 @@ unsigned int DeviceClient::Impl::RegisterClient(const char *service_id,
 
 //    TRACE << "creating asubh\n";
 
-    util::http::ConnectionPtr hcp(new AsyncSubscribeHandler(this, service_id,
-							    sc, callback));
+    util::http::RecipientPtr hcp(new AsyncSubscribeHandler(this, service_id,
+							   sc, callback));
     unsigned int rc = m_client->Connect(m_scheduler, hcp,
 					it->second.event_url.c_str(),
 					headers.c_str(), "",
@@ -458,48 +469,7 @@ void DeviceClient::Impl::UnregisterClient(const char *service_id,
     }
 }
 
-class DeviceClient::Impl::SoapXMLObserver: public xml::SaxParserObserver
-{
-    soap::Inbound *m_params;
-    std::string m_tag;
-    std::string m_value;
-
-public:
-    explicit SoapXMLObserver(soap::Inbound *params) : m_params(params) {}
-
-    unsigned int OnBegin(const char *tag);
-    unsigned int OnEnd(const char *tag);
-    unsigned int OnContent(const char *content);
-};
-
-unsigned int DeviceClient::Impl::SoapXMLObserver::OnBegin(const char *tag)
-{
-    if (!strchr(tag, ':'))
-	m_tag = tag;
-    m_value.clear();
-    return 0;
-}
-
-unsigned int DeviceClient::Impl::SoapXMLObserver::OnContent(const char *content)
-{
-    if (!m_tag.empty())
-	m_value += content;
-    return 0;
-}
-
-unsigned int DeviceClient::Impl::SoapXMLObserver::OnEnd(const char *tag)
-{
-    if (!strchr(tag, ':'))
-    {
-//	TRACE << "Setting " << tag << " to '''" << m_value << "'''\n";
-	m_params->Set(tag, m_value);
-    }
-    m_tag.clear();
-    m_value.clear();
-    return 0;
-}
-
-class DeviceClient::Impl::SyncSoapHandler: public util::http::Connection
+class DeviceClient::Impl::SyncSoapHandler: public util::http::Recipient
 {
     xml::SaxParser *m_parser;
     bool m_done;
@@ -516,17 +486,15 @@ public:
     bool IsDone() const { return m_done; }
     unsigned int GetErrorCode() const { return m_error_code; }
 
-    // Being a util::http::Connection
-    unsigned Write(const void*, size_t, size_t*);
+    // Being a util::http::Recipient
+    unsigned OnData(const void*, size_t);
     void OnDone(unsigned int rc);
 };
 
-unsigned DeviceClient::Impl::SyncSoapHandler::Write(const void *buffer,
-						    size_t len, size_t *pwrote)
+unsigned DeviceClient::Impl::SyncSoapHandler::OnData(const void *buffer,
+						     size_t len)
 {
-    m_parser->WriteAll((const char*)buffer, len);
-    *pwrote = len;
-    return 0;
+    return m_parser->WriteAll((const char*)buffer, len);
 }
 
 void DeviceClient::Impl::SyncSoapHandler::OnDone(unsigned int rc)
@@ -538,12 +506,13 @@ void DeviceClient::Impl::SyncSoapHandler::OnDone(unsigned int rc)
 
 /** Synchronous SOAP.
  * 
- * Uses http::Stream
+ * Uses a local scheduler
  */
 unsigned int DeviceClient::Impl::SoapAction(const char *service_id,
-					    const char *action_name,
-					    const soap::Outbound& in,
-					    soap::Inbound *result)
+					    const upnp::Data *data,
+					    unsigned int action,
+					    const soap::Params& in,
+					    soap::Params *result)
 {
     const Services& services = m_desc.GetServices();
     Services::const_iterator i = services.find(service_id);
@@ -556,14 +525,17 @@ unsigned int DeviceClient::Impl::SoapAction(const char *service_id,
     std::string headers = "SOAPACTION: \"";
     headers += i->second.type;
     headers += "#";
-    headers += action_name;
+    headers += data->actions.alternatives[action];
     headers += "\"\r\nContent-Type: text/xml; charset=\"utf-8\"\r\n";
 
     LOG(UPNP) << "Soaping:\n" << headers;
 
-    std::string body = in.CreateBody(action_name, i->second.type);
+    std::string body = soap::CreateBody(data, action, false,
+					i->second.type.c_str(), in);
+
+    LOG(UPNP) << "Soaping:\n" << body << "\n";
 	
-    SoapXMLObserver sxo(result);
+    soap::Parser sxo(data, data->action_results[action], result);
     xml::SaxParser parser(&sxo);
     util::CountedPointer<SyncSoapHandler> ptr(new SyncSoapHandler(&parser));
     util::BackgroundScheduler scheduler;
@@ -593,46 +565,52 @@ unsigned int DeviceClient::Impl::SoapAction(const char *service_id,
     {
 	rc = ptr->GetErrorCode();
 	if (!rc)
+	{
+	    TRACE << "Just plain no answer\n";
 	    rc = ETIMEDOUT;
+	}
 	return rc;
     }
     return 0;
 }
 
-class DeviceClient::Impl::AsyncSoapHandler: public util::http::Connection
+class DeviceClient::Impl::AsyncSoapHandler: public util::http::Recipient
 {
     ServiceClient::SoapCallback m_callback;
-    soap::Inbound m_result;
-    SoapXMLObserver m_sxo;
+    soap::Params m_result;
+    soap::Parser m_sxo;
     xml::SaxParser m_parser;
 
 public:
-    AsyncSoapHandler(ServiceClient::SoapCallback callback)
+    AsyncSoapHandler(const ServiceClient::SoapCallback& callback,
+		     const upnp::Data *data,
+		     const unsigned char *expected_params)
 	: m_callback(callback),
-	  m_sxo(&m_result),
+	  m_sxo(data, expected_params, &m_result),
 	  m_parser(&m_sxo)
     {
     }
 
-    // Being a util::http::Connection
-    unsigned Write(const void*, size_t, size_t*);
+    ~AsyncSoapHandler()
+    {
+	TRACE << "In ~AsyncSoapHandler\n";
+    }
+
+    // Being a util::http::Recipient
+    unsigned OnData(const void*, size_t);
     void OnDone(unsigned int rc);
 };
 
-unsigned DeviceClient::Impl::AsyncSoapHandler::Write(const void *buffer,
-						     size_t len,
-						     size_t *pwrote)
+unsigned DeviceClient::Impl::AsyncSoapHandler::OnData(const void *buffer,
+						      size_t len)
 {
-    unsigned int rc = m_parser.WriteAll(buffer, len);
-    if (!rc)
-	*pwrote = len;
-    return rc;
+    return m_parser.WriteAll(buffer, len);
 }
 
 void DeviceClient::Impl::AsyncSoapHandler::OnDone(unsigned int rc)
 {    
 //    TRACE << "ash" << this << ": HTTP done (" << rc << ")\n";
-    m_callback(rc, rc==0 ? &m_result : NULL);
+    m_callback(rc, &m_result);
 }
 
 /** Asynchronous SOAP.
@@ -640,9 +618,10 @@ void DeviceClient::Impl::AsyncSoapHandler::OnDone(unsigned int rc)
  * Uses the scheduler and http::Client.
  */
 unsigned int DeviceClient::Impl::SoapAction(const char *service_id,
-					    const char *action_name,
-					    const soap::Outbound& in,
-					    ServiceClient::SoapCallback callback)
+					    const upnp::Data *data,
+					    unsigned int action,
+					    const soap::Params& in,
+					    const ServiceClient::SoapCallback& callback)
 {
     const Services& services = m_desc.GetServices();
     Services::const_iterator i = services.find(service_id);
@@ -655,14 +634,18 @@ unsigned int DeviceClient::Impl::SoapAction(const char *service_id,
     std::string headers = "SOAPACTION: \"";
     headers += i->second.type;
     headers += "#";
-    headers += action_name;
+    headers += data->actions.alternatives[action];
     headers += "\"\r\nContent-Type: text/xml; charset=\"utf-8\"\r\n";
 
     LOG(UPNP) << "Soaping:\n" << headers;
 
-    std::string body = in.CreateBody(action_name, i->second.type);
+    std::string body = soap::CreateBody(data, action, false,
+					i->second.type.c_str(), in);
 
-    util::http::ConnectionPtr hcp(new AsyncSoapHandler(callback));
+    LOG(UPNP) << "Soaping:\n" << body << "\n";
+
+    util::http::RecipientPtr hcp(new AsyncSoapHandler(callback, data,
+						       data->action_results[action]));
 
     unsigned int rc = m_client->Connect(m_scheduler, hcp,
 					i->second.control_url.c_str(),
@@ -679,9 +662,11 @@ unsigned int DeviceClient::Impl::SoapAction(const char *service_id,
 
 
 ServiceClient::ServiceClient(DeviceClient* parent,
-			     const char *service_id)
+			     const char *service_id,
+			     const upnp::Data *data)
     : m_parent(parent),
-      m_service_id(service_id)
+      m_service_id(service_id),
+      m_data(data)
 {
 }
 
@@ -710,33 +695,163 @@ bool ServiceClient::GenaBool(const std::string& s)
     return soap::ParseBool(s);
 }
 
-unsigned int ServiceClient::SoapAction(const char *action_name,
-					  soap::Inbound *result)
+unsigned int ServiceClient::SoapAction(unsigned int action,
+				       const SoapCallback& callback, ...)
 {
-    soap::Outbound no_params;
-    return SoapAction(action_name, no_params, result);
+    soap::Params out;
+
+    va_list va;
+    va_start(va, callback);
+    
+    uint32_t *ptr32 = out.ints;
+    uint16_t *ptr16 = out.shorts;
+    uint8_t *ptr8 = out.bytes;
+    std::string *ptrstr = out.strings;
+
+    for (const unsigned char *ptr = m_data->action_args[action]; *ptr; ++ptr)
+    {
+	unsigned param = *ptr - '0';
+	uint8_t type = m_data->param_types[param];
+	switch (type)
+	{
+	case Data::BOOL:
+	case Data::I8:
+	case Data::UI8:
+	    *ptr8++ = (uint8_t)va_arg(va, int);
+	    break;
+	case Data::I16:
+	case Data::UI16:
+	    *ptr16++ = (uint16_t)va_arg(va, int);
+	    break;
+	case Data::I32:
+	case Data::UI32:
+	    *ptr32++ = va_arg(va, int);
+	    break;
+	case Data::STRING:
+	    *ptrstr++ = va_arg(va, const char*);
+	    break;
+	default:
+	    *ptr32++ = va_arg(va, int);
+	    break;
+	}
+    }
+
+    va_end(va);
+
+    return m_parent->m_impl->SoapAction(m_service_id,
+					m_data, action,
+					out, callback);
 }
 
-unsigned int ServiceClient::SoapAction(const char *action_name,
-				       const soap::Outbound& in,
-				       soap::Inbound *result)
-{
-    return m_parent->m_impl->SoapAction(m_service_id, action_name, in, result);
-}
+enum HowBigIsAnEnum {
+    HBIA_1 = 0x40,
+    HBIA_2
+};
 
-unsigned int ServiceClient::SoapAction(const char *action_name,
-				       SoapCallback callback)
+unsigned int ServiceClient::SoapAction2(unsigned int action, ...)
 {
-    soap::Outbound no_params;
-    return SoapAction(action_name, no_params, callback);
-}
+    soap::Params out;
+    soap::Params in;
 
-unsigned int ServiceClient::SoapAction(const char *action_name,
-				       const soap::Outbound& params,
-				       SoapCallback callback)
-{
-    return m_parent->m_impl->SoapAction(m_service_id, action_name, params,
-					callback);
+    va_list va;
+    va_start(va, action);
+
+    uint32_t *ptr32 = out.ints;
+    uint16_t *ptr16 = out.shorts;
+    uint8_t *ptr8 = out.bytes;
+    std::string *ptrstr = out.strings;
+
+    for (const unsigned char *ptr = m_data->action_args[action]; *ptr; ++ptr)
+    {
+	unsigned param = *ptr - '0';
+	uint8_t type = m_data->param_types[param];
+	switch (type)
+	{
+	case Data::BOOL:
+	case Data::I8:
+	case Data::UI8:
+	    *ptr8++ = (uint8_t)va_arg(va, int);
+	    break;
+	case Data::I16:
+	case Data::UI16:
+	    *ptr16++ = (uint16_t)va_arg(va, int);
+	    break;
+	case Data::I32:
+	case Data::UI32:
+	    *ptr32++ = va_arg(va, int);
+	    break;
+	case Data::STRING:
+	    *ptrstr++ = va_arg(va, const char*);
+	    break;
+	default:
+	    *ptr32++ = va_arg(va, int);
+	    break;
+	}
+    }
+
+    unsigned int rc = m_parent->m_impl->SoapAction(m_service_id,
+						   m_data, action,
+						   out, &in);
+
+    if (!rc)
+    {
+	ptr32 = in.ints;
+	ptr16 = in.shorts;
+	ptr8 = in.bytes;
+	ptrstr = in.strings;
+
+	for (const unsigned char *ptr = m_data->action_results[action]; 
+	     *ptr; 
+	     ++ptr)
+	{
+	    unsigned param = *ptr - 48;
+	    uint8_t type = m_data->param_types[param];
+	    switch (type)
+	    {
+	    case Data::BOOL:
+		if (bool* p = va_arg(va, bool*))
+		    *p = *ptr8;
+		++ptr8;
+		break;
+	    case Data::I8:
+	    case Data::UI8:
+		if (uint8_t* p = va_arg(va, uint8_t*))
+		    *p = *ptr8;
+		++ptr8;
+		break;
+	    case Data::I16:
+	    case Data::UI16:
+		if (uint16_t* p = va_arg(va, uint16_t*))
+		    *p = *ptr16;
+		++ptr16;
+		break;
+	    case Data::I32:
+	    case Data::UI32:
+		if (uint32_t* p = va_arg(va, uint32_t*))
+		    *p = *ptr32;
+		++ptr32;
+		break;
+	    case Data::STRING:
+		if (std::string *p = va_arg(va, std::string*))
+		    *p = *ptrstr;
+		++ptrstr;
+		break;
+	    default:
+		{
+		    assert(type >= Data::ENUM);
+		    HowBigIsAnEnum *p = va_arg(va, HowBigIsAnEnum*);
+
+		    if (p)
+			*p = (HowBigIsAnEnum)*ptr32;
+		    ++ptr32;
+		}
+		break;
+	    }
+	}
+    }
+
+    va_end(va);
+    return rc;
 }
 
 } // namespace upnp

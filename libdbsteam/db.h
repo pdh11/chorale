@@ -56,7 +56,7 @@ class Database: public db::Database
 	bool svalid : 1;
 	bool ivalid : 1;
 
-	FieldValue() : svalid(0), ivalid(0) {}
+	FieldValue() : i(0), svalid(0), ivalid(0) {}
     };
 
     typedef std::vector<FieldValue> record_t;
@@ -81,10 +81,10 @@ public:
 	unsigned int flags;
     };
 
-    explicit Database(field_t nfields, const InitialFieldInfo *ifi=NULL);
+    explicit Database(unsigned int nfields, const InitialFieldInfo *ifi=NULL);
     ~Database();
 
-    void SetFieldInfo(field_t which, unsigned int flags)
+    void SetFieldInfo(unsigned int which, unsigned int flags)
     {
 	m_fields[which].flags = flags;
     }

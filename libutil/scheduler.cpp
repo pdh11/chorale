@@ -1,18 +1,19 @@
 #include "scheduler.h"
 #include "bind.h"
-#include "locking.h"
-#include "errors.h"
-#include <stdint.h>
-#include <vector>
-#include <deque>
-#include <queue>
-#include <list>
-#include <algorithm>
-#include <sys/time.h>
 #include "task.h"
-#include "counted_pointer.h"
 #include "poll.h"
 #include "trace.h"
+#include "errors.h"
+#include "stream.h"
+#include "locking.h"
+#include "counted_pointer.h"
+#include <list>
+#include <deque>
+#include <queue>
+#include <vector>
+#include <stdint.h>
+#include <algorithm>
+#include <sys/time.h>
 
 LOG_DECL(POLL);
 
@@ -31,6 +32,8 @@ class BackgroundScheduler::Impl: private util::PerObjectRecursiveLocking
 	uint64_t t; // time_t * 1000
 	unsigned int repeatms;
 	TaskCallback callback;
+
+        Timed() : t(0), repeatms(0) {}
     };
 
     /** Comparator for timers that makes queue.top() the soonest.
@@ -61,7 +64,7 @@ public:
 
     unsigned int Poll(unsigned int ms);
 
-    void Wait(const TaskCallback&, Pollable*, unsigned int direction,
+    void Wait(const TaskCallback&, int, unsigned int direction,
 	      bool oneshot);
     void Wait(const TaskCallback&, time_t first, unsigned int repeatms);
     void Wait(const TaskCallback&, TaskPtr waitedon);
@@ -98,7 +101,7 @@ BackgroundScheduler::Impl::~Impl()
 #undef IN
 #undef OUT
 
-void BackgroundScheduler::Impl::Wait(const TaskCallback& tc, Pollable *p,
+void BackgroundScheduler::Impl::Wait(const TaskCallback& tc, int h,
 				     unsigned int direction, bool oneshot)
 {
     if (m_exiting)
@@ -111,7 +114,7 @@ void BackgroundScheduler::Impl::Wait(const TaskCallback& tc, Pollable *p,
 
     PollRecord r;
     r.tc = tc;
-    r.h = p->GetHandle();
+    r.h = h;
     r.direction = (unsigned char)direction;
     r.oneshot = oneshot;
     r.internal = NULL;
@@ -247,7 +250,6 @@ unsigned BackgroundScheduler::Impl::Poll(unsigned int timeout_ms)
     for (;;)
     {
 	Timed t;
-	bool doit = false;
 
 	{
 //	    TRACE << "BS gets timer lock\n";
@@ -275,15 +277,13 @@ unsigned BackgroundScheduler::Impl::Poll(unsigned int timeout_ms)
 	    t = m_timers.front();
 //	    TRACE << "now " << nowms << ", timer " << t.t << ", calling\n";
 
-	    doit = true;
-
 	    /* std::pop_heap moves the "popped" element to the end,
 	     * where we can pop_back() it to delete it, or push_heap()
 	     * it to re-enable it.
 	     */
 	    std::pop_heap(m_timers.begin(), m_timers.end(), TimerSooner());
 
-	    if (t.repeatms == 0 || !t.callback)
+	    if (t.repeatms == 0 || !t.callback.IsValid())
 		m_timers.pop_back();
 	    else
 	    {
@@ -310,7 +310,7 @@ unsigned BackgroundScheduler::Impl::Poll(unsigned int timeout_ms)
 	    /* Because the lock is a recursive lock, we can call the
 	     * callback inside it.
 	     */
-	    if (t.callback)
+	    if (t.callback.IsValid())
 		t.callback();
 	}
     }
@@ -349,15 +349,15 @@ BackgroundScheduler::~BackgroundScheduler()
 }
 
 void BackgroundScheduler::WaitForReadable(const TaskCallback& callback,
-					  Pollable *pollable, bool oneshot)
+					  int h, bool oneshot)
 {
-    m_impl->Wait(callback, pollable, PollRecord::IN, oneshot);
+    m_impl->Wait(callback, h, PollRecord::IN, oneshot);
 }
 
 void BackgroundScheduler::WaitForWritable(const TaskCallback& callback,
-					  Pollable *pollable, bool oneshot)
+					  int h, bool oneshot)
 {
-    m_impl->Wait(callback, pollable, PollRecord::OUT, oneshot);
+    m_impl->Wait(callback, h, PollRecord::OUT, oneshot);
 }
 
 void BackgroundScheduler::Wait(const TaskCallback& callback, time_t first,
@@ -442,16 +442,6 @@ public:
 
 typedef util::CountedPointer<TestTask> TestPtr;
 
-class TestPollable: public util::Pollable
-{
-    int m_fd;
-
-public:
-    TestPollable(int fd) : m_fd(fd) {}
-
-    util::PollHandle GetHandle() { return m_fd; }
-};
-
 int main()
 {
     {
@@ -482,11 +472,9 @@ int main()
 	    assert(false);
 	}
 
-	TestPollable pollable(pipefd[0]);
-
 	poller.WaitForReadable(
 	    util::Bind(TestPtr(new TestTask)).To<&TestTask::Run>(),
-	    &pollable, true);
+	    pipefd[0], true);
 
 	g_rc = ::write(pipefd[1], "*", 1);
 
@@ -500,7 +488,7 @@ int main()
 
 	poller.WaitForReadable(
 	    util::Bind(TestPtr(new TestTask)).To<&TestTask::Run>(),
-	    &pollable, false);
+	    pipefd[0], false);
 
 	g_rc = ::write(pipefd[1], "*", 1);
 

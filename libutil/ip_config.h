@@ -16,6 +16,8 @@ public:
 	IPAddress netmask;
 	unsigned int flags;
 	std::string name;
+        
+        Interface() : flags(0) {}
     };
 
     typedef std::vector<Interface> Interfaces;

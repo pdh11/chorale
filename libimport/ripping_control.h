@@ -37,6 +37,7 @@ class RippingControl: public util::TaskObserver,
     std::string m_flac_root;
     std::string m_track_template;
     std::string m_playlist_template;
+    std::string m_album_name;
 
     unsigned int m_ntracks;
     struct Track;
@@ -78,6 +79,8 @@ public:
 	m_track_template = track_template;
 	m_playlist_template = playlist_template;
     }
+
+    void SetAlbumName(const char *name);
 
     unsigned int Done();
 };

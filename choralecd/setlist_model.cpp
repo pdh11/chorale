@@ -12,6 +12,7 @@
 #include "browse_widget.h"
 #include "liboutput/queue.h"
 #include "libdb/query.h"
+#include "libdb/recordset.h"
 #include "libmediadb/db.h"
 #include "libmediadb/schema.h"
 #include "libmediadb/registry.h"

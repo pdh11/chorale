@@ -48,8 +48,10 @@ int main(int argc, char *argv[])
 	return 1;
     }
 
-    import::PlaylistPtr pp = import::Playlist::Create(argv[optind]);
-    if (!pp || pp->Load())
+    import::Playlist pp;
+    std::list<std::string> entries;
+    if (pp.Init(argv[optind])
+	|| pp.Load(&entries))
     {
 	fprintf(stderr, "Can't load playlist file '%s'\n", argv[optind]);
 	return 1;
@@ -58,12 +60,15 @@ int main(int argc, char *argv[])
     std::string dirname = util::StripExtension(argv[optind]);
     util::Mkdir(dirname.c_str());
 
-    for (unsigned int i=0; i<pp->GetLength(); ++i)
+    unsigned int n=0;
+    for (std::list<std::string>::const_iterator i = entries.begin();
+	 i != entries.end();
+	 ++i)
     {
 	std::ostringstream linkname;
-	std::string target = pp->GetEntry(i);
+	std::string target = *i;
 	linkname << dirname << "/" << std::setw(3) << std::setfill('0')
-		 << (i+1) << " " << util::GetLeafName(target.c_str());
+		 << (++n) << " " << util::GetLeafName(target.c_str());
 	util::posix::MakeRelativeLink(linkname.str(), target);
     }
     return 0;

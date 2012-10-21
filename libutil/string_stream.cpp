@@ -17,17 +17,7 @@ StringStream::~StringStream()
 {
 }
 
-StringStreamPtr StringStream::Create()
-{
-    return StringStreamPtr(new StringStream);
-}
-
-StringStreamPtr StringStream::Create(const std::string& s)
-{
-    return StringStreamPtr(new StringStream(s));
-}
-
-unsigned StringStream::ReadAt(void *buffer, pos64 pos, size_t len,
+unsigned StringStream::ReadAt(void *buffer, uint64_t pos, size_t len,
 			      size_t *pread)
 {
     size_t remain = m_string.length() - (size_t)pos;
@@ -37,7 +27,7 @@ unsigned StringStream::ReadAt(void *buffer, pos64 pos, size_t len,
     return 0;
 }
 
-unsigned StringStream::WriteAt(const void *buffer, pos64 pos, size_t len, 
+unsigned StringStream::WriteAt(const void *buffer, uint64_t pos, size_t len, 
 			       size_t *pwrote)
 {
     m_string.replace((size_t)pos, len, (const char*)buffer, len);
@@ -45,12 +35,12 @@ unsigned StringStream::WriteAt(const void *buffer, pos64 pos, size_t len,
     return 0;
 }
 
-SeekableStream::pos64 StringStream::GetLength()
+uint64_t StringStream::GetLength()
 {
     return m_string.length();
 }
 
-unsigned StringStream::SetLength(pos64 len)
+unsigned StringStream::SetLength(uint64_t len)
 {
     if (len > m_string.length())
 	m_string.append((size_t)len - m_string.length(), ' ');
@@ -67,14 +57,13 @@ unsigned StringStream::SetLength(pos64 len)
 
 #ifdef TEST
 
-#include "stream_test.h"
+# include "stream_test.h"
 
 int main()
 {
-    util::StringStreamPtr msp = util::StringStream::Create();
-    assert(msp);
+    util::StringStream msp;
 
-    TestSeekableStream(msp);
+    TestSeekableStream(&msp);
 
     return 0;
 }

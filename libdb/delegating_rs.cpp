@@ -5,18 +5,20 @@ namespace db {
 bool DelegatingRecordset::IsEOF() const
 { return m_rs->IsEOF(); }
 
-uint32_t DelegatingRecordset::GetInteger(field_t which) const
+uint32_t DelegatingRecordset::GetInteger(unsigned int which) const
 { return m_rs->GetInteger(which); }
 
-std::string DelegatingRecordset::GetString(field_t which) const 
+std::string DelegatingRecordset::GetString(unsigned int which) const 
 { return m_rs->GetString(which); }
 
-unsigned int DelegatingRecordset::SetInteger(field_t which, uint32_t value)
+unsigned int DelegatingRecordset::SetInteger(unsigned int which, 
+					     uint32_t value)
 {
     return m_rs->SetInteger(which, value);
 }
 
-unsigned int DelegatingRecordset::SetString(field_t which, const std::string& value)
+unsigned int DelegatingRecordset::SetString(unsigned int which,
+					    const std::string& value)
 {
     return m_rs->SetString(which, value);
 }

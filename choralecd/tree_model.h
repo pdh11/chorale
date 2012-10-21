@@ -5,6 +5,8 @@
 #include <QPixmap>
 #include "libmediatree/node.h"
 
+namespace db { class Database; }
+
 namespace choraleqt {
 
 /** A QtAbstractItemModel representing a mediatree:: tree.

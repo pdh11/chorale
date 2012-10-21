@@ -1,39 +1,27 @@
 #ifndef IMPORT_PLAYLIST_H
 #define IMPORT_PLAYLIST_H
 
-#include "libutil/counted_object.h"
+#include "libutil/choose_by_extension.h"
 #include <string>
+#include <list>
 
 namespace import {
 
-class Playlist: public util::CountedObject<>
+class PlaylistIO;
+
+class Playlist
 {
-    class Impl;
-    Impl *m_impl;
-    
-protected:
-    Playlist();
+    util::ChooseByExtension<PlaylistIO> m_chooser;
 
 public:
-    virtual ~Playlist();
+    Playlist();
+    ~Playlist();
 
-    /** Number of entries */
-    size_t GetLength() const;
+    unsigned int Init(const std::string& filename);
 
-    std::string GetEntry(size_t index) const; // 0-based, returns full path
-    std::string GetFilename() const;
-    
-    void SetEntry(size_t index, const std::string& fullpath); // 0-based
-    void AppendEntry(const std::string& fullpath);
-
-    virtual unsigned int Load() = 0;
-    virtual unsigned int Save() = 0;
-    typedef util::CountedPointer<Playlist> PlaylistPtr;
-
-    static PlaylistPtr Create(const std::string& filename);
+    unsigned int Load(std::list<std::string> *entries);
+    unsigned int Save(const std::list<std::string> *entries);
 };
-
-typedef util::CountedPointer<Playlist> PlaylistPtr;
 
 } // namespace import
 

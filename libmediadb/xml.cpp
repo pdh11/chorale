@@ -12,6 +12,7 @@
 #include "libutil/file_stream.h"
 #include "libutil/xml.h"
 #include "libutil/xmlescape.h"
+#include "libutil/counted_pointer.h"
 #include <stdio.h>
 
 LOG_DECL(DBLOCAL);
@@ -81,19 +82,23 @@ static const char *const codecmap[] = {
     "flac",
     "vorbis",
     "wav",
-    "pcm"
+    "pcm",
+    "aac",
+    "wma"
 };
 
 enum { NCODECS = sizeof(codecmap)/sizeof(codecmap[0]) };
 
-BOOST_STATIC_ASSERT((int)NCODECS == (int)mediadb::CODEC_COUNT);
+BOOST_STATIC_ASSERT((int)NCODECS == (int)mediadb::AUDIOCODEC_COUNT);
 
 static const char *const videocodecmap[] = {
     "",
     "mpeg2",
     "mpeg4",
     "h264",
-    "flv"
+    "flv",
+    "wmv",
+    "theora"
 };
 
 enum { NVIDEOCODECS = sizeof(videocodecmap)/sizeof(videocodecmap[0]) };
@@ -106,7 +111,9 @@ static const char *const containermap[] = {
     "matroska",
     "avi",
     "mpegps",
-    "mp4"
+    "mp4",
+    "mov",
+    "jpeg"
 };
 
 enum { NCONTAINERS = sizeof(containermap)/sizeof(containermap[0]) };
@@ -143,7 +150,7 @@ unsigned int WriteXML(db::Database *db, unsigned int schema, ::FILE *f)
 	    case mediadb::TYPE:
 		value = typemap[rs->GetInteger(i)];
 		break;
-	    case mediadb::CODEC:
+	    case mediadb::AUDIOCODEC:
 		value = codecmap[rs->GetInteger(i)];
 		break;
 	    case mediadb::VIDEOCODEC:
@@ -196,7 +203,9 @@ class MediaDBParser: public xml::SaxParserObserver
     std::vector<unsigned int> m_children;
     bool m_in_child;
     std::map<std::string, unsigned int> m_rev_typemap;
-    std::map<std::string, unsigned int> m_rev_codecmap;
+    std::map<std::string, unsigned int> m_rev_audiocodecmap;
+    std::map<std::string, unsigned int> m_rev_videocodecmap;
+    std::map<std::string, unsigned int> m_rev_containermap;
     std::string m_value;
     std::set<uint32_t> m_ids;
     std::string m_fields[mediadb::FIELD_COUNT];
@@ -208,7 +217,11 @@ public:
 	for (unsigned int i=0; i < NTYPES; ++i)
 	    m_rev_typemap[typemap[i]] = i;
 	for (unsigned int i=0; i < NCODECS; ++i)
-	    m_rev_codecmap[codecmap[i]] = i;
+	    m_rev_audiocodecmap[codecmap[i]] = i;
+	for (unsigned int i=0; i < NVIDEOCODECS; ++i)
+	    m_rev_videocodecmap[videocodecmap[i]] = i;
+	for (unsigned int i=0; i < NCONTAINERS; ++i)
+	    m_rev_containermap[containermap[i]] = i;
     }
 
     unsigned int OnBegin(const char *tag)
@@ -273,8 +286,12 @@ public:
 
 		    if (i == mediadb::TYPE)
 			rs->SetInteger(i, m_rev_typemap[value]);
-		    else if (i == mediadb::CODEC)
-			rs->SetInteger(i, m_rev_codecmap[value]);
+		    else if (i == mediadb::AUDIOCODEC)
+			rs->SetInteger(i, m_rev_audiocodecmap[value]);
+		    else if (i == mediadb::VIDEOCODEC)
+			rs->SetInteger(i, m_rev_videocodecmap[value]);
+		    else if (i == mediadb::CONTAINER)
+			rs->SetInteger(i, m_rev_containermap[value]);
 		    else if (i == mediadb::CHILDREN)
 			rs->SetString(i, 
 				      mediadb::VectorToChildren(m_children));
@@ -310,15 +327,15 @@ public:
 
 unsigned int ReadXML(db::Database *db, const char *filename)
 {
-    util::SeekableStreamPtr ssp;
+    std::auto_ptr<util::Stream> ssp;
     unsigned int rc = util::OpenFileStream(filename, util::READ, &ssp);
     if (rc != 0)
 	return rc;
 
-    return ReadXML(db, ssp);
+    return ReadXML(db, ssp.get());
 }
 
-unsigned int ReadXML(db::Database *db, util::StreamPtr sp)
+unsigned int ReadXML(db::Database *db, util::Stream *sp)
 {
     MediaDBParser parser(db);
     xml::SaxParser saxp(&parser);
@@ -351,7 +368,9 @@ int main()
     tdb.m_rs->SetString(mediadb::PATH, "You\xE2\x80\x99re My Flame.flac");
     tdb.m_rs->SetString(mediadb::ALBUM, "X&Y");
     tdb.m_rs->SetInteger(mediadb::TYPE, mediadb::TUNE);
-    tdb.m_rs->SetInteger(mediadb::CODEC, mediadb::FLAC);
+    tdb.m_rs->SetInteger(mediadb::AUDIOCODEC, mediadb::FLAC);
+    tdb.m_rs->SetInteger(mediadb::VIDEOCODEC, mediadb::THEORA);
+    tdb.m_rs->SetInteger(mediadb::CONTAINER, mediadb::MATROSKA);
 
     std::vector<unsigned int> cv;
     cv.push_back(257);
@@ -369,7 +388,9 @@ int main()
     assert(tdb2.m_rs->GetString(mediadb::PATH) == "You\xE2\x80\x99re My Flame.flac");
     assert(tdb2.m_rs->GetString(mediadb::ALBUM) == "X&Y");
     assert(tdb2.m_rs->GetInteger(mediadb::TYPE) == mediadb::TUNE);
-    assert(tdb2.m_rs->GetInteger(mediadb::CODEC) == mediadb::FLAC);
+    assert(tdb2.m_rs->GetInteger(mediadb::AUDIOCODEC) == mediadb::FLAC);
+    assert(tdb2.m_rs->GetInteger(mediadb::VIDEOCODEC) == mediadb::THEORA);
+    assert(tdb2.m_rs->GetInteger(mediadb::CONTAINER) == mediadb::MATROSKA);
 
     std::vector<unsigned int> cv2;
     mediadb::ChildrenToVector(tdb2.m_rs->GetString(mediadb::CHILDREN), &cv2);

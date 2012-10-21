@@ -2,7 +2,7 @@
 #include "rs.h"
 #include "query.h"
 #include "libutil/trace.h"
-#include <boost/format.hpp>
+#include "libutil/printf.h"
 #include <errno.h>
 
 namespace db {
@@ -35,7 +35,7 @@ bool Recordset::IsEOF() const
     return m_eof;
 }
 
-uint32_t Recordset::GetInteger(field_t which) const
+uint32_t Recordset::GetInteger(unsigned int which) const
 {
     if (m_eof)
 	return 0;
@@ -56,7 +56,7 @@ uint32_t Recordset::GetInteger(field_t which) const
     return 0;
 }
 
-std::string Recordset::GetString(field_t which) const
+std::string Recordset::GetString(unsigned int which) const
 {
     if (m_eof)
 	return "";
@@ -73,12 +73,12 @@ std::string Recordset::GetString(field_t which) const
     if (v.svalid)
 	return v.s;
     if (v.ivalid && v.i)
-	return (boost::format("%u") % v.i).str();
+	return util::Printf() << v.i;
 
     return "";
 }
 
-unsigned int Recordset::SetString(field_t which, const std::string& s)
+unsigned int Recordset::SetString(unsigned int which, const std::string& s)
 {
     if (m_eof)
     {
@@ -140,7 +140,7 @@ unsigned int Recordset::SetString(field_t which, const std::string& s)
 	    v.i = (uint32_t)strtoul(s.c_str(), NULL, 10);
 	    v.ivalid = 1;
 	}
-	v.s = (boost::format("%u") % v.i).str();
+	v.s = util::Printf() << v.i;
     }
     else
     {
@@ -150,7 +150,7 @@ unsigned int Recordset::SetString(field_t which, const std::string& s)
     return 0;
 }
 
-unsigned int Recordset::SetInteger(field_t which, uint32_t n)
+unsigned int Recordset::SetInteger(unsigned int which, uint32_t n)
 {
     if (m_eof)
 	return ENOENT;
@@ -186,7 +186,7 @@ unsigned int Recordset::SetInteger(field_t which, uint32_t n)
 		if (m_db->m_stringindexes[which][v.s].empty())
 		    m_db->m_stringindexes[which].erase(v.s);
 	    }
-	    v.s = (boost::format("%u") % n).str();
+	    v.s = util::Printf() << n;
 	    v.svalid = 1;
 	    m_db->m_stringindexes[which][v.s].insert(m_record);
 	    break;
@@ -286,6 +286,8 @@ void SimpleRecordset::MoveNext()
     if (m_eof)
 	return;
 
+    util::RecursiveMutex::Lock lock(m_db->m_mutex);
+
     for (;;)
     {
 	// Finds first item with key greater than m_record
@@ -305,7 +307,7 @@ void SimpleRecordset::MoveNext()
         /* IndexedRecordset */
 
 
-IndexedRecordset::IndexedRecordset(Database *db, field_t field, uint32_t intval)
+IndexedRecordset::IndexedRecordset(Database *db, unsigned int field, uint32_t intval)
     : Recordset(db),
       m_field(field),
       m_is_int(true),
@@ -326,7 +328,7 @@ IndexedRecordset::IndexedRecordset(Database *db, field_t field, uint32_t intval)
     }
 }
 
-IndexedRecordset::IndexedRecordset(Database *db, field_t field,
+IndexedRecordset::IndexedRecordset(Database *db, unsigned int field,
 				   std::string stringval)
     : Recordset(db),
       m_field(field),
@@ -404,7 +406,7 @@ void IndexedRecordset::MoveNext()
         /* OrderedRecordset */
 
 
-OrderedRecordset::OrderedRecordset(Database *db, field_t field)
+OrderedRecordset::OrderedRecordset(Database *db, unsigned int field)
     : Recordset(db),
       m_field(field),
       m_is_int(false),
@@ -523,7 +525,7 @@ void OrderedRecordset::MoveNext()
         /* CollateRecordset */
 
 
-CollateRecordset::CollateRecordset(Database *db, field_t field, QueryPtr query)
+CollateRecordset::CollateRecordset(Database *db, unsigned int field, QueryPtr query)
     : m_parent(db),
       m_field(field), 
       m_is_int(false),
@@ -604,12 +606,12 @@ bool CollateRecordset::IsEOF() const
     return m_eof; 
 }
 
-uint32_t CollateRecordset::GetInteger(field_t) const
+uint32_t CollateRecordset::GetInteger(unsigned int) const
 {
     return m_intvalue;
 }
 
-std::string CollateRecordset::GetString(field_t) const
+std::string CollateRecordset::GetString(unsigned int) const
 {
     return m_strvalue; 
 }

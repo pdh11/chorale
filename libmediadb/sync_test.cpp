@@ -69,14 +69,12 @@ void Test(const char *src, const char *dest,
 	  const char *delenda, const char *addenda, const char *mutanda)
 {
     mediadb::FakeDatabase dbsrc;
-    util::StringStreamPtr streamsrc = util::StringStream::Create();
-    streamsrc->str() = src;
-    mediadb::ReadXML(&dbsrc, streamsrc);
+    util::StringStream streamsrc(src);
+    mediadb::ReadXML(&dbsrc, &streamsrc);
 
     mediadb::FakeDatabase dbdest;
-    util::StringStreamPtr streamdest = util::StringStream::Create();
-    streamdest->str() = dest;
-    mediadb::ReadXML(&dbdest, streamdest);
+    util::StringStream streamdest(dest);
+    mediadb::ReadXML(&dbdest, &streamdest);
     
     mediadb::Synchroniser sync(&dbsrc, &dbdest, false);
 

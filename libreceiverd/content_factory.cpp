@@ -4,14 +4,16 @@
 #include "libmediadb/db.h"
 #include "libmediadb/schema.h"
 #include "libdb/query.h"
+#include "libdb/recordset.h"
 #include "libutil/trace.h"
 #include "libutil/stream.h"
 #include "libutil/urlescape.h"
+#include "libutil/printf.h"
+#include "libutil/counted_pointer.h"
 #include "libreceiver/tags.h"
 #include <stdio.h>
 #include <sstream>
 #include <algorithm>
-#include <boost/format.hpp>
 #include <limits.h>
 
 namespace receiverd {
@@ -41,18 +43,18 @@ static const char tagstring[] =
     "ensemble\n"
     "lyricist\n";
 
-void StreamAddString(util::StringStreamPtr st, int receiver_tag, 
-		     const std::string& s)
+static void StreamAddString(std::string *st, int receiver_tag, 
+			    const std::string& s)
 {
     if (!s.empty())
     {
-	st->str() += (char)receiver_tag;
-	st->str() += (char)s.length();
-	st->str() += s;
+	*st += (char)receiver_tag;
+	*st += (char)s.length();
+	*st += s;
     }
 }
 
-void StreamAddInt(util::StringStreamPtr s, int receiver_tag, unsigned int n)
+static void StreamAddInt(std::string *s, int receiver_tag, unsigned int n)
 {
     if (n)
     {
@@ -62,8 +64,9 @@ void StreamAddInt(util::StringStreamPtr s, int receiver_tag, unsigned int n)
     }
 }
 
-void StreamAddChildren(util::StringStreamPtr s, int receiver_tag,
-		       const std::string& ch)
+#if 0
+static void StreamAddChildren(std::string *s, int receiver_tag,
+			      const std::string& ch)
 {
     std::vector<unsigned int> vec;
     mediadb::ChildrenToVector(ch, &vec);
@@ -94,6 +97,7 @@ void StreamAddChildren(util::StringStreamPtr s, int receiver_tag,
     }
     StreamAddString(s, receiver_tag, playlist);
 }
+#endif
 
 #if 0
 static void TraceTags(const std::string& s)
@@ -117,21 +121,24 @@ static void TraceTags(const std::string& s)
 }
 #endif
 
-util::SeekableStreamPtr TagsStream(mediadb::Database *db, unsigned int id)
+static
+std::auto_ptr<util::Stream> TagsStream(mediadb::Database *db, unsigned int id)
 {
+    std::auto_ptr<util::Stream> ss;
+
     db::QueryPtr qp = db->CreateQuery();
     qp->Where(qp->Restrict(mediadb::ID, db::EQ, id));
     db::RecordsetPtr rs = qp->Execute();
     if (!rs || rs->IsEOF())
     {
 	TRACE << "Can't find FID " << id << "\n";
-	return util::SeekableStreamPtr();
+	return ss;
     }
 
-    util::StringStreamPtr ss = util::StringStream::Create();
-    
-    StreamAddInt(ss, receiver::FID, id);
-    StreamAddString(ss, receiver::TITLE, rs->GetString(mediadb::TITLE));
+    std::string s;
+
+    StreamAddInt(&s, receiver::FID, id);
+    StreamAddString(&s, receiver::TITLE, rs->GetString(mediadb::TITLE));
     unsigned int mtype = rs->GetInteger(mediadb::TYPE);
     const char *type = "tune";
     switch (mtype)
@@ -150,47 +157,47 @@ util::SeekableStreamPtr TagsStream(mediadb::Database *db, unsigned int id)
 	type = "unknown";
 	break;
     }
-    StreamAddString(ss, receiver::TYPE, type);
+    StreamAddString(&s, receiver::TYPE, type);
     
     if (mtype != mediadb::PLAYLIST && mtype != mediadb::DIR)
     {
-	StreamAddInt(ss, receiver::DURATION,
+	StreamAddInt(&s, receiver::DURATION,
 		     rs->GetInteger(mediadb::DURATIONMS));
 	const char *codec = "mp3";
-	switch (rs->GetInteger(mediadb::CODEC))
+	switch (rs->GetInteger(mediadb::AUDIOCODEC))
 	{
 	case mediadb::FLAC: codec = "flac"; break;
 	case mediadb::WAV: codec = "wave"; break;
 	}
-	StreamAddString(ss, receiver::CODEC, codec);
+	StreamAddString(&s, receiver::CODEC, codec);
 
-	StreamAddInt(ss, receiver::LENGTH, rs->GetInteger(mediadb::SIZEBYTES));
-	StreamAddInt(ss, receiver::SAMPLERATE,
+	StreamAddInt(&s, receiver::LENGTH, rs->GetInteger(mediadb::SIZEBYTES));
+	StreamAddInt(&s, receiver::SAMPLERATE,
 		     rs->GetInteger(mediadb::SAMPLERATE));
 	std::ostringstream os;
 	os << "vs" << (rs->GetInteger(mediadb::BITSPERSEC)/1000);
-	StreamAddString(ss, receiver::BITRATE, os.str());
+	StreamAddString(&s, receiver::BITRATE, os.str());
 	
-	StreamAddString(ss, receiver::ARTIST, rs->GetString(mediadb::ARTIST));
-	StreamAddString(ss, receiver::SOURCE, rs->GetString(mediadb::ALBUM));
-	StreamAddInt(ss, receiver::TRACKNR,
+	StreamAddString(&s, receiver::ARTIST, rs->GetString(mediadb::ARTIST));
+	StreamAddString(&s, receiver::SOURCE, rs->GetString(mediadb::ALBUM));
+	StreamAddInt(&s, receiver::TRACKNR,
 		     rs->GetInteger(mediadb::TRACKNUMBER));
-	StreamAddString(ss, receiver::GENRE, rs->GetString(mediadb::GENRE));
-	StreamAddInt(ss, receiver::YEAR, rs->GetInteger(mediadb::YEAR));
-	StreamAddString(ss, receiver::MOOD, rs->GetString(mediadb::MOOD));
-	StreamAddString(ss, receiver::ORIGINALARTIST,
+	StreamAddString(&s, receiver::GENRE, rs->GetString(mediadb::GENRE));
+	StreamAddInt(&s, receiver::YEAR, rs->GetInteger(mediadb::YEAR));
+	StreamAddString(&s, receiver::MOOD, rs->GetString(mediadb::MOOD));
+	StreamAddString(&s, receiver::ORIGINALARTIST,
 			rs->GetString(mediadb::ORIGINALARTIST));
-	StreamAddString(ss, receiver::REMIXED,
+	StreamAddString(&s, receiver::REMIXED,
 			rs->GetString(mediadb::REMIXED));
 	// ... CONDUCTOR COMPOSER ENSEMBLE LYRICIST
     }
 
     unsigned char term = 0xFF;
-    ss->str() += (char)term;
+    s += (char)term;
 
 //    TraceTags(ss->str());
 
-    ss->Seek(0);
+    ss.reset(new util::StringStream(s));
 
 /*
     unsigned int len = (unsigned int)ss->GetLength();
@@ -210,8 +217,8 @@ util::SeekableStreamPtr TagsStream(mediadb::Database *db, unsigned int id)
     return ss;
 }
 
-util::SeekableStreamPtr QueryStream(mediadb::Database *db,
-				    const char *path)
+static std::auto_ptr<util::Stream> QueryStream(mediadb::Database *db,
+					       const char *path)
 {
     unsigned int field = mediadb::FIELD_COUNT;
     std::string value;
@@ -241,10 +248,12 @@ util::SeekableStreamPtr QueryStream(mediadb::Database *db,
 	}
     }
 
+    std::auto_ptr<util::Stream> sp;
+
     if (field == mediadb::FIELD_COUNT)
     {
 	TRACE << "Don't understand query '" << path << "'\n";
-	return util::SeekableStreamPtr();
+	return sp;
     }
 
     db::QueryPtr qp = db->CreateQuery();
@@ -260,12 +269,10 @@ util::SeekableStreamPtr QueryStream(mediadb::Database *db,
     if (!rs)
     {
 	TRACE << "Can't do query\n";
-	return util::SeekableStreamPtr();
+	return sp;
     }
 
-    util::StringStreamPtr ss = util::StringStream::Create();
-
-    ss->str() += "matches=\n";
+    std::string s = "matches=\n";
     unsigned int i=0;
     
     while (!rs->IsEOF())
@@ -277,19 +284,21 @@ util::SeekableStreamPtr QueryStream(mediadb::Database *db,
 	 * uglier.
 	 */
 	os << i << "=1,0,0:" << rs->GetString(0) << "\n";
-	ss->str() += os.str();
+	s += os.str();
 	
 	++i;
 	rs->MoveNext();
     }
 
-    ss->Seek(0);
-    return ss;
+    sp.reset(new util::StringStream(s));
+    return sp;
 }
 
-util::SeekableStreamPtr ResultsStream(mediadb::Database *db,
-				      const char *path)
+static std::auto_ptr<util::Stream> ResultsStream(mediadb::Database *db,
+						 const char *path)
 {
+    std::auto_ptr<util::Stream> sp;
+    
     unsigned int field = mediadb::FIELD_COUNT;
 
     bool extended2 = (strstr(path, "_extended=2") != NULL);
@@ -298,7 +307,7 @@ util::SeekableStreamPtr ResultsStream(mediadb::Database *db,
     if (!query)
     {
 	TRACE << "Don't like results url '" << path << "'\n";
-	return util::SeekableStreamPtr();
+	return sp;
     }
     const char *fieldname = query+1;
     const char *ampers = strchr(fieldname, '&');
@@ -311,7 +320,7 @@ util::SeekableStreamPtr ResultsStream(mediadb::Database *db,
     if (!equals)
     {
 	TRACE << "Don't like results url '" << path << "'\n";
-	return util::SeekableStreamPtr();
+	return sp;
     }
     
     std::string sfield(fieldname, equals-fieldname);
@@ -326,7 +335,7 @@ util::SeekableStreamPtr ResultsStream(mediadb::Database *db,
     else
     {
 	TRACE << "Don't like results field in '" << path << "'\n";
-	return util::SeekableStreamPtr();
+	return sp;
     }
 
     std::string value;
@@ -344,10 +353,10 @@ util::SeekableStreamPtr ResultsStream(mediadb::Database *db,
     if (!rs)
     {
 	TRACE << "Can't do query\n";
-	return util::SeekableStreamPtr();
+	return sp;
     }
 
-    util::StringStreamPtr ss = util::StringStream::Create();
+    std::string s;
 
     while (!rs->IsEOF())
     {
@@ -370,23 +379,23 @@ util::SeekableStreamPtr ResultsStream(mediadb::Database *db,
 	    binary.push_back(0);
 	    binary.push_back(0);
 	    binary.push_back(0);
-	    ss->str() += binary;
+	    s += binary;
 	}
 	else
 	{
 	    /** @todo Upgrade to FLAC if advanced client
 	     */
-	    std::string line = (boost::format("%x=T%s\n")
-				% rs->GetInteger(mediadb::ID)
-				% rs->GetString(mediadb::TITLE)).str();
-	    ss->str() += line;	
+	    std::string line = util::SPrintf("%x=T%s\n",
+					     rs->GetInteger(mediadb::ID),
+					     rs->GetString(mediadb::TITLE).c_str());
+	    s += line;	
 	}
 	
 	rs->MoveNext();
     }
 
-    ss->Seek(0);
-    return ss;
+    sp.reset(new util::StringStream(s));
+    return sp;
 }
 
 void GetContentStream(mediadb::Database *db, unsigned int id, 
@@ -407,13 +416,12 @@ void GetContentStream(mediadb::Database *db, unsigned int id,
 	std::vector<unsigned int> vec;
 	mediadb::ChildrenToVector(rs->GetString(mediadb::CHILDREN), &vec);
 	
-	util::StringStreamPtr ss = util::StringStream::Create();
-
 	bool is_utf8 = (strstr(path, "_utf8=1") != NULL);
 
 	bool is_extended = (strstr(path, "_extended=1") != NULL);
 
 	std::string playlist;
+	std::string s;
 	
 	if (!is_extended)
 	{
@@ -425,7 +433,7 @@ void GetContentStream(mediadb::Database *db, unsigned int id,
 	    playlist.push_back(0x02);
 	    playlist.push_back(0);
 	    playlist.push_back(0);
-	    ss->str() += playlist;
+	    s += playlist;
 	}
 
 //	TRACE << "FID " << id << " has " << vec.size() << " children\n";
@@ -460,7 +468,7 @@ void GetContentStream(mediadb::Database *db, unsigned int id,
 	    if (!chtype)
 		continue; // Don't offer images or videos
 
-	    unsigned int codec = rs->GetInteger(mediadb::CODEC);
+	    unsigned int codec = rs->GetInteger(mediadb::AUDIOCODEC);
 
 	    /** Real Rio Receivers can only play MP3 (and WMA).
 	     */
@@ -483,7 +491,7 @@ void GetContentStream(mediadb::Database *db, unsigned int id,
 		std::ostringstream os;
 		os << std::hex << childid << "=" << chtype
 		   << rs->GetString(mediadb::TITLE) << "\n";
-		ss->str() += os.str();
+		s += os.str();
 	    }
 	    else
 	    {
@@ -497,25 +505,24 @@ void GetContentStream(mediadb::Database *db, unsigned int id,
 		playlist.push_back(0);
 		playlist.push_back(0);
 		playlist.push_back(0);
-		ss->str() += playlist;
+		s += playlist;
 	    }
 	}
 
 //	TRACE << "'''" << ss->str() << "'''\n";
 
-	ss->Seek(0);
-	rsp->ssp = ss;
+	rsp->body_source.reset(new util::StringStream(s));
 	return;
     }
 
     // Must be a file then
-    rsp->ssp = db->OpenRead(id);
+    rsp->body_source = db->OpenRead(id);
     if (type == mediadb::RADIO)
 	rsp->length = INT_MAX; // Not UINT_MAX as Receivers can't handle that
     else
 	rsp->length = rs->GetInteger(mediadb::SIZEBYTES);
 
-    switch (rs->GetInteger(mediadb::CODEC))
+    switch (rs->GetInteger(mediadb::AUDIOCODEC))
     {
     case mediadb::MP2: rsp->content_type = "audio/x-mp2"; break;
     case mediadb::MP3: rsp->content_type = "audio/mpeg"; break;
@@ -604,8 +611,9 @@ void PREFlattener::OnItem(unsigned int id, db::RecordsetPtr rs)
 //    TRACE << "Returning id " << id << " size " << pre.length << "\n";
 }
 
-util::SeekableStreamPtr ListStream(mediadb::Database *db,
-				   unsigned int id, const char *path)
+static std::auto_ptr<util::Stream> ListStream(mediadb::Database *db,
+					      unsigned int id, 
+					      const char *path)
 {
     db::QueryPtr qp = db->CreateQuery();
     qp->Where(qp->Restrict(mediadb::ID, db::EQ, id));
@@ -615,8 +623,7 @@ util::SeekableStreamPtr ListStream(mediadb::Database *db,
     bool shuffle = (strstr(path, "shuffle=1") != NULL);
     bool utf8 = (strstr(path, "_utf8=1") != NULL);
 
-    util::MemoryStreamPtr ms;
-    util::MemoryStream::Create(&ms, 1000);
+    std::auto_ptr<util::Stream> ms(new util::MemoryStream);
     unsigned int rc;
 
     if (extended)
@@ -652,28 +659,23 @@ bool ContentFactory::StreamForPath(const util::http::Request *rq,
 
     if (rq->path == "/tags")
     {
-//	TRACE << rq->path << "\n";
-
-	util::StringStreamPtr ss = util::StringStream::Create();
-	ss->str() += tagstring;
-	ss->Seek(0);
-	rs->ssp = ss;
+	rs->body_source.reset(new util::StringStream(tagstring));
 	return true;
     }
     else if (sscanf(path, "/tags/%x", &id) == 1)
     {
 	TRACE << "tags for " << id << "\n";
-	rs->ssp = TagsStream(m_db, id);
+	rs->body_source = TagsStream(m_db, id);
 	return true;
     }
     else if (!strncmp(path, "/query?", 7))
     {
-	rs->ssp = QueryStream(m_db, path);
+	rs->body_source = QueryStream(m_db, path);
 	return true;
     }
     else if (!strncmp(path, "/results?", 9))
     {
-	rs->ssp = ResultsStream(m_db, path);
+	rs->body_source = ResultsStream(m_db, path);
 	return true;
     }
     else if (sscanf(path, "/content/%x", &id) == 1)
@@ -683,7 +685,7 @@ bool ContentFactory::StreamForPath(const util::http::Request *rq,
     }
     else if (sscanf(path, "/list/%x", &id) == 1)
     {
-	rs->ssp = ListStream(m_db, id, path);
+	rs->body_source = ListStream(m_db, id, path);
 	return true;
     }
     else
@@ -703,6 +705,7 @@ bool ContentFactory::StreamForPath(const util::http::Request *rq,
 # include "libdblocal/db.h"
 # include "libdbmerge/db.h"
 # include "libutil/http_client.h"
+# include <boost/format.hpp>
 
 static const struct {
     const char *url;
@@ -905,7 +908,7 @@ std::string Printable(const std::string& s)
 	    result += c;
 	else
 	{
-	    std::string s2  =(boost::format("\\x%02x") % (int)c).str();
+	    std::string s2 =(boost::format("\\x%02x") % (int)c).str();
 //	    TRACE << "c=" << c << " s2='" << s2 << "'\n";
 	    result += s2;
 	}
@@ -926,18 +929,18 @@ void DoTests(mediadb::Database *mdb)
 
 	assert(found);
 	
-	util::StringStreamPtr ss = util::StringStream::Create();
-	util::CopyStream(rs.ssp.get(), ss.get());
+	util::StringStream ss;
+	util::CopyStream(rs.body_source.get(), &ss);
 
-	if (ss->str() != tests[i].result)
+	if (ss.str() != tests[i].result)
 	{
 	    TRACE << "URL " << tests[i].url << " gave:\n"
-		  << Printable(ss->str()) 
+		  << Printable(ss.str()) 
 		  << "\nshould be\n" 
 		  << Printable(tests[i].result) << "\n\n";
 	}
 
-	assert(ss->str() == tests[i].result);
+	assert(ss.str() == tests[i].result);
     }
 
     for (unsigned int i=0; i<NTESTS2; ++i)
@@ -949,20 +952,20 @@ void DoTests(mediadb::Database *mdb)
 
 	assert(found);
 	
-	util::StringStreamPtr ss = util::StringStream::Create();
-	util::CopyStream(rs.ssp.get(), ss.get());
+	util::StringStream ss;
+	util::CopyStream(rs.body_source.get(), &ss);
 
 	std::string expected(tests2[i].result, tests2[i].resultsize);
 
-	if (ss->str() != expected)
+	if (ss.str() != expected)
 	{
 	    TRACE << "URL " << tests2[i].url << " gave:\n"
-		  << Printable(ss->str()) 
+		  << Printable(ss.str()) 
 		  << "\nshould be\n" 
 		  << Printable(expected) << "\n\n";
 	}
 
-	assert(ss->str() == expected);
+	assert(ss.str() == expected);
     }
 }
 

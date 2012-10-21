@@ -5,6 +5,7 @@
 #include "libutil/xmlescape.h"
 #include "libutil/xml.h"
 #include <errno.h>
+#include <assert.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -15,38 +16,33 @@ extern const char ENTRY[] = "entry";
 extern const char REF[] = "ref";
 extern const char HREF[] = "href";
 
+
 typedef xml::Parser<
     xml::Tag<ASX,
 	     xml::Tag<ENTRY,
 		      xml::Tag<REF,
 			       xml::Attribute<HREF,
-					      PlaylistASX,
-					      &PlaylistASX::OnHref
+					      PlaylistXMLObserver,
+					      &PlaylistXMLObserver::OnHref
 					      > > > > > ASXParser;
 
-unsigned int PlaylistASX::OnHref(const std::string& value)
+unsigned int PlaylistASX::Load(const std::string& filename,
+			       std::list<std::string> *entries)
 {
-    AppendEntry(util::MakeAbsolutePath(GetFilename(), value));
-    return 0;
-}
-
-unsigned int PlaylistASX::Load()
-{
-    util::SeekableStreamPtr ss;
-    unsigned int rc = util::OpenFileStream(GetFilename().c_str(), util::READ,
-					   &ss);
+    PlaylistXMLObserver obs(filename, entries);
+    std::auto_ptr<util::Stream> ss;
+    unsigned int rc = util::OpenFileStream(filename.c_str(), util::READ, &ss);
     if (rc != 0)
 	return rc;
 
     ASXParser parser;
-    return parser.Parse(ss, this);
+    return parser.Parse(ss.get(), &obs);
 }
 
-unsigned int PlaylistASX::Save()
+unsigned int PlaylistASX::Save(const std::string& filename,
+			       const std::list<std::string> *entries)
 {
-    /// @bug Filename is UTF-8 on Windows
-
-    FILE *f = fopen(GetFilename().c_str(), "w+");
+    FILE *f = fopen(filename.c_str(), "w+");
     if (!f)
     {
 	TRACE << "failed " << errno << "\n";
@@ -55,10 +51,11 @@ unsigned int PlaylistASX::Save()
 
     fprintf(f, "<asx version=\"3.0\">\n");
 
-    for (size_t i = 0; i < GetLength(); ++i)
+    for (std::list<std::string>::const_iterator i = entries->begin();
+	 i != entries->end();
+	 ++i)
     {
-	std::string relpath = util::MakeRelativePath(GetFilename(),
-						     GetEntry(i));
+	std::string relpath = util::MakeRelativePath(filename, *i);
 	fprintf(f, "<entry><ref href=\"%s\"/></entry>\n",
 		util::XmlEscape(relpath).c_str());
     }
@@ -70,6 +67,8 @@ unsigned int PlaylistASX::Save()
 } // namespace import
 
 #ifdef TEST
+
+# include "playlist.h"
 
 static const char *const tests[] = {
     "sibling.mp3",
@@ -84,31 +83,35 @@ enum { TESTS = sizeof(tests)/sizeof(tests[0]) };
 
 int main()
 {
-    std::string asxname = util::Canonicalise("test.asx");
-    import::PlaylistPtr pp = import::Playlist::Create(asxname);
+    std::string name = util::Canonicalise("test.asx");
+    import::Playlist pp;
+
+    unsigned int rc = pp.Init(name);
+    assert(rc == 0);
+
+    std::list<std::string> entries;
 
     for (unsigned int i=0; i<TESTS; ++i)
     {
-	pp->SetEntry(i, util::MakeAbsolutePath(asxname, tests[i]));
+	entries.push_back(util::MakeAbsolutePath(name, tests[i]));
     }
-    unsigned int rc = pp->Save();
+    rc = pp.Save(&entries);
     assert(rc == 0);
 
-    pp = NULL;
-    pp = import::Playlist::Create(asxname);
-    rc = pp->Load();
+    entries.clear();
+
+    rc = pp.Load(&entries);
     assert(rc == 0);
 
-    assert(pp->GetLength() == TESTS);
+    assert(entries.size() == TESTS);
 
     for (unsigned int i=0; i<TESTS; ++i)
     {
-	assert(pp->GetEntry(i) == util::MakeAbsolutePath(asxname, tests[i]));
+	assert(entries.front() == util::MakeAbsolutePath(name, tests[i]));
+	entries.pop_front();
     }
 
-    pp = NULL;
-    
-    unlink(asxname.c_str());
+    unlink(name.c_str());
 
     return 0;
 }

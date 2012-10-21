@@ -1,12 +1,13 @@
 #include "tarfs.h"
 #include "libutil/trace.h"
+#include "libutil/stream.h"
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
 
 namespace receiverd {
 
-TarFS::TarFS(util::SeekableStreamPtr stm)
+TarFS::TarFS(util::Stream *stm)
     : m_stm(stm),
       m_current_sector(1) ///< Won't match any real (512-byte) sector offset
 {
@@ -36,7 +37,7 @@ unsigned int TarFS::LoadSector(unsigned int n)
 void TarFS::ScanStream()
 {
     unsigned int pos = 0;
-    util::SeekableStream::pos64 len = m_stm->GetLength();
+    uint64_t len = m_stm->GetLength();
     
     while (pos < len)
     {

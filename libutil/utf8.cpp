@@ -1,5 +1,4 @@
 #include "utf8.h"
-#include "trace.h"
 #include <string.h>
 #include <stdlib.h>
 

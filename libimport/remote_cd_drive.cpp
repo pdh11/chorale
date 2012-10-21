@@ -6,6 +6,24 @@
 
 namespace import {
 
+RemoteAudioCD::~RemoteAudioCD()
+{
+}
+
+std::auto_ptr<util::Stream> RemoteAudioCD::GetTrackStream(unsigned int track)
+{
+    std::auto_ptr<util::Stream> ptr;
+    if (track >= m_urls.size())
+	return ptr;
+    unsigned int rc = util::http::Stream::Create(&ptr, m_client,
+						 m_urls[track].c_str());
+    if (rc != 0)
+    {
+	TRACE << "Can't create HTTP stream: " << rc << "\n";
+    }
+    return ptr;
+}
+
 RemoteCDDrive::RemoteCDDrive(util::http::Client *client,
 			     util::http::Server *server,
 			     util::Scheduler *scheduler)
@@ -99,25 +117,6 @@ unsigned int RemoteCDDrive::GetCD(AudioCDPtr *result)
     }
     *result = AudioCDPtr(cd);
     return 0;
-}
-
-RemoteAudioCD::~RemoteAudioCD()
-{
-}
-
-util::SeekableStreamPtr RemoteAudioCD::GetTrackStream(unsigned int track)
-{
-    if (track >= m_urls.size())
-	return util::SeekableStreamPtr();
-    util::http::StreamPtr ptr;
-    unsigned int rc = util::http::Stream::Create(&ptr, m_client,
-						 m_urls[track].c_str());
-    if (rc != 0)
-    {
-	TRACE << "Can't create HTTP stream: " << rc << "\n";
-	return util::SeekableStreamPtr();
-    }
-    return ptr;
 }
 
 } // namespace import

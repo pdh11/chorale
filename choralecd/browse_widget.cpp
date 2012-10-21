@@ -15,6 +15,14 @@
 #include <QMouseEvent>
 #include <QDrag>
 
+#ifndef HAVE_DIR_XPM
+#include "imagery/dir.xpm"
+#define HAVE_DIR_XPM
+#endif
+#include "imagery/file.xpm"
+#include "imagery/film.xpm"
+#include "imagery/image.xpm"
+
 namespace choraleqt {
 
 BrowseWidget::BrowseWidget(QWidget *parent, unsigned int dbid,
@@ -49,13 +57,24 @@ void BrowseWidget::SetNode(mediatree::NodePtr np)
 					      np);
 	    if (np->IsCompound())
 	    {
-		if (m_dir_pixmap)
-		    item->setIcon(*m_dir_pixmap);
+		item->setIcon(QPixmap(dir_xpm));
 	    }
 	    else
 	    {
-		if (m_file_pixmap)
-		    item->setIcon(*m_file_pixmap);
+		unsigned int type = np->GetInfo()->GetInteger(mediadb::TYPE);
+		switch (type)
+		{
+		case mediadb::IMAGE:
+		    item->setIcon(QPixmap(image_xpm));
+		    break;
+		case mediadb::VIDEO:
+		case mediadb::TV:
+		    item->setIcon(QPixmap(film_xpm));
+		    break;
+		default:
+		    item->setIcon(QPixmap(file_xpm));
+		    break;
+		}
 	    }
 	    ep->Next();
 	}

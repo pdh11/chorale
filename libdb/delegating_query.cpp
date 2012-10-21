@@ -1,15 +1,16 @@
 #include "delegating_query.h"
+#include "recordset.h"
 
 namespace db {
 
-Query::Subexpression DelegatingQuery::Restrict(field_t which, 
+Query::Subexpression DelegatingQuery::Restrict(unsigned int which, 
 					       RestrictionType rt, 
 					       const std::string& val)
 {
     return m_qp->Restrict(which, rt, val);
 }
 
-Query::Subexpression DelegatingQuery::Restrict(field_t which,
+Query::Subexpression DelegatingQuery::Restrict(unsigned int which,
 					       RestrictionType rt,
 					       uint32_t val)
 {
@@ -33,17 +34,17 @@ unsigned int DelegatingQuery::Where(const Subexpression& s)
     return m_qp->Where(s);
 }
 
-unsigned int DelegatingQuery::OrderBy(field_t which)
+unsigned int DelegatingQuery::OrderBy(unsigned int which)
 {
     return m_qp->OrderBy(which);
 }
 
-unsigned int DelegatingQuery::CollateBy(field_t which)
+unsigned int DelegatingQuery::CollateBy(unsigned int which)
 {
     return m_qp->CollateBy(which);
 }
 
-RecordsetPtr DelegatingQuery::Execute()
+util::CountedPointer<Recordset> DelegatingQuery::Execute()
 {
     return m_qp->Execute();
 }

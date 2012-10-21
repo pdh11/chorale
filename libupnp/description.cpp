@@ -2,7 +2,7 @@
 #include "libutil/string_stream.h"
 #include "libutil/xml.h"
 #include "libutil/trace.h"
-#include "libutil/http_fetcher.h"
+#include "libutil/http.h"
 #include "libutil/errors.h"
 
 namespace upnp {
@@ -22,22 +22,22 @@ struct XMLDescription
     XMLDevice root_device;
 };
 
-extern const char SERVICELIST[] = "serviceList";
-extern const char SERVICE[] = "service";
-extern const char SERVICETYPE[] = "serviceType";
-extern const char SERVICEID[] = "serviceId";
-extern const char CONTROLURL[] = "controlURL";
-extern const char EVENTSUBURL[] = "eventSubURL";
-extern const char SCPDURL[] = "SCPDURL";
-extern const char UDN[] = "UDN";
-extern const char FRIENDLYNAME[] = "friendlyName";
-extern const char PRESENTATIONURL[] = "presentationURL";
+const char SERVICELIST[] = "serviceList";
+const char SERVICE[] = "service";
+const char SERVICETYPE[] = "serviceType";
+const char SERVICEID[] = "serviceId";
+const char CONTROLURL[] = "controlURL";
+const char EVENTSUBURL[] = "eventSubURL";
+const char SCPDURL[] = "SCPDURL";
+const char UDN[] = "UDN";
+const char FRIENDLYNAME[] = "friendlyName";
+const char PRESENTATIONURL[] = "presentationURL";
 
-extern const char ROOT[] = "root";
-extern const char URLBASE[] = "URLBase";
-extern const char DEVICE[] = "device";
-extern const char DEVICELIST[] = "deviceList";
-extern const char DEVICETYPE[] = "deviceType";
+const char ROOT[] = "root";
+const char URLBASE[] = "URLBase";
+const char DEVICE[] = "device";
+const char DEVICELIST[] = "deviceList";
+const char DEVICETYPE[] = "deviceType";
 
 typedef xml::Tag<SERVICELIST,
 		 xml::List<SERVICE, ServiceData,
@@ -83,11 +83,11 @@ unsigned Description::Parse(const std::string& description,
 			    const std::string& url,
 			    const std::string& udn)
 {
-    util::SeekableStreamPtr sp = util::StringStream::Create(description);
+    util::StringStream sp(description);
 
     XMLDescription xd;
     DescriptionParser parser;
-    unsigned rc = parser.Parse(sp, &xd);
+    unsigned rc = parser.Parse(&sp, &xd);
     if (rc)
     {
 	TRACE << "Can't parse description\n";
@@ -136,3 +136,137 @@ unsigned Description::Parse(const std::string& description,
 }
 
 } // namespace upnp
+
+#ifdef TEST
+
+# include "ssdp.h"
+
+static const char sony[] =
+"<root xmlns=\"urn:schemas-upnp-org:device-1-0\">\n"
+"	<specVersion>\n"
+"		<major>1</major>\n"
+"		<minor>0</minor>\n"
+"	</specVersion>\n"
+"	<device>\n"
+"		<deviceType>urn:schemas-upnp-org:device:MediaRenderer:1</deviceType>\n"
+"		<friendlyName>BRAVIA KDL-40W5500     </friendlyName>\n"
+"		<manufacturer>Sony Corporation</manufacturer>\n"
+"		<manufacturerURL>http://www.sony.net/</manufacturerURL>\n"
+"		<modelName>KDL-40W5500     </modelName>\n"
+"		<UDN>uuid:00000000-0000-1010-8000-0024BE23675E</UDN>\n"
+"		<dlna:X_DLNADOC xmlns:dlna=\"urn:schemas-dlna-org:device-1-0\">DMR-1.50</dlna:X_DLNADOC>\n"
+"		<iconList>\n"
+"			<icon>\n"
+"				<mimetype>image/png</mimetype>\n"
+"				<width>32</width>\n"
+"				<height>32</height>\n"
+"				<depth>24</depth>\n"
+"				<url>/MediaRenderer_32x32x24.png</url>\n"
+"			</icon>\n"
+"			<icon>\n"
+"				<mimetype>image/png</mimetype>\n"
+"				<width>48</width>\n"
+"				<height>48</height>\n"
+"				<depth>24</depth>\n"
+"				<url>/MediaRenderer_48x48x24.png</url>\n"
+"			</icon>\n"
+"			<icon>\n"
+"				<mimetype>image/png</mimetype>\n"
+"				<width>60</width>\n"
+"				<height>60</height>\n"
+"				<depth>24</depth>\n"
+"				<url>/MediaRenderer_60x60x24.png</url>\n"
+"			</icon>\n"
+"			<icon>\n"
+"				<mimetype>image/png</mimetype>\n"
+"				<width>120</width>\n"
+"				<height>120</height>\n"
+"				<depth>24</depth>\n"
+"				<url>/MediaRenderer_120x120x24.png</url>\n"
+"			</icon>\n"
+"			<icon>\n"
+"				<mimetype>image/jpeg</mimetype>\n"
+"				<width>32</width>\n"
+"				<height>32</height>\n"
+"				<depth>24</depth>\n"
+"				<url>/MediaRenderer_32x32x24.jpg</url>\n"
+"			</icon>\n"
+"			<icon>\n"
+"				<mimetype>image/jpeg</mimetype>\n"
+"				<width>48</width>\n"
+"				<height>48</height>\n"
+"				<depth>24</depth>\n"
+"				<url>/MediaRenderer_48x48x24.jpg</url>\n"
+"			</icon>\n"
+"			<icon>\n"
+"				<mimetype>image/jpeg</mimetype>\n"
+"				<width>60</width>\n"
+"				<height>60</height>\n"
+"				<depth>24</depth>\n"
+"				<url>/MediaRenderer_60x60x24.jpg</url>\n"
+"			</icon>\n"
+"			<icon>\n"
+"				<mimetype>image/jpeg</mimetype>\n"
+"				<width>120</width>\n"
+"				<height>120</height>\n"
+"				<depth>24</depth>\n"
+"				<url>/MediaRenderer_120x120x24.jpg</url>\n"
+"			</icon>\n"
+"		</iconList>\n"
+"		<serviceList>\n"
+"			<service>\n"
+"				<serviceType>urn:schemas-upnp-org:service:RenderingControl:1</serviceType>\n"
+"				<serviceId>urn:upnp-org:serviceId:RenderingControl</serviceId>\n"
+"				<SCPDURL>/RenderingControlSCPD.xml</SCPDURL>\n"
+"				<controlURL>/upnp/control/RenderingControl</controlURL>\n"
+"				<eventSubURL>/upnp/event/RenderingControl</eventSubURL>\n"
+"			</service>\n"
+"			<service>\n"
+"				<serviceType>urn:schemas-upnp-org:service:ConnectionManager:1</serviceType>\n"
+"				<serviceId>urn:upnp-org:serviceId:ConnectionManager</serviceId>\n"
+"				<SCPDURL>/ConnectionManagerSCPD.xml</SCPDURL>\n"
+"				<controlURL>/upnp/control/ConnectionManager</controlURL>\n"
+"				<eventSubURL>/upnp/event/ConnectionManager</eventSubURL>\n"
+"			</service>\n"
+"			<service>\n"
+"				<serviceType>urn:schemas-upnp-org:service:AVTransport:1</serviceType>\n"
+"				<serviceId>urn:upnp-org:serviceId:AVTransport</serviceId>\n"
+"				<SCPDURL>/AVTransportSCPD.xml</SCPDURL>\n"
+"				<controlURL>/upnp/control/AVTransport</controlURL>\n"
+"				<eventSubURL>/upnp/event/AVTransport</eventSubURL>\n"
+"			</service>\n"
+"		</serviceList>\n"
+"		<av:X_MaxBGMCount xmlns:av=\"urn:schemas-sony-com:av\">64</av:X_MaxBGMCount>\n"
+"		<av:X_StandardDMR xmlns:av=\"urn:schemas-sony-com:av\">1.0</av:X_StandardDMR>\n"
+"		<av:X_IRCCCodeList xmlns:av=\"urn:schemas-sony-com:av\">\n"
+"			<av:X_IRCCCode command=\"Power\">AAAAAQAAAAEAAAAVAw==</av:X_IRCCCode>\n"
+"			<av:X_IRCCCode command=\"Power ON\">AAAAAQAAAAEAAAAuAw==</av:X_IRCCCode>\n"
+"			<av:X_IRCCCode command=\"Power OFF\">AAAAAQAAAAEAAAAvAw==</av:X_IRCCCode>\n"
+"		</av:X_IRCCCodeList>\n"
+"	</device>\n"
+"</root>";
+
+int main()
+{
+    upnp::Description d;
+
+    unsigned rc = d.Parse(sony, "http://sony", 
+			  "uuid:00000000-0000-1010-8000-0024BE23675E");
+    assert(rc == 0);
+
+    assert(d.GetFriendlyName() == "BRAVIA KDL-40W5500     ");
+
+    const upnp::Services& sm = d.GetServices();
+
+    assert(sm.size() == 3);
+
+    assert(sm.find(upnp::s_service_id_av_transport) != sm.end());
+    const upnp::ServiceData& s = sm.find(upnp::s_service_id_av_transport)->second;
+    assert(s.type == upnp::s_service_type_av_transport);
+    assert(s.id == upnp::s_service_id_av_transport);
+    assert(s.control_url == "http://sony/upnp/control/AVTransport");
+
+    return 0;
+}
+
+#endif // TEST

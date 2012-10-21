@@ -3,11 +3,13 @@
 #include "libutil/trace.h"
 #include "libutil/string_stream.h"
 #include "libutil/urlescape.h"
+#include "libutil/printf.h"
+#include "libutil/counted_pointer.h"
 #include "libdb/query.h"
+#include "libdb/recordset.h"
 #include "libmediadb/db.h"
 #include "libmediadb/schema.h"
 #include <time.h>
-#include <boost/format.hpp>
 #if HAVE_WS2TCPIP_H
 #include <ws2tcpip.h>  /* For gethostname */
 #endif
@@ -57,10 +59,8 @@ static std::string Wikipedia(const std::string& search)
 	+ "%22\"><img src=/layout/search-wikipedia.png width=16 height=16 border=0></a>";
 }
 
-util::SeekableStreamPtr RootContentFactory::HomePageStream()
+std::auto_ptr<util::Stream> RootContentFactory::HomePageStream()
 {
-    util::StringStreamPtr ss = util::StringStream::Create();
-
     char hostname[256];
     hostname[0] = '\0';
     ::gethostname(hostname, sizeof(hostname));
@@ -68,20 +68,21 @@ util::SeekableStreamPtr RootContentFactory::HomePageStream()
     if (dot && dot > hostname)
 	*dot = '\0';
 
-    ss->str() = "<html>"
+    std::string s =
+	"<html>"
 	"<meta http-equiv=Content-Type content=text/html;charset=UTF-8>"
 	"<link rel=stylesheet href=/layout/default.css>"
 	"<title>Chorale on ";
-    ss->str() += hostname;
-    ss->str() += "</title>"
+    s += hostname;
+    s += "</title>"
 	"<body><div class=head>&nbsp;<img src=/layout/icon.png width=32 height=32 align=baseline style=\"padding-top:5px\"> Chorale on ";
-    ss->str() += hostname;
-    ss->str() += "</div>";
+    s += hostname;
+    s += "</div>";
 
 #if HAVE_DVB
     // TV/Radio listings
 
-    ss->str() += "<table border=0 cellpadding=2 cellspacing=0><tr><th colspan=9 class=head>TV and radio listings</th></tr>"
+    s += "<table border=0 cellpadding=2 cellspacing=0><tr><th colspan=9 class=head>TV and radio listings</th></tr>"
 	"<tr><td align=right>TV:</td>"
 	"<td><a href=/epg/t0>Today</a></td>"
 	"<td><a href=/epg/t1>Tomorrow</a></td>";
@@ -92,10 +93,10 @@ util::SeekableStreamPtr RootContentFactory::HomePageStream()
 	localtime_r(&day, &stm);
 	char buffer[80];
 	strftime(buffer, sizeof(buffer), "%a", &stm);
-	ss->str() += (boost::format("<td><a href=/epg/t%u>%s</a></td>")
-		      % i % buffer).str();
+	s += util::Printf() << "<td><a href=/epg/t" << i << ">" 
+				    << buffer << "</a></td>";
     }
-    ss->str() += "<td><a href=/epg/t>All</a></td></tr>"
+    s += "<td><a href=/epg/t>All</a></td></tr>"
 	"<tr><td align=right>Radio:</td>"
 	"<td><a href=/epg/r0>Today</a></td>"
 	"<td><a href=/epg/r1>Tomorrow</a></td>";
@@ -106,10 +107,10 @@ util::SeekableStreamPtr RootContentFactory::HomePageStream()
 	localtime_r(&day, &stm);
 	char buffer[80];
 	strftime(buffer, sizeof(buffer), "%a", &stm);
-	ss->str() += (boost::format("<td><a href=/epg/r%u>%s</a></td>")
-		      % i % buffer).str();
+	s += util::Printf() << "<td><a href=/epg/r" << i << ">"
+				    << buffer << "</a></td>";
     }
-    ss->str() += "<td><a href=/epg/r>All</a></td></tr></table><br><br>";
+    s += "<td><a href=/epg/r>All</a></td></tr></table><br><br>";
 #endif
 
     // Recent albums
@@ -128,7 +129,7 @@ util::SeekableStreamPtr RootContentFactory::HomePageStream()
 	    mediadb::ChildrenToVector(rs->GetString(mediadb::CHILDREN), &vec);
 	if (!vec.empty())
 	{
-	    ss->str() += "<table border=0 cellpadding=0 cellspacing=0><tr><th colspan=3 class=head>New albums</th></tr>";
+	    s += "<table border=0 cellpadding=0 cellspacing=0><tr><th colspan=3 class=head>New albums</th></tr>";
 
 	    for (std::vector<unsigned int>::const_iterator ci = vec.begin();
 		 ci != vec.end();
@@ -170,7 +171,7 @@ util::SeekableStreamPtr RootContentFactory::HomePageStream()
 		    if (rs->GetInteger(mediadb::TYPE) == mediadb::FILE
 			|| rs->GetInteger(mediadb::TYPE) == mediadb::IMAGE)
 		    {
-			arturl = (boost::format("/content/%x") % *cii).str();
+			arturl = util::SPrintf("/content/%x", *cii);
 		    }
 
 		    if (rs->GetInteger(mediadb::TYPE) != mediadb::TUNE)
@@ -199,30 +200,30 @@ util::SeekableStreamPtr RootContentFactory::HomePageStream()
 		    arturl = "/layout/noart48.png";
 		if (!title.empty())
 		{
-		    ss->str() += "<tr><td rowspan=2><img src=" + arturl
+		    s += "<tr><td rowspan=2><img src=" + arturl
 			+ " width=48 height=48>&nbsp;</td><td valign=center><i>" + title + "</i></td><td>"
 			"&nbsp;"
 			+ Google(title) + Amazon(title) + Wikipedia(title)
 			+ "<tr><td valign=top>";
 
 		    if (artist.empty())
-			ss->str() += "Various artists<hr><td>&nbsp;";
+			s += "Various artists<hr><td>&nbsp;";
 		    else
-			ss->str() += artist + "<hr></td><td valign=top>"
+			s += artist + "<hr></td><td valign=top>"
 			    "&nbsp;"
 			    + Google(artist) + Amazon(artist) 
 			    + Wikipedia(artist);
 
-		    ss->str() += "</td></tr>";
+		    s += "</td></tr>";
 		}
 	    }
-	    ss->str() += "</table>";
+	    s += "</table>";
 	}
     }
 
-    ss->str() += "</body></html>";
+    s += "</body></html>";
 
-    ss->Seek(0);
+    std::auto_ptr<util::Stream> ss(new util::StringStream(s));
     return ss;
 }
 
@@ -232,7 +233,7 @@ bool RootContentFactory::StreamForPath(const util::http::Request *rq,
 //    TRACE << "Path '" << rq->path << "'\n";
     if (rq->path == "/")
     {
-	rs->ssp = HomePageStream();
+	rs->body_source = HomePageStream();
 	TRACE << "Home page\n";
 	return true;
     }

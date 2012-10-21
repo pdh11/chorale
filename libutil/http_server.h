@@ -1,21 +1,20 @@
 #ifndef LIBUTIL_HTTP_SERVER_H
 #define LIBUTIL_HTTP_SERVER_H 1
 
-#include <string>
-#include <list>
 #include <map>
-#include <boost/noncopyable.hpp>
+#include <list>
+#include <memory>
+#include <string>
 #include <string.h>
-#include "stream.h"
-#include "counted_pointer.h"
+#include <boost/noncopyable.hpp>
 #include "ip.h"
 
 namespace util {
 
-class BufferSink;
+class IPFilter;
 class Scheduler;
 class WorkerThreadPool;
-class IPFilter;
+class Stream;
 
 namespace http {
 
@@ -59,6 +58,9 @@ struct Request: public boost::noncopyable
 	    return std::string();
 	return i->second;
     }
+
+    Request()
+        : refresh(false), has_body(false), access(0) {}
 };
 
 /** Filled-in by the ContentFactory, passed back to the http::Server.
@@ -71,11 +73,11 @@ struct Response: public boost::noncopyable
      * in; the Read() method is never called. The Write() method gets
      * called with 0 bytes to mean successful end of input.
      */
-    util::StreamPtr body_sink;
+    std::auto_ptr<util::Stream> body_sink;
 
     /** The stream to return to the client as the outgoing body.
      */
-    util::SeekableStreamPtr ssp;
+    std::auto_ptr<util::Stream> body_source;
 
     /** The HTTP Content-Type to return; if left NULL, "text/html" is used.
      */
@@ -97,6 +99,9 @@ struct Response: public boost::noncopyable
     uint64_t length;
 
     void Clear();
+
+    Response()
+        : content_type(NULL), status_line(NULL), length(0) {}
 };
 
 /** A http::Server plug-in, responsible for all the content under a

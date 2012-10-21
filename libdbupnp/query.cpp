@@ -1,6 +1,6 @@
 #include "query.h"
-#include "rs.h"
-#include "db.h"
+#include "recordset.h"
+#include "connection.h"
 #include "libutil/trace.h"
 #include "libutil/quote_escape.h"
 #include "libmediadb/schema.h"
@@ -8,11 +8,11 @@
 #include <errno.h>
 
 namespace db {
-namespace upnpav {
+namespace upnp {
 
-unsigned int Query::CollateBy(field_t field)
+unsigned int Query::CollateBy(unsigned int field)
 {
-    if ((m_parent->m_search_caps & (1<<field)) == 0)
+    if ((m_connection->m_search_caps & (1<<field)) == 0)
 	return EINVAL;
     return db::Query::CollateBy(field);
 }
@@ -98,7 +98,7 @@ RecordsetPtr Query::Execute()
 //    TRACE << "UPNP query: " << ToString() << "\n";
 
     if (m_collateby.size() == 1)
-	return RecordsetPtr(new CollateRecordset(m_parent,
+	return RecordsetPtr(new CollateRecordset(m_connection,
 						 m_collateby.front()));
 
     if (m_collateby.empty())
@@ -107,7 +107,7 @@ RecordsetPtr Query::Execute()
 	    && m_restrictions.begin()->which == mediadb::ID
 	    && m_restrictions.begin()->rt == db::EQ)
 	{
-	    return RecordsetPtr(new RecordsetOne(m_parent, 
+	    return RecordsetPtr(new RecordsetOne(m_connection, 
 						 m_restrictions.begin()->ival));
 	}
 
@@ -115,12 +115,12 @@ RecordsetPtr Query::Execute()
 	
 	TRACE << "Query string is '" << upnp_query << "'\n";
 	
-	return RecordsetPtr(new SearchRecordset(m_parent, upnp_query));
+	return RecordsetPtr(new SearchRecordset(m_connection, upnp_query));
     }
 
     TRACE << "Warning, don't know how to do UPnP query (" << ToString() << ")\n";
 
-    return RecordsetPtr(new RecordsetOne(m_parent, 0));
+    return RecordsetPtr(new RecordsetOne(m_connection, 0));
 }
 
 } // namespace upnpav

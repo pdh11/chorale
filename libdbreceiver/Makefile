@@ -1,9 +1,10 @@
 TOP?=../
 DIR:=libdbreceiver/
 SRCS:=\
-	db.cpp \
+	connection.cpp \
+	database.cpp \
 	query.cpp \
-	rs.cpp
+	recordset.cpp
 
 all-libdbreceiver:
 
@@ -37,6 +38,7 @@ include $(TOP)libreceiver/Makefile
 endif
 
 $(libdbreceiver): $(LIBDBRECEIVER_OBJS)
+	rm -f $@
 	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CXX) -o $@ $(LIBDBRECEIVER_OBJS)
 

@@ -1,7 +1,7 @@
 #ifndef MEDIATREE_QUERY_H
 #define MEDIATREE_QUERY_H 1
 
-#include "libutil/counted_object.h"
+#include "libutil/counted_pointer.h"
 #include <vector>
 #include "node.h"
 
@@ -13,7 +13,7 @@ class Query: public Node
 {
     db::Database *m_db;
     int m_field;
-    db::RecordsetPtr m_info;
+    util::CountedPointer<db::Recordset> m_info;
 
     Query(db::Database*, int field, const std::string& name);
 
@@ -29,7 +29,7 @@ public:
     bool HasCompoundChildren();
 
     EnumeratorPtr GetChildren();
-    db::RecordsetPtr GetInfo();
+    util::CountedPointer<db::Recordset> GetInfo();
 };
 
 } // namespace mediatree

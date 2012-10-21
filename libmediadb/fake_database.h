@@ -6,9 +6,11 @@
 # include "db.h"
 # include "allocate_id.h"
 # include "libdb/query.h"
+# include "libdb/recordset.h"
 # include "schema.h"
 # include "libdbsteam/db.h"
 # include "libutil/string_stream.h"
+# include "libutil/counted_pointer.h"
 # include <boost/format.hpp>
 
 namespace mediadb {
@@ -56,14 +58,14 @@ public:
 	return (boost::format("test:%u") % fid).str();
     }
 
-    util::SeekableStreamPtr OpenRead(unsigned int)
+    std::auto_ptr<util::Stream> OpenRead(unsigned int)
     {
-	return util::StringStream::Create();
+	return std::auto_ptr<util::Stream>(new util::StringStream(""));
     }
 
-    util::SeekableStreamPtr OpenWrite(unsigned int)
+    std::auto_ptr<util::Stream> OpenWrite(unsigned int)
     {
-	return util::StringStream::Create();
+	return std::auto_ptr<util::Stream>(new util::StringStream(""));
     }
 };
 

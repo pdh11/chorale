@@ -37,7 +37,7 @@ using fileapi::StripExtension;
  */
 unsigned int MkdirParents(const char *leafname);
 
-void RenameWithMkdir(const char *oldname, const char *newname);
+unsigned int RenameWithMkdir(const char *oldname, const char *newname);
 
 /** Replaces "awkward" characters (such as "/") with filesystem-safe
  * alternatives.

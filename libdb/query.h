@@ -7,10 +7,12 @@
 #include <stdint.h>
 #include "libutil/counted_object.h"
 #include "libutil/attributes.h"
-#include "db.h"
-#include "recordset.h"
+
+namespace util { template <class T> class CountedPointer; }
 
 namespace db {
+
+class Recordset;
 
 enum RestrictionType 
 {
@@ -40,7 +42,7 @@ public:
 	uint32_t ival;
 
 	Restriction(unsigned int w, RestrictionType r, const std::string& val)
-	    : which(w), rt(r), is_string(true), sval(val) {}
+	    : which(w), rt(r), is_string(true), sval(val), ival(0) {}
 
 	Restriction(unsigned int w, RestrictionType r, uint32_t val)
 	    : which(w), rt(r), is_string(false), ival(val) {}
@@ -96,7 +98,7 @@ public:
     virtual unsigned int OrderBy(unsigned int which);
     virtual unsigned int CollateBy(unsigned int which);
 
-    virtual RecordsetPtr Execute() = 0;
+    virtual util::CountedPointer<Recordset> Execute() = 0;
 
     std::string ToString() const;
 

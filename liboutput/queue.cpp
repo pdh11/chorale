@@ -2,7 +2,9 @@
 #include "urlplayer.h"
 #include "libutil/trace.h"
 #include "libutil/observable.h"
+#include "libutil/counted_pointer.h"
 #include "libdb/query.h"
+#include "libdb/recordset.h"
 #include "libmediadb/db.h"
 #include "libmediadb/schema.h"
 #include "libmediadb/didl.h"
@@ -46,14 +48,14 @@ public:
 
 	{
 	    util::RecursiveMutex::Lock lock(m_parent->m_mutex);
-	    if (url == m_expected_url)
+	    if (url == m_expected_url && !url.empty())
 	    {
 		current = true;
 		index = m_parent->m_current_index;
 		m_parent->m_entries[m_parent->m_queue[index]].flags |= PLAYED;
 //		TRACE << "Got expected URL, index=" << index << "\n";
 	    }
-	    else if (url == m_expected_next_url)
+	    else if (url == m_expected_next_url && !url.empty())
 	    {
 		next = true;
 		index = ++m_parent->m_current_index;
@@ -508,6 +510,11 @@ void Queue::SetNextURL()
 	m_impl->m_expected_next_url = url.c_str();
     }
     m_impl->m_player->SetNextURL(url, metadata);
+}
+
+URLPlayer *Queue::GetPlayer() const
+{
+    return m_impl->m_player;
 }
 
 } // namespace output

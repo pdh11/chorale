@@ -10,10 +10,14 @@
 #include "tree_model.h"
 #include "libmediatree/root.h"
 #include "libutil/trace.h"
+#include "libutil/counted_pointer.h"
 #include "libdb/recordset.h"
 #include "libmediadb/schema.h"
 
+#ifndef HAVE_DIR_XPM
 #include "imagery/dir.xpm"
+#define HAVE_DIR_XPM
+#endif
 #include "imagery/query.xpm"
 
 namespace choraleqt {
@@ -195,8 +199,7 @@ QVariant TreeModel::data(const QModelIndex &index, int role) const
 
     if (role == Qt::DecorationRole)
     {
-	db::RecordsetPtr rs = item->node->GetInfo();
-	unsigned int type = rs->GetInteger(mediadb::TYPE);
+	unsigned int type = item->node->GetInfo()->GetInteger(mediadb::TYPE);
 	if (type == mediadb::DIR || type == mediadb::PLAYLIST)
 	    return QVariant(m_dir_pixmap);
 	if (type == mediadb::QUERY)

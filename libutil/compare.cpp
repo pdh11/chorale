@@ -1,15 +1,16 @@
 #include "compare.h"
 #include "utf8.h"
-#include "trace.h"
 
 #include "simplify_tables.h"
 
 namespace util {
 
+namespace {
+
 /** Simplify a (wide) character by folding accents and case. Return 0 for
  * punctuation and control characters.
  */
-static utf32_t Simplify(utf32_t ch)
+utf32_t Simplify(utf32_t ch)
 {
     unsigned int ui = ch;
     for (const simplify::Table *t = &simplify::tables[0]; t->from; ++t)
@@ -92,6 +93,8 @@ int CompareDigits(const char *d1start, const char *d1end,
     return 0;
 }
 
+} // anon namespace
+
 int Compare(const char *s1, const char *s2, bool total)
 {
     int tiebreak = 0;
@@ -154,7 +157,7 @@ int Compare(const char *s1, const char *s2, bool total)
 		if (!c1)
 		    break;
 		sc1 = Simplify(c1);
-		if (!sc1)
+		if (!sc1 && c1 == ',')
 		    continue;
 		if (c1 < '0' || c1 > '9')
 		    break;
@@ -166,7 +169,7 @@ int Compare(const char *s1, const char *s2, bool total)
 		if (!c2)
 		    break;
 		sc2 = Simplify(c2);
-		if (!sc2)
+		if (!sc2 && c2 == ',')
 		    continue;
 		if (c2 < '0' || c2 > '9')
 		    break;
@@ -230,6 +233,7 @@ static const struct {
     { "AB1000BA", "AB1,000BA", 1 },
     { "AB1000BA", "AB1,000BB", -2 },
     { "01", "02", -2 },
+    { "01 99 Red Balloons", "02 Foo", -2 },
     { "01", "10", -2 },
     { "01 Foo", "02 Bar", -2 },
     { "01 Foo", "10 Foo", -2 },

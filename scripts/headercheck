@@ -1,0 +1,27 @@
+#!/bin/bash
+
+i=$1
+
+trap 'rm -f tmp.$$.*' 0
+
+shift
+
+    echo Testing $i
+    echo "#include \"$i\"" > tmp.$$.cpp
+    echo "#include \"$i\"" >> tmp.$$.cpp 
+    gcc -c tmp.$$.cpp $* || { rm tmp.$$.* ; echo $i failed double-include test >&2 ; exit 1; }
+
+echo "#include \"tmp.$$.h\"" > tmp.$$.cpp
+echo "#include \"tmp.$$.h\"" >> tmp.$$.cpp
+
+IFS=$'\n'
+for j in `grep '#include "' $i | grep -v config.h` ; do
+    IFS=$' \n\t'
+    cat $i | sed -e "s,$j,//," > tmp.$$.h
+    if gcc -c tmp.$$.cpp $* >/dev/null 2>&1 ; then
+	echo $i: $j not needed
+	# cat tmp.$$.h
+    fi
+done
+
+rm tmp.$$.*

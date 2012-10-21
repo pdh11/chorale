@@ -26,6 +26,8 @@
 #include "cd_widget.h"
 #include "db_widget.h"
 #include "output_widget.h"
+#include "libimport/test_cd.h"
+#include "cd_window.h"
 #include <memory>
 #include <iostream>
 
@@ -76,7 +78,7 @@ int Main(int argc, char *argv[])
     std::auto_ptr<choraleqt::MainWindow> mainwin(
 	new choraleqt::MainWindow(&settings, &cpu_pool, &disk_pool) );
 
-    QPixmap cd_pixmap((const char**)cddrive_xpm);
+    QPixmap cd_pixmap(cddrive_xpm);
 #if HAVE_CD
     choraleqt::CDWidgetFactory cwf(&cd_pixmap, &cds, &settings, &cpu_pool,
 				   &disk_pool);
@@ -86,7 +88,7 @@ int Main(int argc, char *argv[])
     mediadb::Registry db_registry;
     output::Registry output_registry;
 
-    QPixmap output_pixmap((const char**)output_xpm);
+    QPixmap output_pixmap(output_xpm);
 #if HAVE_LIBOUTPUT
     choraleqt::OutputWidgetFactory owf(&output_pixmap, halp, &db_registry);
     mainwin->AddWidgetFactory(&owf);
@@ -102,11 +104,12 @@ int Main(int argc, char *argv[])
 					    &fg_poller, &http_client,
 					    &http_server);
     mainwin->AddWidgetFactory(&uowf);
-//    TRACE << "Calling uc.init\n";
     uclient.Search(upnp::s_service_type_av_transport, &uowf);
-//    TRACE << "uc.init done\n";
+    // At least one renderer (Coherence) responds to version 2 but not
+    // version 1, so we must ask for both
+//    uclient.Search(upnp::s_service_type_av_transport2, &uowf);
 
-    QPixmap network_pixmap((const char**)network_xpm);
+    QPixmap network_pixmap(network_xpm);
     choraleqt::ReceiverDBWidgetFactory rdbwf(&network_pixmap, &db_registry,
 					     &http_client);
     mainwin->AddWidgetFactory(&rdbwf);
@@ -128,13 +131,18 @@ int Main(int argc, char *argv[])
     uclient.Search(upnp::s_service_type_optical_drive, &ucdwf);
 #endif
 
-    QPixmap empeg_pixmap((const char**)empeg_xpm);
+    QPixmap empeg_pixmap(empeg_xpm);
     choraleqt::EmpegDBWidgetFactory edbwf(&empeg_pixmap, &db_registry,
 					  &http_server);
     mainwin->AddWidgetFactory(&edbwf);
 
 //    empeg::Discovery edisc;
 //    edisc.Init(&fg_poller, &edbwf);
+
+//    import::CDDrivePtr cdd(new import::TestCDDrive);
+//    import::AudioCDPtr acd(new import::TestCD);
+//    new CDWindow(cdd, acd, import::CDDBLookupPtr(), &settings, &cpu_pool,
+//		 &disk_pool);
 
     mainwin->show();
     int rc = app.exec();

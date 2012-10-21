@@ -1,9 +1,9 @@
 #ifndef LIBUTIL_SCHEDULER_H
 #define LIBUTIL_SCHEDULER_H
 
-#include "task.h"
 #include <stdint.h>
 #include <time.h>
+#include "task.h"
 
 namespace util {
 
@@ -23,9 +23,6 @@ class WorkerThreadPool;
  * typesafely? And who owns the task?) Alternatively, pass a
  * TaskCallback into the subsystem, then it can call you back when
  * it's done.
- *
- * Once roll-out is complete, look at making lifetime management of
- * (things such as) AsyncSubscriptionHandler more automatic.
  */
 class Scheduler
 {
@@ -36,26 +33,27 @@ public:
      * back on the TaskCallback.
      *
      * @param callback A TaskCallback (a counted-pointer plus callback combo)
-     *                 to be called when the Pollable becomes readable
-     * @param pollable The pollable item to wait for
+     *                 to be called when the poll handle becomes readable
+     * @param poll_handle The socket (on Windows) or arbitrary file descriptor
+     *                 to wait for
      * @param oneshot  If true (the default), make the callback once when the
-     *                 pollable first becomes ready. If false, keep on making
-     *                 the callback whenever the pollable becomes ready, until
+     *                 poll handle first becomes ready. If false, keep on making
+     *                 the callback whenever the poll handle becomes ready, until
      *                 cancelled by Remove()
      *
-     * Note that pollables are typically level-triggered, i.e. they'll
+     * Note that poll handles are typically level-triggered, i.e. they'll
      * keep firing as long as they stay readable. This means that if
      * your callback punts the real work to a background thread (like
      * util::http::Server does), you mustn't use oneshot=false as your
      * callback will be called incessantly.
      */
     virtual void WaitForReadable(const TaskCallback& callback,
-				 Pollable *pollable,
+				 int poll_handle,
 				 bool oneshot=true) = 0;
 
     /** Like WaitForReadable, but for writability.
      */
-    virtual void WaitForWritable(const TaskCallback&, Pollable*,
+    virtual void WaitForWritable(const TaskCallback&, int poll_handle,
 				 bool oneshot=true) = 0;
     
     /** Wait until the specified time, then call the callback.
@@ -101,8 +99,8 @@ public:
     bool IsExiting() const;
 
     // Being a Scheduler
-    void WaitForReadable(const TaskCallback&, Pollable*, bool oneshot);
-    void WaitForWritable(const TaskCallback&, Pollable*, bool oneshot);
+    void WaitForReadable(const TaskCallback&, int, bool oneshot);
+    void WaitForWritable(const TaskCallback&, int, bool oneshot);
     void Wait(const TaskCallback&, time_t first, unsigned int repeatms);
     void Remove(TaskPtr);
     void Wake();

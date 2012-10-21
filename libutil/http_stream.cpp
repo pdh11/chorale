@@ -1,14 +1,16 @@
 #include "http_stream.h"
 #include "config.h"
 #include "http_client.h"
-#include "http_fetcher.h"
+#include "http.h"
 #include "http_parser.h"
 #include "partial_stream.h"
 #include "string_stream.h"
 #include "trace.h"
 #include "errors.h"
 #include "scanf64.h"
-#include "peeking_line_reader.h"
+#include "printf.h"
+#include "line_reader.h"
+#include "counted_pointer.h"
 #include <errno.h>
 #include <string.h>
 #include <boost/format.hpp>
@@ -26,7 +28,6 @@ Stream::Stream(Client *client, const IPEndPoint& ipe, const std::string& host,
       m_ipe(ipe),
       m_host(host),
       m_path(path),
-      m_socket(StreamSocket::Create()),
       m_len(0),
       m_need_fetch(true),
       m_last_pos(0)
@@ -38,7 +39,8 @@ Stream::~Stream()
     LOG(HTTP) << "~hs" << this << "\n";
 }
 
-unsigned Stream::Create(StreamPtr *result, Client *client, const char *url)
+unsigned Stream::Create(std::auto_ptr<util::Stream> *result, Client *client, 
+			const char *url)
 {
     std::string host;
     IPEndPoint ipe;
@@ -54,21 +56,21 @@ unsigned Stream::Create(StreamPtr *result, Client *client, const char *url)
 
     LOG(HTTP) << "hs" << stm << ": " << url << "\n";
 
-    *result = StreamPtr(stm);
+    result->reset(stm);
 
     return 0;
 }
 
-unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
+unsigned Stream::ReadAt(void *buffer, uint64_t pos, size_t len, size_t *pread)
 {
     /** @todo Isn't thread-safe like the other ReadAt's. Add a mutex. */
 
-    LOG(HTTP) << "hs" << this << ".ReadAt(" << pos << ",+" << len << ")\n";
+    LOG(HTTP) << "hs" << this << ".ReadAt(" << pos << ",+" << len << ") lastpos=" << m_last_pos << "\n";
 
     if (!m_need_fetch && pos != m_last_pos)
     {
-	m_socket->Close();
-	m_socket->Open();
+	m_socket.Close();
+	m_socket.Open();
 	m_need_fetch = true;
 	Seek(pos);
     }
@@ -81,11 +83,11 @@ unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
 
     if (m_need_fetch)
     {
-	m_socket->SetNonBlocking(false);
+	m_socket.SetNonBlocking(false);
 
 	LOG(HTTP) << "hs" << this << ": synchronous connect\n";
 
-	unsigned int rc = m_socket->Connect(m_ipe);
+	unsigned int rc = m_socket.Connect(m_ipe);
 	if (rc != 0)
 	{
 	    LOG(HTTP) << "hs" << this << " can't connect: " << rc << "\n";
@@ -101,9 +103,10 @@ unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
 	if (pos)
 	{
 	    if (m_len)
-		headers += (boost::format("Range: bytes=%llu-%llu\r\n")
-			    % (unsigned long long)pos
-			    % (unsigned long long)(m_len-1) ).str();
+	    {
+		headers += util::Printf() << "Range: bytes=" << pos << "-"
+					  << (m_len-1) << "\r\n";
+	    }
 	    else
 	    {
 		/* This is a bit nasty. Some "traditional" Receiver
@@ -115,20 +118,22 @@ unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
 		 * actual size.
 		 */
 		if (m_ipe.port == 12078)
-		    headers += (boost::format(
-				    "Range: bytes=%llu-4294967295\r\n")
-				% (unsigned long long)pos).str();
+		{
+		    headers += util::Printf() << "Range: bytes="
+					      << pos << "-4294967295\r\n";
+		}
 		else
-		    headers += (boost::format(
-				    "Range: bytes=%llu-\r\n")
-				% (unsigned long long)pos).str();
+		{
+		    headers += util::Printf() << "Range: bytes="
+					      << pos << "-\r\n";
+		}
 	    }
 	}
 
 	headers += "User-Agent: " PACKAGE_NAME "/" PACKAGE_VERSION "\r\n";
 	headers += "\r\n";
 
-	rc = m_socket->WriteAll(headers.c_str(), headers.length());
+	rc = m_socket.WriteAll(headers.c_str(), headers.length());
 	if (rc != 0)
 	{
 	    TRACE << "Can't even write headers: " << rc << "\n";
@@ -137,7 +142,7 @@ unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
 
 	LOG(HTTP) << "hs" << this << " sent headers:\n" << headers;
 
-	rc = m_socket->SetNonBlocking(true);
+	rc = m_socket.SetNonBlocking(true);
 
 	if (rc != 0)
 	{
@@ -145,7 +150,7 @@ unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
 	    return rc;
 	}
 
-	util::PeekingLineReader lr(m_socket);
+	util::GreedyLineReader lr(&m_socket);
 	http::Parser hp(&lr);
 
 	bool is_error = false;
@@ -170,7 +175,7 @@ unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
 	    }
 	    if (rc == EWOULDBLOCK)
 	    {
-		rc = m_socket->WaitForRead(5000);
+		rc = m_socket.WaitForRead(30000);
 		if (rc != 0)
 		{
 		    TRACE << "hs" << this << " socket won't come ready "
@@ -180,7 +185,7 @@ unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
 	    }
 	}
 	
-	m_socket->SetNonBlocking(false);
+	m_socket.SetNonBlocking(false);
 
 	bool got_range = false;
 	uint64_t clen = 0;
@@ -195,7 +200,7 @@ unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
 	    // the internal timeout.
 	    if (rc == EWOULDBLOCK)
 	    {
-		rc = m_socket->WaitForRead(5000);
+		rc = m_socket.WaitForRead(5000);
 		if (rc != 0)
 		{
 		    TRACE << "hs" << this
@@ -253,7 +258,8 @@ unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
 
 	if (is_error)
 	{
-	    util::StreamPtr epage = CreatePartialStream(m_socket, clen);
+	    std::auto_ptr<util::Stream> epage(CreatePartialStream(&m_socket, 0,
+								  clen));
 	    StringStream ssp;	    
 	    CopyStream(epage.get(), &ssp);
 	    TRACE << "HTTP error page: " << ssp.str() << "\n";
@@ -263,9 +269,16 @@ unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
 	m_need_fetch = false;
 
 	m_last_pos = pos;
+
+	lr.ReadLeftovers(buffer, len, pread);
+	if (*pread)
+	{
+	    m_last_pos += *pread;
+	    return 0;
+	}
     }
 	
-    unsigned int rc = m_socket->Read(buffer, len, pread);
+    unsigned int rc = m_socket.Read(buffer, len, pread);
 
     if (!rc)
     {
@@ -280,14 +293,14 @@ unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
     return rc;
 }
 
-unsigned Stream::WriteAt(const void*, pos64, size_t, size_t*)
+unsigned Stream::WriteAt(const void*, uint64_t, size_t, size_t*)
 {
     return EPERM;
 }
 
-SeekableStream::pos64 Stream::GetLength() { return m_len; }
+uint64_t Stream::GetLength() { return m_len; }
 
-unsigned Stream::SetLength(pos64 len) 
+unsigned Stream::SetLength(uint64_t len) 
 {
     if (m_len && m_len != len)
 	return EPERM;
@@ -305,6 +318,9 @@ unsigned Stream::SetLength(pos64 len)
 # include "scheduler.h"
 # include "string_stream.h"
 # include "worker_thread_pool.h"
+# include "bind.h"
+# undef NDEBUG
+# include <assert.h>
 
 class FetchTask: public util::Task
 {
@@ -322,15 +338,26 @@ public:
     unsigned int Run()
     {
 //	TRACE << "Fetcher running\n";
-	util::http::StreamPtr hsp;
+	std::auto_ptr<util::Stream> hsp;
 	unsigned int rc = util::http::Stream::Create(&hsp, m_client,
 						     m_url.c_str());
-	assert(rc == 0);
+	if (rc)
+	{
+	    fprintf(stderr, "rc=%u\n", rc);
+	    assert(rc == 0);
+	    return rc;
+	}
 
 	char buf[2048];
-	size_t nread;
+	size_t nread = 0;
 	rc = hsp->Read(buf, sizeof(buf), &nread);
-	assert(rc == 0);
+
+	if (rc)
+	{
+	    fprintf(stderr, "rc=%u\n", rc);
+	    assert(rc == 0);
+	    return rc;
+	}
 	m_contents = std::string(buf, buf+nread);
 	m_waker->Wake();
 //	TRACE << "Fetcher done " << rc << "\n";
@@ -348,9 +375,7 @@ class EchoContentFactory: public util::http::ContentFactory
 public:
     bool StreamForPath(const util::http::Request *rq, util::http::Response *rs)
     {
-	util::StringStreamPtr ssp = util::StringStream::Create();
-	ssp->str() = rq->path;
-	rs->ssp = ssp;
+	rs->body_source.reset(new util::StringStream(rq->path));
 	return true;
     }
 };

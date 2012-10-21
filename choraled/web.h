@@ -9,7 +9,7 @@ class RootContentFactory: public util::http::ContentFactory
 {
     mediadb::Database *m_db;
 
-    util::SeekableStreamPtr HomePageStream();
+    std::auto_ptr<util::Stream> HomePageStream();
 
 public:
     RootContentFactory(mediadb::Database *db);

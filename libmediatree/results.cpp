@@ -1,6 +1,7 @@
 #include "results.h"
 #include "directory.h"
 #include "node_enumerator.h"
+#include "libdb/db.h"
 #include "libdb/query.h"
 #include "libmediadb/schema.h"
 #include "libdb/free_rs.h"

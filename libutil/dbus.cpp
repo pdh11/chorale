@@ -1,10 +1,9 @@
 #include "dbus.h"
 #include "config.h"
-#include "trace.h"
-#include "bind.h"
-#include "scheduler.h"
 #include "task.h"
-#include "pollable.h"
+#include "bind.h"
+#include "trace.h"
+#include "scheduler.h"
 #include <map>
 #include <list>
 #include <errno.h>
@@ -20,19 +19,6 @@ namespace util {
 
 namespace dbus {
 
-class WatchPollable: public util::Pollable
-{
-    int m_fd;
-
-public:
-    WatchPollable() : m_fd(-1) {}
-
-    void SetHandle(int fd) { m_fd = fd; }
-
-    // Being a Pollable
-    PollHandle GetHandle() { return m_fd; }
-};
-
 
         /* Connection::Task */
 
@@ -42,7 +28,7 @@ class Connection::Task: public util::Task
     util::Scheduler *m_poller;
     DBusError m_err;
     DBusConnection *m_conn;
-    WatchPollable m_pollable;
+    int m_watch_fd;
 
     typedef std::map<std::string, SignalObserver*> map_t;
     map_t m_map;
@@ -82,7 +68,8 @@ public:
 
 Connection::Task::Task(util::Scheduler *poller)
     : m_poller(poller),
-      m_conn(NULL)
+      m_conn(NULL),
+      m_watch_fd(-1)
 {
     dbus_error_init(&m_err);
 }
@@ -150,8 +137,8 @@ dbus_bool_t Connection::Task::OnAddWatch(DBusWatch *watch)
 //	  << " flags=" << dbus_watch_get_flags(watch)
 //	  << " enabled=" << dbus_watch_get_enabled(watch) << "\n";
     
-    if (m_pollable.GetHandle() == -1)
-	m_pollable.SetHandle(dbus_watch_get_unix_fd(watch));
+    if (m_watch_fd == -1)
+	m_watch_fd = dbus_watch_get_unix_fd(watch);
 
     m_watches.push_back(watch);
     
@@ -170,11 +157,11 @@ void Connection::Task::OnWatchToggled(DBusWatch *watch)
 	unsigned int watchflags = dbus_watch_get_flags(watch);
 	if (watchflags & DBUS_WATCH_READABLE)
 	    m_poller->WaitForReadable(
-		Bind(TaskPtr(this)).To<&Task::Run>(), &m_pollable);
+		Bind(TaskPtr(this)).To<&Task::Run>(), m_watch_fd);
 	else
 	    if (watchflags & DBUS_WATCH_WRITABLE)
 		m_poller->WaitForWritable(
-		    Bind(TaskPtr(this)).To<&Task::Run>(), &m_pollable);
+		    Bind(TaskPtr(this)).To<&Task::Run>(), m_watch_fd);
     }
 }
 

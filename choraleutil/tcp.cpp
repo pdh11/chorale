@@ -5,12 +5,14 @@
 #include "libutil/file.h"
 #include "libutil/mutex.h"
 #include "libutil/errors.h"
+#include "libutil/bind.h"
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/time.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #ifdef __linux__
 

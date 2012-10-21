@@ -3,10 +3,10 @@
 #ifndef DBSTEAM_RS_H
 #define DBSTEAM_RS_H 1
 
-#include "libdb/db.h"
+#include "libdb/recordset.h"
 #include "libdb/readonly_rs.h"
+#include "libutil/counted_pointer.h"
 #include "db.h"
-#include "query.h"
 #include <string>
 
 namespace db {
@@ -14,6 +14,7 @@ namespace db {
 namespace steam {
 
 class Database;
+class Query;
 
 class Recordset: public db::Recordset
 {
@@ -26,11 +27,11 @@ public:
     explicit Recordset(Database *db);
 
     bool IsEOF() const;
-    uint32_t GetInteger(field_t which) const;
-    std::string GetString(field_t which) const;
+    uint32_t GetInteger(unsigned int which) const;
+    std::string GetString(unsigned int which) const;
 
-    unsigned int SetString(field_t which, const std::string&);
-    unsigned int SetInteger(field_t which, uint32_t);
+    unsigned int SetString(unsigned int which, const std::string&);
+    unsigned int SetInteger(unsigned int which, uint32_t);
 
     unsigned int AddRecord();
     unsigned int Commit();
@@ -43,10 +44,10 @@ public:
 
 class SimpleRecordset: public Recordset
 {
-    QueryPtr m_query;
+    util::CountedPointer<Query> m_query;
 
 public:
-    SimpleRecordset(Database*, QueryPtr);
+    SimpleRecordset(Database*, util::CountedPointer<Query>);
     
     void MoveNext();
 };
@@ -54,50 +55,51 @@ public:
 class CollateRecordset: public ReadOnlyRecordset
 {
     Database *m_parent;
-    field_t m_field;
+    unsigned int m_field;
     bool m_is_int;
     unsigned int m_intvalue;
     std::string m_strvalue;
     bool m_eof;
-    QueryPtr m_query;
+    util::CountedPointer<Query> m_query;
     SimpleRecordset m_rs;
 
     void MoveUntilValid(Database::stringindex_t::const_iterator i,
 			Database::stringindex_t::const_iterator end);
 
 public:
-    CollateRecordset(Database*, field_t field, db::steam::QueryPtr);
+    CollateRecordset(Database*, unsigned int field,
+		     util::CountedPointer<Query>);
     
     bool IsEOF() const;
-    uint32_t GetInteger(field_t which) const;
-    std::string GetString(field_t which) const;
+    uint32_t GetInteger(unsigned int which) const;
+    std::string GetString(unsigned int which) const;
     void MoveNext();
 };
 
 class IndexedRecordset: public Recordset
 {
-    field_t m_field;
+    unsigned int m_field;
     bool m_is_int;
     std::string m_stringval;
     uint32_t m_intval;
     unsigned int m_subrecno;
 
 public:
-    IndexedRecordset(Database *db, field_t field, uint32_t intval);
-    IndexedRecordset(Database *db, field_t field, std::string stringval);
+    IndexedRecordset(Database *db, unsigned int field, uint32_t intval);
+    IndexedRecordset(Database *db, unsigned int field, std::string stringval);
     void MoveNext();
 };
 
 class OrderedRecordset: public Recordset
 {
-    field_t m_field;
+    unsigned int m_field;
     bool m_is_int;
     std::string m_stringval;
     uint32_t m_intval;
     unsigned int m_subrecno;
 
 public:
-    OrderedRecordset(Database *db, field_t field);
+    OrderedRecordset(Database *db, unsigned int field);
     void MoveNext();
 };
 

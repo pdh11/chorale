@@ -11,6 +11,7 @@
 #include "libutil/trace.h"
 #include "libdbsteam/db.h"
 #include "libmediadb/schema.h"
+#include "libmediadb/xml.h"
 #include "libdblocal/db.h"
 #include "libdblocal/file_scanner.h"
 
@@ -21,7 +22,7 @@ void Usage(FILE *f)
 "    Extracts available metadata from files or directories.\n"
 "    With -q, does the extraction but prints nothing (for timing tests)\n"
 "    With -t, uses n threads for the extraction.\n"
-"    Built on " __DATE__ ".\n"
+"    From " PACKAGE_STRING " (" PACKAGE_WEBSITE ") built on " __DATE__ ".\n"
 	);
 }
 
@@ -88,6 +89,8 @@ int main(int argc, char *argv[])
     unsigned int rc = ifs.Scan();
     assert(rc == 0);
 #endif
+
+    mediadb::WriteXML(&ldb, mediadb::SCHEMA_VERSION, stdout);
 
     return 0;
 }

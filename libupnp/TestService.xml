@@ -3,16 +3,76 @@
 -->
 <scpd>
 	<serviceStateTable>
+                <stateVariable>
+                       <name>Ptang</name>
+                       <sendEventsAttribute>yes</sendEventsAttribute>
+                       <dataType>ui4</dataType>
+</stateVariable>
+
 		<stateVariable>
-			<name>Ptang</name>
-			<sendEventsAttribute>yes</sendEventsAttribute>
+			<name>A_ARG_TYPE_Bool</name>
+			<sendEventsAttribute>no</sendEventsAttribute>
+			<dataType>boolean</dataType>
+		</stateVariable>
+
+		<stateVariable>
+			<name>A_ARG_TYPE_SChar</name>
+			<sendEventsAttribute>no</sendEventsAttribute>
+			<dataType>i1</dataType>
+		</stateVariable>
+
+		<stateVariable>
+			<name>A_ARG_TYPE_UChar</name>
+			<sendEventsAttribute>no</sendEventsAttribute>
+			<dataType>ui1</dataType>
+		</stateVariable>
+
+		<stateVariable>
+			<name>A_ARG_TYPE_SHalf</name>
+			<sendEventsAttribute>no</sendEventsAttribute>
+			<dataType>i2</dataType>
+		</stateVariable>
+
+		<stateVariable>
+			<name>A_ARG_TYPE_UHalf</name>
+			<sendEventsAttribute>no</sendEventsAttribute>
+			<dataType>ui2</dataType>
+		</stateVariable>
+
+		<stateVariable>
+			<name>A_ARG_TYPE_SWord</name>
+			<sendEventsAttribute>no</sendEventsAttribute>
+			<dataType>i4</dataType>
+		</stateVariable>
+
+		<stateVariable>
+			<name>A_ARG_TYPE_UWord</name>
+			<sendEventsAttribute>no</sendEventsAttribute>
 			<dataType>ui4</dataType>
 		</stateVariable>
 
 		<stateVariable>
-			<name>A_ARG_TYPE_Frink</name>
+			<name>A_ARG_TYPE_String</name>
 			<sendEventsAttribute>no</sendEventsAttribute>
-			<dataType>ui4</dataType>
+			<dataType>string</dataType>
+		</stateVariable>
+
+		<stateVariable>
+			<name>A_ARG_TYPE_Url</name>
+			<sendEventsAttribute>no</sendEventsAttribute>
+			<dataType>uri</dataType>
+		</stateVariable>
+
+		<stateVariable>
+			<name>A_ARG_TYPE_Enum</name>
+			<sendEventsAttribute>no</sendEventsAttribute>
+			<dataType>string</dataType>
+			<allowedValueList>
+				<allowedValue>PTANG</allowedValue>
+				<allowedValue>FRINK</allowedValue>
+				<allowedValue>WAAH</allowedValue>
+				<allowedValue>GIBILISCO</allowedValue>
+			</allowedValueList>
 		</stateVariable>
 	</serviceStateTable>
 
@@ -21,14 +81,105 @@
 			<name>Wurdle</name>
 			<argumentList>
 				<argument>
-					<name>Fnoo</name>
+					<name>boolin</name>
 					<direction>in</direction>
-					<relatedStateVariable>A_ARG_TYPE_Frink</relatedStateVariable>
+					<relatedStateVariable>A_ARG_TYPE_Bool</relatedStateVariable>
 				</argument>
 				<argument>
-					<name>Fnaa</name>
+					<name>boolout</name>
 					<direction>out</direction>
-					<relatedStateVariable>A_ARG_TYPE_Frink</relatedStateVariable>
+					<relatedStateVariable>A_ARG_TYPE_Bool</relatedStateVariable>
+				</argument>
+				<argument>
+					<name>scharin</name>
+					<direction>in</direction>
+					<relatedStateVariable>A_ARG_TYPE_SChar</relatedStateVariable>
+				</argument>
+				<argument>
+					<name>ucharin</name>
+					<direction>in</direction>
+					<relatedStateVariable>A_ARG_TYPE_UChar</relatedStateVariable>
+				</argument>
+				<argument>
+					<name>scharout</name>
+					<direction>out</direction>
+					<relatedStateVariable>A_ARG_TYPE_SChar</relatedStateVariable>
+				</argument>
+				<argument>
+					<name>ucharout</name>
+					<direction>out</direction>
+					<relatedStateVariable>A_ARG_TYPE_UChar</relatedStateVariable>
+				</argument>
+				<argument>
+					<name>shalfin</name>
+					<direction>in</direction>
+					<relatedStateVariable>A_ARG_TYPE_SHalf</relatedStateVariable>
+				</argument>
+				<argument>
+					<name>uhalfin</name>
+					<direction>in</direction>
+					<relatedStateVariable>A_ARG_TYPE_UHalf</relatedStateVariable>
+				</argument>
+				<argument>
+					<name>shalfout</name>
+					<direction>out</direction>
+					<relatedStateVariable>A_ARG_TYPE_SHalf</relatedStateVariable>
+				</argument>
+				<argument>
+					<name>uhalfout</name>
+					<direction>out</direction>
+					<relatedStateVariable>A_ARG_TYPE_UHalf</relatedStateVariable>
+				</argument>
+
+				<argument>
+					<name>swordin</name>
+					<direction>in</direction>
+					<relatedStateVariable>A_ARG_TYPE_SWord</relatedStateVariable>
+				</argument>
+				<argument>
+					<name>uwordin</name>
+					<direction>in</direction>
+					<relatedStateVariable>A_ARG_TYPE_UWord</relatedStateVariable>
+				</argument>
+				<argument>
+					<name>swordout</name>
+					<direction>out</direction>
+					<relatedStateVariable>A_ARG_TYPE_SWord</relatedStateVariable>
+				</argument>
+				<argument>
+					<name>uwordout</name>
+					<direction>out</direction>
+					<relatedStateVariable>A_ARG_TYPE_UWord</relatedStateVariable>
+				</argument>
+				<argument>
+					<name>strin</name>
+					<direction>in</direction>
+					<relatedStateVariable>A_ARG_TYPE_String</relatedStateVariable>
+				</argument>
+				<argument>
+					<name>strout</name>
+					<direction>out</direction>
+					<relatedStateVariable>A_ARG_TYPE_String</relatedStateVariable>
+				</argument>
+				<argument>
+					<name>urlin</name>
+					<direction>in</direction>
+					<relatedStateVariable>A_ARG_TYPE_Url</relatedStateVariable>
+				</argument>
+				<argument>
+					<name>urlout</name>
+					<direction>out</direction>
+					<relatedStateVariable>A_ARG_TYPE_Url</relatedStateVariable>
+				</argument>
+				<argument>
+					<name>enumin</name>
+					<direction>in</direction>
+					<relatedStateVariable>A_ARG_TYPE_Enum</relatedStateVariable>
+				</argument>
+				<argument>
+					<name>enumout</name>
+					<direction>out</direction>
+					<relatedStateVariable>A_ARG_TYPE_Enum</relatedStateVariable>
 				</argument>
 			</argumentList>
 		</action>

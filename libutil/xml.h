@@ -1,11 +1,11 @@
 #ifndef LIBUTIL_XML_H
 #define LIBUTIL_XML_H 1
 
-#include <string>
 #include <list>
+#include <string>
 #include <stdlib.h>
-#include "stream.h"
-#include "counted_pointer.h"
+
+namespace util { class Stream; }
 
 /** Classes for XML support
  *
@@ -55,15 +55,16 @@ class SaxParser
 	ATTR_SEEKEQ,
 	ATTR_SEEKVALUE,
 	IN_QUOTEDVALUE, 
-	IN_VALUE 
+	IN_VALUE,
+	CDATA
     } m_state;
 
     void Parse();
 
 public:
     explicit SaxParser(SaxParserObserver *observer);
-
-    unsigned int Parse(util::StreamPtr);
+    
+    unsigned int Parse(util::Stream*);
     unsigned int WriteAll(const void *buffer, size_t len);
 };
 
@@ -73,7 +74,8 @@ namespace internals {
 
 struct Data;
 
-unsigned int Parse(util::StreamPtr, void *target, const Data *table);
+unsigned int Parse(util::Stream*, void *target,
+		   const Data *table);
 
 }
 
@@ -110,26 +112,7 @@ template <class Selector0,
 	  class Selector5 = NullSelector,
 	  class Selector6 = NullSelector,
 	  class Selector7 = NullSelector>
-class Parser
-{
-public:
-    typedef typename Selector0::Target Target;
-
-    typedef AssertCorrectTargetType<Selector1, Target> assert1;
-    typedef AssertCorrectTargetType<Selector2, Target> assert2;
-    typedef AssertCorrectTargetType<Selector3, Target> assert3;
-    typedef AssertCorrectTargetType<Selector4, Target> assert4;
-    typedef AssertCorrectTargetType<Selector5, Target> assert5;
-    typedef AssertCorrectTargetType<Selector6, Target> assert6;
-    typedef AssertCorrectTargetType<Selector7, Target> assert7;
-
-    static const internals::Data data;
-
-    unsigned int Parse(util::StreamPtr s, Target *obs)
-    {
-	return internals::Parse(s, (void*)obs, &data);
-    }
-};
+class Parser;
 
 
         /* Tag */
