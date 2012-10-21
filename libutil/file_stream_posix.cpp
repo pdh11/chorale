@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #ifndef WIN32
 
@@ -56,23 +57,31 @@ FileStream::~FileStream()
 }
 
 unsigned FileStream::ReadAt(void *buffer, pos64 pos, size_t len, 
-			    size_t *pread)
+			    size_t *pnread)
 {
+#if HAVE_PREAD64
     ssize_t rc = ::pread64(m_fd, buffer, len, pos);
+#else
+    ssize_t rc = ::pread(m_fd, buffer, len, pos);
+#endif
     if (rc < 0)
     {
 	TRACE << "FS::Read failed len=" << len << "\n";
-	*pread = 0;
+	*pnread = 0;
 	return (unsigned)errno;
     }
-    *pread = (size_t)rc;
+    *pnread = (size_t)rc;
     return 0;
 }
 
 unsigned FileStream::WriteAt(const void *buffer, pos64 pos, size_t len, 
 			     size_t *pwrote)
 {
+#if HAVE_PWRITE64
     ssize_t rc = ::pwrite64(m_fd, buffer, len, pos);
+#else
+    ssize_t rc = ::pwrite(m_fd, buffer, len, pos);
+#endif
     if (rc < 0)
     {
 	*pwrote = 0;

@@ -2,11 +2,16 @@
 
 CHORALE_VERSION := @PACKAGE_VERSION@
 
-CFLAGS     := @CFLAGS@   @LARGEFILES@ -I@abs_top_builddir@ -DCONFIG_ARCH_H=\"config.@TARGET@.h\"
-CXXFLAGS   := @CXXFLAGS@ @LARGEFILES@ -I@abs_top_builddir@ -DCONFIG_ARCH_H=\"config.@TARGET@.h\"
+CFLAGS     := @CFLAGS@       @LARGEFILES@ -I@abs_top_builddir@ -DCONFIG_ARCH_H=\"config.@TARGET@.h\"
+CXXFLAGS   := @CXXFLAGS@     @LARGEFILES@ -I@abs_top_builddir@ -DCONFIG_ARCH_H=\"config.@TARGET@.h\"
+OBJCXXFLAGS := @OBJCXXFLAGS@ @LARGEFILES@ -I@abs_top_builddir@ -DCONFIG_ARCH_H=\"config.@TARGET@.h\"
+MOCFLAGS   := -I@abs_top_builddir@ -DCONFIG_ARCH_H=\"config.@TARGET@.h\"
 LDFLAGS    := @LDFLAGS@
+LDMAP      = @LDMAP@
 
 BOOST_LIBS     := @BOOST_LIBS@
+
+CAIRO := @CAIRO@
 
 HAVE_CONVERT := @HAVE_CONVERT@
 CONVERT := @CONVERT@
@@ -58,7 +63,7 @@ PARANOIA          := @PARANOIA@
 PARANOIA_LIBS     := @PARANOIA_LIBS@
 
 QT              := @QT@
-QT_CXXFLAGS	:= @QT_CFLAGS@ -DQT3_SUPPORT
+QT_CXXFLAGS	:= @QT_CFLAGS@ -DQT3_SUPPORT -DQT_NO_CAST_TO_ASCII
 QT_LIBS		:= @QT_LIBS@
 MOC		:= @QT_MOC@
 
@@ -71,6 +76,7 @@ HAVE_XSLTPROC   := @HAVE_XSLTPROC@
 XSLTPROC        := @XSLTPROC@
 
 WIN32           := @WIN32@
+DARWIN          := @DARWIN@
 DOTEXE          := @DOTEXE@
 
 SRCROOT:=@abs_srcdir@
@@ -80,6 +86,7 @@ INSTALL:=@INSTALL@
 LIBTOOL:=@LIBTOOL@
 CC:=@CC@
 CXX:=@CXX@
+OBJCXX:=@OBJCXX@
 WINDRES:=@WINDRES@
 GCOV:=@GCOV@
 LIBS:=@LIBS@
@@ -91,6 +98,7 @@ SIZE:=@SIZE@
 HAVE_VALGRIND:=@HAVE_VALGRIND@
 VALGRIND_OPTS:=@VALGRIND_OPTS@
 
+EXCEPTIONAL_boost_regex_hpp=@EXCEPTIONAL_boost_regex_hpp@
 EXCEPTIONAL_boost_function_hpp=@EXCEPTIONAL_boost_function_hpp@
 EXCEPTIONAL_boost_thread_tss_hpp=@EXCEPTIONAL_boost_thread_tss_hpp@
 EXCEPTIONAL_boost_thread_mutex_hpp=@EXCEPTIONAL_boost_thread_mutex_hpp@

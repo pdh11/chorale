@@ -2,7 +2,6 @@
 #define QEXPLORER_WINDOW_H 1
 
 #include <QMainWindow>
-#include "libmediatree/node.h"
 
 class QSplitter;
 class QModelIndex;
@@ -14,6 +13,7 @@ namespace choraleqt {
 
 class TagTable;
 class BrowseWidget;
+class TagEditorWidget;
 class TreeModel;
 
 /** Top-level window offering an Explorer-like view of a mediadb::Database.
@@ -27,12 +27,17 @@ class ExplorerWindow: public QMainWindow
 
     QSplitter *m_splitter;
     BrowseWidget *m_browse;
+    TagEditorWidget *m_tag_editor;
     TreeModel *m_treemodel;
 
 public:
     ExplorerWindow(mediadb::Database *db,
-		   mediadb::Registry *registry);
+		   mediadb::Registry *registry,
+		   unsigned int tag_editor_flags = 0);
     ~ExplorerWindow();
+
+    void SetTagMode();
+    void SetBrowseMode();
 
 public slots:
     void OnTreeSelectionChanged(const QModelIndex&);

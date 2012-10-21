@@ -68,7 +68,7 @@ unsigned URLPlayer::Init(const std::string& url, const std::string& udn,
 {
     m_callback = callback;
     return m_device_client.Init(url, udn,
-				util::Bind1<unsigned int, URLPlayer, &URLPlayer::OnDeviceInitialised>(this));
+				util::Bind(this).To<unsigned int, &URLPlayer::OnDeviceInitialised>());
 }
 
 unsigned URLPlayer::OnDeviceInitialised(unsigned int rc)
@@ -76,7 +76,7 @@ unsigned URLPlayer::OnDeviceInitialised(unsigned int rc)
     if (!rc)
     {
 	m_friendly_name = m_device_client.GetFriendlyName();
-	rc = m_avtransport.Init(util::Bind1<unsigned int, URLPlayer, &URLPlayer::OnTransportInitialised>(this));
+	rc = m_avtransport.Init(util::Bind(this).To<unsigned int, &URLPlayer::OnTransportInitialised>());
     }
     if (rc)
 	m_callback(rc);
@@ -88,7 +88,7 @@ unsigned URLPlayer::OnTransportInitialised(unsigned int rc)
     if (!rc)
     {
 	m_avtransport.AddObserver(this);
-	rc = m_connectionmanager.Init(util::Bind1<unsigned int, URLPlayer, &URLPlayer::OnInitialised>(this));
+	rc = m_connectionmanager.Init(util::Bind(this).To<unsigned int, &URLPlayer::OnInitialised>());
 	if (rc) // Ignore errors from connectionmanager
 	{
 	    rc = 0;
@@ -118,7 +118,7 @@ unsigned int URLPlayer::OnTransportState(const std::string& state)
 			    
     if (ps == output::PLAY && m_state != output::PLAY)
 	m_poller->Wait(
-	    util::Bind<TimecodeTask,&TimecodeTask::OnTimer>(m_timecode_task),
+	    util::Bind(m_timecode_task).To<&TimecodeTask::OnTimer>(),
 	    0, 500);
     else 
 	if (ps != output::PLAY && m_state == output::PLAY)

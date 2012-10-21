@@ -2,6 +2,7 @@
 #define LIBUTIL_IP_H 1
 
 #include <string>
+#include <stdint.h>
 
 namespace util {
 

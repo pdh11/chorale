@@ -15,7 +15,7 @@ LIBDBRECEIVER_OBJS:=$(LOBJS)
 
 libdbreceiver:=$(TOP)$(DIR)$(TARGETDIR)libdbreceiver.a
 
-receiverscan:=$(TOP)$(DIR)receiverscan
+receiverscan:=$(TOP)$(DIR)receiverscan$(DOTEXE)
 RECEIVERSCAN_OBJS:=$(TOP)$(DIR)$(TARGETDIR)receiverscan.lo
 
 all-libdbreceiver: $(libdbreceiver) $(receiverscan)

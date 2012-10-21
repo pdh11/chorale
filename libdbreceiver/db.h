@@ -55,6 +55,7 @@ public:
     db::QueryPtr CreateQuery();
 
     // Being a mediadb::Database
+    unsigned int AllocateID() { return 0; } // read-only, no new IDs
     std::string GetURL(unsigned int id);
     util::SeekableStreamPtr OpenRead(unsigned int id);
     util::SeekableStreamPtr OpenWrite(unsigned int id);

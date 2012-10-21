@@ -69,7 +69,7 @@ void UpnpDatabases::OnService(const std::string& url,
     MenuEntry me;
     me.pixmap = *m_pixmap;
     me.text = thedb->GetFriendlyName();
-    me.onselect = util::Bind<UpnpDatabase, &UpnpDatabase::OnSelect>(db);
+    me.onselect = util::Bind(db).To<&UpnpDatabase::OnSelect>();
     TRACE << "Appending\n";
     m_parent->AppendMenuEntry(me);
 }

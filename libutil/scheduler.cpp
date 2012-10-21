@@ -416,7 +416,7 @@ unsigned SchedulerTask::Run()
 TaskCallback SchedulerTask::Create(BackgroundScheduler *scheduler)
 {
     CountedPointer<SchedulerTask> task(new SchedulerTask(scheduler));
-    return Bind<SchedulerTask,&SchedulerTask::Run>(task);
+    return Bind(task).To<&SchedulerTask::Run>();
 }
 
 
@@ -459,7 +459,7 @@ int main()
 
 	time_t start = time(NULL);
 
-	poller.Wait(util::Bind<TestTask,&TestTask::Run>(TestPtr(new TestTask)),
+	poller.Wait(util::Bind(TestPtr(new TestTask)).To<&TestTask::Run>(),
 		    start+2, 0);
 
 	time_t finish = start+4;
@@ -485,7 +485,7 @@ int main()
 	TestPollable pollable(pipefd[0]);
 
 	poller.WaitForReadable(
-	    util::Bind<TestTask,&TestTask::Run>(TestPtr(new TestTask)),
+	    util::Bind(TestPtr(new TestTask)).To<&TestTask::Run>(),
 	    &pollable, true);
 
 	g_rc = ::write(pipefd[1], "*", 1);
@@ -499,7 +499,7 @@ int main()
 	g_rc = read(pipefd[0], buf, 1);
 
 	poller.WaitForReadable(
-	    util::Bind<TestTask,&TestTask::Run>(TestPtr(new TestTask)),
+	    util::Bind(TestPtr(new TestTask)).To<&TestTask::Run>(),
 	    &pollable, false);
 
 	g_rc = ::write(pipefd[1], "*", 1);

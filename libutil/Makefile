@@ -54,6 +54,7 @@ TEST_SRCS:= \
 	bind.cpp \
 	compare.cpp \
 	counted_object.cpp \
+	counted_pointer.cpp \
 	dbus.cpp \
 	diff.cpp \
 	file.cpp \

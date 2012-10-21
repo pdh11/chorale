@@ -66,7 +66,8 @@ RippingControl::RippingControl(import::CDDrivePtr drive, import::AudioCDPtr cd,
 					m_disk_queue);
 	m_tracks[i].rtp = rtp;
 	rtp->SetObserver(this);
-	drive->GetTaskQueue()->PushTask(util::Bind<RippingTask,&RippingTask::Run>(rtp));
+	drive->GetTaskQueue()->PushTask(
+	    util::Bind(rtp).To<&RippingTask::Run>());
 	TRACE << "Pushed task for track " << i << "/" << m_ntracks << "\n";
     }
     drive->GetTaskQueue()->PushTask(import::EjectTask::Create(drive));

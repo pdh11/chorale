@@ -376,7 +376,7 @@ int main(int, char*[])
 
     util::CountedPointer<FetchTask> ft(new FetchTask(url, &wc, &poller));
 
-    wtp.PushTask(util::Bind<FetchTask,&FetchTask::Run>(ft));
+    wtp.PushTask(util::Bind(ft).To<&FetchTask::Run>());
 
     time_t start = time(NULL);
     time_t finish = start+5;

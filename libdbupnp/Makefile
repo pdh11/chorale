@@ -49,7 +49,7 @@ ifeq ($(libmediadb),)
 include $(TOP)libmediadb/Makefile
 endif
 
-$(LIBDBUPNP_TESTS) : TEST_LIBS+= $(libdbupnp) $(libupnpd) $(libmediadb) $(libdblocal) $(libimport) $(libdbsteam) $(libdb) $(libupnp) $(libutil) $(BOOST_LIBS) $(LIBS)
+$(LIBDBUPNP_TESTS) : TEST_LIBS+= $(libdbupnp) $(libupnpd) $(libmediadb) $(libdblocal) $(libimport) $(libdbsteam) $(libdb) $(libupnp) $(libutil) $(TAGLIB_LIBS) $(BOOST_LIBS) $(LIBS)
 
 $(LIBDBUPNP_TESTS) : $(libdbupnp) $(libupnpd) $(libmediadb) $(libdblocal) $(libimport) $(libdbsteam) $(libdb) $(libupnp) $(libutil) 
 

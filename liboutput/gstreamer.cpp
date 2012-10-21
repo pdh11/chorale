@@ -103,7 +103,7 @@ URLPlayer::Impl::Impl(int card, int device)
       m_got_early_warning(false),
       m_started(false),
       m_exiting(false),
-      m_thread(util::Bind<Impl,&Impl::Run>(this))
+      m_thread(util::Bind(this).To<&Impl::Run>())
 {
     if (!g_thread_supported())
     {
@@ -161,6 +161,7 @@ gboolean URLPlayer::Impl::OnStartup()
 	    if (!m_play)
 	    {
 		TRACE << "Oh-oh, no playbin\n";
+		return false;
 	    }
 	}
 
@@ -234,9 +235,12 @@ unsigned int URLPlayer::Impl::Run()
     {
 	util::Mutex::Lock lock(gstreamer_unnecessarily_not_re_entrant);
     
-	gst_element_set_state(m_play, GST_STATE_NULL);
-	gst_object_unref(GST_OBJECT(m_bus));
-	gst_object_unref(GST_OBJECT(m_play));
+	if (m_play)
+	    gst_element_set_state(m_play, GST_STATE_NULL);
+	if (m_bus)
+	    gst_object_unref(GST_OBJECT(m_bus));
+	if (m_play)
+	    gst_object_unref(GST_OBJECT(m_play));
 //    if (alsasink)
 //	gst_object_unref(GST_OBJECT(alsasink));
 	g_main_loop_unref(m_loop);
@@ -264,6 +268,10 @@ unsigned int URLPlayer::Impl::SetURL(const std::string& url)
 	    m_cstarted.Wait(lock, 60);
 	}
     }
+
+    if (!m_play)
+	return ENOENT;
+
     TRACE << "Setting ready\n";
     bool playing = m_last_state == GST_STATE_PLAYING;
     if (playing)
@@ -295,6 +303,10 @@ unsigned int URLPlayer::Impl::SetPlayState(output::PlayState state)
 	    m_cstarted.Wait(lock, 60);
 	}
     }
+
+    if (!m_play)
+	return ENOENT;
+
     switch (state)
     {
     case PLAY:

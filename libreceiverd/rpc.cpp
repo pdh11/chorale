@@ -25,7 +25,7 @@ RPCServer::RPCServer(uint32_t program_number, uint32_t version,
     m_socket.Bind(ipe);
 
     poller->WaitForReadable(
-	util::Bind<RPCServer, &RPCServer::Run>(RPCServerPtr(this)), 
+	util::Bind(RPCServerPtr(this)).To<&RPCServer::Run>(),
 	&m_socket, false);
 }
 

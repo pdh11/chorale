@@ -11,9 +11,10 @@
 #include <sstream>
 #include <string.h>
 #if HAVE_NET_IF_H
-#include <net/if.h>
+# include <netinet/in.h>
+# include <net/if.h>
 #elif HAVE_WS2TCPIP_H
-#include <ws2tcpip.h>
+# include <ws2tcpip.h>
 #endif
 
 #undef IN
@@ -75,7 +76,7 @@ unsigned Server::Task::Init(util::Scheduler *poller)
 	m_socket.SetNonBlocking(true);
     if (rc == 0)
 	poller->WaitForReadable(
-	    util::Bind<Task,&Task::Run>(TaskPtr(this)), &m_socket,
+	    util::Bind(TaskPtr(this)).To<&Task::Run>(), &m_socket,
 	    false);
 
 //    TRACE << "Server init returned " << rc << "\n";
@@ -189,7 +190,7 @@ unsigned Client::Task::Init(util::Scheduler *poller,
 	m_socket.SetNonBlocking(true);
     if (rc == 0)
 	poller->WaitForReadable(
-	    util::Bind<Task, &Task::Run>(TaskPtr(this)), &m_socket,
+	    util::Bind(TaskPtr(this)).To<&Task::Run>(), &m_socket,
 	    false);
 
     m_callback = cb;

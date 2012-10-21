@@ -82,13 +82,15 @@ $(libchoraled): $(CHORALED_OBJS)
 
 NON_FINAL_SOURCE:= tcp_wrappers_c.c search.cpp mutex.cpp
 
+ifeq ($(DARWIN),no)
+
 $(choraled): $(libchoraled) $(libtv) $(libdblocal) $(libdbmerge) \
 		$(libreceiverd) $(libdbreceiver) $(libreceiver) $(libimport) \
 		$(libdbsteam) $(libdb) $(libutil) $(libmediadb) \
 		$(libupnpd) $(libupnp) $(liboutput) Makefile
 	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
 		$(CXX) -o $@ $(LDFLAGS) $(TOP)choraled/$(TARGETDIR)$(CHORALED_MAIN).lo \
-		-Wl,-Map,map-choraled-$(FULLTARGET).txt \
+		$(LDMAP) \
 		$(libchoraled) $(libtv) $(libdbreceiver) \
 		$(libreceiverd) $(libreceiver) $(libupnpd) $(libupnp) \
 		$(liboutput) $(libdblocal) $(libdbmerge) \
@@ -134,3 +136,10 @@ endif
 	@echo $@: `ldd $@ | wc -l` shared libraries | fmt
 
 CLEANS += $(CHORALED_DIR)choraled $(CHORALED_DIR)choralesvc.exe
+
+else
+
+$(choraled):
+	@echo "Ignoring choraled (dependencies not met)"
+
+endif

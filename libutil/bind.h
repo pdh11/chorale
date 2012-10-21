@@ -2,7 +2,6 @@
 #define LIBUTIL_BIND_H 1
 
 #include <stdio.h>
-#include "counted_pointer.h"
 
 namespace util {
 
@@ -33,48 +32,6 @@ public:
 	return m_ptr == other.m_ptr && m_pfn == other.m_pfn;
     }
 };
-
-/** Like a much lighter-weight boost::bind
- */
-template <class T, unsigned (T::*FN)()>
-Callback Bind(T* t)
-{
-    return Callback((void*)t, &Callback_<T, FN>);
-}
-
-/** Like Callback, but for counted pointers */
-
-template <class PTR>
-class PtrCallback
-{
-    typedef unsigned (*pfn)(void*);
-
-    PTR m_ptr;
-    pfn m_pfn;
-
-public:
-    PtrCallback() :  m_ptr(NULL), m_pfn(NULL) {}
-    PtrCallback(PTR ptr, pfn ppfn) : m_ptr(ptr), m_pfn(ppfn) {}
-
-    unsigned operator()() const { return (*m_pfn)((void*)m_ptr.get()); }
-
-    operator bool() const { return m_ptr; }
-
-    bool operator==(const PtrCallback& other)
-    {
-	return m_ptr == other.m_ptr && m_pfn == other.m_pfn;
-    }
-
-    PTR GetPtr() const { return m_ptr; }
-};
-
-/** Like a much lighter-weight boost::bind
- */
-template <class PTR, class T, unsigned (T::*FN)()>
-PtrCallback<PTR> BindPtr(CountedPointer<T> t)
-{
-    return PtrCallback<PTR>(t, &Callback_<T, FN>);
-}
 
 /* -- */
 
@@ -107,12 +64,6 @@ public:
     }
 };
 
-template <class A1, class T, unsigned (T::*FN)(A1)>
-Callback1<A1> Bind1(T* t)
-{
-    return Callback1<A1>((void*)t, &Callback1_<A1, T, FN>);
-}
-
 /* -- */
 
 template <class A1, class A2, class T, unsigned (T::*FN)(A1,A2)>
@@ -144,10 +95,101 @@ public:
     }
 };
 
-template <class A1, class A2, class T, unsigned (T::*FN)(A1,A2)>
-Callback2<A1,A2> Bind2(T* t)
+/* -- */
+
+template <class T>
+class Binder
 {
-    return Callback2<A1,A2>((void*)t, &Callback2_<A1, A2, T, FN>);
+    T *m_t;
+
+public:
+    Binder(T *t) : m_t(t) {}
+
+    template <unsigned (T::*FN)()>
+    Callback To() 
+    {
+	return Callback((void*)m_t, &Callback_<T,FN>);
+    }
+
+    template <class A1, unsigned (T::*FN)(A1)>
+    Callback1<A1> To()
+    {
+	return Callback1<A1>((void*)m_t, &Callback1_<A1,T,FN>);
+    }
+
+    template <class A1, class A2, unsigned (T::*FN)(A1,A2)>
+    Callback2<A1,A2> To()
+    {
+	return Callback2<A1,A2>((void*)m_t, &Callback2_<A1,A2,T,FN>);
+    }
+};
+
+/** Like a much lighter-weight boost::bind
+ *
+ * Use as Bind(ptr).To(&Ptr::Member)
+ */
+template <typename T>
+Binder<T> Bind(T* t)
+{
+    return Binder<T>(t);
+}
+
+/** Like Callback, but for counted pointers */
+
+template <class PTR>
+class PtrCallback
+{
+    typedef unsigned (*pfn)(void*);
+
+    PTR m_ptr;
+    pfn m_pfn;
+
+public:
+    PtrCallback() :  m_ptr(NULL), m_pfn(NULL) {}
+    PtrCallback(const PTR& ptr, pfn ppfn) : m_ptr(ptr), m_pfn(ppfn) {}
+
+    // Type conversion if PTR supports type conversion
+    template <class OTHERPTR>
+    PtrCallback( const PtrCallback<OTHERPTR>& other)
+	: m_ptr(other.GetPtr()), m_pfn(other.GetFn())
+    {
+    }
+
+    unsigned operator()() const { return (*m_pfn)((void*)m_ptr.get()); }
+
+    operator bool() const { return m_ptr; }
+
+    bool operator==(const PtrCallback& other)
+    {
+	return m_ptr == other.m_ptr && m_pfn == other.m_pfn;
+    }
+
+    const PTR& GetPtr() const { return m_ptr; }
+    pfn GetFn() const { return m_pfn; }
+};
+
+template <template <class X> class PTR, class T>
+class PtrBinder
+{
+    const PTR<T>& m_t;
+
+public:
+    PtrBinder(const PTR<T>& t) : m_t(t) {}
+
+    template <unsigned (T::*FN)()>
+    PtrCallback<PTR<T> > To() 
+    {
+	return PtrCallback<PTR<T> >(m_t, &Callback_<T,FN>);
+    }
+};
+
+
+/** Like a much lighter-weight boost::bind
+ */
+template <template <class X> class PTR, class T>
+PtrBinder<PTR,T> Bind(const PTR<T>& tptr)
+{
+    return PtrBinder<PTR,T>(tptr);
 }
 
 } // namespace util

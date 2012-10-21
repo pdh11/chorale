@@ -14,6 +14,7 @@ Query::Query(db::Database *thedb, int field, const std::string& name)
       m_info(db::FreeRecordset::Create())
 {
     m_info->SetString(mediadb::TITLE, name);
+    m_info->SetInteger(mediadb::TYPE, mediadb::QUERY);
 }
 
 Query::~Query()

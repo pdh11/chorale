@@ -37,7 +37,7 @@ public:
     WorkerThread(WorkerThreadPool *owner, WorkerThreadPool::Priority p) 
 	: m_owner(owner),
 	  m_priority(p),
-	  m_thread(Bind<WorkerThread,&WorkerThread::Run>(this))
+	  m_thread(Bind(this).To<&WorkerThread::Run>())
 	{}
 
     ~WorkerThread()
@@ -155,6 +155,16 @@ void WorkerThreadPool::PushTask(const TaskCallback& cb)
     m_queue.PushTask(cb);
 }
 
+void WorkerThreadPool::PushTaskFront(const TaskCallback& cb)
+{
+    if (m_max_threads == 0) // Shutting down
+	return;
+
+    if (!m_queue.AnyWaiting())
+	SuggestNewThread();
+    m_queue.PushTaskFront(cb);
+}
+
 TaskCallback WorkerThreadPool::PopTaskOrQuit(WorkerThread *wt)
 {
     TaskCallback cb = PopTask(10);
@@ -203,6 +213,13 @@ void SimpleTaskQueue::PushTask(const TaskCallback& cb)
 {
     util::Mutex::Lock lock(m_deque_mutex);
     m_deque.push_back(cb);
+    m_dequenotempty.NotifyOne();
+}
+
+void SimpleTaskQueue::PushTaskFront(const TaskCallback& cb)
+{
+    util::Mutex::Lock lock(m_deque_mutex);
+    m_deque.push_front(cb);
     m_dequenotempty.NotifyOne();
 }
 
@@ -297,7 +314,7 @@ void Test2(util::WorkerThreadPool::Priority p, unsigned int n)
 
     for (unsigned int i=0; i<n*2; ++i)
     {
-	wtp.PushTask(util::Bind<Snooze,&Snooze::Run>(SnoozePtr(new Snooze)));
+	wtp.PushTask(util::Bind(SnoozePtr(new Snooze)).To<&Snooze::Run>());
     }
 
 //    TRACE << "Shutting down\n";

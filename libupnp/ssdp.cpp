@@ -12,9 +12,10 @@
 #include "libutil/trace.h"
 #include "libutil/errors.h"
 #if HAVE_NET_IF_H
-#include <net/if.h>
+# include <netinet/in.h>
+# include <net/if.h>
 #elif HAVE_WS2TCPIP_H
-#include <ws2tcpip.h>
+# include <ws2tcpip.h>
 #endif
 #include <list>
 #include <map>
@@ -113,7 +114,7 @@ public:
 	  m_cycle(0)
     {
 	m_scheduler->Wait(
-	    util::Bind<Advertisement,&Advertisement::OnTimer>(AdvertisementPtr(this)),
+	    util::Bind(AdvertisementPtr(this)).To<&Advertisement::OnTimer>(),
 	    0, 84 + (rand() & 15));
     }
 
@@ -212,7 +213,7 @@ void Responder::Task::Advertisement::SendNotify(bool alive)
 	m_cycle = 0;
 	m_scheduler->Remove(util::TaskPtr(this));
 	m_scheduler->Wait(
-	    util::Bind<Advertisement,&Advertisement::OnTimer>(AdvertisementPtr(this)),
+	    util::Bind(AdvertisementPtr(this)).To<&Advertisement::OnTimer>(),
 	    time(NULL) + 800*1000,
 	    84 + (rand() & 15));
     }
@@ -290,10 +291,10 @@ Responder::Task::Task(util::Scheduler *scheduler, util::IPFilter *filter)
     m_multicast_socket.SetNonBlocking(true);
     m_search_socket.SetNonBlocking(true);
     scheduler->WaitForReadable(
-	util::Bind<Task, &Task::OnMulticastActivity>(TaskPtr(this)),
+	util::Bind(TaskPtr(this)).To<&Task::OnMulticastActivity>(),
 	&m_multicast_socket, false);
     scheduler->WaitForReadable(
-	util::Bind<Task, &Task::OnSearchActivity>(TaskPtr(this)),
+	util::Bind(TaskPtr(this)).To<&Task::OnSearchActivity>(),
 	&m_search_socket, false);
 
     util::IPEndPoint ipe;

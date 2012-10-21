@@ -3,8 +3,10 @@
 #ifdef TEST
 
 #include <assert.h>
+#include "counted_object.h"
+#include "counted_pointer.h"
 
-class Foo
+class Foo: public util::CountedObject<>
 {
     static Foo *sm_this;
 public:
@@ -16,28 +18,41 @@ public:
 
 Foo *Foo::sm_this = NULL;
 
+typedef util::CountedPointer<util::CountedObject<> > BasePtr;
+typedef util::PtrCallback<BasePtr> BaseCallback;
+
+typedef util::CountedPointer<Foo> FooPtr;
+typedef util::PtrCallback<FooPtr> FooCallback;
+
+
 class Handler
 {
     util::Callback m_cb;
     util::Callback1<const char*> m_cbchar;
+    BaseCallback m_fcb;
 
 public:
     Handler(const util::Callback& cb,
-	    const util::Callback1<const char*> cbchar) 
-	: m_cb(cb), m_cbchar(cbchar) {}
+	    const util::Callback1<const char*> cbchar,
+	    const BaseCallback& fcb) 
+	: m_cb(cb), m_cbchar(cbchar), m_fcb(fcb) {}
 
-    unsigned int RunIt() { return m_cb() + m_cbchar("Hello"); }
+    unsigned int RunIt() { return m_cb() + m_cbchar("Hello") + m_fcb(); }
 };
 
 int main()
 {
-    Foo foo;
+    util::CountedPointer<Foo> fooptr(new Foo);
 
-    Handler h(util::Bind<Foo,&Foo::Bar>(&foo),
-	      util::Bind1<const char*,Foo,&Foo::Bark>(&foo)
+    FooCallback fcb;
+    BaseCallback bcb(fcb);
+
+    Handler h(util::Bind(fooptr.get()).To<&Foo::Bar>(),
+	      util::Bind(fooptr.get()).To<const char*,&Foo::Bark>(),
+	      util::Bind(fooptr).To<&Foo::Bar>()
 	);
 
-    assert(h.RunIt() == 84);
+    assert(h.RunIt() == 126);
 
     return 0;
 }

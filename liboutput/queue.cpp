@@ -84,7 +84,12 @@ public:
     void OnTimeCode(unsigned int s)
     {
 //	TRACE << "OnTimeCode(" << s << ")\n";
-	Fire(&QueueObserver::OnTimeCode, m_parent->m_current_index, s);
+
+	/** Care here as the target (if UPnPAV) might be already
+	 * playing something that's not ours.
+	 */
+	if (m_parent->m_current_index < m_parent->Count())
+	    Fire(&QueueObserver::OnTimeCode, m_parent->m_current_index, s);
     }
 };
 

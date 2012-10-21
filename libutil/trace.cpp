@@ -57,6 +57,12 @@ public:
 LogFileOpener::LogFileOpener()
 {
     const char *filename = getenv("LOG_FILE");
+
+#ifdef __APPLE__
+    if (!filename)
+	filename = "/var/mobile/Applications/log.txt";
+#endif
+
     if (filename)
     {
 	s_logfile = fopen(filename, "wb+");
@@ -84,6 +90,10 @@ Tracer::Tracer(const char *env_var, const char *file, unsigned int line)
     : m_lock(sm_mutex),
       m_emit(false)
 {
+#ifdef __APPLE__
+    m_emit = true;
+#endif
+
     if (getenv("LOG_ALL"))
 	m_emit = true;
     else
@@ -147,7 +157,12 @@ void Tracer::Printf(const char *format, ...) const
 Tracer::~Tracer()
 {
     if (s_logfile)
+    {
 	fflush(s_logfile);
+#if HAVE_FSYNC
+	fsync(fileno(s_logfile));
+#endif
+    }
 
     fflush(stdout);
 }

@@ -205,7 +205,7 @@ unsigned AsyncWriteBuffer::Impl::Write(const void *buffer, size_t len,
 	m_busy[m_filling] = true;
 	m_buffer_offset[m_filling] = m_current_buffer_offset;
 	m_current_buffer_offset += m_bufpos;
-	m_queue->PushTask(Bind<Task,&Task::Run>(m_writetask[m_filling]));
+	m_queue->PushTask(Bind(m_writetask[m_filling]).To<&Task::Run>());
 	m_bufpos = 0;
     }
     return 0;

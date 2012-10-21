@@ -1,5 +1,6 @@
 choralecd
 cloud
+tageditor
 *.moc.cpp
 .libs
 db.xml

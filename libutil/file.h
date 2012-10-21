@@ -50,6 +50,14 @@ std::string MakeAbsolutePath(const std::string& start_point,
 std::string MakeRelativePath(const std::string& abspath_from,
 			     const std::string& abspath_to);
 
+/** Returns true if the fullpath is, textually speaking, under the given
+ * root directory.
+ *
+ * Also returns false for invalid paths.
+ */
+bool IsInRoot(const char *root,
+	      const char *fullpath);
+
 /** Creates a "file:///" URL
  */
 std::string PathToURL(const std::string& path);

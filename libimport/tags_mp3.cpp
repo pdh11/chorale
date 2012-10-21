@@ -77,6 +77,8 @@ unsigned Tags::Write(const db::Recordset *tags)
 							     enc);
 	    tif->setText(TagLib::String(s,TagLib::String::UTF8));
 
+	    tag->removeFrames(tagmap[i].id3v2);
+	    
 	    tag->addFrame(tif);
 	}
     }

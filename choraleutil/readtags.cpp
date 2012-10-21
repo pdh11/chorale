@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
     db::local::Database ldb(&sdb, &http_client);
 
 #if HAVE_TAGLIB
-    db::local::FileScanner ifs(argv[optind], flacdir, &ldb, &wtp);
+    db::local::FileScanner ifs(argv[optind], flacdir, &sdb, &ldb, &wtp);
 
     unsigned int rc = ifs.Scan();
     assert(rc == 0);

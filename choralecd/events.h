@@ -2,77 +2,68 @@
 #define EVENTS_H
 
 #include <qevent.h>
-#include "liboutput/playstate.h"
+#include <string>
 
-enum {
-    EVENT_PROGRESS = QEvent::User,
-    EVENT_TIMECODE,
-    EVENT_PLAYSTATE
-};
+namespace choraleqt {
 
-/*
 template <class T>
 class CustomEvent: public QEvent
 {
-    static uint16_t sm_event_type;
+    static int sm_event_type;
 
 public:
-    static uint16_t EventType()
+    static int EventType()
     {
 	if (!sm_event_type)
 	    sm_event_type = QEvent::registerEventType();
 	return sm_event_type;
     }
 
-    CustomEvent(): QEvent(EventType()) {}
+    CustomEvent()
+	: QEvent((QEvent::Type)EventType())
+    {}
+    
+    CustomEvent(const T& t)
+	: QEvent((QEvent::Type)EventType()),
+	  m_data(t)
+    {}
 
     T m_data;
+
+    const T& GetData() const { return m_data; }
 };
-*/
+
+template <class T>
+int CustomEvent<T>::sm_event_type = 0;
+
+struct ProgressPayload
+{
+    unsigned track;
+    unsigned type;
+    unsigned num;
+    unsigned denom;
+};
 
 /** For marshalling an import::RippingControlObserver */
-class ProgressEvent: public QEvent
+class ProgressEvent: public CustomEvent<ProgressPayload>
 {
-    unsigned m_track;
-    unsigned m_type;
-    unsigned m_num;
-    unsigned m_denom;
-    
 public:
     ProgressEvent(unsigned track, unsigned event_type,
 		  unsigned num, unsigned denom)
-	: QEvent((QEvent::Type)EVENT_PROGRESS), 
-	  m_track(track), m_type(event_type), m_num(num), m_denom(denom) {}
-    unsigned GetTrack() const { return m_track; }
-    unsigned GetType() const  { return m_type; }
-    unsigned GetNum() const   { return m_num; }
-    unsigned GetDenom() const { return m_denom; }
+    {
+	m_data.track = track;
+	m_data.type = event_type;
+	m_data.num = num;
+	m_data.denom = denom;
+    }
+    unsigned GetTrack() const { return m_data.track; }
+    unsigned GetType() const  { return m_data.type; }
+    unsigned GetNum() const   { return m_data.num; }
+    unsigned GetDenom() const { return m_data.denom; }
 };
 
-class TimeCodeEvent: public QEvent
-{
-    unsigned int m_index;
-    unsigned int m_seconds;
+typedef CustomEvent<std::string> StringEvent;
 
-public:
-    TimeCodeEvent(unsigned int index, unsigned int seconds) 
-	: QEvent((QEvent::Type)EVENT_TIMECODE), m_index(index), m_seconds(seconds) 
-    {}
-    
-    unsigned GetIndex() const { return m_index; }
-    unsigned GetSeconds() const { return m_seconds; }
-};
-
-class PlayStateEvent: public QEvent
-{
-    output::PlayState m_state;
-
-public:
-    PlayStateEvent(output::PlayState state)
-	: QEvent((QEvent::Type)EVENT_PLAYSTATE), m_state(state)
-	{}
-
-    output::PlayState GetState() const { return m_state; }
-};
+} // namespace choraleqt
 
 #endif

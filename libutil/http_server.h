@@ -68,7 +68,8 @@ struct Response: public boost::noncopyable
     /** A place to send the incoming body (for POST or similar).
      *
      * The stream's Write() method will be called as the body comes
-     * in; the Read() method is never called.
+     * in; the Read() method is never called. The Write() method gets
+     * called with 0 bytes to mean successful end of input.
      */
     util::StreamPtr body_sink;
 
@@ -79,6 +80,11 @@ struct Response: public boost::noncopyable
     /** The HTTP Content-Type to return; if left NULL, "text/html" is used.
      */
     const char *content_type;
+
+    /** The HTTP status line to return; if left NULL, an "HTTP/1.1 200
+     * OK" line is used if ssp is non-NULL, a 404 one otherwise.
+     */
+    const char *status_line;
 
     /** Any additional HTTP headers to return.
      */

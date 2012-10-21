@@ -3,43 +3,65 @@
 #include "task.h"
 #include "file.h"
 #include "counted_pointer.h"
+#include "counted_object.h"
 #include <dirent.h>
 #include "trace.h"
 #include <errno.h>
 #include <stdio.h>
 
+LOG_DECL(WALKER);
+
 namespace util {
+
+struct DirectoryWalkerState: public util::CountedObject<>
+{
+    util::Mutex mutex;
+    unsigned int flags;
+    unsigned int count;
+    unsigned int error;
+    volatile bool stop;
+    DirectoryWalker::Observer *observer;
+    TaskQueue *queue;
+
+    DirectoryWalkerState(unsigned int f, DirectoryWalker::Observer *o,
+			 TaskQueue *q)
+	: flags(f), count(0), error(0), stop(false), observer(o), queue(q)
+    {
+    }
+};
+
+typedef util::CountedPointer<DirectoryWalkerState> StatePtr;
 
 
         /* DirectoryWalker::Task */
 
+
 class DirectoryWalker::Task: public util::Task
 {
 protected:
-    DirectoryWalker *m_parent;
+    StatePtr m_state;
     DirectoryTaskPtr m_parent_task;
 
 public:
-    Task(DirectoryWalker *parent, DirectoryTaskPtr parent_task)
-	: m_parent(parent), m_parent_task(parent_task)
+    Task(StatePtr state, DirectoryTaskPtr parent_task)
+	: m_state(state), m_parent_task(parent_task)
     {
-	util::Mutex::Lock lock(m_parent->m_mutex);
-	++m_parent->m_count;
-//	TRACE << m_parent->m_count << "\n";
+	util::Mutex::Lock lock(m_state->mutex);
+	++m_state->count;
+	LOG(WALKER) << "state->count++ now " << m_state->count << "\n";
     }
 
     ~Task()
     {
-	util::Mutex::Lock lock(m_parent->m_mutex);
-	if (--m_parent->m_count == 0)
+	util::Mutex::Lock lock(m_state->mutex);
+	if (--m_state->count == 0)
 	{
 	    // We're last
-	    m_parent->m_finished.NotifyOne();
-	    m_parent->m_obs->OnFinished(m_parent->m_error);
+	    m_state->observer->OnFinished(m_state->error);
 	}
 	else
 	{
-//	    TRACE << "~" << m_parent->m_count << "\n";
+	    LOG(WALKER) << "state->count-- now " << m_state->count << "\n";
 	}
     }
 };
@@ -57,12 +79,12 @@ class DirectoryWalker::FileTask: public DirectoryWalker::Task
     struct stat m_st;
 
 public:
-    FileTask(DirectoryWalker *parent, DirectoryTaskPtr parent_task,
+    FileTask(StatePtr state, DirectoryTaskPtr parent_task,
 	     Observer::dircookie cookie,
 	     unsigned int index,
 	     const std::string& path,
 	     const std::string& leaf, const struct stat *st)
-	: Task(parent, parent_task),
+	: Task(state, parent_task),
 	  m_cookie(cookie),
 	  m_index(index),
 	  m_path(path.c_str()),
@@ -76,17 +98,20 @@ public:
 
 unsigned int DirectoryWalker::FileTask::Run()
 {
-    if (m_parent->m_stop)
+    if (m_state->stop)
 	return 0;
 
-    unsigned int error = m_parent->m_obs->OnFile(m_cookie, m_index, m_path, 
-						 m_leaf, &m_st);
+    LOG(WALKER) << "File " << m_path << "\n";
+
+    unsigned int error = m_state->observer->OnFile(m_cookie, m_index, m_path, 
+						   m_leaf, &m_st);
     if (error)
     {
-	util::Mutex::Lock lock(m_parent->m_mutex);
-	if (!m_parent->m_error)
-	    m_parent->m_error = error;
-	m_parent->m_stop = true;
+	util::Mutex::Lock lock(m_state->mutex);
+	if (!m_state->error)
+	    m_state->error = error;
+	LOG(WALKER) << "Error " << error << ", stopping\n";
+	m_state->stop = true;
     }
     return error;
 }
@@ -105,12 +130,12 @@ class DirectoryWalker::DirectoryTask: public DirectoryWalker::Task
     Observer::dircookie m_cookie;
 
 public:
-    DirectoryTask(DirectoryWalker *parent, DirectoryTaskPtr parent_task,
+    DirectoryTask(StatePtr state, DirectoryTaskPtr parent_task,
 		  Observer::dircookie parent_cookie,
 		  unsigned int parent_index,
 		  const std::string& path,
 		  const std::string& leaf, const struct stat *st)
-	: Task(parent, parent_task),
+	: Task(state, parent_task),
 	  m_parent_cookie(parent_cookie),
 	  m_parent_index(parent_index),
 	  m_path(path.c_str()), // force string copy for thread-safety
@@ -125,7 +150,7 @@ public:
 
 unsigned int DirectoryWalker::DirectoryTask::Run()
 {
-    if (m_parent->m_stop)
+    if (m_state->stop)
 	return 0;
 
     for (DirectoryTaskPtr dtp = m_parent_task;
@@ -139,7 +164,9 @@ unsigned int DirectoryWalker::DirectoryTask::Run()
 	}
     }
 
-    m_parent->m_obs->OnEnterDirectory(m_parent_cookie, m_parent_index, m_path,
+    LOG(WALKER) << "Entering " << m_path << "\n";
+
+    m_state->observer->OnEnterDirectory(m_parent_cookie, m_parent_index, m_path,
 				      m_leaf, &m_st, &m_cookie);
 
     /* An experiment with pushing the tasks in inode order didn't increase
@@ -189,67 +216,54 @@ unsigned int DirectoryWalker::DirectoryTask::Run()
 	}
 #endif
 	
-	TaskPtr t;
+	TaskCallback tc;
 
 	if (S_ISREG(i->st.st_mode))
 	{
-	    t = TaskPtr(new FileTask(m_parent, me, m_cookie, index++,
-				     child, i->name, &i->st));
+	    tc = Bind(TaskPtr(new FileTask(m_state, me, m_cookie, index++,
+					   child, i->name, &i->st)))
+		.To<&Task::Run>();
+	    m_state->queue->PushTaskFront(tc);
 	}
 	else if (S_ISDIR(i->st.st_mode))
 	{
-	    t = TaskPtr(new DirectoryTask(m_parent, me, m_cookie, index++,
-					  child, i->name, &i->st));
+	    tc = Bind(TaskPtr(new DirectoryTask(m_state, me, m_cookie, index++,
+						child, i->name, &i->st)))
+		.To<&Task::Run>();
+	    m_state->queue->PushTask(tc);
 	}
 	else
 	{
 	    TRACE << "Don't like " << child << "\n";
 	}
-	if (t)
-	    m_parent->m_queue->PushTask(Bind<util::Task,&util::Task::Run>(t));
     }
     return 0;
 }
 
 DirectoryWalker::DirectoryTask::~DirectoryTask()
 {
-    m_parent->m_obs->OnLeaveDirectory(m_cookie, m_path, m_leaf, &m_st);
+    m_state->observer->OnLeaveDirectory(m_cookie, m_path, m_leaf, &m_st);
 }
 
 
         /* DirectoryWalker */
 
 
-DirectoryWalker::DirectoryWalker(const std::string& root, Observer *obs,
-				 TaskQueue *queue, unsigned int flags)
-    : m_root(root),
-      m_obs(obs),
-      m_queue(queue),
-      m_flags(flags),
-      m_count(0),
-      m_error(0),
-      m_stop(false)
-{
-}
-
-void DirectoryWalker::Start()
+unsigned int DirectoryWalker::Walk(const std::string& root, Observer *obs,
+				   TaskQueue *queue, unsigned int flags)
 {
     struct stat st;
-    ::stat(m_root.c_str(), &st);
-    m_queue->PushTask(Bind<util::Task,&util::Task::Run>(TaskPtr(new DirectoryTask(this, DirectoryTaskPtr(), 
-						0, 0, m_root,
-						util::GetLeafName(m_root.c_str()),
-								      &st))));
-}
+    if (::stat(root.c_str(), &st) < 0)
+	return errno;
 
-void DirectoryWalker::WaitForCompletion()
-{
-    util::Mutex::Lock lock(m_mutex);
+    StatePtr state(new DirectoryWalkerState(flags, obs, queue));
 
-    while (m_count)
-    {
-	m_finished.Wait(lock, 60);
-    }
+    DirectoryTaskPtr task(new DirectoryTask(state, DirectoryTaskPtr(), 0, 0, 
+					    root, 
+					    util::GetLeafName(root.c_str()), 
+					    &st));
+    queue->PushTask(Bind(task).To<&DirectoryTask::Run>());
+    return 0;
 }
 
 } // namespace util
@@ -262,13 +276,13 @@ void DirectoryWalker::WaitForCompletion()
 
 /* Really we're just testing the loop avoidance */
 
-class TestObserver: public util::DirectoryWalker::Observer,
-		    public util::PerObjectLocking
+class TestObserver: public util::DirectoryWalker::Observer
 {
     size_t m_dircount;
     size_t m_filecount;
 
-    typedef util::PerObjectLocking LockingPolicy;
+    util::Mutex m_mutex;
+    util::Condition m_finished;
 
 public:
     TestObserver() : m_dircount(0), m_filecount(0) {}
@@ -295,6 +309,8 @@ public:
 
     size_t GetDirCount() const { return m_dircount; }
     size_t GetFileCount() const { return m_filecount; }
+
+    void WaitForCompletion();
 };
 
 unsigned int TestObserver::OnEnterDirectory(dircookie, unsigned int,
@@ -303,7 +319,7 @@ unsigned int TestObserver::OnEnterDirectory(dircookie, unsigned int,
 					    const struct stat*,
 					    dircookie *cookie_out)
 {
-    LockingPolicy::Lock(this);
+    util::Mutex::Lock lock(m_mutex);
 
     ++m_dircount;
     if (m_dircount > 100)
@@ -323,7 +339,7 @@ unsigned int TestObserver::OnLeaveDirectory(dircookie, const std::string&,
 unsigned int TestObserver::OnFile(dircookie, unsigned int, const std::string&, 
 				  const std::string&, const struct stat*)
 {
-    LockingPolicy::Lock(this);
+    util::Mutex::Lock lock(m_mutex);
 
     ++m_filecount;
     if (m_filecount > 100)
@@ -334,6 +350,16 @@ unsigned int TestObserver::OnFile(dircookie, unsigned int, const std::string&,
 void TestObserver::OnFinished(unsigned int error)
 {
     assert(error == 0);
+
+    util::Mutex::Lock lock(m_mutex);
+    m_finished.NotifyAll();
+}
+
+void TestObserver::WaitForCompletion()
+{
+    util::Mutex::Lock lock(m_mutex);
+    bool did_finish = m_finished.Wait(lock, 60);
+    assert(did_finish);
 }
 
 int main()
@@ -360,9 +386,8 @@ int main()
     util::posix::MakeRelativeLink(fullname + "/b/2", fullname + "/a");
 
     TestObserver obs;
-    util::DirectoryWalker dw(fullname, &obs, &wtp);
-    dw.Start();
-    dw.WaitForCompletion();
+    unsigned int rc = util::DirectoryWalker::Walk(fullname, &obs, &wtp);
+    obs.WaitForCompletion();
 
     assert(obs.GetDirCount() == 5);
     assert(obs.GetFileCount() == 4);
@@ -370,7 +395,7 @@ int main()
     /* Tidy up */
 
     std::string rmrf = "rm -r " + fullname;
-    int rc = system(rmrf.c_str());
+    rc = system(rmrf.c_str());
     assert(rc == 0);
 
     wtp.Shutdown();

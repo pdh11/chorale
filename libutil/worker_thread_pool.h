@@ -23,6 +23,7 @@ public:
     SimpleTaskQueue();
 
     void PushTask(const TaskCallback&);
+    void PushTaskFront(const TaskCallback&);
     TaskCallback PopTask(unsigned int timeout_sec);
     bool AnyWaiting();
     size_t Count();
@@ -68,6 +69,7 @@ public:
 
     // Being a TaskQueue
     void PushTask(const TaskCallback&);
+    void PushTaskFront(const TaskCallback&);
     TaskCallback PopTask(unsigned int timeout_sec);
     bool AnyWaiting();
     size_t Count();

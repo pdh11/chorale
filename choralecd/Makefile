@@ -37,13 +37,17 @@ SRCS:= \
 	settings_entry.moc.cpp \
 	settings_window.cpp \
 	settings_window.moc.cpp \
+	tageditor.cpp \
+	tag_editor_widget.cpp \
+	tag_editor_widget.moc.cpp \
 	tree_model.cpp \
 	tree_model.moc.cpp
 
 choralecd:=$(TOP)$(DIR)choralecd$(DOTEXE)
 cloud:=$(TOP)$(DIR)cloud$(DOTEXE)
+tageditor:=$(TOP)$(DIR)tageditor$(DOTEXE)
 
-all-choralecd: $(choralecd) $(cloud)
+all-choralecd: $(choralecd) $(cloud) $(tageditor)
 
 include $(TOP)Make.common
 
@@ -181,6 +185,18 @@ $(cloud): $(libchoralecd) $(libutil) $(libimport) $(libdbreceiver) \
 		$(LIBFLAC_LIBS) $(TAGLIB_LIBS) $(BOOST_LIBS) $(QT_LIBS) \
 		$(LAME_LIBS) \
 		$(GSTREAMER_LIBS) $(HAL_LIBS) $(LIBS)
+
+$(tageditor): $(libchoralecd) $(libutil) $(libimport) $(libdblocal) $(libdb) \
+		$(libuiqt) $(libmediatree) $(libdbsteam) $(CHORALECD_RESOURCES)
+	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
+		$(CXX) -o $@ $(TOP)$(CHORALECD_DIR)$(TARGETDIR)tageditor.lo \
+		$(CHORALECD_RESOURCES) \
+		$(libchoralecd) $(libuiqt) \
+		$(libmediatree) \
+		$(libmediadb) $(libdblocal) \
+		$(libdbsteam) $(libdb) $(libimport) \
+		$(libutil) \
+		$(TAGLIB_LIBS) $(BOOST_LIBS) $(QT_LIBS) $(LIBS)
 
 else
 $(choralecd):

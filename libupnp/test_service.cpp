@@ -145,8 +145,8 @@ public:
     {
 	TRACE << "In Run\n";
 	unsigned int rc = m_client->Init(descurl, udn,
-				       util::Bind1<unsigned int, AsyncTest,
-				                   &AsyncTest::OnInit>(this));
+					 util::Bind(this).To<unsigned int,
+				                   &AsyncTest::OnInit>());
 	assert(rc == 0);
 
     }
@@ -157,8 +157,8 @@ public:
 	assert(rc == 0);
 
 	TRACE << "Calling tsca.Init\n";
-	rc = m_tsca.Init(util::Bind1<unsigned int, AsyncTest,
-			 &AsyncTest::OnInit2>(this));
+	rc = m_tsca.Init(util::Bind(this).To<unsigned int,
+			 &AsyncTest::OnInit2>());
 	TRACE << "tsca.Init returns\n";
 	assert(rc == 0);
 	return rc;
@@ -170,8 +170,8 @@ public:
 	assert(rc == 0);
 
 	rc = m_tsca.Wurdle(16, 
-			   util::Bind2<unsigned int, const uint32_t*, AsyncTest,
-			               &AsyncTest::DoWurdle>(this));
+			   util::Bind(this).To<unsigned int, const uint32_t*,
+			               &AsyncTest::DoWurdle>());
         assert(rc == 0);
 	return rc;
     }

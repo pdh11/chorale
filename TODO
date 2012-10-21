@@ -27,7 +27,6 @@ Split out libcd (+libcdupnp) from libimport, find better name for what's left?
 Writable db::local
 Writable db::upnp
 If Queue'd URLs refer to localhost, rewrite ITO IP as seen by target
-Somehow get the underlying db of the localdb into filescanner
 MultiStream could be a LOT simpler now, see tv::dvb::Service::CountedStream
 Pool http::Clients
 Let util::http::ContentFactory return *either* Stream or SeekableStream
@@ -37,6 +36,7 @@ Figure out how DVB icons and "DAB-like" messages work (DVB-SI?)
 Finish libisam (move next)
 FileScannerThread really doesn't need its own thread
 Transfer-Encoding: chunked
+Digest auth
 
   2.0
   ---

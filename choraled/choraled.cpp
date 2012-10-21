@@ -13,6 +13,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <getopt.h>
+#include <sys/stat.h>
 #include <sys/syslog.h>
 
 #define DEFAULT_DB_FILE LOCALSTATEDIR "/chorale/db.xml"
@@ -29,6 +30,8 @@
 #define DEFAULT_WEB_PORT 12078
 #define DEFAULT_WEB_PORT_S "12078"
 
+/** Classes for the Chorale daemon (or Windows service)
+ */
 namespace choraled {
 
 #if (HAVE_LIBCDIOP && !HAVE_PARANOIA)

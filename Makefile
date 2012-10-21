@@ -13,6 +13,9 @@ endif
 ifeq ($(choraled),)
 include $(TOP)choraled/Makefile
 endif
+ifeq ($(mobileapp),)
+include $(TOP)mobile/Makefile
+endif
 
 # Autoconf stuff for remaking 'configure' and 'Make.config'
 
@@ -137,6 +140,7 @@ SUBDIRS:= \
 	choralecd \
 	choraled \
 	choraleutil \
+	libdav \
 	libdb \
 	libdbempeg \
 	libdbisam \
@@ -154,14 +158,18 @@ SUBDIRS:= \
 	libreceiver \
 	libreceiverd \
 	libtv \
+	libui \
+	libuidarwin \
+	libuiqt \
 	libupnp \
 	libupnpd \
-	libutil
+	libutil \
+	mobile
 
 libdeps.dot: Makefile
 	echo "digraph G {" > $@
 	for i in $(SUBDIRS) ; do \
-		grep "^#include.*\".*/" $$i/*.{h,cpp} \
+		grep "^#include.*\".*/" $$i/*.{h,cpp,mm} \
 			| fgrep -v all- \
 			| grep -v ".*include.*$$i" \
 			| sed -e 's,/[^\"]*\", -> ,'  -e s,/[^/]*\",, ; \

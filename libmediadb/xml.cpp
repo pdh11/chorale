@@ -66,6 +66,7 @@ static const char *const typemap[] = {
     "video",
     "radio",
     "tv",
+    "query",
     "pending"
 };
 

@@ -101,7 +101,7 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
 	    << std::setw(2) << std::setfill('0')
 	    << ((total_sectors/75) % 60) << ")";
 
-    setWindowTitle(caption.str().c_str());
+    setWindowTitle(QString::fromUtf8(caption.str().c_str()));
 
     QVBoxLayout *vlayout = new QVBoxLayout(this);//, 0, 6);
 
@@ -251,11 +251,11 @@ static QColor ColourFor(const QString& s)
 
     for (unsigned int pos = 0; pos < (unsigned)s.size(); ++pos)
     {
-	QChar ch = s.at(pos);
+	unsigned int ch = s.at(pos).unicode();
 
 	if (ch == ' ')
 	{
-	    if (pos+1 == (unsigned)s.size() || s.at(pos+1) == '.')
+	    if (pos+1 == (unsigned)s.size() || s.at(pos+1).unicode() == '.')
 	    {
 		TRACE << "trailing space or ' .'\n";
 		return Qt::red;
@@ -365,7 +365,7 @@ void CDWindow::OnProgress(unsigned track, unsigned type,
 
 void CDWindow::customEvent(QEvent *ce)
 {
-    if ((int)ce->type() == EVENT_PROGRESS)
+    if ((int)ce->type() == ProgressEvent::EventType())
     {
 	ProgressEvent *pe = (ProgressEvent*)ce;
 	unsigned percent

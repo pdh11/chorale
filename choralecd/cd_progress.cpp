@@ -23,13 +23,14 @@ namespace choraleqt {
 CDProgress::CDProgress(import::CDDrivePtr drive, const Settings *settings,
 		       util::TaskQueue *cpu_queue,
 		       util::TaskQueue *disk_queue)
-    : QProgressDialog("Reading CD", "Cancel", 0, 2),
+    : QProgressDialog(QString::fromUtf8("Reading CD"), 
+		      QString::fromUtf8("Cancel"), 0, 2),
       m_drive(drive),
       m_settings(settings),
       m_cpu_queue(cpu_queue),
       m_disk_queue(disk_queue)
 {
-    setWindowTitle("Reading CD");
+    setWindowTitle(QString::fromUtf8("Reading CD"));
     
     connect(this, SIGNAL(canceled()), 
 	    this, SLOT(OnCancel()));
@@ -42,7 +43,8 @@ CDProgress::CDProgress(import::CDDrivePtr drive, const Settings *settings,
 
     m_task = import::CDTocTask::Create(drive, &m_cddb);
     m_task->SetObserver(this);
-    drive->GetTaskQueue()->PushTask(util::Bind<import::CDTocTask,&import::CDTocTask::Run>(m_task));
+    drive->GetTaskQueue()->PushTask(
+	util::Bind(m_task).To<&import::CDTocTask::Run>());
 }
 
 CDProgress::~CDProgress()
@@ -71,7 +73,7 @@ void CDProgress::OnProgress(const util::Task *task,
 
 void CDProgress::customEvent(QEvent *ce)
 {
-    if ((int)ce->type() == EVENT_PROGRESS)
+    if ((int)ce->type() == ProgressEvent::EventType())
     {
 	ProgressEvent *pe = (ProgressEvent*)ce;
 
@@ -91,9 +93,10 @@ void CDProgress::customEvent(QEvent *ce)
 	    else
 	    {
 		close(); // does "delete this", no more member usage!
-		QMessageBox::warning(NULL, "choralecd",
-				     "No audio CD found",
-				     "Cancel");
+		QMessageBox::warning(NULL,
+				     QString::fromUtf8("choralecd"),
+				     QString::fromUtf8("No audio CD found"),
+				     QString::fromUtf8("Cancel"));
 	    }
 	}
     }

@@ -83,7 +83,7 @@ $(play): $(PLAY_OBJS) $(liboutput) $(libdb) $(libutil) \
 		$(liboutput) $(libdblocal) $(libdbsteam) $(libmediadb) \
 		$(libdb) $(libimport) $(libutil) $(LIBFLAC_LIBS) \
 		$(BOOST_LIBS) $(TAGLIB_LIBS) \
-		$(GSTREAMER_LIBS) $(LIBS) -Wl,-Map,map-play.txt
+		$(GSTREAMER_LIBS) $(LIBS)
 
 $(tcp): $(TCP_OBJS) $(libutil)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
@@ -94,7 +94,7 @@ $(pparse): $(PPARSE_OBJS) $(libimport) $(libutil) Makefile
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
 		 $(CXX) -o $@ $(LDFLAGS) $(PPARSE_OBJS) \
 		 $(libimport) $(libutil) \
-		 $(BOOST_LIBS) $(LIBS) -Wl,-Map,map-pparse.txt
+		 $(BOOST_LIBS) $(LIBS)
 
 $(protocoltool): $(PROTOCOLTOOL_OBJS) \
 		$(libdbempeg) $(libimport) $(libdblocal) \
@@ -117,7 +117,7 @@ $(readtags): $(READTAGS_OBJS) $(libimport) $(libdb) $(libutil) \
 		$(CXX) -o $@ $(LDFLAGS) $(READTAGS_OBJS) $(libdblocal) \
 		$(libimport) $(libdbsteam) $(libmediadb) \
 		$(libdb) $(libutil) \
-		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS) -Wl,-Map,map-readtags.txt
+		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS)
 
 $(squirt): $(SQUIRT_OBJS) $(libimport) $(libdb) $(libutil) \
 		$(libdblocal) $(libdbsteam) $(libmediadb)

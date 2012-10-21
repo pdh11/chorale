@@ -24,7 +24,7 @@ public:
     static util::TaskCallback Create(CDDrivePtr cd)
     {
 	EjectTaskPtr ejp(new EjectTask(cd));
-	return util::Bind<EjectTask,&EjectTask::Run>(ejp);
+	return util::Bind(ejp).To<&EjectTask::Run>();
     }
 };
 

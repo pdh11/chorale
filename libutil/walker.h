@@ -3,7 +3,6 @@
 
 #include <sys/stat.h>
 #include <string>
-#include "mutex.h"
 
 namespace util
 {
@@ -19,7 +18,6 @@ class TaskQueue;
 class DirectoryWalker
 {
 public:
-    class Observer;
 
     /** Values of flags */
     enum {
@@ -27,30 +25,11 @@ public:
 	ONE_FILESYSTEM = 0x2
     };
 
-private:
-    std::string m_root;
-    Observer *m_obs;
-    TaskQueue *m_queue;
-    unsigned int m_flags;
-    util::Mutex m_mutex;
-    util::Condition m_finished;
-    unsigned int m_count;
-    unsigned int m_error;
-    volatile bool m_stop;
-
     class Task;
     class FileTask;
     class DirectoryTask;
-    class SymbolicLinkTask;
-
-    friend class Task;
-    friend class FileTask;
-    friend class DirectoryTask;
-    friend class SymbolicLinkTask;
 
     typedef util::CountedPointer<DirectoryTask> DirectoryTaskPtr;
-
-public:
 
     class Observer
     {
@@ -78,23 +57,13 @@ public:
 				    const std::string& path, 
 				    const std::string& leaf,
 				    const struct stat *st) = 0;
-    
-/*	virtual unsigned int OnSymbolicLink(dircookie parent_cookie,
-					    unsigned int index,
-					    const std::string& path,
-					    const std::string& leaf,
-					    const struct stat *st) = 0; */
 
 	/** Called once everything's finished. */
 	virtual void OnFinished(unsigned int error) = 0;
     };
 
-    DirectoryWalker(const std::string& root, Observer *obs,
-		    TaskQueue *queue, unsigned int flags=0);
-
-    void Start();
-    void Cancel();
-    void WaitForCompletion();
+    static unsigned int Walk(const std::string& root, Observer *obs,
+			     TaskQueue *queue, unsigned int flags=0);
 };
 
 } // namespace util

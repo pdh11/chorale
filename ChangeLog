@@ -1,3 +1,20 @@
+2010-Mar-28: Version 0.19 released; changes since 0.18:
+
+	* choralecd: new tageditor
+	* choralecd: make user-defined events more sane
+	* libdav: RFC4918 WebDAV server
+	* libdbsteam: allow setting of field flags in constructor
+	* libdblocal: reflect database writes back into the ID3 tags
+	* libdblocal: replace FileScannerThread with Task-only DatabaseUpdater
+	* libdblocal: add non-waiting API to FileScanner
+	* libimport: make sure ID3 rewrite removes old tags
+	* libutil: nicer util::Bind syntax
+	* libutil: CountedPointer::operator== should be const!
+	* libutil: add non-waiting API to DirectoryWalker
+	* Make.common: moc files are potentially different per-target
+	* configure: deal with <linux/cdrom.h> not being compatible with C++
+	* configure: update libtool (needed for Obj-C++)
+	
 2009-Oct-18: Version 0.18 released; changes since 0.17:
 
 	* libutil: paper-bag bug in http::Client::Task

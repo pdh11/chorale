@@ -128,6 +128,26 @@ std::string MakeAbsolutePath(const std::string& from, const std::string& rel)
     return result;
 }
 
+bool IsInRoot(const char *root, const char *path)
+{
+    if (!root || !path)
+	return false;
+    if (root[0] != '/' || path[0] != '/')
+	return false;
+
+    size_t rootlen = strlen(root);
+    if (root[rootlen-1] == '/')
+	--rootlen;
+
+    if (strncmp(root, path, rootlen))
+	return false;
+
+    if (path[rootlen] && path[rootlen] != '/')
+	return false;
+
+    return true;
+}
+
 std::string PathToURL(const std::string& path)
 {
     /* RFC3986 specifies we percent-encode almost everything */
@@ -284,6 +304,21 @@ int main()
     assert(util::posix::GetExtension("foo.bar/txt") == "");
 
     TestRelativePaths();
+
+    assert(util::IsInRoot("/zootle/", "/zootle/frink"));
+    assert(util::IsInRoot("/zootle", "/zootle/frink"));
+    assert(!util::IsInRoot("/zootle", "/zootleb/frink"));
+    assert(!util::IsInRoot("/zootle/", "/zootleb/"));
+    assert(!util::IsInRoot("/zootle/", "/zootleb"));
+    assert(util::IsInRoot("/zootle/", "/zootle"));
+    assert(util::IsInRoot("/zootle/", "/zootle/"));
+    assert(util::IsInRoot("/zootle", "/zootle"));
+    assert(util::IsInRoot("/zootle", "/zootle/"));
+    assert(util::IsInRoot("/", "/zootle"));
+    assert(util::IsInRoot("/", "/"));
+    assert(!util::IsInRoot("/zootle", "/"));
+    assert(!util::IsInRoot("/zootle/frink", "/zootle"));
+    assert(util::IsInRoot("/zootle/frink", "/zootle/frink"));
 
     return 0;
 }

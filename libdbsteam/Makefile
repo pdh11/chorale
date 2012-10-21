@@ -25,6 +25,10 @@ all-dbsteam: $(libdbsteam)
 
 $(TOP)$(DIR)% : CXXFLAGS += $(BOOST_CXXFLAGS)
 
+ifneq ($(EXCEPTIONAL_boost_regex_hpp),)
+$(TOP)$(DIR)$(TARGETDIR)query%: CXXFLAGS += -fexceptions -UBOOST_NO_EXCEPTIONS
+endif
+
 ifeq ($(libutil),)
 include $(TOP)libutil/Makefile
 endif

@@ -156,11 +156,37 @@ public:
     }
 
     template <typename T>
+    unsigned int Fire(unsigned int (Observer::*fn)(T), T t)
+    {
+	Lock lock(this);
+	for (const_iterator i = begin(); i != end(); ++i)
+	{
+	    unsigned int rc = ((*i)->*fn)(t);
+	    if (rc)
+		return rc;
+	}
+	return 0;
+    }
+
+    template <typename T>
     void Fire(void (Observer::*fn)(const T&), const T& t)
     {
 	Lock lock(this);
 	for (const_iterator i = begin(); i != end(); ++i)
 	    ((*i)->*fn)(t);
+    }
+
+    template <typename T>
+    unsigned int Fire(unsigned int (Observer::*fn)(const T&), const T& t)
+    {
+	Lock lock(this);
+	for (const_iterator i = begin(); i != end(); ++i)
+	{
+	    unsigned int rc = ((*i)->*fn)(t);
+	    if (rc)
+		return rc;
+	}
+	return 0;
     }
 
     void Fire(void (Observer::*fn)(void))

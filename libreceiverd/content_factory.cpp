@@ -8,11 +8,11 @@
 #include "libutil/stream.h"
 #include "libutil/urlescape.h"
 #include "libreceiver/tags.h"
-#include <limits.h>
 #include <stdio.h>
 #include <sstream>
 #include <algorithm>
 #include <boost/format.hpp>
+#include <limits.h>
 
 namespace receiverd {
 

@@ -6,5 +6,6 @@ obj-*
 .libs
 db.xml
 all-*.h
-map-*.txt
+choraled-map-*.txt
+choralesvc.exe-map-*.txt
 *.i

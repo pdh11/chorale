@@ -196,8 +196,8 @@ void UpnpOutputWidgetFactory::OnService(const std::string& url,
 						    url);
     
     player->Init(url, udn,
-		 util::Bind1<unsigned int, UpnpOutputWidget,
-		             &UpnpOutputWidget::OnInitialised>(widget));
+		 util::Bind(widget).To<unsigned int,
+		                       &UpnpOutputWidget::OnInitialised>());
 }
 
 } // namespace choraleqt

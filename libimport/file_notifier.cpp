@@ -81,10 +81,9 @@ unsigned int FileNotifierTask::Init()
 	}
     }
     
-    /// @todo Non-oneshot
     m_scheduler->WaitForReadable(
-	util::Bind<FileNotifierTask, &FileNotifierTask::Run>(FileNotifierPtr(this)),
-	this);
+	util::Bind(FileNotifierPtr(this)).To<&FileNotifierTask::Run>(),
+	this, false);
 
 //    TRACE << "Notifier started successfully\n";
 
@@ -128,10 +127,6 @@ unsigned int FileNotifierTask::Run()
     if (m_obs)
 	m_obs->OnChange();
 #endif
-    
-    m_scheduler->WaitForReadable(
-	util::Bind<FileNotifierTask, &FileNotifierTask::Run>(FileNotifierPtr(this)),
-	this);
 
     return 0;
 }

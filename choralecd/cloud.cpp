@@ -175,7 +175,7 @@ LocalOutputs::LocalOutputs(Window *parent, util::hal::Context *hal,
 	MenuEntry me;
 	me.pixmap = m_pixmap;
 	me.text = "Playback";
-	me.onselect = util::Bind<Output, &Output::OnSelect>(out);
+	me.onselect = util::Bind(out).To<&Output::OnSelect>();
 	parent->AppendMenuEntry(me);
     }
 }
@@ -213,7 +213,7 @@ void LocalOutputs::OnDevice(util::hal::DevicePtr dev)
     MenuEntry me;
     me.pixmap = m_pixmap;
     me.text = devnode.c_str();
-    me.onselect = util::Bind<Output, &Output::OnSelect>(out);
+    me.onselect = util::Bind(out).To<&Output::OnSelect>();
     m_parent->AppendMenuEntry(me);
 }
 #endif

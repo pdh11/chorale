@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(chorale, [0.18], pdh@utter.chaos.org.uk)
+AC_INIT(chorale, [0.19], pdh@utter.chaos.org.uk)
 AC_SUBST(PACKAGE_WEBSITE, [http://chorale.sf.net])
 AC_DEFINE_UNQUOTED([PACKAGE_WEBSITE], ["${PACKAGE_WEBSITE}"], [Define to the package's website])
 
@@ -13,15 +13,25 @@ AC_MSG_NOTICE([])
 AC_CONFIG_SRCDIR([libdb/db.h])
 AC_CONFIG_AUX_DIR([autotools])
 
+AC_DEFUN([PDH_REQUISITIONS],
+[
+	AC_REQUIRE([AC_GNU_SOURCE])
+	AC_REQUIRE([AC_USE_SYSTEM_EXTENSIONS])
+])
+PDH_REQUISITIONS
+
 # Checks for programs.
 AC_PROG_CC
 CFLAGS="-O2" # Override -g
-AC_GNU_SOURCE
-AC_PROG_LIBTOOL
-AC_C_BIGENDIAN
 
 AC_PROG_CXX
 CXXFLAGS="-O2" # Override -g
+
+AC_PROG_OBJC
+
+AC_PROG_LIBTOOL
+AC_C_BIGENDIAN
+
 AC_SYS_LARGEFILE
 if test "x$ac_cv_sys_file_offset_bits" != "x" -a "x$ac_cv_sys_file_offset_bits" != "xno" -a "x$ac_cv_sys_file_offset_bits" != "xunknown" ; then
   LARGEFILES=-D_FILE_OFFSET_BITS=$ac_cv_sys_file_offset_bits
@@ -30,6 +40,21 @@ if test "x$ac_cv_sys_large_files" != "x" -a "x$ac_cv_sys_large_files" != "xunkno
   LARGEFILES=-D_LARGE_FILES=$ac_cv_sys_large_files
 fi
 AC_SUBST(LARGEFILES)
+
+AC_CHECK_DECL([__APPLE__],[DARWIN="yes"],[DARWIN="no"])
+AC_CHECK_DECL([__WIN32__],[WIN32="yes"],[WIN32="no"])
+
+if test "$WIN32" = "yes"; then
+  DOTEXE=".exe"
+  # We need at least 0x500 (Win2K) not the default 0x400 (95/NT4)
+  CFLAGS="$CFLAGS -DWINVER=0x500 -DTAGLIB_STATIC"
+  CXXFLAGS="$CXXFLAGS -DWINVER=0x500 -DTAGLIB_STATIC"
+else
+  DOTEXE=""
+fi
+AC_SUBST(DARWIN)
+AC_SUBST(WIN32)
+AC_SUBST(DOTEXE)
 
 AC_DEFUN([PDH_C_WARNING],
 [
@@ -60,6 +85,25 @@ PDH_C_WARNING([-pedantic -Wno-long-long])
 PDH_C_WARNING([-fdiagnostics-show-option])
 PDH_C_WARNING([-Wdeclaration-after-statement])
 
+AC_DEFUN([PDH_LD_MAP],
+[
+    AC_MSG_CHECKING([how to get link maps])
+
+    ok_LDFLAGS="$LDFLAGS"
+    LDFLAGS="$LDFLAGS -Wl,-Map,map.txt"
+    AC_LINK_IFELSE([AC_LANG_PROGRAM()],
+		   [AC_MSG_RESULT([-Map]); LDMAP='-Wl,-Map,$(@)-map-$(FULLTARGET).txt'],
+	           [
+		       LDFLAGS="$ok_LDFLAGS -Wl,-M"
+		       AC_LINK_IFELSE([AC_LANG_PROGRAM()],
+				      [AC_MSG_RESULT([-M]); LDMAP='-Wl,-M > $(@)-map-$(FULLTARGET).txt'],
+				      [AC_MSG_RESULT([can't])])
+		   ])
+    LDFLAGS="$ok_LDFLAGS"
+
+    AC_SUBST([LDMAP])
+])
+
 AC_DEFUN([PDH_LD_WARNING],
 [
     AC_MSG_CHECKING([whether linker ${CC} accepts $1])
@@ -71,6 +115,7 @@ AC_DEFUN([PDH_LD_WARNING],
 		   [AC_MSG_RESULT([no]); LDFLAGS=$ok_LDFLAGS])
 ])
 
+PDH_LD_MAP
 PDH_LD_WARNING([-mthreads])
 PDH_LD_WARNING([-Wl,--as-needed])
 
@@ -96,37 +141,114 @@ PDH_CXX_WARNING([-Wundef])
 PDH_CXX_WARNING([-Wshadow])
 PDH_CXX_WARNING([-mthreads])
 PDH_CXX_WARNING([-Waddress])
+PDH_CXX_WARNING([-pedantic])
 PDH_CXX_WARNING([-Wlogical-op])
 PDH_CXX_WARNING([-Wcast-align])
 PDH_CXX_WARNING([-Wconversion])
+PDH_CXX_WARNING([-Wno-long-long])
 PDH_CXX_WARNING([-Wwrite-strings])
 PDH_CXX_WARNING([-Wpointer-arith])
-#PDH_CXX_WARNING([-Wsign-conversion])
 PDH_CXX_WARNING([-Wnon-virtual-dtor])
 PDH_CXX_WARNING([-Wstrict-overflow=5])
 PDH_CXX_WARNING([-Woverloaded-virtual])
-PDH_CXX_WARNING([-pedantic -Wno-long-long])
+PDH_CXX_WARNING([-Wno-sign-conversion])
 PDH_CXX_WARNING([-fdiagnostics-show-option])
 
-AC_MSG_CHECKING([whether headers need -fpermissive])
-AC_LANG_PUSH([C++])
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-#include <linux/cdrom.h>
-]],
-[[
-    return 0;
-]])], [AC_MSG_RESULT([no]) ; ac_pdh_fperm=no],
-      [AC_MSG_RESULT([yes]) ; ac_pdh_fperm=yes])
-AC_LANG_POP
+AC_PROG_OBJCXX
 
-if test "$ac_pdh_fperm" = "yes"; then
-PDH_CXX_WARNING([-fpermissive])
-fi
+if test "$DARWIN" = "yes" ; then
+
+# Libtool 2.2.6 / Autoconf 2.64 don't have this built-in
+
+#AC_LANG_DEFINE([Objective C++], [objcxx], [OBJCXX], [C],
+#[ac_ext=mm
+#ac_cpp='$OBJCPP $CPPFLAGS'
+#ac_compile='$OBJCXX -c $OBJCXXFLAGS $CPPFLAGS conftest.$ac_ext >&AS_MESSAGE_LOG_FD'
+#ac_link='$OBJCXX -o conftest$ac_exeext $OBJCXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&AS_MESSAGE_LOG_FD'
+#ac_compiler_gnu=$ac_cv_objcxx_compiler_gnu
+#])
+
+#AN_MAKEVAR([OBJCXX],  [AC_PROG_OBJCXX])
+#AN_PROGRAM([objc++],  [AC_PROG_OBJCXX])
+#AN_PROGRAM([objc],    [AC_PROG_OBJCXX])
+
+#AC_DEFUN([PDH_PROG_OBJCXX],
+#[
+#AC_LANG_PUSH([Objective C++])
+#AC_ARG_VAR([OBJCXX],      [Objective C++ compiler command])dnl
+#AC_ARG_VAR([OBJCXXFLAGS], [Objective C++ compiler flags])dnl
+#_AC_ARG_VAR_LDFLAGS()dnl
+#_AC_ARG_VAR_LIBS()dnl
+#_AC_ARG_VAR_CPPFLAGS()dnl
+#_AC_ARG_VAR_PRECIOUS([OBJCXX])dnl
+#AC_CHECK_TOOLS(OBJCXX,
+#	       [m4_default([], [gcc objc++ objc cc CC])],
+#	       gcc)
+#_AC_LANG_COMPILER_GNU
+#if test $ac_compiler_gnu = yes; then
+#  GOBJCXX=yes
+#else
+#  GOBJCXX=
+#fi
+#AC_LANG_POP
+#])
+
+#AC_DEFUN([AC_LANG_COMPILER(Objective C++)],
+#[AC_REQUIRE([PDH_PROG_OBJCXX])])
+
+#PDH_PROG_OBJCXX
+
+AC_DEFUN([PDH_OBJCXX_WARNING],
+[
+    AC_MSG_CHECKING([whether ${OBJCXX} accepts $1])
+
+    AC_LANG_PUSH([Objective C++])
+
+    ok_OBJCXXFLAGS="$OBJCXXFLAGS"
+    OBJCXXFLAGS="$OBJCXXFLAGS $1"
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM()],
+		      [AC_MSG_RESULT([yes])],
+		      [AC_MSG_RESULT([no]); OBJCXXFLAGS=$ok_OBJCXXFLAGS])
+
+    AC_LANG_POP
+])
+
+PDH_OBJCXX_WARNING([-W])
+PDH_OBJCXX_WARNING([-Wall])
+PDH_OBJCXX_WARNING([-Wextra])
+PDH_OBJCXX_WARNING([-Wundef])
+PDH_OBJCXX_WARNING([-Wshadow])
+PDH_OBJCXX_WARNING([-Waddress])
+PDH_OBJCXX_WARNING([-Wno-import])
+PDH_OBJCXX_WARNING([-Wlogical-op])
+#PDH_OBJCXX_WARNING([-Wcast-align])
+PDH_OBJCXX_WARNING([-Wconversion])
+PDH_OBJCXX_WARNING([-march=armv6])
+PDH_OBJCXX_WARNING([-Wwrite-strings])
+PDH_OBJCXX_WARNING([-Wpointer-arith])
+#PDH_OBJCXX_WARNING([-Wsign-conversion])
+#PDH_OBJCXX_WARNING([-Wl,-bind_at_load])
+PDH_OBJCXX_WARNING([-Wnon-virtual-dtor])
+PDH_OBJCXX_WARNING([-mcpu=arm1176jzf-s])
+PDH_OBJCXX_WARNING([-Wstrict-overflow=5])
+PDH_OBJCXX_WARNING([-Woverloaded-virtual])
+PDH_OBJCXX_WARNING([-fobjc-call-cxx-cdtors])
+PDH_OBJCXX_WARNING([-pedantic -Wno-long-long])
+PDH_OBJCXX_WARNING([-fdiagnostics-show-option])
+PDH_OBJCXX_WARNING([-Wl,-multiply_defined,suppress])
+
+fi # DARWIN
 
 
 AC_CHECK_TOOL([GCOV], [gcov], [:])
 AC_CHECK_TOOL([SIZE], [size], [:])
 AC_CHECK_TOOL([WINDRES], [windres], [:])
+AC_PATH_PROG(CADAVER, cadaver, no)
+if test "$CADAVER" = "no"; then
+   HAVE_CADAVER="no"
+else
+   HAVE_CADAVER="yes"
+fi
 AC_PATH_PROG(CONVERT, convert, no)
 if test "$CONVERT" = "no"; then
    HAVE_CONVERT="no"
@@ -160,12 +282,20 @@ else
 fi
 PKG_PROG_PKG_CONFIG
 AC_PROG_INSTALL
+AC_SUBST(HAVE_CADAVER)
 AC_SUBST(HAVE_CONVERT)
 AC_SUBST(HAVE_XSLTPROC)
 AC_SUBST(HAVE_INKSCAPE)
 AC_SUBST(HAVE_VALGRIND)
 AC_SUBST(HAVE_WINDRES)
 AC_SUBST(VALGRIND_OPTS)
+if test "${HAVE_CADAVER}" = "yes" ; then
+	haveit=1
+else
+   	haveit=0
+fi
+AC_DEFINE_UNQUOTED(HAVE_CADAVER, $haveit,
+	[Define to 1 if you have the cadaver program (used for testing), or 0 if you don't])
 
 
 # Checks for libraries.
@@ -191,7 +321,8 @@ AC_DEFUN([PDH_CHECK_HEADER], [
 
     AC_MSG_CHECKING([for <$1>])
 
-    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <$1>]])],
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[$pdh_all_headers
+#include <$1>]])],
 		  [AC_MSG_RESULT([yes]); pdh_haveit=1; pdh_yesno="yes"],
 		  [AC_MSG_RESULT([no]);  pdh_haveit=0; pdh_yesno="no"])
 
@@ -484,28 +615,7 @@ AC_SUBST($1_LIBS)
 PDH_PKGCONFIG(HAL,       hal,       0.5.9.1)
 PDH_CHECK_LAME
 PDH_PKGCONFIG(LIBFLAC,   flac,      1.1.3)
-
-AC_MSG_CHECKING([for Win32])
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([
-#ifdef WIN32
-#error My sympathies
-#endif
-],[])], [pdh_win32="no"], [pdh_win32="yes"])
-if test "$pdh_win32" = "yes"; then
-  AC_MSG_RESULT([yes])
-  WIN32="yes"
-  DOTEXE=".exe"
-  # We need at least 0x500 (Win2K) not the default 0x400 (95/NT4)
-  CFLAGS="$CFLAGS -DWINVER=0x500 -DTAGLIB_STATIC"
-  CXXFLAGS="$CXXFLAGS -DWINVER=0x500 -DTAGLIB_STATIC"
-else
-  AC_MSG_RESULT([no])
-  WIN32="no"
-  DOTEXE=""
-fi
-AC_SUBST(WIN32)
-AC_SUBST(DOTEXE)
-
+PDH_PKGCONFIG(CAIRO,     cairo,     1.6.4)
 PDH_CHECK_BOOST
 PDH_CHECK_INNODB
 PDH_PKGCONFIG(DBUS,      dbus-1,    1.1.1)
@@ -522,17 +632,37 @@ PDH_PKGCONFIG(LIBCDIOP,  libcdio_paranoia, 0.76,  $disable_gpl)
 
 
 # Checks for header files.
-PDH_CHECK_HEADERS_AND_ADD([io.h poll.h errno.h fcntl.h sched.h netdb.h direct.h dirent.h net/if.h stdint.h stdlib.h unistd.h windows.h pthread.h ws2tcpip.h sys/poll.h sys/time.h sys/stat.h sys/types.h sys/socket.h sys/syslog.h netinet/in.h sys/utsname.h netinet/tcp.h sys/inotify.h sys/resource.h])
-PDH_CHECK_HEADERS([linux/unistd.h linux/inotify.h linux/dvb/dmx.h linux/dvb/frontend.h]) # No AND_ADD as they may conflict with libc
+PDH_CHECK_HEADERS_AND_ADD([io.h poll.h errno.h fcntl.h sched.h netdb.h direct.h dirent.h net/if.h stdint.h stdlib.h string.h unistd.h windows.h pthread.h ws2tcpip.h sys/disk.h sys/poll.h sys/time.h sys/stat.h net/if_dl.h sys/types.h sys/socket.h sys/syslog.h netinet/in.h sys/utsname.h netinet/tcp.h sys/inotify.h sys/resource.h CoreFoundation/CFRunLoop.h])
+PDH_CHECK_HEADERS([linux/cdrom.h linux/unistd.h linux/inotify.h linux/dvb/dmx.h linux/dvb/frontend.h]) # No AND_ADD as they may conflict with libc
+AC_LANG_PUSH([Objective C++])
+PDH_CHECK_HEADER([AVFoundation/AVAudioPlayer.h]) # No AND_ADD as it's ObjC++
+AC_LANG_POP
 AC_LANG_PUSH([C++])
 PDH_CHECK_HEADER([boost/spirit/include/classic.hpp]) # No AND_ADD as it's C++
 AC_LANG_POP
+
+if test "$ac_cv_header_linux_cdrom_h" = "yes"; then
+  AC_MSG_CHECKING([whether headers need -fpermissive])
+  AC_LANG_PUSH([C++])
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <linux/cdrom.h>
+]],
+[[
+    return 0;
+]])], [AC_MSG_RESULT([no]) ; ac_pdh_fperm=no],
+      [AC_MSG_RESULT([yes]) ; ac_pdh_fperm=yes])
+  AC_LANG_POP
+
+  if test "$ac_pdh_fperm" = "yes"; then
+    PDH_CXX_WARNING([-fpermissive])
+  fi
+fi
 
 AC_DEFUN([PDH_CHECK_EXCEPTIONS], [
   AC_MSG_CHECKING([whether <$1> compiles with -fno-exceptions])
   pdh_CXXFLAGS=$CXXFLAGS
   CXXFLAGS="$CXXFLAGS -fno-exceptions"
-  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <$1>]])],
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <$1>]],$2)],
     [AC_MSG_RESULT([yes]); AS_TR_SH([EXCEPTIONAL_$1])=""],
     [AC_MSG_RESULT([no]); AS_TR_SH([EXCEPTIONAL_$1])="yes"])
   CXXFLAGS=$pdh_CXXFLAGS
@@ -540,6 +670,9 @@ AC_DEFUN([PDH_CHECK_EXCEPTIONS], [
 ])
 
 AC_LANG_PUSH([C++])
+PDH_CHECK_EXCEPTIONS([boost/regex.hpp],
+	[ boost::regex rx("*foo*", boost::regex::icase);
+	return boost::regex_match("barfoobar", rx); ])
 PDH_CHECK_EXCEPTIONS([boost/function.hpp])
 PDH_CHECK_EXCEPTIONS([boost/thread/tss.hpp])
 PDH_CHECK_EXCEPTIONS([boost/thread/mutex.hpp])
@@ -558,8 +691,7 @@ AC_DEFUN([PDH_CHECK_FUNCS], [
 m4_foreach_w([pdh_func], $1, [PDH_CHECK_FUNC(pdh_func)])
 ])
 
-PDH_CHECK_FUNCS([pipe mkdir _wstat _wmkdir mkstemp scandir localtime_r setpriority getaddrinfo inotify_init gettimeofday posix_fadvise FindFirstFileW gethostbyname_r sync_file_range GetFullPathNameW sched_setscheduler])
-
+PDH_CHECK_FUNCS([pipe fsync mkdir _wstat _wmkdir pread64 mkstemp scandir gmtime_r pwrite64 realpath localtime_r setpriority getaddrinfo inotify_init gettimeofday posix_fadvise FindFirstFileW gethostbyname_r sync_file_range GetFullPathNameW sched_setscheduler canonicalize_file_name])
 pdh_nr_inotify_init=0
 if test "$ac_cv_func_inotify_init$ac_cv_header_unistd_h" = "noyes"; then
   AC_MSG_CHECKING([for syscall(__NR_inotify_init) for Debian's benefit])
@@ -731,6 +863,7 @@ AC_LANG_POP
 PDH_CHECK_ERRNO([EINVAL])
 PDH_CHECK_ERRNO([EISCONN])
 PDH_CHECK_ERRNO([EALREADY])
+PDH_CHECK_ERRNO([ECANCELED])
 PDH_CHECK_ERRNO([EOPNOTSUPP])
 PDH_CHECK_ERRNO([EINPROGRESS])
 PDH_CHECK_ERRNO([EWOULDBLOCK])

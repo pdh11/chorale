@@ -4,6 +4,7 @@
 #ifdef TEST
 
 # include "db.h"
+# include "allocate_id.h"
 # include "libdb/query.h"
 # include "schema.h"
 # include "libdbsteam/db.h"
@@ -19,10 +20,12 @@ namespace mediadb {
 class FakeDatabase: public mediadb::Database
 {
     db::steam::Database m_db;
+    mediadb::AllocateID m_aid;
 
 public:
     FakeDatabase()
-	: m_db(mediadb::FIELD_COUNT)
+	: m_db(mediadb::FIELD_COUNT),
+	  m_aid(&m_db)
     {
 	m_db.SetFieldInfo(mediadb::ID, 
 			  db::steam::FIELD_INT|db::steam::FIELD_INDEXED);
@@ -43,6 +46,11 @@ public:
     db::QueryPtr CreateQuery() { return m_db.CreateQuery(); }
 
     // Being a mediadb::Database
+    unsigned int AllocateID()
+    {
+	return m_aid.Allocate();
+    }
+
     std::string GetURL(unsigned int fid)
     {
 	return (boost::format("test:%u") % fid).str();

@@ -91,17 +91,17 @@ class Client::Task: public util::Task
 
     typedef CountedPointer<Client::Task> TaskPtr;
 
-    void WaitForWritable(StreamPtr stream)
+    void WaitForWritable(util::StreamPtr stream)
     {
 	m_scheduler->WaitForWritable(
-	    Bind<Task, &Task::Run>(TaskPtr(this)), 
+	    Bind(TaskPtr(this)).To<&Task::Run>(), 
 	    stream.get());
     }
 
-    void WaitForReadable(StreamPtr stream)
+    void WaitForReadable(util::StreamPtr stream)
     {
 	m_scheduler->WaitForReadable(
-	    Bind<Task, &Task::Run>(TaskPtr(this)), 
+	    Bind(TaskPtr(this)).To<&Task::Run>(), 
 	    stream.get());
     }
 

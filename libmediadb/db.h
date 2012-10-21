@@ -2,7 +2,6 @@
 #define MEDIADB_DB_H 1
 
 #include "libdb/db.h"
-#include "allocate_id.h"
 #include <string>
 
 namespace util { class SeekableStream; }
@@ -19,12 +18,8 @@ namespace mediadb
  */
 class Database: public db::Database
 {
-    class AllocateID m_aid;
-
 public:
-    Database() : m_aid(this) {}
-
-    virtual unsigned int AllocateID() { return m_aid.Allocate(); }
+    virtual unsigned int AllocateID() = 0;
     virtual std::string GetURL(unsigned int id) = 0;
     virtual util::CountedPointer<util::SeekableStream> OpenRead(unsigned int id) = 0;
     virtual util::CountedPointer<util::SeekableStream> OpenWrite(unsigned int id) = 0;

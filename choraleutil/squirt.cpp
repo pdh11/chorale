@@ -66,6 +66,7 @@ static const char *const typemap[] = {
     "illegal",
     "illegal",
     "illegal",
+    "illegal",
 };
 
 enum { NTYPES = sizeof(typemap)/sizeof(typemap[0]) };
@@ -299,7 +300,7 @@ int main(int argc, char *argv[])
     db::local::Database ldb(&sdb, &http_client);
 
 #if HAVE_TAGLIB
-    db::local::FileScanner ifs(mediaroot, flacroot, &ldb, &wtp);
+    db::local::FileScanner ifs(mediaroot, flacroot, &sdb, &ldb, &wtp);
 
     ifs.Scan();
 

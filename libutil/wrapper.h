@@ -29,7 +29,8 @@ class Wrapper
 {
     union {
 	char m_data[sz];
-	void *m_align;
+	void *m_align[1];
+	unsigned long long m_align2[1];
     };
 
     /** Use a nested class, rather than using WrappedType<T>::type

@@ -337,8 +337,8 @@ static int Update()
     }
     else
     {
-	db::local::FileScanner ifs(update_root, update_flac_root, &dbsrc,
-				   &wtp);
+	db::local::FileScanner ifs(update_root, update_flac_root, &sdbsrc,
+				   &dbsrc, &wtp);
 
 	rc = ifs.Scan();
 	if (rc)

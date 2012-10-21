@@ -4,18 +4,24 @@
 #include <unistd.h>
 
 #ifdef WIN32
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <mswsock.h>
+# include <windows.h>
+# include <winsock2.h>
+# include <ws2tcpip.h>
+# include <mswsock.h>
 typedef int socklen_t;
 #else
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <sys/ioctl.h>
-#include <netdb.h>
-#include <poll.h>
+# include <sys/socket.h>
+# include <netinet/in.h>
+# include <netinet/tcp.h>
+# include <sys/ioctl.h>
+# include <netdb.h>
+# include <poll.h>
+# if HAVE_NET_IF_H
+#  include <net/if.h>
+# endif
+# if HAVE_NET_IF_DL_H
+#  include <net/if_dl.h>
+# endif
 #endif
 
 #include <string.h>
@@ -513,7 +519,7 @@ IPAddress IPAddress::Resolve(const char *host)
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = IPPROTO_TCP;
-    int rc = ::getaddrinfo(host, 80, &hints, &list);
+    int rc = ::getaddrinfo(host, "80", &hints, &list);
     if (rc != 0)
 	return IPAddress::ANY;
 
@@ -702,7 +708,11 @@ unsigned DatagramSocket::Read(void *buffer, size_t buflen, size_t *nread,
 
     union {
 	struct cmsghdr cm; // For alignment
+#if HAVE_IP_PKTINFO
 	char cbuffer[CMSG_SPACE(sizeof(struct in_pktinfo))];
+#elif HAVE_IP_RECVIF
+	char cbuffer[CMSG_SPACE(sizeof(struct sockaddr_dl))];
+#endif
     } u2;
     msg.msg_control = u2.cbuffer;
     msg.msg_controllen = sizeof(u2);
@@ -711,7 +721,11 @@ unsigned DatagramSocket::Read(void *buffer, size_t buflen, size_t *nread,
     if (wasto)
     {
 	int on = 1;
+#if HAVE_IP_PKTINFO
 	::setsockopt(m_fd, IPPROTO_IP, IP_PKTINFO, &on, sizeof(on));
+#elif HAVE_IP_RECVIF
+	::setsockopt(m_fd, IPPROTO_IP, IP_RECVIF, &on, sizeof(on));
+#endif
     }
 
     ssize_t rc = ::recvmsg(m_fd, &msg, 0);
@@ -734,6 +748,7 @@ unsigned DatagramSocket::Read(void *buffer, size_t buflen, size_t *nread,
 	    {
 //		TRACE << "level=" << cmptr->cmsg_level 
 //		      << " type=" << cmptr->cmsg_type << "\n";
+#if HAVE_IP_PKTINFO
 		if (cmptr->cmsg_level == IPPROTO_IP
 		    && cmptr->cmsg_type == IP_PKTINFO)
 		{
@@ -754,6 +769,32 @@ unsigned DatagramSocket::Read(void *buffer, size_t buflen, size_t *nread,
 //			  << IPAddress::FromNetworkOrder(ipi.ipi_addr.s_addr).ToString()
 //			  << "\n";
 		}
+#elif HAVE_IP_RECVIF
+		if (cmptr->cmsg_level == IPPROTO_IP
+		    && cmptr->cmsg_type == IP_RECVIF)
+		{
+		    struct sockaddr_dl sdl;
+		    memcpy(&sdl, CMSG_DATA(cmptr), sizeof(sdl));
+		    
+		    TRACE << "Interface " << sdl.sdl_index << "\n";
+		    if (sdl.sdl_index && !sdl.sdl_nlen)
+		    {
+			if (!if_indextoname(sdl.sdl_index, sdl.sdl_data))
+			    continue;
+			sdl.sdl_nlen = strlen(sdl.sdl_data);
+		    }
+
+		    struct ifreq ifr;
+		    memset(&ifr, '\0', sizeof(ifr));
+		    memcpy(ifr.ifr_name, sdl.sdl_data, sdl.sdl_nlen);
+		    
+		    if (ioctl(m_fd, SIOCGIFADDR, &ifr) < 0)
+			continue;
+
+		    u.sa = ifr.ifr_ifru.ifru_addr;
+		    wasto->addr = u.sin.sin_addr.s_addr;
+		}
+#endif
 	    }
 	}
     }

@@ -12,6 +12,7 @@
 #include "libutil/xmlescape.h"
 #include <sstream>
 #include <errno.h>
+#include <stdio.h>
 #include <boost/format.hpp>
 #include <boost/thread/tss.hpp>
 #if HAVE_WS2TCPIP_H

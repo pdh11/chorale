@@ -90,6 +90,7 @@ public:
     QueryPtr CreateQuery();
 
     // Being a mediadb::Database
+    unsigned int AllocateID() { return m_nextid++; }
     std::string GetURL(unsigned int id);
     util::SeekableStreamPtr OpenRead(unsigned int id);
     util::SeekableStreamPtr OpenWrite(unsigned int id);

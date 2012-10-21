@@ -10,6 +10,11 @@
 #include "tree_model.h"
 #include "libmediatree/root.h"
 #include "libutil/trace.h"
+#include "libdb/recordset.h"
+#include "libmediadb/schema.h"
+
+#include "imagery/dir.xpm"
+#include "imagery/query.xpm"
 
 namespace choraleqt {
 
@@ -70,7 +75,9 @@ unsigned int TreeModel::Item::GetRow() const
 }
 
 TreeModel::TreeModel(db::Database *db)
-    : m_root(new Item(NULL, mediatree::Root::Create(db)))
+    : m_root(new Item(NULL, mediatree::Root::Create(db))),
+      m_dir_pixmap(dir_xpm),
+      m_query_pixmap(query_xpm)
 {
 }
 
@@ -180,10 +187,22 @@ QVariant TreeModel::data(const QModelIndex &index, int role) const
     if (!index.isValid())
 	return QVariant();
 
-    if (role != Qt::DisplayRole)
+    if (role != Qt::DisplayRole
+	&& role != Qt::DecorationRole)
 	return QVariant();
 
     Item *item = (Item*)index.internalPointer();
+
+    if (role == Qt::DecorationRole)
+    {
+	db::RecordsetPtr rs = item->node->GetInfo();
+	unsigned int type = rs->GetInteger(mediadb::TYPE);
+	if (type == mediadb::DIR || type == mediadb::PLAYLIST)
+	    return QVariant(m_dir_pixmap);
+	if (type == mediadb::QUERY)
+	    return QVariant(m_query_pixmap);
+	return QVariant();
+    }
 
     return QVariant(QString::fromUtf8(item->node->GetName().c_str()));
 }
@@ -196,8 +215,7 @@ Qt::ItemFlags TreeModel::flags(const QModelIndex &index) const
     return Qt::ItemIsEnabled | Qt::ItemIsSelectable;
 }
 
-QVariant TreeModel::headerData(int, Qt::Orientation,
-			   int) const
+QVariant TreeModel::headerData(int, Qt::Orientation, int) const
 {
     return QVariant();
 }

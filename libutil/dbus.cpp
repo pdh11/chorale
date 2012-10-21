@@ -170,11 +170,11 @@ void Connection::Task::OnWatchToggled(DBusWatch *watch)
 	unsigned int watchflags = dbus_watch_get_flags(watch);
 	if (watchflags & DBUS_WATCH_READABLE)
 	    m_poller->WaitForReadable(
-		Bind<Task,&Task::Run>(TaskPtr(this)), &m_pollable);
+		Bind(TaskPtr(this)).To<&Task::Run>(), &m_pollable);
 	else
 	    if (watchflags & DBUS_WATCH_WRITABLE)
 		m_poller->WaitForWritable(
-		    Bind<Task,&Task::Run>(TaskPtr(this)), &m_pollable);
+		    Bind(TaskPtr(this)).To<&Task::Run>(), &m_pollable);
     }
 }
 

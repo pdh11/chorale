@@ -2,6 +2,7 @@
 #define TREE_MODEL_H 1
 
 #include <QAbstractItemModel>
+#include <QPixmap>
 #include "libmediatree/node.h"
 
 namespace choraleqt {
@@ -17,6 +18,9 @@ class TreeModel: public QAbstractItemModel
 
     class Item;
     Item *m_root;
+
+    QPixmap m_dir_pixmap;
+    QPixmap m_query_pixmap;
 
 public:
     explicit TreeModel(db::Database*);

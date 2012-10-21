@@ -32,6 +32,27 @@
 
 namespace choraleqt {
 
+struct TimeCodePayload
+{
+    unsigned int index;
+    unsigned int seconds;
+};
+
+class TimeCodeEvent: public CustomEvent<TimeCodePayload>
+{
+public:
+    TimeCodeEvent(unsigned int index, unsigned int seconds)
+    {
+	m_data.index = index;
+	m_data.seconds = seconds;
+    }
+    
+    unsigned GetIndex() const { return m_data.index; }
+    unsigned GetSeconds() const { return m_data.seconds; }
+};
+
+typedef CustomEvent<output::PlayState> PlayStateEvent;
+
 #define UTF8_PLAY  "\xE2\x96\xBA" /* U+25BA */
 #define UTF8_PAUSE "\xE2\x95\x91" /* U+2551 */
 #define UTF8_STOP  "\xE2\x9D\x9A" /* U+275A */
@@ -180,7 +201,7 @@ void SetlistWindow::OnPlayState(output::PlayState state)
 
 void SetlistWindow::customEvent(QEvent *e)
 {
-    if ((int)e->type() == EVENT_TIMECODE)
+    if ((int)e->type() == TimeCodeEvent::EventType())
     {
 	TimeCodeEvent *tce = (TimeCodeEvent*)e;
 	unsigned int index = tce->GetIndex();
@@ -192,10 +213,10 @@ void SetlistWindow::customEvent(QEvent *e)
 	m_timecode_sec = sec;
 	UpdateCaption();
     }
-    else if ((int)e->type() == EVENT_PLAYSTATE)
+    else if ((int)e->type() == PlayStateEvent::EventType())
     {
 	PlayStateEvent *pse = (PlayStateEvent*)e;
-	output::PlayState state = pse->GetState();
+	output::PlayState state = pse->GetData();
 	if (state != m_state)
 	{
 	    m_play_button->setDown(state == output::PLAY);
@@ -230,7 +251,7 @@ void SetlistWindow::UpdateCaption()
     case output::STOP:  s += UTF8_STOP; break;
     }
     s += " ";
-    if (m_state != output::STOP)
+    if (m_state != output::STOP && m_current_index < m_queue->Count())
     {
 	s += m_model.Name(m_queue->QueueAt(m_current_index)).utf8().data();
 	s += " on ";

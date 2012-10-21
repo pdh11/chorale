@@ -8,6 +8,7 @@
 #include "libutil/xml.h"
 #include "libutil/string_stream.h"
 #include "libutil/http_client.h"
+#include <stdio.h>
 #include <boost/format.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>

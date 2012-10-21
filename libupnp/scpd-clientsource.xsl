@@ -251,9 +251,8 @@ unsigned int <xsl:value-of select="$class"/>ClientAsync::<xsl:value-of select="n
 
     unsigned int rc = SoapAction(&quot;<xsl:value-of select="name"/>&quot;, 
           <xsl:if test="argumentList/argument[direction='in']">out,</xsl:if>
-          util::Bind2&lt;unsigned int, const soap::Inbound*,
-              <xsl:value-of select="name"/>Responder,
-              &amp;<xsl:value-of select="name"/>Responder::SoapCallback&gt;(r));
+          util::Bind(r).To&lt;unsigned int, const soap::Inbound*,
+              &amp;<xsl:value-of select="name"/>Responder::SoapCallback&gt;());
     if (rc)
         delete r;
     return rc;

@@ -9,16 +9,20 @@
 #include <fstream>
 #include <sstream>
 #if HAVE_LIBCDIOP && !HAVE_PARANOIA
-#include <cdio/cdio.h>
+# include <cdio/cdio.h>
 #else
-#include <linux/cdrom.h>
-#include <sys/ioctl.h>
+# if HAVE_LINUX_CDROM_H
+#  include <linux/cdrom.h>
+# elif HAVE_SYS_DISK_H
+#  include <sys/disk.h>
+# endif
+# include <sys/ioctl.h>
 #endif
 #include "libutil/task.h"
 #include "libutil/worker_thread_pool.h"
 #include "libutil/counted_pointer.h"
 #if HAVE_WINDOWS_H
-#include <windows.h>
+# include <windows.h>
 #endif
 
 namespace import {
@@ -253,7 +257,11 @@ unsigned int LocalCDDrive::Eject()
 	return (unsigned int)errno;
     }
 
+#if HAVE_LINUX_CDROM_H
     int rc = ::ioctl(fd, CDROMEJECT);
+#elif HAVE_SYS_DISK_H
+    int rc = ::ioctl(fd, DKIOCEJECT); /* MacOS */
+#endif
     ::close(fd);
 
     return (rc < 0) ? (unsigned int)errno : 0;

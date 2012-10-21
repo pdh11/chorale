@@ -6,6 +6,7 @@
 #include "libutil/xml.h"
 #include <errno.h>
 #include <string.h>
+#include <stdio.h>
 
 namespace import {
 

@@ -45,15 +45,7 @@ public:
 };
 
 typedef util::CountedPointer<Task> TaskPtr;
-
-
 typedef PtrCallback<TaskPtr> TaskCallback;
-
-template <class T, unsigned (T::*FN)()>
-inline TaskCallback Bind(CountedPointer<T> t)
-{
-    return util::BindPtr<TaskPtr,T,FN>(t); 
-}
 
 /** Something to which tasks can be pushed (most likely a pool of background
  * threads).
@@ -63,7 +55,8 @@ class TaskQueue
 public:
     virtual ~TaskQueue() {}
 
-    virtual void PushTask(const TaskCallback&) = 0;
+    virtual void PushTask(const TaskCallback&) = 0; ///< Back of queue
+    virtual void PushTaskFront(const TaskCallback&) = 0;
     virtual bool AnyWaiting() = 0;
     virtual size_t Count() = 0;
 };

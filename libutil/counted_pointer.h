@@ -98,12 +98,12 @@ public:
 	return m_ptr;
     }
 
-    bool operator==(const CountedPointer& other)
+    bool operator==(const CountedPointer& other) const
     {
 	return m_ptr == other.m_ptr;
     }
 
-    bool operator!=(const CountedPointer& other)
+    bool operator!=(const CountedPointer& other) const
     {
 	return m_ptr != other.m_ptr;
     }

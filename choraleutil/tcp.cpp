@@ -10,6 +10,9 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <string.h>
+#include <stdint.h>
+
+#ifdef __linux__
 
 /* Same partition, 1202Mbytes
 
@@ -338,7 +341,7 @@ unsigned int Copier::OnFile(dircookie,
 	util::CountedPointer<FileWriteTask> task(
 	    new FileWriteTask(this, ptr, offset, lump, infd,
 			      outfd, len==0, st, path.c_str()));
-	m_queue->PushTask(util::Bind<FileWriteTask,&FileWriteTask::Run>(task));
+	m_queue->PushTask(util::Bind(task).To<&FileWriteTask::Run>());
 
 	offset += lump;
     } while (len);
@@ -420,8 +423,11 @@ void Copier::WaitForCompletion()
     printf("Copy succeeded\n");
 }
 
+#endif /* __linux__ */
+
 int main(int argc, char *argv[])
 {
+#ifdef __linux__
     util::WorkerThreadPool writers(util::WorkerThreadPool::NORMAL, 1);
     util::WorkerThreadPool readers(util::WorkerThreadPool::NORMAL, 64);
 
@@ -432,12 +438,11 @@ int main(int argc, char *argv[])
     tmproot += "/foo";
     util::MkdirParents(tmproot.c_str());
 
-    util::DirectoryWalker dw(argv[1], &tcp, &readers,
-			     util::DirectoryWalker::REPORT_LINKS | util::DirectoryWalker::ONE_FILESYSTEM);
-
-    dw.Start();
+    util::DirectoryWalker::Walk(argv[1], &tcp, &readers,
+				util::DirectoryWalker::REPORT_LINKS | util::DirectoryWalker::ONE_FILESYSTEM);
 
     tcp.WaitForCompletion();
+#endif
 
     return 0;
 }

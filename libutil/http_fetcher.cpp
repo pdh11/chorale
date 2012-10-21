@@ -150,16 +150,19 @@ void ParseURL(const std::string& url,
 	if (slash)
 	{
 	    *pathpart = slash;
-	    *hostpart = std::string(ptr, (size_t)(slash-ptr));
+	    if (hostpart)
+		*hostpart = std::string(ptr, (size_t)(slash-ptr));
 	}
 	else
 	{
 	    *pathpart = "/";
-	    *hostpart = url;
+	    if (hostpart)
+		*hostpart = url;
 	}
 	return;
     }
-    *hostpart = std::string();
+    if (hostpart)
+	*hostpart = std::string();
     *pathpart = url;
 }
 
@@ -260,6 +263,9 @@ int main()
     std::string url = "http://foo.bar:2888/wurdle";
     std::string hostpart, host, path;
     unsigned short port;
+
+    util::http::ParseURL("file:///usr/src/chorale", NULL, &path);
+    assert(path == "/usr/src/chorale");
 
     util::http::ParseURL(url, &hostpart, &path);
 //    TRACE << "hp=" << hostpart << ", path=" << path << "\n";

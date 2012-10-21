@@ -42,6 +42,8 @@ void Response::Clear()
 {
     body_sink.reset(NULL);
     content_type = NULL;
+    status_line = NULL;
+    headers.clear();
     length = 0;
     ssp.reset(NULL);
 }
@@ -98,17 +100,17 @@ class Server::DataTask: public util::Task
 
     typedef util::CountedPointer<DataTask> DataTaskPtr;
 
-    void WaitForReadable(StreamPtr sock)
+    void WaitForReadable(util::StreamPtr sock)
     {
 	m_parent->m_scheduler->WaitForReadable(
-	    Bind<DataTask,&DataTask::OnActivity>(DataTaskPtr(this)),
+	    Bind(DataTaskPtr(this)).To<&DataTask::OnActivity>(),
 	    sock.get());
     }
 
-    void WaitForWritable(StreamPtr sock)
+    void WaitForWritable(util::StreamPtr sock)
     {
 	m_parent->m_scheduler->WaitForWritable(
-	    Bind<DataTask,&DataTask::OnActivity>(DataTaskPtr(this)),
+	    Bind(DataTaskPtr(this)).To<&DataTask::OnActivity>(),
 	    sock.get());
     }
 
@@ -116,7 +118,7 @@ class Server::DataTask: public util::Task
     unsigned OnActivity()
     {
 	m_parent->m_pool->PushTask(
-	    Bind<DataTask,&DataTask::Run>(DataTaskPtr(this)));
+	    Bind(DataTaskPtr(this)).To<&DataTask::Run>());
 	return 0;
     }
 
@@ -134,7 +136,7 @@ public:
 TaskCallback Server::DataTask::Create(Server *parent, StreamSocketPtr client)
 {
     DataTaskPtr ptr(new DataTask(parent, client));
-    return util::Bind<DataTask,&DataTask::Run>(ptr);
+    return util::Bind(ptr).To<&DataTask::Run>();
 }
 
 Server::DataTask::DataTask(Server *parent, StreamSocketPtr client)
@@ -395,6 +397,10 @@ unsigned int Server::DataTask::Run()
 	    }
 	}
 
+	// Signal successful completion with a 0-byte write
+	if (m_rs.body_sink)
+	    rc = m_rs.body_sink->Write(&remain, 0, &remain);
+
 	m_rs.body_sink.reset(NULL);
 	m_headers.clear();
 
@@ -402,7 +408,10 @@ unsigned int Server::DataTask::Run()
 
 	if (!m_rs.ssp)
 	{
-	    m_headers = "HTTP/1.1 404 Not Found\r\n";
+	    if (m_rs.status_line)
+		m_headers = m_rs.status_line;
+	    else
+		m_headers = "HTTP/1.1 404 Not Found\r\n";
 	    StringStreamPtr ssp = StringStream::Create();
 	    ssp->str() = "<i>404, dude, it's just not there</i>";
 	    m_rs.ssp = ssp;
@@ -438,11 +447,18 @@ unsigned int Server::DataTask::Run()
 		}
 	    }
 
-	    if (m_entity.do_range)
-		m_headers = "HTTP/1.1 206 OK But A Bit Partial\r\n";
+	    if (m_rs.status_line)
+		m_headers = m_rs.status_line;
 	    else
-		m_headers = "HTTP/1.1 200 OK\r\n";
+	    {
+		if (m_entity.do_range)
+		    m_headers = "HTTP/1.1 206 OK But A Bit Partial\r\n";
+		else
+		    m_headers = "HTTP/1.1 200 OK\r\n";
+	    }
 	}
+
+//	TRACE << "Initial headers " << m_headers;
 	
 	time_t now = ::time(NULL);
 	struct tm bdtime = *gmtime(&now);
@@ -682,7 +698,7 @@ public:
     static TaskCallback Create(Server *parent, StreamSocketPtr socket)
     {
 	AcceptorTaskPtr ptr(new AcceptorTask(parent, socket));
-	return util::Bind<AcceptorTask,&AcceptorTask::Run>(ptr);
+	return util::Bind(ptr).To<&AcceptorTask::Run>();
     }
 
     ~AcceptorTask()
@@ -795,6 +811,14 @@ void Server::StreamForPath(const Request *rq, Response *rs)
 	bool taken = (*i)->StreamForPath(rq, rs);
 	if (taken)
 	    return;
+    }
+
+    if (rq->verb == "OPTIONS")
+    {
+	/* We don't support any options, but send 200 and an empty
+	 * body to say so.
+	 */
+	rs->ssp = util::StringStream::Create();
     }
 }
 
@@ -943,7 +967,7 @@ int main(int, char*[])
     for (unsigned int i=0; i<NUM_CLIENTS; ++i)
     {
 	tasks[i].reset(new FetchTask(&hc, url, &poller, i));
-	client_threads.PushTask(util::Bind<FetchTask,&FetchTask::Run>(tasks[i]));
+	client_threads.PushTask(util::Bind(tasks[i]).To<&FetchTask::Run>());
     }
 
     time_t start = time(NULL);

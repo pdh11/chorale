@@ -65,7 +65,7 @@ void BrowseWidget::SetNode(mediatree::NodePtr np)
 QStringList BrowseWidget::mimeTypes() const
 {
     QStringList qsl;
-    qsl << "application/x-chorale-ids";
+    qsl << QString::fromUtf8("application/x-chorale-ids");
     return qsl;
 }
 
@@ -93,7 +93,7 @@ QMimeData *BrowseWidget::mimeData(const QList<QListWidgetItem*> items) const
     memcpy(a.data(), &idpv[0], idpv.size() * sizeof(IDPair));
 
     QMimeData *md = new QMimeData;
-    md->setData("application/x-chorale-ids", a);
+    md->setData(QString::fromUtf8("application/x-chorale-ids"), a);
     return md;
 }
 

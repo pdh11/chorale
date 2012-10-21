@@ -6,6 +6,10 @@ SRCS:=\
 	registry.cpp \
 	upnpav.cpp
 
+ifeq ($(DARWIN),yes)
+SRCS += avfoundation.mm
+endif
+
 TEST_SRCS:=\
 	queue.cpp
 

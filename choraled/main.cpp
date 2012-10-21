@@ -117,18 +117,18 @@ int Main(const Settings *settings, Complaints *complaints)
     
     db::merge::Database mergedb;
     util::http::Client wc;
+    util::BackgroundScheduler poller;
 
 #if HAVE_TAGLIB
     LocalDatabase localdb(&wc);
     if (settings->flags & LOCAL_DB)
     {
-	localdb.Init(settings->media_root, settings->flac_root, &wtp_low,
-		     settings->database_file);
+	localdb.Init(settings->media_root, settings->flac_root, &poller,
+		     &wtp_low, settings->database_file);
 	mergedb.AddDatabase(localdb.Get());
     }
 #endif
 
-    util::BackgroundScheduler poller;
     util::BackgroundScheduler tp_real_time;
     wtp_real_time.PushTask(util::SchedulerTask::Create(&tp_real_time));
 

@@ -74,6 +74,7 @@ enum {
     VIDEO,
     RADIO,
     TV,
+    QUERY,   ///< Not found in actual databases, but used by libmediatree
 
     PENDING, ///< Placeholder for a future recording
 

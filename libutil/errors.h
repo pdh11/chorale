@@ -17,6 +17,9 @@ enum {
 #ifndef HAVE_EALREADY
     EALREADY,
 #endif
+#ifndef HAVE_ECANCELED
+    ECANCELED,
+#endif
 #ifndef HAVE_EOPNOTSUPP
     EOPNOTSUPP,
 #endif

@@ -17,7 +17,8 @@ util::TaskCallback TagRenameTask::Create(const std::string& oldname,
 				    const std::string& newname,
 				    db::RecordsetPtr tags)
 {
-    return util::Bind<TagRenameTask,&TagRenameTask::Run>(TaskPtr(new TagRenameTask(oldname, newname, tags)));
+    TaskPtr t(new TagRenameTask(oldname, newname, tags));
+    return util::Bind(t).To<&TagRenameTask::Run>();
 }
 
 unsigned int TagRenameTask::Run()
