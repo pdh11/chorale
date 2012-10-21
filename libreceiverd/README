@@ -25,43 +25,48 @@ http://www.digitalnetworksna.com/support/rio/product.asp?prodID=99&locSup=USA
 (At time of writing, April 2008, it still can! which is frankly
 admirable on D&M's part for a product discontinued in 2003.)
 
-If you use the Windows network-boot server with choraled, you should
-start choraled with the "-n" or "--no-nfs" option. You should also
-disable the music server in Audio Receiver Manager: Rio Receivers have
-no UI for choosing between music servers, so they always pick the
-first one they find, which in practice means you can only have one on
-the network.
+You should install Audio Receiver Manager before installing Chorale,
+but -- as Receivers can only work with one server at a time -- you
+should then *disable* (not uninstall) Audio Receiver Manager by removing
+it from the Start->Programs->Startup menu.
+
+Chorale for Windows reads the registry entries left by Audio Receiver
+Manager, in order to find the firmware files -- hence there is no
+equivalent of Linux choraled's "-w" or "--arf" options.
 
 
 Network-boot setup, Linux or similar
 ------------------------------------
 
-Rio/Sonicblue/Empeg never officially supported this, but, as various
-third-parties figured out, it can be made to work. Rio Receivers run
-ARM Linux, and the network-boot process is much like that of a Linux
-or other Unix diskless workstation. (But simplified -- the Receiver's
-kernel is kept in Flash memory inside the device, so no TFTP stage is
-needed.)
+Again, the only legal way to obtain the file "receiver.arf" is to find
+a Windows PC and install the original Windows server software on it,
+see above. In a default install, the file will be at
 
-You need to set up an NFS server and a DHCP server, and you also need
-to obtain the root filesystem image, "mercury.arf". The only legal way
-to obtain the file "mercury.arf" is to find a Windows PC and install
-the original Windows server software on it, see above.
+	C:\Program Files\Audio Receiver\receiver.arf
 
-A good guide to the process is here:
-http://jreceiver.sourceforge.net/rio/jrec-install-rio.html
+You should copy this file to $(PREFIX)/share/chorale on your Linux
+server. So, if you install Chorale with prefix /usr, the full path
+should be /usr/share/chorale/receiver.arf.
+
+If you install it elsewhere, you can tell choraled about it with the
+option "--arf=PATHNAME".
+
+Alternatively, Chorale also supports booting Receivers using "real"
+NFS diskless booting; setting that up is too complex to explain here
+but a guide is at:
+
+        http://jreceiver.sourceforge.net/rio/jrec-install-rio.html
 
 That guide is aimed at setting up an alternative server, J-Receiver,
 but most of the information is generic. Follow the steps down to, and
 including, "NFS Server Test".
 
 Another, much terser, guide is here:
-http://www.mock.com/receiver/server/
 
-If you set up network booting on the same server which runs choraled,
-choraled's defaults will be correct. If for some reason the boot
-server is a different PC, you should start choraled with the option
-"--nfs=<ip-address-of-boot-server>".
+        http://www.mock.com/receiver/server/
+
+If you set up NFS network booting, you should start choraled with the
+option "--nfs=<ip-address-of-boot-server>".
 
 
 Network-boot setup, Rio Central
@@ -78,10 +83,12 @@ Layout files
 
 For some reason, Rio Receivers store their screen layouts as files on
 the music server, and don't have any built-in fallback. So you need to
-find the "layouts" directory in a Windows installation of Audio
-Receiver Manager, and copy it to $(PREFIX)/share/chorale/layout on
-your music server. So, if you install Chorale with prefix /usr, you
-should have files such as /usr/share/chorale/layout/en_UK/big_title.
+find the "Layout" directory in a Windows installation of Audio
+Receiver Manager -- in a default install, it will be
+	C:\Program Files\Audio Receiver\Layout
+-- and copy it to $(PREFIX)/share/chorale/layout on your music
+server. So, if you install Chorale with prefix /usr, you should have
+files such as /usr/share/chorale/layout/en_UK/big_title.
 
 The symptom of getting this wrong, is that the menus all work on the
 Receiver, but nothing appears on the display once playback starts.

@@ -1,0 +1,12 @@
+
+2008-Jun-06: Version 0.11 released; changes since 0.10:
+
+	* libreceiverd: Add NFS server for Rio Receivers
+	* libempeg, libdbempeg: New Empeg-Car access libraries
+	* choraled: Remove --no-nfs, add --arf
+	* choraled: -p 12078 is now the default
+	* choraled: Remove dependency on libxml++
+	* choraled: choralesvc for Windows
+	* configure: Add --without-lgpl and --without-gpl
+	
+2008-Apr-28: First public release, version 0.10

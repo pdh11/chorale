@@ -144,7 +144,7 @@ int TreeModel::rowCount(const QModelIndex &parent) const
     parentItem->GetChild(0);
 
 //    TRACE << parentItem->children.size() << "\n";
-    return parentItem->children.size();
+    return (int)parentItem->children.size();
 }
 
 bool TreeModel::hasChildren(const QModelIndex& parent) const

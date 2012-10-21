@@ -75,55 +75,55 @@ protected:
  * You only need a non-empty LockingPolicy if your list of observers might be
  * changed while a call is happening.
  */
-template <class Observer, class StoragePolicy=ObserverList<Observer>,
+template <class Observer, template<class Obs> class StoragePolicy=ObserverList,
 	  class LockingPolicy=PerObjectLocking>
-class Observable: public StoragePolicy, public LockingPolicy
+class Observable: private StoragePolicy<Observer>, private LockingPolicy
 {
 public:
     void AddObserver(Observer *obs)
     {
-	typename LockingPolicy::Lock(this);
-	StoragePolicy::AddObserver(obs);
+	typename LockingPolicy::Lock lock(this);
+	StoragePolicy<Observer>::AddObserver(obs);
     }
 
     void RemoveObserver(Observer *obs)
     {
-	typename LockingPolicy::Lock(this);
-	StoragePolicy::RemoveObserver(obs);
+	typename LockingPolicy::Lock lock(this);
+	StoragePolicy<Observer>::RemoveObserver(obs);
     }
 
     template <typename T1, typename T2>
     void Fire(void (Observer::*fn)(T1, T2), T1 t1, T2 t2)
     {
-	typename LockingPolicy::Lock(this);
-	StoragePolicy::Apply(boost::bind(fn, _1, t1, t2));
+	typename LockingPolicy::Lock lock(this);
+	StoragePolicy<Observer>::Apply(boost::bind(fn, _1, t1, t2));
     }
 
     template <typename T1, typename T2>
     void Fire(void (Observer::*fn)(T1, const T2&), T1 t1, const T2& t2)
     {
-	typename LockingPolicy::Lock(this);
-	StoragePolicy::Apply(boost::bind(fn, _1, t1, boost::cref(t2)));
+	typename LockingPolicy::Lock lock(this);
+	StoragePolicy<Observer>::Apply(boost::bind(fn, _1, t1, boost::cref(t2)));
     }
 
     template <typename T>
     void Fire(void (Observer::*fn)(T), T t)
     {
-	typename LockingPolicy::Lock(this);
-	StoragePolicy::Apply(boost::bind(fn, _1, t));
+	typename LockingPolicy::Lock lock(this);
+	StoragePolicy<Observer>::Apply(boost::bind(fn, _1, t));
     }
 
     template <typename T>
     void Fire(void (Observer::*fn)(const T&), const T& t)
     {
-	typename LockingPolicy::Lock(this);
-	StoragePolicy::Apply(boost::bind(fn, _1, boost::cref(t)));
+	typename LockingPolicy::Lock lock(this);
+	StoragePolicy<Observer>::Apply(boost::bind(fn, _1, boost::cref(t)));
     }
 
     void Fire(void (Observer::*fn)(void))
     {
-	typename LockingPolicy::Lock(this);
-	StoragePolicy::Apply(boost::mem_fn(fn));
+	typename LockingPolicy::Lock lock(this);
+	StoragePolicy<Observer>::Apply(boost::mem_fn(fn));
     }
 };
 

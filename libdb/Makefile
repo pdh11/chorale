@@ -17,7 +17,7 @@ all-db: $(libdb)
 
 DB_OBJS:=$(LOBJS)
 
-$(TOP)$(DIR)% : CXXFLAGS += $(BOOST_CXXFLAGS) $(LIBXMLPP_CXXFLAGS)
+$(TOP)$(DIR)% : CXXFLAGS += $(BOOST_CXXFLAGS)
 
 $(libdb): $(DB_OBJS)
 	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \

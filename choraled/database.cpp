@@ -25,6 +25,7 @@ Database::Database()
 		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
 }
 
+#ifdef HAVE_DB
 unsigned int Database::Init(const std::string& loroot,
 			    const std::string& hiroot,
 			    util::TaskQueue *queue, 
@@ -32,3 +33,4 @@ unsigned int Database::Init(const std::string& loroot,
 {
     return m_ifs.Init(loroot, hiroot, &m_ldb, queue, dbfilename);
 }
+#endif

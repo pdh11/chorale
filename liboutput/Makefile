@@ -22,8 +22,7 @@ liboutput:=$(TOP)$(DIR)$(TARGETDIR)liboutput.la
 all-liboutput: $(liboutput)
 
 $(TOP)$(DIR)% : CXXFLAGS += $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) \
-	$(LIBCDIOP_CXXFLAGS) $(LIBXMLPP_CXXFLAGS) \
-	$(GSTREAMER_CXXFLAGS)
+	$(LIBCDIOP_CXXFLAGS) $(GSTREAMER_CXXFLAGS)
 
 ifeq ($(libutil),)
 include $(TOP)libutil/Makefile

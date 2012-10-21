@@ -49,6 +49,7 @@ unsigned int PollerCore::SetUpArray(const std::map<int,Pollable*> *pollables,
 //		TRACE << "Waiting on fd " << j->first << " events "
 //		      << events << "\n";
 	m_array[i].events = events;
+	m_array[i].revents = 0;
 	++i;
     }
 

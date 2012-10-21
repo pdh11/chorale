@@ -1,17 +1,14 @@
-#include "config.h"
 #include "playlist_asx.h"
 #include "libutil/trace.h"
 #include "libutil/file.h"
+#include "libutil/file_stream.h"
 #include "libutil/xmlescape.h"
-
-#ifdef HAVE_LIBXMLPP
-
-#include <libxml++/libxml++.h>
+#include "libutil/xml.h"
 #include <errno.h>
 
 namespace import {
 
-class PlaylistASXParser: public xmlpp::SaxParser
+class PlaylistASXParser: public xml::SaxParserObserver
 {
     Playlist *m_playlist;
     size_t m_index;
@@ -22,39 +19,29 @@ public:
 	  m_index(0)
 	{}
 
-    void on_start_element(const Glib::ustring& name,
-			  const AttributeList& properties)
-	{
-	    if (name == "ref")
-	    {
-		for (AttributeList::const_iterator i = properties.begin();
-		     i != properties.end();
-		     ++i)
-		{
-		    if (i->name == "href")
-		    {
-			m_playlist->SetEntry(m_index++,
-					     util::MakeAbsolutePath(
-						 m_playlist->GetFilename(),
-						 i->value));
-		    }
-		}
-	    }
-	}
+    // Being an xml::SaxParserObserver
+    unsigned int OnAttribute(const char *name, const char *value)
+    {
+	if (!strcasecmp(name, "href"))
+	    m_playlist->SetEntry(m_index++,
+				 util::MakeAbsolutePath(
+				     m_playlist->GetFilename(),
+				     value));
+	return 0;
+    }
 };
 
 unsigned int PlaylistASX::Load()
 {
-    try
-    {
-	PlaylistASXParser parser(this);
-	parser.set_substitute_entities(true);
-	parser.parse_file(GetFilename());
-    }
-    catch (...)
-    {
-    }
-    return 0;
+    util::SeekableStreamPtr ss;
+    unsigned int rc = util::OpenFileStream(GetFilename().c_str(), util::READ,
+					   &ss);
+    if (rc != 0)
+	return rc;
+
+    PlaylistASXParser obs(this);
+    xml::SaxParser parser(&obs);
+    return parser.Parse(ss);
 }
 
 unsigned int PlaylistASX::Save()
@@ -82,4 +69,48 @@ unsigned int PlaylistASX::Save()
 
 } // namespace import
 
-#endif // HAVE_LIBXMLPP
+#ifdef TEST
+
+static const char *const tests[] = {
+    "sibling.mp3",
+    "foo/child.mp3",
+    "../aunt.mp3",
+    "X&Y.mp3",
+    "X<>Y.mp3",
+    "Sigur R\xc3\xb3s.mp3"
+};
+
+enum { TESTS = sizeof(tests)/sizeof(tests[0]) };
+
+int main()
+{
+    std::string asxname = util::Canonicalise("test.asx");
+    import::PlaylistPtr pp = import::Playlist::Create(asxname);
+
+    for (unsigned int i=0; i<TESTS; ++i)
+    {
+	pp->SetEntry(i, util::MakeAbsolutePath(asxname, tests[i]));
+    }
+    unsigned int rc = pp->Save();
+    assert(rc == 0);
+
+    pp = NULL;
+    pp = import::Playlist::Create(asxname);
+    rc = pp->Load();
+    assert(rc == 0);
+
+    assert(pp->GetLength() == TESTS);
+
+    for (unsigned int i=0; i<TESTS; ++i)
+    {
+	assert(pp->GetEntry(i) == util::MakeAbsolutePath(asxname, tests[i]));
+    }
+
+    pp = NULL;
+    
+    unlink(asxname.c_str());
+
+    return 0;
+}
+
+#endif

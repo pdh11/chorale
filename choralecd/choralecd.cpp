@@ -10,6 +10,8 @@
 #include "choralecd/features.h"
 #include <qapplication.h>
 #include <qpixmap.h>
+#include <QPlastiqueStyle>
+#include <QCleanlooksStyle>
 #include "main_window.h"
 #include "settings.h"
 #include "libutil/cpus.h"
@@ -20,6 +22,7 @@
 #include "libimport/cd_drives.h"
 #include "libreceiver/ssdp.h"
 #include "libdbreceiver/db.h"
+#include "libempeg/discovery.h"
 #include "libmediadb/registry.h"
 #include "poller.h"
 #include "cd_widget.h"
@@ -28,6 +31,7 @@
 #include <memory>
 
 #include "imagery/cd.xpm"
+#include "imagery/empeg.xpm"
 #include "imagery/folder.xpm"
 #include "imagery/network.xpm"
 #include "imagery/output.xpm"
@@ -35,6 +39,8 @@
 int main(int argc, char *argv[])
 {
     QApplication app( argc, argv );
+
+//    app.setStyle(new QCleanlooksStyle);
 
     Settings settings;
     util::WorkerThreadPool cpu_pool(util::CountCPUs()*2);
@@ -91,19 +97,17 @@ int main(int argc, char *argv[])
     choraleqt::UpnpOutputWidgetFactory uowf(&output_pixmap, &registry,
 					    &poller);
     mainwin->AddWidgetFactory(&uowf);
-    TRACE << "Calling uc.init\n";
+//    TRACE << "Calling uc.init\n";
     uclient.Init(util::ssdp::s_uuid_avtransport, &uowf);
-    TRACE << "uc.init done\n";
+//    TRACE << "uc.init done\n";
 #endif
 
     QPixmap network_pixmap((const char**)network_xpm);
-#ifdef HAVE_LIBDBRECEIVER
     choraleqt::ReceiverDBWidgetFactory rdbwf(&network_pixmap, &registry);
     mainwin->AddWidgetFactory(&rdbwf);
 
     receiver::ssdp::Client client;
     client.Init(&poller, receiver::ssdp::s_uuid_musicserver, &rdbwf);
-#endif
 
 #ifdef HAVE_LIBDBUPNP
     choraleqt::UpnpDBWidgetFactory udbwf(&network_pixmap, &registry);
@@ -117,6 +121,13 @@ int main(int argc, char *argv[])
     mainwin->AddWidgetFactory(&ucdwf);
     uclient.Init(util::ssdp::s_uuid_opticaldrive, &ucdwf);
 #endif
+
+    QPixmap empeg_pixmap((const char**)empeg_xpm);
+    choraleqt::EmpegDBWidgetFactory edbwf(&empeg_pixmap, &registry);
+    mainwin->AddWidgetFactory(&edbwf);
+
+    empeg::Discovery edisc;
+    edisc.Init(&poller, &edbwf);
 
     mainwin->show();
     int rc = app.exec();

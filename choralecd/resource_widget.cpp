@@ -32,7 +32,7 @@ ResourceWidget::ResourceWidget(QWidget *parent, const std::string& label,
     hl->addLayout(left);
     hl->addStretch(10);
 
-    left->addStretch(10);
+    left->addStretch(1);
 
     QLabel *cdlabel = new QLabel(this);
     cdlabel->setPixmap(pm);
@@ -44,7 +44,7 @@ ResourceWidget::ResourceWidget(QWidget *parent, const std::string& label,
     cdlabel2->setText(QString::fromUtf8(label.c_str()));
     left->addWidget(cdlabel2, 1, Qt::AlignCenter);
 
-    left->addStretch(10);
+    left->addStretch(1);
     
     QVBoxLayout *right = new QVBoxLayout();
     hl->addLayout(right);

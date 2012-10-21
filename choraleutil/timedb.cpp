@@ -1,4 +1,3 @@
-#include "config.h"
 #include "libdbsteam/db.h"
 #include "libmediadb/xml.h"
 #include "libmediadb/schema.h"

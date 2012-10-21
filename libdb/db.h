@@ -27,7 +27,7 @@ typedef unsigned int field_t;
  * accessed via cursors, it's simpler to elide cursor->record->getfield into
  * just cursor->getfield.
  */
-class Recordset: public CountedObject
+class Recordset: public util::CountedObject<>
 {
 public:
     virtual ~Recordset() {}
@@ -68,7 +68,7 @@ enum RestrictionType
  * Query implementation. If yours sometimes don't, override them, make
  * your checks, then call the base-class (Query) version.
  */
-class Query: public CountedObject
+class Query: public util::CountedObject<>
 {
 public:
     struct Restriction {

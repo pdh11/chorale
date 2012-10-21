@@ -71,10 +71,18 @@ Poller::Impl::~Impl()
 //    free(m_array);
 }
 
+#undef IN
+#undef OUT
+
 void Poller::Impl::AddHandle(int fd, Pollable *callback,
 			     unsigned int direction)
 {
     boost::mutex::scoped_lock lock(m_mutex);
+
+    if (direction < 1 || direction > 3)
+    {
+	TRACE << "Bogus direction " << direction << "\n";
+    }
 
     m_directions[fd] = direction;
     m_handles[fd] = callback;
@@ -168,8 +176,8 @@ unsigned Poller::Impl::Poll(unsigned int timeout_ms)
 	    {
 		timeout_ms = (unsigned)(m_timers.front().t - nowms);
 
-//		TRACE << "Adjusted timeout to " << timeout_ms << " nowms="
-//		      << nowms << "\n";
+		TRACE << "Adjusted timeout to " << timeout_ms << " nowms="
+		      << nowms << "\n";
 
 		// Wake up every ten minutes anyway, just in case
 		if (timeout_ms > 600000)
@@ -180,12 +188,13 @@ unsigned Poller::Impl::Poll(unsigned int timeout_ms)
 
 //    int rc = ::poll(m_array, nfds, (int)timeout_ms);
 
-//    TRACE << "polled " << rc << "\n";
-
 //    if (rc < 0)
 //	return (unsigned)errno;
 
     unsigned int rc = m_core.Poll(timeout_ms);
+
+//    TRACE << "polled " << rc << "\n";
+
     if (rc != 0)
 	return rc;
 

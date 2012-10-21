@@ -8,8 +8,8 @@ choralecd: Finish coloured slots (CDWindow)
 choralecd: Source renaming
 choralecd: track vs folder icons in browse window
 choralecd: check settings window
-DBus/Hal
 Shut down web server in mid-copy (polling copy?)
+once lgpl cdparanoia 10 released: switch from libcdio
 
   1.0
   ---
@@ -34,7 +34,6 @@ investigate optimisation with throw()
   ---
 NF2 genre
 more-homemade audio out (gapless, RG)
-more-homemade XML parser (instead of needing IXML *and* libxml++)
 more-homemade UPnP classes (instead of using IXML_Parse everywhere)
 empeg sync
 MSC sync

@@ -1,6 +1,7 @@
 #include "file_win32.h"
 #include "file.h"
 #include "utf8.h"
+#include "trace.h"
 
 #ifdef WIN32
 
@@ -40,36 +41,53 @@ std::string Canonicalise(const std::string& path)
     return path;
 }
 
+static uint32_t FileTimeToTimeT(const FILETIME& ft)
+{
+    uint64_t ftt = ((uint64_t)ft.dwHighDateTime << 32) + ft.dwLowDateTime;
+    return (uint32_t)(( ftt - 0x19DB1DED53E8000ull ) / 10000000ull);
+}
+
 unsigned int ReadDirectory(const std::string& path, 
 			   std::vector<Dirent> *entries)
 {
     entries->clear();
 
-    std::wstring utf16 = UTF8ToUTF16(path);
-    std::wstring utf16find = utf16;
-    utf16find += (utf16_t)'/';
-    utf16find += (utf16_t)'*';
+//    TRACE << "Reading '" << path << "'\n";
 
-    struct _wfinddatai64_t ffd;
+    std::wstring ux16(UTF8ToUTF16(path));
+    std::wstring utf16find(ux16 + L"/*");
 
-    intptr_t handle = ::_wfindfirsti64(utf16find.c_str(), &ffd);
+    WIN32_FIND_DATAW ffd;
 
-    if (handle == (intptr_t)-1)
-	return (unsigned)errno;
+    HANDLE handle = ::FindFirstFileW(utf16find.c_str(), &ffd);
+
+    if (handle == INVALID_HANDLE_VALUE)
+    {
+	unsigned int rc = GetLastError();
+	TRACE << "Can't open dir: " << rc << "\n";
+	return rc;
+    }
 
     do {
 	Dirent d;
-	d.name = UTF16ToUTF8(ffd.name);
+	d.name = UTF16ToUTF8(ffd.cFileName);
+
+	if (d.name == ".." || d.name == ".")
+	    continue;
+
+	TRACE << "  /" << d.name << "\n";
+
+	d.st.st_size = ffd.nFileSizeLow;
+	d.st.st_mtime = FileTimeToTimeT(ffd.ftLastWriteTime);
+	if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+	    d.st.st_mode = 0755 | S_IFDIR; 
+	else
+	    d.st.st_mode = 0644 | S_IFREG;
 	
-	utf16string childpath = utf16;
-	childpath += (utf16_t)'/';
-	childpath += ffd.name;
-	::_wstat(childpath.c_str(), (struct _stat*)&d.st);
 	entries->push_back(d);
-
-    } while (::_wfindnexti64(handle, &ffd) == 0);
-
-    _findclose(handle);
+    } while (::FindNextFileW(handle, &ffd) != 0);
+    
+    ::FindClose(handle);
 
     return 0;
 }

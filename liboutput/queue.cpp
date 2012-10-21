@@ -4,6 +4,7 @@
 #include "libutil/observable.h"
 #include "libmediadb/db.h"
 #include "libmediadb/schema.h"
+#include "libmediadb/registry.h"
 #include "libupnp/didl.h"
 #include <vector>
 

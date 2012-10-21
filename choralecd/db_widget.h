@@ -7,6 +7,7 @@
 #include "resource_widget.h"
 #include "libreceiver/ssdp.h"
 #include "libutil/ssdp.h"
+#include "libempeg/discovery.h"
 
 namespace mediadb { class Database; }
 namespace mediadb { class Registry; }
@@ -68,6 +69,25 @@ public:
 
     // Being a util::ssdp::Client::Callback
     void OnService(const std::string& url, const std::string& udn);
+};
+
+/** A WidgetFactory which creates DBWidget items for Empeg car-players.
+ */
+class EmpegDBWidgetFactory: public WidgetFactory,
+			    public empeg::Discovery::Callback
+{
+    QPixmap *m_pixmap;
+    QWidget *m_parent;
+    mediadb::Registry *m_registry;
+
+public:
+    EmpegDBWidgetFactory(QPixmap*, mediadb::Registry *m_registry);
+
+    // Being a WidgetFactory
+    void CreateWidgets(QWidget *parent);
+
+    // Being a Discovery::Callback
+    void OnDiscoveredEmpeg(const util::IPAddress&, const std::string&);
 };
 
 } // namespace choraleqt

@@ -48,10 +48,6 @@ LIBFLAC_LIBS     := @LIBFLAC_LIBS@
 LAME              := @LAME@
 LAME_LIBS         := @LAME_LIBS@
 
-LIBXMLPP          := @LIBXMLPP@
-LIBXMLPP_CXXFLAGS := @LIBXMLPP_CFLAGS@
-LIBXMLPP_LIBS     := @LIBXMLPP_LIBS@
-
 MPG123_CXXFLAGS   := @MPG123_CFLAGS@
 MPG123_LIBS       := @MPG123_LIBS@
 
@@ -82,6 +78,7 @@ LIBTOOL:=@LIBTOOL@
 CXX:=@CXX@
 LIBS:=@LIBS@
 FINAL:=@FINAL@
+STRIP:=@STRIP@
 
 # Overridable on 'make' command line, see Autoconf manual 4.7.2
 prefix=@prefix@

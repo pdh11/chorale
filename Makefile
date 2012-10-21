@@ -49,7 +49,7 @@ doc:
 
 distclean: clean
 	rm -rf config.*.h Make.config.*-* stamp-h config.log config.status \
-		autom4te.cache libtool.*
+		autom4te.cache libtool.* libtool
 	find . -name diff.txt -exec rm -f \{} \;
 	find . -name map.txt -exec rm -f \{} \;
 	find . -name '*.dep' -exec rm -f \{} \;
@@ -100,8 +100,24 @@ release: distclean
 		 .
 	bzip2 -9 $(CHORALE).tar
 
+winrelease: all
+	rm -f $(CHORALE)-win32.zip
+	rm -rf wintemp
+	mkdir -p wintemp
+	cp $(TOP)choraled/choralesvc.exe wintemp
+	cp /usr/i586-mingw32/bin/mingwm10.dll wintemp
+	zip -j -m -r $(CHORALE)-win32.zip wintemp
+	mkdir -p wintemp
+	cp $(TOP)README       wintemp/README.TXT
+	cp $(TOP)INSTALL.WIN32 wintemp/INSTALL.TXT
+	cp $(TOP)COPYING      wintemp/COPYING.TXT
+	cp $(TOP)COPYING.GPL  wintemp/COPYING.GPL.TXT
+	cp $(TOP)COPYING.LGPL wintemp/COPYING.LGPL.TXT
+	cp $(TOP)libreceiverd/README wintemp/README.receiver.TXT
+	zip -j -m -r -l $(CHORALE)-win32.zip wintemp
+
 SUBDIRS:= libdb libdbreceiver libimport libmediatree libreceiver \
-	libdbsteam libutil choraled choralecd libupnpd \
+	libdbsteam libutil choraled choralecd libupnpd libempeg libdbempeg \
 	libmediadb libreceiverd liboutput choraleutil libupnp libdbupnp libtv
 
 libdeps.dot: Makefile

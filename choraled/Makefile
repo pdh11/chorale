@@ -4,6 +4,7 @@ SRCS:=  cd.cpp \
 	choraled.cpp \
 	choralesvc.cpp \
 	database.cpp \
+	nfs.cpp \
 	web.cpp
 
 all-choraled:
@@ -73,14 +74,14 @@ $(choraled): $(libchoraled) $(libtv) \
 		$(libdbsteam) $(libdb) $(libutil) $(libmediadb) \
 		$(libupnpd) $(libupnp) $(liboutput) Makefile
 	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
-		$(CXX) -o $@-lib $(TOP)choraled/$(TARGETDIR)$(CHORALED_MAIN).lo \
+		$(CXX) -o $@-lib $(LDFLAGS) $(TOP)choraled/$(TARGETDIR)$(CHORALED_MAIN).lo \
 		-Wl,-Map,map.txt \
 		$(libchoraled) $(libtv) \
 		$(libreceiverd) $(libreceiver) $(libupnpd) $(libupnp) \
 		$(liboutput) \
 		$(libimport) $(libdbsteam) $(libmediadb) $(libdb) $(libutil) \
 		-Wl,--as-needed $(MPG123_LIBS) \
-		$(TAGLIB_LIBS) $(BOOST_LIBS) $(UPNP_LIBS) $(LIBXMLPP_LIBS) \
+		$(TAGLIB_LIBS) $(BOOST_LIBS) $(UPNP_LIBS) \
 		$(GSTREAMER_LIBS) $(HAL_LIBS) $(LIBCDIOP_LIBS) $(LIBS)
 ifeq ($(FINAL),no)
 	@mv -f $@-lib $@
@@ -91,7 +92,7 @@ else
 		-include $@.all-$(FULLTARGET).h -E -dD \
 		-C $(TOP)choraled/$(CHORALED_MAIN).cpp \
 		-o $@.all-$(FULLTARGET).i -fwhole-program $(BOOST_CXXFLAGS) \
-		$(TAGLIB_CXXFLAGS) $(LIBXMLPP_CXXFLAGS) $(UPNP_CXXFLAGS) \
+		$(TAGLIB_CXXFLAGS) $(UPNP_CXXFLAGS) \
 		$(DBUS_CXXFLAGS) $(HAL_CXXFLAGS) $(GSTREAMER_CXXFLAGS) &
 	$(CC_PRE)libtool --tag=CXX --mode=compile --silent \
 		$(CXX) $(CXXFLAGS) -I$(TOP). \
@@ -99,7 +100,7 @@ else
 		-c $(TOP)choraled/$(CHORALED_MAIN).cpp \
 		-o $(TOP)choraled/$(TARGETDIR)all-cpp.lo \
 		-fwhole-program $(BOOST_CXXFLAGS) \
-		$(TAGLIB_CXXFLAGS) $(LIBXMLPP_CXXFLAGS) $(UPNP_CXXFLAGS) \
+		$(TAGLIB_CXXFLAGS) $(UPNP_CXXFLAGS) \
 		$(DBUS_CXXFLAGS) $(HAL_CXXFLAGS) $(GSTREAMER_CXXFLAGS)
 	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
 		$(CXX) -o $@ $(TOP)choraled/$(TARGETDIR)all-cpp.lo \
@@ -109,9 +110,10 @@ else
 		$(liboutput) \
 		$(libimport) $(libdbsteam) $(libmediadb) $(libdb) $(libutil) \
 		-Wl,--as-needed $(MPG123_LIBS) \
-		$(TAGLIB_LIBS) $(BOOST_LIBS) $(UPNP_LIBS) $(LIBXMLPP_LIBS) \
+		$(TAGLIB_LIBS) $(BOOST_LIBS) $(UPNP_LIBS) \
 		$(GSTREAMER_LIBS) $(HAL_LIBS) $(LIBCDIOP_LIBS) $(LIBS)
 endif
+	@$(STRIP) $@
 	@echo $@: `ldd $@ | wc -l` shared libraries | fmt
 
 CLEANS += $(CHORALED_DIR)choraled $(CHORALED_DIR)choralesvc.exe \

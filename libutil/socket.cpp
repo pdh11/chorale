@@ -6,6 +6,7 @@
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <mswsock.h>
 typedef int socklen_t;
 #else
 #include <sys/socket.h>
@@ -86,9 +87,13 @@ Socket::~Socket()
 
 int Socket::GetPollHandle(unsigned int direction)
 {
+    if (direction < 1 || direction > 3)
+    {
+	TRACE << "Bogus direction " << direction << "\n";
+    }
 #ifdef WIN32
     if (!m_event)
-	m_event = WSACreateEvent();
+	m_event = CreateEvent(NULL, false, false, NULL);
     long events = 0;
     if (direction & PollerInterface::IN)
 	events |= FD_READ | FD_ACCEPT;
@@ -197,6 +202,8 @@ unsigned Socket::WaitForRead(unsigned int ms)
 #ifdef WIN32
     HANDLE handle = (HANDLE)GetPollHandle(PollerInterface::IN);
     DWORD rc = WaitForSingleObject(handle, ms);
+//    TRACE << "WFSO(" << ms << ") returned " << rc << " (WTO=" << WAIT_TIMEOUT
+//	  << " W0=" << WAIT_OBJECT_0 << ")\n";
     if (rc == WAIT_OBJECT_0)
 	return 0;
     if (rc == WAIT_TIMEOUT)
@@ -303,8 +310,27 @@ unsigned Socket::Stream::Write(const void *buffer, size_t len, size_t *pwrote)
 #ifdef WIN32
     if (m_socket->m_event)
 	WSAResetEvent(m_socket->m_event);
-#endif
 
+    ssize_t rc = ::send(m_socket->m_fd, (const char*)buffer, len,
+			MSG_NOSIGNAL);
+
+    if (rc < 0 && WSAGetLastError() == WSAEWOULDBLOCK)
+    {
+	unsigned rc2 = m_socket->WaitForWrite(m_timeout_ms);
+	if (rc2 != 0)
+	    return rc2;
+	rc = ::send(m_socket->m_fd, (const char*)buffer, len, MSG_NOSIGNAL);
+    }
+
+    if (rc < 0)
+    {
+	unsigned rc3 = WSAGetLastError();
+	if (rc3 == WSAEWOULDBLOCK)
+	    rc3 = EWOULDBLOCK;
+	return rc3;
+    }
+    *pwrote = (size_t)rc;
+#else
     ssize_t rc = ::send(m_socket->m_fd, (const char*)buffer, len,
 			MSG_NOSIGNAL);
 
@@ -319,6 +345,7 @@ unsigned Socket::Stream::Write(const void *buffer, size_t len, size_t *pwrote)
     if (rc < 0)
 	return (unsigned int)errno;
     *pwrote = (size_t)rc;
+#endif
     return 0;
 }
 
@@ -481,7 +508,7 @@ unsigned DatagramSocket::Read(void *buffer, size_t buflen, size_t *nread,
 	sockaddr_in sin;
     } u;
     DWORD flags = 0;
-    socklen_t fromlen;
+    socklen_t fromlen = sizeof(u);
     int rc = WSARecvFrom(m_fd, &buf, 1, &bytesread, &flags, &u.sa, &fromlen,
 			 NULL, NULL);
     if (rc != 0)
@@ -494,7 +521,23 @@ unsigned DatagramSocket::Read(void *buffer, size_t buflen, size_t *nread,
     }
 
     if (wasto)
+    {
 	*wasto = IPAddress::ANY;
+	char hostname[256];
+	if (::gethostname(hostname, sizeof(hostname)) == 0)
+	{
+//	    TRACE << "GHN succeeded\n";
+
+	    hostent *phost = ::gethostbyname(hostname);
+	    // In Win32 the storage is system-owned and thread-local
+
+	    if (phost)
+	    {
+		*wasto = IPAddress::FromNetworkOrder(((struct in_addr*)(*phost->h_addr_list))->s_addr);
+//		TRACE << "GHBN succeeded: " << wasto->ToString() << "\n";
+	    }
+	}
+    }
     return 0;
 #else
     union {

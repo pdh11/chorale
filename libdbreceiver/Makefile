@@ -21,7 +21,7 @@ RECEIVERSCAN_OBJS:=$(TOP)$(DIR)$(TARGETDIR)receiverscan.lo
 all-libdbreceiver: $(libdbreceiver) $(receiverscan)
 
 $(TOP)$(DIR)% : CXXFLAGS += $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) \
-	$(LIBCDIOP_CXXFLAGS) $(LIBXMLPP_CXXFLAGS)
+	$(LIBCDIOP_CXXFLAGS)
 
 ifeq ($(libutil),)
 include $(TOP)libutil/Makefile
@@ -45,7 +45,7 @@ $(receiverscan): $(RECEIVERSCAN_OBJS) $(libdbreceiver) $(libreceiver) \
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CXX) -o $@ $(RECEIVERSCAN_OBJS) $(libdbreceiver) \
 		$(libreceiver) $(libmediadb) $(libdb) $(libutil) \
-		$(LIBXMLPP_LIBS) $(BOOST_LIBS) $(CURL_LIBS) $(LIBS)
+		$(BOOST_LIBS) $(CURL_LIBS) $(LIBS)
 
 -include $(RECEIVERSCAN_OBJS:%.lo=%.lo.dep)
 

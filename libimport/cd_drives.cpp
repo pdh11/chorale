@@ -33,7 +33,7 @@ void CDDrives::Refresh()
 	{
 	    char buf[4];
 	    sprintf(buf, "%c:", 'A' + i);
-	    UINT t = ::GetDriveType(buf);
+	    UINT t = ::GetDriveTypeA(buf);
 	    if (t == DRIVE_CDROM)
 	    {
 		if (!m_map.count(buf))

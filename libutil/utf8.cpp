@@ -1,4 +1,5 @@
 #include "utf8.h"
+#include "trace.h"
 
 namespace util {
 
@@ -126,7 +127,9 @@ utf16string UTF8ToUTF16(const char *s)
 	else
 	    wc = ERROR;
 
-	if (wc != ERROR || last_error)
+//	TRACE << "c=" << c << " wc=" << wc << "\n";
+
+	if (wc != ERROR || !last_error)
 	{
 	    if (wc >= 0x10000)
 	    {

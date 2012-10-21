@@ -28,6 +28,7 @@ TEST_SRCS:=\
 	cd_drives.cpp \
 	file_notifier.cpp \
 	file_scanner.cpp \
+	playlist_asx.cpp \
 	playlist_wpl.cpp
 
 all-libimport:
@@ -44,7 +45,7 @@ libimport:=$(TOP)$(DIR)$(TARGETDIR)libimport.la
 all-libimport: $(libimport)
 
 $(TOP)$(DIR)% : CXXFLAGS += $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) \
-	$(LIBCDIOP_CXXFLAGS) $(LIBXMLPP_CXXFLAGS)
+	$(LIBCDIOP_CXXFLAGS)
 
 ifeq ($(libutil),)
 include $(TOP)libutil/Makefile
@@ -60,7 +61,7 @@ include $(TOP)libmediadb/Makefile
 endif
 
 $(LIBIMPORT_TESTS) : TEST_LIBS += $(BOOST_LIBS) $(TAGLIB_LIBS) \
-	$(LIBXMLPP_LIBS) $(HAL_LIBS) $(LIBCDIOP_LIBS)
+	$(HAL_LIBS) $(LIBCDIOP_LIBS)
 
 $(LIBIMPORT_TESTS) : $(libimport) $(libmediadb) $(libdbsteam) \
 	$(libdb) $(libutil)

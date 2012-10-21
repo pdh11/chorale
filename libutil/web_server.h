@@ -1,4 +1,3 @@
-/* libutil/webserver.h */
 #ifndef LIBUTIL_WEB_SERVER_H
 #define LIBUTIL_WEB_SERVER_H 1
 

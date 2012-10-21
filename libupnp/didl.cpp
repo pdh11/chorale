@@ -289,7 +289,7 @@ static std::string ResItem(mediadb::Database *db, db::RecordsetPtr rs,
     }
     unsigned int id = rs->GetInteger(mediadb::ID);
     std::string url = db->GetURL(id);
-    if (!strncmp(url.c_str(), "file:", 5) && urlprefix)
+    if (strncmp(url.c_str(), "http:", 5) && urlprefix)
 	url = (boost::format("%s%x") % urlprefix % id).str();
 
     url = util::XmlEscape(url);

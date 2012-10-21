@@ -80,7 +80,7 @@ unsigned Description::Fetch(const std::string& url, const std::string& udn)
 		if (node)
 		{
 //		    TRACE << "udn=" << node->firstChild->nodeValue << "\n";
-		    IXML_Node *dev = node->parentNode;
+//		    IXML_Node *dev = node->parentNode;
 //		    TRACE << "dev->name=" << dev->nodeName << " value="
 //			  << dev->nodeValue << "\n";
 		    if (node 

@@ -141,7 +141,7 @@ public:
  *
  * Also includes enumerators and string-tables for action and argument names.
  */
-class <xsl:value-of select="$class"/>: public util::Observable&lt;<xsl:value-of select="$class"/>Observer, util::OneObserver&lt;<xsl:value-of select="$class"/>Observer&gt;, util::NoLocking&gt;
+class <xsl:value-of select="$class"/>: public util::Observable&lt;<xsl:value-of select="$class"/>Observer, util::OneObserver, util::NoLocking&gt;
 {
 public:
     virtual ~<xsl:value-of select="$class"/>() {}

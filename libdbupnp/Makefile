@@ -22,7 +22,7 @@ libdbupnp:=$(TOP)$(DIR)$(TARGETDIR)libdbupnp.la
 all-libdbupnp: $(libdbupnp)
 
 $(TOP)$(DIR)% : CXXFLAGS += $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) \
-	$(LIBCDIOP_CXXFLAGS) $(LIBXMLPP_CXXFLAGS)
+	$(LIBCDIOP_CXXFLAGS)
 
 ifeq ($(libutil),)
 include $(TOP)libutil/Makefile

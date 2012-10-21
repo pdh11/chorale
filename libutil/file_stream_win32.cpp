@@ -45,7 +45,8 @@ unsigned FileStream::Open(const char *filename, FileMode mode)
 	break;
     }
 
-    m_fd = CreateFile(filename, access, FILE_SHARE_READ|FILE_SHARE_WRITE,
+    /** @todo CreateFileW(utf8toutf16(...)...) */
+    m_fd = CreateFileA(filename, access, FILE_SHARE_READ|FILE_SHARE_WRITE,
 		      NULL, disposition, fanda, NULL);
 
     if (m_fd == INVALID_HANDLE_VALUE)

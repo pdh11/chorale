@@ -131,6 +131,9 @@ std::string Context::Impl::DeviceGetString(const char *udi,
 {
     char *cstr = libhal_device_get_property_string(m_ctx, udi, 
 						   property, NULL);
+    if (!cstr)
+	return std::string();
+
     std::string result = cstr;
     libhal_free_string(cstr);
     return result;

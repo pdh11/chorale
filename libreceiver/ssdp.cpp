@@ -19,6 +19,14 @@ const char *s_uuid_softwareserver =
 const char *s_uuid_musicserver = 
     "upnp:uuid:1D274DB0-F053-11d3-BF72-0050DA689B2F";
 
+/** Receivers expect their pseudo-SSDP server on port 21075. This port is not
+ * officially allocated, so theoretically could already be in use by something
+ * else. @todo Check for this.
+ *
+ * 21075 was originally chosen as it's Mike's birthday.
+ */
+enum { PORT = 21075 };
+
 
         /* Server */
 
@@ -55,7 +63,7 @@ Server::Impl::Impl()
 
 unsigned Server::Impl::Init(util::PollerInterface *poller)
 {
-    util::IPEndPoint ep = { util::IPAddress::ANY, 21075 };
+    util::IPEndPoint ep = { util::IPAddress::ANY, PORT };
     unsigned rc = m_socket.Bind(ep);
     if (rc == 0)
 	m_socket.SetNonBlocking(true);
@@ -88,7 +96,7 @@ unsigned Server::Impl::OnActivity()
     util::IPAddress myip;
     unsigned rc = m_socket.Read(buffer, sizeof(buffer)-1, &nread, &client,
 				&myip);
-    TRACE << "Server read returned " << rc << "\n";
+//    TRACE << "Server read returned " << rc << "\n";
     if (rc != 0)
 	return rc;
     if (nread == 0)
@@ -102,7 +110,7 @@ unsigned Server::Impl::OnActivity()
     
     *lf = 0;
     
-    TRACE << "Server: '''" << buffer << "'''\n";
+    TRACE << "Server: " << buffer << "\n";
 
     std::string reply;
     {
@@ -173,7 +181,7 @@ unsigned Client::Impl::Init(util::PollerInterface *poller,
 
     m_callback = cb;
 
-    util::IPEndPoint ep = { util::IPAddress::ALL, 21075 };
+    util::IPEndPoint ep = { util::IPAddress::ALL, PORT };
     std::string request = uuid;
     request += "\n";
     return m_socket.Write(request.c_str(), request.length(), ep);

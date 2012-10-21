@@ -41,6 +41,8 @@ unsigned int PollerCore::SetUpArray(const std::map<int,Pollable*> *pollables,
 
 unsigned int PollerCore::Poll(unsigned int timeout_ms)
 {
+//    TRACE << "Polling for " << timeout_ms << "\n";
+
     DWORD rc = ::WaitForMultipleObjects(m_count, m_array, false, timeout_ms);
     if (rc == WAIT_FAILED)
     {
@@ -51,7 +53,10 @@ unsigned int PollerCore::Poll(unsigned int timeout_ms)
     if (rc == WAIT_TIMEOUT)
 	m_which = -1;
     else
+    {
+//	TRACE << "Poll returned " << (rc - WAIT_OBJECT_0) << "\n";
 	m_which = rc - WAIT_OBJECT_0;
+    }
 
     return 0;
 }
@@ -65,6 +70,7 @@ unsigned int PollerCore::DoCallbacks(const std::map<int,Pollable*> *pollables)
 	= pollables->find((int)m_array[m_which]);
     if (j != pollables->end())
 	return j->second->OnActivity();
+    TRACE << "No callback found\n";
     return 0;
 }
 
@@ -87,6 +93,8 @@ PollWaker::~PollWaker()
 
 unsigned PollWaker::OnActivity()
 {
+    TRACE << "PollWaker::OnActivity\n";
+    ::ResetEvent(m_event);
     return m_pollable ? m_pollable->OnActivity() : 0;
 }
 

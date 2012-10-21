@@ -10,7 +10,7 @@
 
 namespace import {
 
-class Tags: public CountedObject
+class Tags: public util::CountedObject<>
 {
 protected:
     std::string m_filename;

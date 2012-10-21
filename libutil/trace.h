@@ -10,13 +10,23 @@
 #include <string>
 #include <map>
 #include <set>
+#include <boost/thread/mutex.hpp>
 
 class Tracer
 {
+    static boost::mutex sm_mutex;
+    boost::mutex::scoped_lock m_lock;
+
 public:
     Tracer(const char *file, unsigned int line)
+	: m_lock(sm_mutex)
     {
+#if 0 //def WIN32
+	printf("%04u:%-25s:%4u: ", (unsigned int)GetCurrentThreadId(), file, 
+	       line);
+#else
 	printf("%-25s:%4u: ", file, line);
+#endif
     }
     ~Tracer() { fflush(stdout); }
 };

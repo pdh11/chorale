@@ -14,7 +14,7 @@ namespace mediatree {
  *
  * @todo Push the database pointer into Node? all the subclasses have one
  */
-class Node: public SimpleCountedObject
+class Node: public util::CountedObject<util::NoLocking>
 {
 public:
     virtual ~Node() {}
@@ -25,7 +25,7 @@ public:
 
     typedef boost::intrusive_ptr<Node> Pointer;
 
-    class Enumerator: public CountedObject
+    class Enumerator: public util::CountedObject<util::NoLocking>
     {
     public:
 	virtual ~Enumerator() {}

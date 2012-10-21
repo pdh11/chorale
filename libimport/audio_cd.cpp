@@ -109,7 +109,9 @@ class ParanoiaStream: public util::SeekableStream
 
     static void StaticCallback(long int i, paranoia_cb_mode_t cbm)
     {
-	if (cbm != PARANOIA_CB_READ)
+	// Only print anything if something's going wrong
+	if (cbm != PARANOIA_CB_READ && cbm != PARANOIA_CB_VERIFY
+	    && cbm != PARANOIA_CB_OVERLAP)
 	{
 	    const char *cbmstr = paranoia_cb_mode2str[cbm];
 	    TRACE << "paranoia callback " << i << " mode " << cbmstr << "\n";
@@ -164,7 +166,7 @@ unsigned ParanoiaStream::ReadAt(void *buffer, pos64 pos, size_t len,
     if (!m_data)
     {
 	++m_sector;
-	TRACE << "Reading sector " << m_sector << "\n";
+//	TRACE << "Reading sector " << m_sector << "\n";
 	m_data = (const char*)paranoia_read(m_paranoia, &StaticCallback);
 	if (!m_data)
 	{
@@ -188,7 +190,7 @@ unsigned ParanoiaStream::ReadAt(void *buffer, pos64 pos, size_t len,
 	m_data = NULL;
     }
 
-    TRACE << "Returned bytes " << pos << ".." << (pos+lump) << "\n";
+//    TRACE << "Returned bytes " << pos << ".." << (pos+lump) << "\n";
 
     *pread = lump;
     return 0;

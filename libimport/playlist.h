@@ -6,7 +6,7 @@
 
 namespace import {
 
-class Playlist: public CountedObject
+class Playlist: public util::CountedObject<>
 {
     class Impl;
     Impl *m_impl;

@@ -7,7 +7,7 @@
 
 namespace import {
 
-class AudioCD: public CountedObject
+class AudioCD: public util::CountedObject<>
 {
 protected:
     /** No, they shouldn't be unsigned -- sector numbers are allowed to be -ve.

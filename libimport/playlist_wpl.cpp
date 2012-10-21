@@ -1,17 +1,14 @@
-#include "config.h"
 #include "playlist_wpl.h"
 #include "libutil/trace.h"
 #include "libutil/file.h"
+#include "libutil/file_stream.h"
 #include "libutil/xmlescape.h"
-
-#ifdef HAVE_LIBXMLPP
-
-#include <libxml++/parsers/saxparser.h>
+#include "libutil/xml.h"
 #include <errno.h>
 
 namespace import {
 
-class PlaylistWPLParser: public xmlpp::SaxParser
+class PlaylistWPLParser: public xml::SaxParserObserver
 {
     Playlist *m_playlist;
     size_t m_index;
@@ -22,39 +19,29 @@ public:
 	  m_index(0)
 	{}
 
-    void on_start_element(const Glib::ustring& name,
-			  const AttributeList& properties)
-	{
-	    if (name == "media")
-	    {
-		for (AttributeList::const_iterator i = properties.begin();
-		     i != properties.end();
-		     ++i)
-		{
-		    if (i->name == "src")
-		    {
-			m_playlist->SetEntry(m_index++,
-					     util::MakeAbsolutePath(
-						 m_playlist->GetFilename(),
-						 i->value));
-		    }
-		}
-	    }
-	}
+    // Being an xml::SaxParserObserver
+    unsigned int OnAttribute(const char *name, const char *value)
+    {
+	if (!strcasecmp(name, "src"))
+	    m_playlist->SetEntry(m_index++,
+				 util::MakeAbsolutePath(
+				     m_playlist->GetFilename(),
+				     value));
+	return 0;
+    }
 };
 
 unsigned int PlaylistWPL::Load()
 {
-    try
-    {
-	PlaylistWPLParser parser(this);
-	parser.set_substitute_entities(true);
-	parser.parse_file(GetFilename());
-    }
-    catch (...)
-    {
-    }
-    return 0;
+    util::SeekableStreamPtr ss;
+    unsigned int rc = util::OpenFileStream(GetFilename().c_str(), util::READ,
+					   &ss);
+    if (rc != 0)
+	return rc;
+
+    PlaylistWPLParser obs(this);
+    xml::SaxParser parser(&obs);
+    return parser.Parse(ss);
 }
 
 unsigned int PlaylistWPL::Save()
@@ -82,8 +69,6 @@ unsigned int PlaylistWPL::Save()
 }
 
 } // namespace import
-
-#endif // HAVE_LIBXMLPP
 
 #ifdef TEST
 

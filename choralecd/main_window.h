@@ -33,7 +33,7 @@ class MainWindow: public QMainWindow
     util::TaskQueue *m_disk_queue;
 
     Q3VBox *m_view;
-    unsigned int m_encode_tasks;
+    size_t m_encode_tasks;
 
     void timerEvent(QTimerEvent*);
 

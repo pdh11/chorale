@@ -37,7 +37,7 @@ public:
 			    DeviceObserver*);
 };
 
-class Device: public CountedObject
+class Device: public util::CountedObject<>
 {
     std::string m_udi;
     Context::Impl *m_ctx;

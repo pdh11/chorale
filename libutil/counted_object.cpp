@@ -1,16 +1,18 @@
 #include "counted_object.h"
 
-void intrusive_ptr_add_ref(CountedObject *o)
+template <class LockingPolicy>
+void intrusive_ptr_add_ref(util::CountedObject<LockingPolicy> *o)
 {
-    boost::mutex::scoped_lock lock(o->m_refcount_mutex);
+    typename LockingPolicy::Lock lock(o);
     ++o->m_refcount;
 }
 
-void intrusive_ptr_release(CountedObject *o)
+template <class LockingPolicy>
+void intrusive_ptr_release(util::CountedObject<LockingPolicy> *o)
 {
     bool deleteit = false;
     {
-	boost::mutex::scoped_lock lock(o->m_refcount_mutex);
+	typename LockingPolicy::Lock lock(o);
 	if (!--o->m_refcount)
 	    deleteit = true;
     }
@@ -18,15 +20,12 @@ void intrusive_ptr_release(CountedObject *o)
 	delete o;
 }
 
-void intrusive_ptr_add_ref(SimpleCountedObject *o)
-{
-    o->CheckThread();
-    ++o->m_refcount;
-}
+/* Explicit instantiations (note "template" not "template<>") */
 
-void intrusive_ptr_release(SimpleCountedObject *o)
-{
-    o->CheckThread();
-    if (!--o->m_refcount)
-	delete o;
-}
+template 
+void intrusive_ptr_add_ref<util::PerObjectLocking>(util::CountedObject<util::PerObjectLocking>*);
+template 
+void intrusive_ptr_release<util::PerObjectLocking>(util::CountedObject<util::PerObjectLocking>*);
+
+template void intrusive_ptr_add_ref<util::NoLocking>(util::CountedObject<util::NoLocking>*);
+template void intrusive_ptr_release<util::NoLocking>(util::CountedObject<util::NoLocking>*);

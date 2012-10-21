@@ -1,10 +1,7 @@
 	Chorale Technology Preview
 	--------------------------
 
-How to build it:
-    ./configure --prefix=/usr
-    make
-    sudo make install
+See INSTALL for installation instructions, or http://chorale.sf.net.
 
 What you get:
     choraled (background daemon)

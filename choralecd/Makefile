@@ -71,6 +71,12 @@ endif
 ifeq ($(libimport),)
 include $(TOP)libimport/Makefile
 endif
+ifeq ($(libdbempeg),)
+include $(TOP)libdbempeg/Makefile
+endif
+ifeq ($(libempeg),)
+include $(TOP)libempeg/Makefile
+endif
 ifeq ($(libutil),)
 include $(TOP)libutil/Makefile
 endif
@@ -83,18 +89,18 @@ ifeq ($(QT),yes)
 all: all-choralecd
 install: install-choralecd
 
-$(choralecd): $(CHORALECD_OBJS) $(libutil) $(libimport) $(libreceiver) \
-		$(libdb) $(libdbreceiver) $(libdbupnp) $(libmediatree) \
-		$(libmediadb) $(libupnp) \
-		$(liboutput)
+$(choralecd): $(CHORALECD_OBJS) $(libutil) $(libimport) $(libdbreceiver) \
+		$(libreceiver) $(libdbupnp) $(libmediatree) \
+		$(libmediadb) $(libupnp) $(libdbempeg) $(libempeg) \
+		$(libdbsteam) $(libdb) $(liboutput)
 	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(CHORALECD_OBJS) \
-		$(libmediatree) $(libdbupnp) $(libimport) \
+		$(libmediatree) $(libdbupnp) $(libimport) $(libdbempeg) \
 		$(libdbreceiver) $(liboutput) $(libupnp) $(libmediadb) \
-		$(libdb) $(libreceiver) \
+		$(libdbsteam) $(libdb) $(libreceiver) $(libempeg) $(libupnp) \
 		$(libutil) -Wl,--as-needed $(LIBCDIOP_LIBS) $(LIBCDDB_LIBS) \
 		$(LIBFLAC_LIBS) $(TAGLIB_LIBS) $(BOOST_LIBS) $(QT_LIBS) \
-		$(LAME_LIBS) $(LIBXMLPP_LIBS) $(CURL_LIBS) $(UPNP_LIBS) \
+		$(LAME_LIBS) $(CURL_LIBS) $(UPNP_LIBS) \
 		$(GSTREAMER_LIBS) $(HAL_LIBS) -Wl,-Map,$@.map.txt
 	@echo $@: `ldd $@ | wc -l` shared libraries | fmt
 

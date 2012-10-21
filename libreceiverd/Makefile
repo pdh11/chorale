@@ -1,10 +1,16 @@
 TOP?=../
 DIR:=libreceiverd/
 SRCS:=\
-	content_factory.cpp
+	content_factory.cpp \
+	mount.cpp \
+	nfs.cpp \
+	portmap.cpp \
+	rpc.cpp \
+	tarfs.cpp 
 
 TEST_SRCS:=\
-	content_factory.cpp
+	content_factory.cpp \
+	nfs.cpp
 
 all-libreceiverd:
 
@@ -20,7 +26,7 @@ libreceiverd:=$(TOP)$(DIR)$(TARGETDIR)libreceiverd.la
 all-libreceiverd: $(libreceiverd)
 
 $(TOP)$(DIR)% : CXXFLAGS += $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) \
-	$(LIBCDIOP_CXXFLAGS) $(LIBXMLPP_CXXFLAGS)
+	$(LIBCDIOP_CXXFLAGS)
 
 ifeq ($(libutil),)
 include $(TOP)libutil/Makefile
@@ -38,8 +44,8 @@ ifeq ($(libreceiver),)
 include $(TOP)libreceiver/Makefile
 endif
 
-$(LIBRECEIVERD_TESTS) : TEST_LIBS += $(BOOST_LIBS) $(CURL_LIBS) $(UPNP_LIBS) \
-	$(DBUS_LIBS) $(LIBXMLPP_LIBS) $(HAL_LIBS)
+$(LIBRECEIVERD_TESTS) : TEST_LIBS += $(BOOST_LIBS) \
+	$(UPNP_LIBS) $(DBUS_LIBS) $(HAL_LIBS)
 
 $(LIBRECEIVERD_TESTS) : $(libreceiverd) $(libreceiver) $(libdbsteam) \
 		$(libmediadb) $(libdb) $(libutil)

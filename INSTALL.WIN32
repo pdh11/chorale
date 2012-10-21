@@ -1,0 +1,102 @@
+	Installing Chorale on Windows
+	=============================
+
+Chorale for Windows comes as a binary package, and need not be
+compiled each time. (If you do want to recompile it, see below; the
+full source is, as required by section 6d of the GNU GPLv3, always
+available from http://chorale.sf.net.)
+
+Chorale is tested on Windows XP, but should also work on 2000 and
+Vista.
+
+In the Zip file, you get a single executable choralesvc.exe, plus, for
+technical reasons, a small DLL mingwm10.dll. Chorale installation is
+only half-automated: first you must copy these two files to wherever
+you want Chorale to reside -- say, "Program Files\Chorale".
+
+Then, using a command-window, run choralesvc with the "-i" or
+"--install" option:
+
+	c:
+	cd \Program Files\Chorale
+	choralesvc -i "<name-of-your-music-folder>"
+
+If all is successful, a message will be printed saying so. You need to
+be logged-in as an administrator user to install Chorale.
+
+Chorale usually runs as a service -- meaning, it runs whenever Windows
+is running, whether or not anyone is logged-in -- and can be started
+or stopped in Control Panel / Services in the normal way. However (at
+least on Windows XP) when you first install Chorale, you need to run
+it *once* as a normal program in order to get Windows Firewall to
+allow it to use the network:
+
+	c:
+	cd \Program Files\Chorale
+	choralesvc -d
+
+		lots of tracing information will appear, and a dialog
+		box will pop-up saying "Do you want to keep blocking
+		this program?"
+
+Click on "Unblock" to reassure Windows Firewall. Then go to Control
+Panel / Administrative Tools / Services, find Chorale in the list,
+right-click on it, and choose Restart. Hopefully, this will all be
+made automatic in a future release.
+
+The ability to run Chorale as a normal program ("choralesvc -d")
+should also be very helpful if you need to report a problem.
+
+If you ever want to change your music folder, run "choralesvc -i"
+again with the new folder; there is no need to uninstall Chorale
+("choralesvc -u") first.
+
+Currently, Chorale's install folder, and its root music folder, must
+be so-called "ANSI" (non-Unicode) paths. Folders and files anywhere
+*inside* the root music folder can have Unicode names, though. This
+restriction will be lifted in a future release.
+
+
+Rio Receiver service from Windows
+---------------------------------
+
+To serve real Rio Receivers, Chorale needs the firmware files
+installed by the original Receiver server software, Rio Audio Receiver
+Manager. You should install that first (instructions are included in
+README.receiver.TXT), but -- as Receivers can only work with one
+server at a time -- you should then disable (not uninstall) Audio
+Receiver Manager by removing it from the Start->Programs->Startup
+menu.
+
+Chorale for Windows reads the registry entries left by Audio Receiver
+Manager, in order to find the firmware files -- hence there is no
+equivalent of Linux choraled's "-w" or "--arf" options.
+
+
+Modifying and recompiling Chorale for Windows
+---------------------------------------------
+
+Chorale for Windows is currently built using an i586-mingw32
+cross-compiler from Linux. If you have a suitable cross-compiler installed,
+the incantation is:
+
+	tar xjf chorale-X.XX.tar.bz2
+	cd chorale-X.XX
+	configure --host=i586-mingw32 <any-other-options>
+	make -j4
+
+Native compilation, whether with Mingw32 or MSVC, has not been tried
+-- but might work. Patches are welcome.
+
+
+Uninstalling Chorale for Windows
+--------------------------------
+
+Uninstallation is very much like installation:
+
+	c:
+	cd \Program Files\Chorale
+	choralesvc -u
+
+Obviously, you need to replace "C:\Program Files\Chorale" with
+wherever you put choralesvc when installing it.

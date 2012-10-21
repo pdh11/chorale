@@ -1,4 +1,7 @@
 #include "trace.h"
+#include <boost/thread/mutex.hpp>
+
+boost::mutex Tracer::sm_mutex;
 
 void Hex::Dump(const void *address, size_t nbytes)
 {

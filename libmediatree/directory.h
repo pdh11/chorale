@@ -1,7 +1,6 @@
 #ifndef MEDIATREE_DIRECTORY_H
 #define MEDIATREE_DIRECTORY_H 1
 
-#include "libutil/counted_object.h"
 #include <vector>
 #include "node.h"
 

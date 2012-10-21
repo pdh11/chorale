@@ -105,7 +105,7 @@ void SettingsEntryEndpoint::OnShow()
 void SettingsEntryEndpoint::OnOK()
 {
     (m_settings->*m_setter)(m_line->text().toUtf8().data());
-    (m_settings->*m_setter2)(atoi(m_portline->text()));
+    (m_settings->*m_setter2)((unsigned short)strtoul(m_portline->text(), NULL, 10));
 }
 
 

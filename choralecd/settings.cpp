@@ -87,7 +87,7 @@ void Settings::SetHttpProxyHost(const std::string& s)
 
 unsigned short Settings::GetHttpProxyPort() const
 {
-    return m_qs.readNumEntry(PROXYPORT);
+    return (unsigned short)m_qs.readNumEntry(PROXYPORT);
 }
 
 void Settings::SetHttpProxyPort(unsigned short s)

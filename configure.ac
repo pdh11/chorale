@@ -2,10 +2,10 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(chorale, [0.10], pdh@utter.chaos.org.uk)
+AC_INIT(chorale, [0.11], pdh@utter.chaos.org.uk)
 
 AC_MSG_NOTICE([Required: Boost.])
-AC_MSG_NOTICE([Optional: Taglib, libxml++, Qt4, gstreamer, libcdio, libcddb, lame, flac, curl, libupnp, dbus, hal, libmpg123, inkscape, xsltproc, imagemagick.])
+AC_MSG_NOTICE([Optional: Taglib, Qt4, gstreamer, libcdio, libcddb, lame, flac, libupnp, dbus, hal, libmpg123, inkscape, xsltproc, imagemagick.])
 AC_MSG_NOTICE([])
 
 AC_CONFIG_SRCDIR([libdb/db.h])
@@ -15,6 +15,20 @@ AC_CONFIG_AUX_DIR([autotools])
 AC_PROG_CC
 AC_GNU_SOURCE
 AC_PROG_LIBTOOL
+AC_C_BIGENDIAN
+
+AC_DEFUN([PDH_LD_WARNING],
+[
+    AC_MSG_CHECKING([whether linker ${CC} accepts $1])
+
+    ok_LDFLAGS="$LDFLAGS"
+    LDFLAGS="$LDFLAGS $1"
+    AC_LINK_IFELSE([AC_LANG_PROGRAM()],
+		   [AC_MSG_RESULT([yes])],
+		   [AC_MSG_RESULT([no]); LDFLAGS=$ok_LDFLAGS])
+])
+
+PDH_LD_WARNING([-mthreads])
 
 AC_DEFUN([PDH_C_WARNING],
 [
@@ -67,15 +81,17 @@ PDH_CXX_WARNING([-Wall])
 PDH_CXX_WARNING([-Wextra])
 PDH_CXX_WARNING([-Wundef])
 PDH_CXX_WARNING([-Wshadow])
+PDH_CXX_WARNING([-mthreads])
 PDH_CXX_WARNING([-Waddress])
 PDH_CXX_WARNING([-Wlogical-op])
 PDH_CXX_WARNING([-Wcast-align])
 PDH_CXX_WARNING([-Wconversion])
 PDH_CXX_WARNING([-Wwrite-strings])
 PDH_CXX_WARNING([-Wpointer-arith])
-# PDH_CXX_WARNING([-Wsign-conversion])
-PDH_CXX_WARNING([-Wstrict-overflow])
+#PDH_CXX_WARNING([-Wsign-conversion])
+#PDH_CXX_WARNING([-Wstrict-overflow])
 PDH_CXX_WARNING([-Wnon-virtual-dtor])
+PDH_CXX_WARNING([-Wstrict-overflow=5])
 PDH_CXX_WARNING([-Woverloaded-virtual])
 PDH_CXX_WARNING([-pedantic -Wno-long-long])
 PDH_CXX_WARNING([-fdiagnostics-show-option])
@@ -113,6 +129,18 @@ AC_SUBST(HAVE_INKSCAPE)
 
 # Checks for libraries.
 
+AC_ARG_WITH([gpl],
+[AS_HELP_STRING([--without-gpl],[Avoid using GPL libraries (e.g. Qt)])],
+[],[with_gpl=yes])
+AC_ARG_WITH([lgpl],
+[AS_HELP_STRING([--without-lgpl],[Avoid using GPL and LGPL libraries])],
+[],[with_lgpl=yes])
+
+if test "x${with_lgpl}" = xno ; then
+  with_gpl=no
+fi
+
+if test "x${with_lgpl}" != xno ; then
 AC_CHECK_LIB(mp3lame, lame_init, [LAME="yes" LAME_LIBS="-lmp3lame"], [LAME="no"], -lm)
 if test "${LAME}" = "yes" ; then
     AC_CHECK_HEADER(lame/lame.h, , [LAME="no"])
@@ -122,9 +150,13 @@ AC_SUBST(LAME_LIBS)
 if test "${LAME}" = "yes" ; then
     AC_DEFINE(HAVE_LAME, 1, [Define to 1 if you have LAME])
 fi
+fi
+
+PKG_PROG_PKG_CONFIG
 
 XIPH_PATH_OGG()
 
+if test "x${with_gpl}" != xno ; then
 PKG_CHECK_MODULES(QT, QtGui >= 4.2.0 Qt3Support >= 4.2.0 QtCore >= 4.2.0, [QT="yes"], [QT="no"])
 AC_SUBST(QT)
 AC_SUBST(QT_CFLAGS)
@@ -132,6 +164,7 @@ AC_SUBST(QT_LIBS)
 if test "${QT}" = "yes" ; then
   QT_MOC=`pkg-config --variable=moc_location QtGui`
   AC_SUBST(QT_MOC)
+fi
 fi
 
 AC_DEFUN([PDH_PKGCONFIG], [
@@ -178,13 +211,18 @@ fi
 AC_SUBST(WIN32)
 
 PDH_PKGCONFIG(DBUS,      dbus-1,    1.1.1)
+if test "x${with_lgpl}" != xno ; then
 PDH_PKGCONFIG(TAGLIB,    taglib,    1.4)
 PDH_PKGCONFIG(LIBCDDB,   libcddb,   1.2.1)
+fi
 PDH_PKGCONFIG(UPNP,      libupnp,   1.2.1)
+if test "x${with_lgpl}" != xno ; then
 PDH_PKGCONFIG(MPG123,    libmpg123, 1.2.0)
-PDH_PKGCONFIG(LIBXMLPP,  libxml++-2.6, 2.14.0)
 PDH_PKGCONFIG(GSTREAMER, gstreamer-0.10, 0.10.13)
+fi
+if test "x${with_gpl}" != xno ; then
 PDH_PKGCONFIG(LIBCDIOP,  libcdio_paranoia, 0.76)
+fi
 
 # NB do NOT use LIBFLAC_CFLAGS/LIBFLACPP_CFLAGS -- they introduce a directory
 # with a bogus <assert.h>.
@@ -288,7 +326,6 @@ test "${LIBCDIOP}" = "yes"  || printf "** Install libcdio 0.76 or later to build
 test "${LIBCDDB}" = "yes"   || printf "** Install libcddb 1.2.1 or later to build optional CD support\n   http://libcddb.sourceforge.net\n"
 test "${UPNP}" = "yes"      || printf "** Install libupnp-1.4.3 or later to build optional UPnP support\n   http://pupnp.sf.net\n"
 test "${HAL}" = "yes"       || printf "** Install hal 0.5.9.1 or later to build optional auto-configuration\n   http://hal.freedesktop.org\n"
-test "${LIBXMLPP}" = "yes"  || printf "** Install libxml++-2.14.0 or later to build optional playlist support\n   http://libxmlplusplus.sourceforge.net\n"
 test "${DBUS}" = "yes"      || printf "** Install libdbus 1.1.1 or later to build optional auto-configuration\n   http://dbus.freedesktop.org\n"
 test "${GSTREAMER}" = "yes" || printf "** Install gstreamer 0.10.13 or later to build optional playback support\n   http://gstreamer.freedesktop.org\n"
 test "${TAGLIB}" = "yes"    || printf "** Install taglib-1.4 or later to build optional CD and media-server support\n   http://developer.kde.org/~wheeler/taglib.html\n"
@@ -313,7 +350,7 @@ printf "With most distributions, it's the '-dev' packages you need. In Ubuntu\n"
 printf "or Debian, try:\n"
 printf "   sudo apt-get install g++ autoconf automake libflac-dev\n"
 printf "        libdbus-1-dev libhal-dev libtag1-dev\n"
-printf "        libboost-thread-dev libboost-regex-dev libxml++2.6-dev liblame-dev\n"
+printf "        libboost-thread-dev libboost-regex-dev liblame-dev\n"
 printf "        libupnp-dev libcdio-paranoia-dev libcddb2-dev\n"
 printf "        libgstreamer0.10-dev libqt4-dev qt4-dev-tools\n"
 printf "        libmysqlclient15-dev imagemagick inkscape xsltproc\n"

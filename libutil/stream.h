@@ -8,7 +8,7 @@ namespace util {
 
 /** Abstract base class for anything which can be streamed.
  */
-class Stream: public CountedObject
+class Stream: public CountedObject<>
 {
 public:
     /** Returns 0 for success or an errno for failure. EOF is not a failure.

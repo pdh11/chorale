@@ -1,0 +1,86 @@
+	Installing Chorale on Linux/Unix
+	--------------------------------
+
+
+	Before resorting to installing Chorale from source, you should
+	check whether your Linux/Unix distribution has an existing
+	binary package for Chorale. If it does, that will save you a
+	lot of hassle.
+
+
+Chorale uses the standard "configure" mechanism, so installing it is
+like any other package:
+
+	tar xjf chorale-X.XX.tar.bz2
+	cd chorale-X.XX
+	configure --help
+	configure <any-options-you-feel-you-need>
+	make -j4
+	su
+	make install
+
+If all is successful, it will install two binaries: choraled, the
+background daemon that does all the file-serving, and choralecd, the
+desktop application that acts as the example user-interface. A small
+collection of ancillary files (icons and so on) are installed in
+/usr/local/share (or wherever else you tell it to).
+
+To test the choraled installation, start it with:
+
+	choraled <name-of-your-music-directory>
+
+After a pause while choraled scans your media files, it will announce
+its presence on the network, and UPnP and Receiver-protocol clients
+should be able to connect and play your music. If you don't yet
+have any suitable clients, choralecd itself can be used.
+
+Consult "choraled --help" for other settings to customise the
+operation of choraled. Once it's working to your satisfaction, you
+should probably arrange for choraled to start automatically on
+boot-up; exactly how this works varies from distribution to
+distribution. On some systems just adding a line:
+
+	/usr/local/bin/choraled <your-args>
+
+to the file /etc/rc.local is enough, but on others it's more
+involved. If you don't want to run choraled as root -- which, unless
+you trust all the devices on your network, you probably don't -- then
+the user it runs as needs read access to the music locations
+(obviously) and write access to the directory its database is in ("-f"
+option to choraled). If using the DVB recording features, it also
+needs write access to the "<music-root>/Recordings" directory.
+
+In a multi-computer network, probably only one server -- the one with
+the music files -- should start choraled as a file server. The others,
+if they have CD drives or audio outputs that should be shared, can
+also run choraled but should use the "-r" and "-m" options. In
+particular, Rio Receivers don't cope if more than one server is active
+on the network.
+
+By default, Chorale is built with debugging and tracing
+support enabled. To build leaner versions, use:
+
+	make DEBUG=0 -j4
+	make DEBUG=0 install
+
+Naturally you don't have to use "-j4". Use whatever "-jN" number you
+normally would, or omit it altogether. (Don't use -j without the
+number -- make will start over 180 g++'s simultaneously, enough to
+trouble even a very fast machine.)
+
+Using the tracing support (by running "choraled -d <your-args>")
+should be very helpful if you need to report a problem with choraled.
+
+
+Rio Receiver service from Linux/Unix
+------------------------------------
+
+Rio Receivers (and Dell Digital Audio Receivers, which are the same
+thing really) boot their firmware from the network when
+powered-on. The firmware in question is copyright Rio, and will be for
+decades, so can't be offered for download here. The file
+"libreceiverd/README" in the Chorale distribution explains
+how and where to obtain the firmware files.
+
+This is only necessary for real Rio Receivers; Empeg
+car-player Receiver Edition does not require these firmware files.

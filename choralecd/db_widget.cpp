@@ -17,6 +17,7 @@
 #include "explorer_window.h"
 #include "libdbreceiver/db.h"
 #include "libdbupnp/db.h"
+#include "libdbempeg/db.h"
 
 namespace choraleqt {
 
@@ -41,7 +42,6 @@ void DBWidget::OnBottomButton() /* "Close" */
         /* ReceiverDBWidgetFactory */
 
 
-#ifdef HAVE_LIBDBRECEIVER
 ReceiverDBWidgetFactory::ReceiverDBWidgetFactory(QPixmap *pixmap,
 						 mediadb::Registry *registry)
     : m_pixmap(pixmap),
@@ -62,7 +62,6 @@ void ReceiverDBWidgetFactory::OnService(const util::IPEndPoint& ep)
     (void) new choraleqt::DBWidget(m_parent, "Receiver server", *m_pixmap,
 				   thedb, m_registry);
 }
-#endif
 
 
         /* UpnpDBWidgetFactory */
@@ -91,5 +90,30 @@ void UpnpDBWidgetFactory::OnService(const std::string& url,
 				   *m_pixmap, thedb, m_registry);
 }
 #endif
+
+
+        /* UpnpDBWidgetFactory */
+
+
+EmpegDBWidgetFactory::EmpegDBWidgetFactory(QPixmap *pixmap,
+					 mediadb::Registry *registry)
+    : m_pixmap(pixmap),
+      m_registry(registry)
+{
+}
+
+void EmpegDBWidgetFactory::CreateWidgets(QWidget *parent)
+{
+    m_parent = parent;
+}
+
+void EmpegDBWidgetFactory::OnDiscoveredEmpeg(const util::IPAddress& ip,
+					     const std::string& name)
+{
+    db::empeg::Database *thedb = new db::empeg::Database;
+    thedb->Init(ip);
+    (void) new choraleqt::DBWidget(m_parent, name, *m_pixmap, thedb, 
+				   m_registry);
+}
 
 } // namespace choraleqt

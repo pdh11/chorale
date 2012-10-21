@@ -12,10 +12,11 @@ class SaxParserObserver
 {
 public:
     virtual ~SaxParserObserver() {}
-    virtual unsigned int OnBegin(const char *tag) = 0;
-    virtual unsigned int OnEnd(const char *tag) = 0;
-    virtual unsigned int OnAttribute(const char *name, const char *value) = 0;
-    virtual unsigned int OnContent(const char *content) = 0;
+    virtual unsigned int OnBegin(const char* /*tag*/) { return 0; }
+    virtual unsigned int OnEnd(const char* /*tag*/) { return 0; }
+    virtual unsigned int OnAttribute(const char* /*name*/,
+				     const char* /*value*/) { return 0; }
+    virtual unsigned int OnContent(const char* /*content*/) { return 0; }
 };
 
 class SaxParser

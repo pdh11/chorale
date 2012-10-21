@@ -23,7 +23,9 @@
 #include "libmediadb/schema.h"
 #include "cd.h"
 #include "database.h"
+#include "nfs.h"
 #include "web.h"
+#include <stdarg.h>
 #include <getopt.h>
 #include <signal.h>
 #include <unistd.h>
@@ -36,6 +38,12 @@
 
 #define DEFAULT_DB_FILE LOCALSTATEDIR "/chorale/db.xml"
 #define DEFAULT_WEB_DIR CHORALE_DATADIR "/chorale"
+#define DEFAULT_ARF_FILE CHORALE_DATADIR "/chorale/receiver.arf"
+
+/** This port is not officially allocated. Probably it was someone's birthday.
+ */
+#define DEFAULT_WEB_PORT 12078
+#define DEFAULT_WEB_PORT_S "12078"
 
 static void Usage(FILE *f)
 {
@@ -47,12 +55,11 @@ static void Usage(FILE *f)
 " -d, --no-daemon    Don't daemonise\n"
 " -f, --dbfile=FILE  Database file (default=" DEFAULT_DB_FILE ")\n"
 " -t, --threads=N    Use N threads to scan files (default NCPUS*2)\n"
-" -h, --help         These hastily-scratched notes\n"
 " -r, --no-receiver  Don't become a Rio Receiver server\n"
-" -n, --no-nfs         Don't announce Receiver software on standard NFS\n"
-"     --nfs=SERVER     Announce an alternative Receiver software server\n"
+"     --arf=FILE       Boot from ARF (default=" DEFAULT_ARF_FILE ")\n"
+"     --nfs=SERVER     Boot using real NFS net-boot on SERVER\n"
 " -w, --web=DIR      Web server root dir (default=" DEFAULT_WEB_DIR ")\n"
-" -p, --port=PORT      Web server port (default=arbitrary unused port)\n"
+" -p, --port=PORT      Web server port (default=" DEFAULT_WEB_PORT_S ")\n"
 //" -i, --interface=IF Network interface to listen on (default=first found)\n"
 #ifdef HAVE_UPNP
 #ifdef HAVE_GSTREAMER
@@ -69,10 +76,16 @@ static void Usage(FILE *f)
 " -b, --no-broadcast Don't serve DVB channels\n"
 " -c, --channels=FILE  Use FILE as DVB channel list (default=/etc/channels.conf)\n"
 #endif
+" -h, --help         These hastily-scratched notes\n"
 	    "\n"
-	    "Omitting <root-directory> implies -r, -m, -b and ignores -f, -t.\n"
+	    "  Omitting <root-directory> implies -r, -m, -b and ignores -f, -t.\n"
+	    "  The options --nfs and --arf are mutually exclusive; --arf is the default.\n"
+	    "They are not used by Empeg-Car Receiver Edition, which always boots locally.\n"
+	    "  The default port is that used by 'traditional' Receiver servers; use -p 0 to\n"
+	    "pick an arbitrary unused port, but note that this will mean that all Receivers\n"
+	    "must be rebooted every time the server restarts.\n"
 	    "\n"
-	    "Send SIGHUP to force a media re-scan (not needed on systems with 'inotify'\n"
+	    "  Send SIGHUP to force a media re-scan (not needed on systems with 'inotify'\n"
 	    "support).\n"
 	    "\n"
 "From " PACKAGE_STRING " built on " __DATE__ ".\n"
@@ -95,6 +108,9 @@ static void SignalHandler(int sig)
     if (s_waker)
 	s_waker->Wake();
 }
+
+/** Have we become a daemon (yet)? */
+static bool s_daemonised = false;
 
 /** Deep Unix fu straight out of W Richard Stevens */
 static void daemonise()
@@ -129,6 +145,21 @@ static void daemonise()
 	dup2(fd,2);
     if (fd > 2)
 	close(fd);
+
+    s_daemonised = true;
+}
+
+static void complain(int loglevel, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+
+    if (s_daemonised)
+	vsyslog(loglevel, format, args);
+    else
+	vfprintf(stderr, format, args);
+    
+    va_end(args);
 }
 
 int main(int argc, char *argv[])
@@ -136,7 +167,6 @@ int main(int argc, char *argv[])
     static const struct option options[] =
     {
 	{ "help",  no_argument, NULL, 'h' },
-	{ "no-nfs",   no_argument, NULL, 'n' },
 	{ "no-audio", no_argument, NULL, 'a' },
 	{ "no-daemon", no_argument, NULL, 'd' },
 	{ "no-mserver", no_argument, NULL, 'm' },
@@ -145,6 +175,7 @@ int main(int argc, char *argv[])
 	{ "no-broadcast", no_argument, NULL, 'b' },
 	{ "web", required_argument, NULL, 'w' },
 	{ "nfs", required_argument, NULL, 1 },
+	{ "arf", required_argument, NULL, 2 },
 	{ "dbfile", required_argument, NULL, 'f' },
 	{ "threads", required_argument, NULL, 't' },
 	{ "channels", required_argument, NULL, 'c' },
@@ -152,7 +183,6 @@ int main(int argc, char *argv[])
     };
 
     unsigned int nthreads = 0;
-    bool do_nfs = true;
     bool do_daemon = true;
 #ifdef HAVE_UPNP
 # ifdef HAVE_GSTREAMER
@@ -175,13 +205,14 @@ int main(int argc, char *argv[])
     bool do_db = true;
     const char *dbfile = DEFAULT_DB_FILE;
     const char *webroot = DEFAULT_WEB_DIR;
-    const char *software_server = NULL; // Null string means this host
+    const char *software_server = NULL; // Null string means use ARF
+    const char *arf = DEFAULT_ARF_FILE;
     const char *channelsconf = "/etc/channels.conf";
-    unsigned short port = 0; // Zero means pick an arbitrary one
+    unsigned short port = DEFAULT_WEB_PORT;
 
     int option_index;
     int option;
-    while ((option = getopt_long(argc, argv, "abrdhmnot:f:l:c:p:", options,
+    while ((option = getopt_long(argc, argv, "abrdhmot:f:l:c:p:", options,
 				 &option_index))
 	   != -1)
     {
@@ -190,9 +221,6 @@ int main(int argc, char *argv[])
 	case 'h':
 	    Usage(stdout);
 	    return 0;
-	case 'n':
-	    do_nfs = false;
-	    break;
 	case 'd':
 	    do_daemon = false;
 	    break;
@@ -228,6 +256,9 @@ int main(int argc, char *argv[])
 	    break;
 	case 1:
 	    software_server = optarg;
+	    break;
+	case 2:
+	    arf = optarg;
 	    break;
 	default:
 	    Usage(stderr);
@@ -297,7 +328,7 @@ int main(int argc, char *argv[])
 	unsigned rc = dvbf.Open(0,0);
 	if (rc != 0)
 	{
-	    TRACE << "Can't open DVB frontend: " << rc << "\n";
+	    complain(LOG_WARNING, "Can't open DVB frontend: %u\n", rc);
 	    do_dvb = false;
 	}
     }
@@ -384,13 +415,28 @@ int main(int argc, char *argv[])
     ws.Init(&poller, webroot, port);
     TRACE << "Webserver got port " << ws.GetPort() << "\n";
 
+    NFSService nfs;
+    if (do_receiver && !software_server && arf)
+    {
+	unsigned rc = nfs.Init(&poller, arf);
+	if (rc)
+	{
+	    complain(LOG_WARNING,
+		     "Can't open ARF file %s: Rio Receivers will not boot\n",
+		     arf);
+	    arf = NULL;
+	}
+    }
+
     receiver::ssdp::Server ssdp;
     if (do_receiver)
     {
 	ssdp.Init(&poller);
 	ssdp.RegisterService(receiver::ssdp::s_uuid_musicserver, ws.GetPort());
-	if (do_nfs)
-	    ssdp.RegisterService(receiver::ssdp::s_uuid_softwareserver, 111,
+	if (software_server || arf)
+	    ssdp.RegisterService(receiver::ssdp::s_uuid_softwareserver, 
+				 software_server ? (unsigned short)111
+				                 : nfs.GetPort(),
 				 software_server);
 	TRACE << "Receiver service started\n";
     }
@@ -472,7 +518,9 @@ int main(int argc, char *argv[])
 	if (s_rescan && !s_exiting)
 	{
 	    s_rescan = false;
+#ifdef HAVE_DB
 	    db.ForceRescan();
+#endif
 	}
     }
 

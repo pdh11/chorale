@@ -25,7 +25,7 @@ public:
  * the background thread). To hand off a Task to a WorkerThread, push
  * it on the WorkerThread's TaskQueue.
  */
-class Task: public CountedObject
+class Task: public util::CountedObject<>
 {
     boost::mutex m_observer_mutex;
     TaskObserver *m_observer;

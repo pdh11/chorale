@@ -27,10 +27,8 @@ squirt:=$(TOP)$(DIR)squirt
 SQUIRT_OBJS:=$(TOP)$(DIR)$(TARGETDIR)squirt.lo
 endif
 
-ifeq ($(LIBXMLPP),yes)
 timedb:=$(TOP)$(DIR)timedb
 TIMEDB_OBJS:=$(TOP)$(DIR)$(TARGETDIR)timedb.lo
-endif
 
 CUTIL_OBJS:=$(READTAGS_OBJS) $(PLAY_OBJS) $(PPARSE_OBJS) $(PLAYLIST2DIR_OBJS) \
 		$(SQUIRT_OBJS) $(TIMEDB_OBJS)
@@ -40,7 +38,7 @@ all-choraleutil: $(pparse) $(playlist2dir) $(readtags) $(play) $(squirt) \
 	$(timedb)
 
 $(TOP)$(DIR)% : CXXFLAGS += $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) \
-	$(LIBCDIOP_CXXFLAGS) $(LIBXMLPP_CXXFLAGS)
+	$(LIBCDIOP_CXXFLAGS)
 
 ifeq ($(libutil),)
 include $(TOP)libutil/Makefile
@@ -67,18 +65,18 @@ $(play): $(PLAY_OBJS) $(liboutput) $(libdb) $(libutil) \
 		$(CXX) -o $@ $(PLAY_OBJS) \
 		$(liboutput) $(libdbsteam) $(libmediadb) \
 		$(libdb) $(libimport) $(libutil) $(LIBFLAC_LIBS) \
-		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBXMLPP_LIBS) \
+		$(BOOST_LIBS) $(TAGLIB_LIBS) \
 		$(GSTREAMER_LIBS) $(LIBS)
 
 $(pparse): $(PPARSE_OBJS) $(libimport) $(libutil) Makefile
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
 		 $(CXX) -o $@ $(PPARSE_OBJS) $(libimport) $(libutil) \
-		 $(LIBXMLPP_LIBS) $(BOOST_LIBS) $(LIBS)
+		 $(BOOST_LIBS) $(LIBS)
 
 $(playlist2dir): $(PLAYLIST2DIR_OBJS) $(libimport) $(libutil) Makefile
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		 $(CXX) -o $@ $(PLAYLIST2DIR_OBJS) $(libimport) $(libutil) \
-		 $(LIBXMLPP_LIBS) $(BOOST_LIBS) $(LIBS)
+		 $(BOOST_LIBS) $(LIBS)
 
 $(readtags): $(READTAGS_OBJS) $(libimport) $(libdb) $(libutil) \
 		Makefile $(libdbsteam) $(libmediadb)
@@ -86,7 +84,7 @@ $(readtags): $(READTAGS_OBJS) $(libimport) $(libdb) $(libutil) \
 		$(CXX) -o $@ $(READTAGS_OBJS) \
 		$(libimport) $(libdbsteam) $(libmediadb) \
 		$(libdb) $(libutil) \
-		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBXMLPP_LIBS) $(LIBS)
+		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS)
 
 $(squirt): $(SQUIRT_OBJS) $(libimport) $(libdb) $(libutil) \
 		$(libdbsteam) $(libmediadb)
@@ -94,7 +92,7 @@ $(squirt): $(SQUIRT_OBJS) $(libimport) $(libdb) $(libutil) \
 		$(CXX) -o $@ $(SQUIRT_OBJS) \
 		$(libimport) $(libdbsteam) $(libmediadb) \
 		$(libdb) $(libutil) \
-		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBXMLPP_LIBS) $(LIBS)
+		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS)
 
 $(timedb): $(TIMEDB_OBJS) $(libimport) $(libdb) $(libutil) \
 		Makefile $(libdbsteam) $(libmediadb)
@@ -102,7 +100,7 @@ $(timedb): $(TIMEDB_OBJS) $(libimport) $(libdb) $(libutil) \
 		$(CXX) -o $@ $(CXXFLAGS) $(TIMEDB_OBJS) \
 		$(libimport) $(libdbsteam) $(libmediadb) \
 		$(libdb) $(libutil) \
-		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBXMLPP_LIBS) $(LIBS)
+		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS)
 
 CLEANS += $(pparse) $(playlist2dir) $(PPARSE_OBJS) \
 	$(PLAYLIST2DIR_OBJS) $(readtags) $(play) $(squirt) $(timedb)

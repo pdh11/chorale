@@ -65,12 +65,12 @@ ifeq ($(CHORALE_VERSION),)
 include $(TOP)Make.config.$(TARGET)
 endif
 
-# If we don't do this, GCC 4.2.3 somehow doesn't figure out they're
+# If we don't do this, GCC 4.2.3/4.3.0 somehow doesn't figure out they're
 # system headers (i.e. -Wno-system-headers doesn't work) despite <> includes
-LIBXMLPP_CXXFLAGS:=$(LIBXMLPP_CXXFLAGS:-I%=-isystem %)
 BOOST_CXXFLAGS:=$(BOOST_CXXFLAGS:-I%=-isystem %)
 QT_CXXFLAGS:=$(QT_CXXFLAGS:-I%=-isystem %)
 GSTREAMER_CXXFLAGS:=$(GSTREAMER_CXXFLAGS:-I%=-isystem %)
+TAGLIB_CXXFLAGS:=$(TAGLIB_CXXFLAGS:-I%=-isystem %)
 
 ifeq ($(DONE_FLAGS),)
 
@@ -203,4 +203,4 @@ $(TOP)$(DIR)$(TARGETDIR)%__test: $(TOP)$(DIR)%.cpp
 	$(CXX) $(CXXFLAGS) $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) -I$(TOP) -S $< -o $@ -DTEST
 
 %.i: %.cpp
-	$(CXX) $(CXXFLAGS) $(LIBXMLPP_CXXFLAGS) -I$(TOP) -E -dD -C $< -o $@ $(QT_CXXFLAGS)
+	$(CXX) $(CXXFLAGS) -I$(TOP) -E -dD -C $< -o $@ $(QT_CXXFLAGS)

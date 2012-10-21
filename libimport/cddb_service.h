@@ -27,7 +27,7 @@ struct CDDBFound
     std::vector<CDDBTrack> tracks;
 };
 
-struct CDDBLookup: public CountedObject
+struct CDDBLookup: public util::CountedObject<>
 {
     std::vector<CDDBFound> discs;
 };

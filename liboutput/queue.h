@@ -6,6 +6,7 @@
 #include <vector>
 
 namespace mediadb { class Database; }
+namespace mediadb { class Registry; }
 
 /** Classes for playback of media items.
  */

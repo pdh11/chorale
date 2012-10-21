@@ -4,6 +4,7 @@ SRCS:= 	allocate_id.cpp \
 	localdb.cpp \
 	registry.cpp \
 	schema.cpp \
+	web_content.cpp \
 	xml.cpp
 
 TEST_SRCS:= \
@@ -24,7 +25,7 @@ libmediadb:=$(TOP)$(DIR)$(TARGETDIR)libmediadb.la
 
 all-mediadb: $(libmediadb)
 
-$(TOP)$(DIR)% : CXXFLAGS += $(BOOST_CXXFLAGS) $(LIBXMLPP_CXXFLAGS)
+$(TOP)$(DIR)% : CXXFLAGS += $(BOOST_CXXFLAGS)
 
 ifeq ($(libutil),)
 include $(TOP)libutil/Makefile
@@ -33,7 +34,7 @@ ifeq ($(libdb),)
 include $(TOP)libdb/Makefile
 endif
 
-$(MEDIADB_TESTS) : TEST_LIBS += $(BOOST_LIBS) $(LIBXMLPP_LIBS)
+$(MEDIADB_TESTS) : TEST_LIBS += $(BOOST_LIBS)
 
 $(MEDIADB_TESTS) : $(libmediadb) $(libdb) $(libutil)
 

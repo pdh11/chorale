@@ -36,7 +36,7 @@ libupnp:=$(TOP)$(DIR)$(TARGETDIR)libupnp.la
 all-libupnp: $(libupnp)
 
 $(TOP)$(DIR)% : CXXFLAGS += $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) \
-	$(LIBCDIOP_CXXFLAGS) $(LIBXMLPP_CXXFLAGS)
+	$(LIBCDIOP_CXXFLAGS)
 
 ifeq ($(HAVE_XSLTPROC),yes)
 
@@ -110,7 +110,7 @@ endif
 
 $(TOP)$(DIR)% : CXXFLAGS += $(UPNP_CXXFLAGS)
 
-$(LIBUPNP_TESTS): TEST_LIBS+= $(UPNP_LIBS) $(LIBXMLPP_LIBS) $(BOOST_LIBS)
+$(LIBUPNP_TESTS): TEST_LIBS+= $(UPNP_LIBS) $(BOOST_LIBS)
 
 $(LIBUPNP_TESTS): $(libmediadb) $(libdbsteam) $(libdb) $(libupnp) $(libutil)
 
@@ -123,7 +123,7 @@ $(upnpscan): $(UPNPSCAN_OBJS) $(libupnp) \
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(RECEIVERSCAN_OBJS) $(libupnp) \
 		$(libmediadb) $(libdb) $(libutil) \
-		$(LIBXMLPP_LIBS) $(BOOST_LIBS) $(CURL_LIBS) $(UPNP_LIBS)
+		$(BOOST_LIBS) $(CURL_LIBS) $(UPNP_LIBS)
 
 -include $(UPNPSCAN_OBJS:%.lo=%.lo.dep)
 

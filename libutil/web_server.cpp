@@ -62,8 +62,12 @@ void WebServer::Task::Run()
 
     util::LineReader lr(stream);
 
+    unsigned int count = 0;
+
     for (;;)
     {
+	++count;
+
 	unsigned rc = m_socket.SetNonBlocking(true);
 	if (rc != 0)
 	{
@@ -90,7 +94,8 @@ void WebServer::Task::Run()
 		rc = m_socket.WaitForRead(5000);
 		if (rc != 0)
 		{
-		    TRACE << "Socket won't come ready " << rc << "\n";
+		    TRACE << (void*)this << " unreadable " << rc
+			  << " (request " << count << ")\n";
 		    return;
 		}
 	    }
@@ -273,6 +278,8 @@ void WebServer::Task::Run()
 	    return;
 	}
 
+//	TRACE << (void*)this << " wrote headers\n";
+
 	if (rs.ssp)
 	{
 	    if (0)//len > 128*1024)
@@ -295,6 +302,8 @@ void WebServer::Task::Run()
 		return;
 	    }
 	}
+
+//	TRACE << (void*)this << " wrote stream\n";
 
 	m_socket.SetCork(false);
 

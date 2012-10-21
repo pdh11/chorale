@@ -1,4 +1,3 @@
-#include "config.h"
 #include "playlist.h"
 #include "libutil/file.h"
 #include "libutil/trace.h"
@@ -21,7 +20,6 @@ PlaylistPtr Playlist::Create(const std::string& filename)
 
     Playlist *result = NULL;
 
-#ifdef HAVE_LIBXMLPP
     if (ext == "asx")
     {
 	result = new PlaylistASX;
@@ -33,7 +31,6 @@ PlaylistPtr Playlist::Create(const std::string& filename)
 	result->m_impl->filename = filename;
     }
     else
-#endif
     {
 	TRACE << "Unexpected playlist file " << filename << "\n";
     }

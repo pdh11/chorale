@@ -177,7 +177,7 @@ void WriteFIDStructure(const char *outputdir, db::Database *thedb)
 			    uint32_t lefid;
 			    lefid = fidmap[children[j]];
 			    if (lefid)
-				length += fwrite(&lefid, 1, 4, f);
+				length += (unsigned int)fwrite(&lefid, 1, 4, f);
 			}
 		    }
 		    fclose(f);
@@ -224,8 +224,8 @@ void WriteFIDStructure(const char *outputdir, db::Database *thedb)
 	}
     }
 
-    printf("Drive 0: %'lu bytes used\n", drivesize[0]);
-    printf("Drive 1: %'lu bytes used\n", drivesize[1]);
+    printf("Drive 0: %llu bytes used\n", (unsigned long long)drivesize[0]);
+    printf("Drive 1: %llu bytes used\n", (unsigned long long)drivesize[1]);
 }
 
 int main(int argc, char *argv[])
@@ -252,7 +252,7 @@ int main(int argc, char *argv[])
 	    Usage(stdout);
 	    return 0;
 	case 't':
-	    nthreads = strtoul(optarg, NULL, 10);
+	    nthreads = (int)strtoul(optarg, NULL, 10);
 	    break;
 	case 'f':
 	    dbfile = optarg;
@@ -263,7 +263,8 @@ int main(int argc, char *argv[])
 	}
     }
 
-    if (argc < optind+2 || argc > optind+3 || nthreads < 0)
+    int nargs = argc-optind;
+    if (nargs < 2 || nargs > 3 || nthreads < 0)
     {
 	Usage(stderr);
 	return 1;
@@ -286,9 +287,7 @@ int main(int argc, char *argv[])
 
     TRACE << "reading\n";
 
-#ifdef HAVE_LIBXMLPP
     mediadb::ReadXML(&sdb, "db.xml");
-#endif
 
     TRACE << "scanning\n";
 
