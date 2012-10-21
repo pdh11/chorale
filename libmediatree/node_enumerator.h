@@ -1,0 +1,30 @@
+#ifndef MEDIATREE_NODE_ENUMERATOR_H
+#define MEDIATREE_NODE_ENUMERATOR_H 1
+
+#include "libutil/counted_object.h"
+#include "libdb/db.h"
+#include <string>
+#include "libutil/trace.h"
+
+namespace mediatree {
+
+template <class T>
+class ContainerEnumerator: public Node::Enumerator
+{
+    typename T::const_iterator m_iter;
+    typename T::const_iterator m_end;
+
+public:
+    ContainerEnumerator(const T& t)
+	: m_iter(t.begin()), 
+	  m_end(t.end())
+    {}
+
+    bool IsValid() { return m_iter != m_end; }
+    NodePtr Get() { TRACE << "getting\n"; return *m_iter; }
+    void Next() { ++m_iter; }
+};
+
+}; // namespace mediatree
+
+#endif

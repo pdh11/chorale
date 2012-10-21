@@ -1,0 +1,79 @@
+#include "localdb.h"
+#include "schema.h"
+#include "libutil/trace.h"
+#include "libutil/file.h"
+#include "libutil/file_stream.h"
+#include <fcntl.h>
+
+namespace mediadb {
+
+db::RecordsetPtr LocalDatabase::CreateRecordset()
+{
+    return m_db->CreateRecordset();
+}
+
+db::QueryPtr LocalDatabase::CreateQuery()
+{
+    return m_db->CreateQuery();
+}
+
+std::string LocalDatabase::GetURL(unsigned int id)
+{
+    db::QueryPtr qp = m_db->CreateQuery();
+    qp->Restrict(ID, db::EQ, id);
+    db::RecordsetPtr rs = qp->Execute();
+    if (!rs || rs->IsEOF())
+    {
+	TRACE << "Can't open ID " << id << " for reading\n";
+	return std::string();
+    }
+    return util::PathToURL(rs->GetString(PATH));
+}
+
+util::SeekableStreamPtr LocalDatabase::OpenRead(unsigned int id)
+{
+    db::QueryPtr qp = m_db->CreateQuery();
+    qp->Restrict(ID, db::EQ, id);
+    db::RecordsetPtr rs = qp->Execute();
+    if (!rs || rs->IsEOF())
+    {
+	TRACE << "Can't open ID " << id << " for reading\n";
+	return util::SeekableStreamPtr();
+    }
+    
+    util::FileStreamPtr fsp;
+    unsigned int rc = util::FileStream::Create(rs->GetString(PATH).c_str(),
+					       O_RDONLY, &fsp);
+    if (rc)
+    {
+	TRACE << "Can't open ID " << id << " file " << rs->GetString(PATH)
+	      << " rc=" << rc << "\n";
+	return util::SeekableStreamPtr();
+    }
+    return fsp;
+}
+
+util::SeekableStreamPtr LocalDatabase::OpenWrite(unsigned int id)
+{
+    db::QueryPtr qp = m_db->CreateQuery();
+    qp->Restrict(ID, db::EQ, id);
+    db::RecordsetPtr rs = qp->Execute();
+    if (!rs || rs->IsEOF())
+    {
+	TRACE << "Can't open ID " << id << " for reading\n";
+	return util::SeekableStreamPtr();
+    }
+    
+    util::FileStreamPtr fsp;
+    unsigned int rc = util::FileStream::Create(rs->GetString(PATH).c_str(),
+					       O_RDWR|O_CREAT, &fsp);
+    if (rc)
+    {
+	TRACE << "Can't open ID " << id << " file " << rs->GetString(PATH)
+	      << " rc=" << rc << "\n";
+	return util::SeekableStreamPtr();
+    }
+    return fsp;
+}
+
+};

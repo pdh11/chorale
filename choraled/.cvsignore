@@ -1,0 +1,4 @@
+choraled
+obj-*
+.libs
+db.xml

@@ -1,0 +1,15 @@
+choralecd
+=========
+
+Simple CD ripping program for Chorale.
+
+Knows about single-artist, compilation, and continuous-mix albums.
+
+One ripping thread per CD mech, one (low-priority) encoding thread per
+CPU.
+
+Encodes to MP3 and FLAC simultaneously (starting as soon as the first
+sector is ripped).
+
+Can rip a second CD as soon as the first finishes ripping (i.e., while
+still encoding the first one).

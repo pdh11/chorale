@@ -1,0 +1,1976 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<db schema="1">
+<record>
+<id>289</id>
+<title>1992-2002</title>
+<path>/home/chorale/mp3/1992-2002</path>
+<type>dir</type>
+<children>
+  <child>297</child>
+  <child>298</child>
+  <child>299</child>
+  <child>295</child>
+  <child>296</child>
+  <child>300</child>
+  <child>301</child>
+  <child>306</child>
+  <child>302</child>
+  <child>307</child>
+  <child>310</child>
+  <child>311</child>
+  <child>312</child>
+  <child>313</child>
+  <child>315</child>
+  <child>316</child>
+  <child>381</child>
+</children>
+</record>
+
+<record>
+<id>290</id>
+<title>Everything Is</title>
+<path>/home/chorale/mp3/Everything Is</path>
+<type>dir</type>
+<children>
+  <child>317</child>
+  <child>319</child>
+  <child>322</child>
+  <child>323</child>
+  <child>353</child>
+  <child>308</child>
+  <child>355</child>
+  <child>359</child>
+  <child>361</child>
+  <child>363</child>
+  <child>364</child>
+  <child>365</child>
+</children>
+</record>
+
+<record>
+<id>291</id>
+<title>SongsStartingWithB</title>
+<sizebytes>250</sizebytes>
+<path>/home/chorale/mp3/SongsStartingWithB.wpl</path>
+<type>playlist</type>
+<children>
+  <child>302</child>
+  <child>297</child>
+  <child>308</child>
+  <child>331</child>
+</children>
+</record>
+
+<record>
+<id>292</id>
+<title>SongsStartingWithB</title>
+<sizebytes>238</sizebytes>
+<path>/home/chorale/mp3/SongsStartingWithB.wpl~</path>
+</record>
+
+<record>
+<id>293</id>
+<title>The Garden</title>
+<path>/home/chorale/mp3/The Garden</path>
+<type>dir</type>
+<children>
+  <child>325</child>
+  <child>327</child>
+  <child>329</child>
+  <child>332</child>
+  <child>334</child>
+  <child>337</child>
+  <child>338</child>
+  <child>340</child>
+  <child>343</child>
+  <child>345</child>
+  <child>348</child>
+  <child>350</child>
+  <child>352</child>
+</children>
+</record>
+
+<record>
+<id>294</id>
+<title>Violator</title>
+<path>/home/chorale/mp3/Violator</path>
+<type>dir</type>
+<children>
+  <child>366</child>
+  <child>368</child>
+  <child>370</child>
+  <child>371</child>
+  <child>372</child>
+  <child>374</child>
+  <child>375</child>
+  <child>331</child>
+  <child>377</child>
+  <child>380</child>
+</children>
+</record>
+
+<record>
+<id>295</id>
+<title>Rez</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>4</tracknumber>
+<genre>Electronica</genre>
+<year>1994</year>
+<durationms>597000</durationms>
+<codec>mp3</codec>
+<sizebytes>14254802</sizebytes>
+<bitspersec>191000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/1992-2002/04 Rez.mp3</path>
+<mtime>1159199316</mtime>
+<ctime>1201368913</ctime>
+<type>tune</type>
+</record>
+
+<record>
+<id>296</id>
+<title>Spikee</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>5</tracknumber>
+<genre>Electronica</genre>
+<year>1993</year>
+<durationms>749000</durationms>
+<codec>mp3</codec>
+<sizebytes>18831325</sizebytes>
+<bitspersec>201000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/1992-2002/05 Spikee.mp3</path>
+<mtime>1159199583</mtime>
+<ctime>1201368942</ctime>
+<type>tune</type>
+<idhigh>303</idhigh>
+</record>
+
+<record>
+<id>297</id>
+<title>Bigmouth</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>1</tracknumber>
+<genre>Electronica</genre>
+<year>1992</year>
+<durationms>608000</durationms>
+<codec>mp3</codec>
+<sizebytes>16740658</sizebytes>
+<bitspersec>220000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/1992-2002/01 Bigmouth.mp3</path>
+<mtime>1159198811</mtime>
+<ctime>1201368936</ctime>
+<type>tune</type>
+<idhigh>305</idhigh>
+</record>
+
+<record>
+<id>298</id>
+<title>Dirty</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>2</tracknumber>
+<genre>Electronica</genre>
+<year>1993</year>
+<durationms>618000</durationms>
+<codec>mp3</codec>
+<sizebytes>16053232</sizebytes>
+<bitspersec>207000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/1992-2002/02 Dirty.mp3</path>
+<mtime>1159198978</mtime>
+<ctime>1201368926</ctime>
+<type>tune</type>
+<idhigh>304</idhigh>
+</record>
+
+<record>
+<id>299</id>
+<title>Mmm Skyscraper I Love You</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>3</tracknumber>
+<genre>Electronica</genre>
+<year>1993</year>
+<durationms>794000</durationms>
+<codec>mp3</codec>
+<sizebytes>20634288</sizebytes>
+<bitspersec>207000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/1992-2002/03 Mmm Skyscraper I Love You.mp3</path>
+<mtime>1159199210</mtime>
+<ctime>1201368908</ctime>
+<type>tune</type>
+<idhigh>309</idhigh>
+</record>
+
+<record>
+<id>300</id>
+<title>Dirty Epic</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>6</tracknumber>
+<genre>Electronica</genre>
+<year>1994</year>
+<durationms>599000</durationms>
+<codec>mp3</codec>
+<sizebytes>14375836</sizebytes>
+<bitspersec>191000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/1992-2002/06 Dirty Epic.mp3</path>
+<mtime>1159199777</mtime>
+<ctime>1201368910</ctime>
+<type>tune</type>
+</record>
+
+<record>
+<id>301</id>
+<title>Dark And Long Dark Train</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>7</tracknumber>
+<genre>Electronica</genre>
+<year>1994</year>
+<durationms>653000</durationms>
+<codec>mp3</codec>
+<sizebytes>14252532</sizebytes>
+<bitspersec>174000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/1992-2002/07 Dark And Long Dark Train.mp3</path>
+<mtime>1159199945</mtime>
+<ctime>1201368915</ctime>
+<type>tune</type>
+</record>
+
+<record>
+<id>302</id>
+<title>Born Slippy Nuxx</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>9</tracknumber>
+<genre>Electronica</genre>
+<year>1996</year>
+<durationms>454000</durationms>
+<codec>mp3</codec>
+<sizebytes>10296067</sizebytes>
+<bitspersec>181000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/1992-2002/09 Born Slippy Nuxx.mp3</path>
+<mtime>1159200208</mtime>
+<ctime>1201368920</ctime>
+<type>tune</type>
+</record>
+
+<record>
+<id>303</id>
+<title>Spikee</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>5</tracknumber>
+<genre>Electronica</genre>
+<year>1993</year>
+<durationms>749000</durationms>
+<codec>flac</codec>
+<sizebytes>92822592</sizebytes>
+<bitspersec>991000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/1992-2002/05 Spikee.flac</path>
+<mtime>1159199417</mtime>
+<ctime>1201368984</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>304</id>
+<title>Dirty</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>2</tracknumber>
+<genre>Electronica</genre>
+<year>1993</year>
+<durationms>618000</durationms>
+<codec>flac</codec>
+<sizebytes>80685720</sizebytes>
+<bitspersec>1044000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/1992-2002/02 Dirty.flac</path>
+<mtime>1159198824</mtime>
+<ctime>1201369102</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>305</id>
+<title>Bigmouth</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>1</tracknumber>
+<genre>Electronica</genre>
+<year>1992</year>
+<durationms>608000</durationms>
+<codec>flac</codec>
+<sizebytes>79373551</sizebytes>
+<bitspersec>1044000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/1992-2002/01 Bigmouth.flac</path>
+<mtime>1159198662</mtime>
+<ctime>1201368959</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>306</id>
+<title>Cowgirl</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>8</tracknumber>
+<genre>Electronica</genre>
+<year>1994</year>
+<durationms>510000</durationms>
+<codec>mp3</codec>
+<sizebytes>11807071</sizebytes>
+<bitspersec>185000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/1992-2002/08 Cowgirl.mp3</path>
+<mtime>1159200070</mtime>
+<ctime>1201368923</ctime>
+<type>tune</type>
+<idhigh>318</idhigh>
+</record>
+
+<record>
+<id>307</id>
+<title>Pearls Girl</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>10</tracknumber>
+<genre>Electronica</genre>
+<year>1996</year>
+<durationms>577000</durationms>
+<codec>mp3</codec>
+<sizebytes>14717024</sizebytes>
+<bitspersec>204000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/1992-2002/10 Pearls Girl.mp3</path>
+<mtime>1159200409</mtime>
+<ctime>1201368932</ctime>
+<type>tune</type>
+</record>
+
+<record>
+<id>308</id>
+<title>Behind Your Eyes</title>
+<artist>Nine Black Alps</artist>
+<album>Everything Is</album>
+<tracknumber>6</tracknumber>
+<genre>Electronica</genre>
+<year>2005</year>
+<durationms>171000</durationms>
+<codec>mp3</codec>
+<sizebytes>3919736</sizebytes>
+<bitspersec>183000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/Everything Is/06 Behind Your Eyes.mp3</path>
+<mtime>1159203620</mtime>
+<ctime>1201368914</ctime>
+<type>tune</type>
+<idhigh>330</idhigh>
+</record>
+
+<record>
+<id>309</id>
+<title>Mmm Skyscraper I Love You</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>3</tracknumber>
+<genre>Electronica</genre>
+<year>1993</year>
+<durationms>794000</durationms>
+<codec>flac</codec>
+<sizebytes>13729792</sizebytes>
+<bitspersec>138000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/1992-2002/03 Mmm Skyscraper I Love You.flac</path>
+<mtime>1201369111</mtime>
+<ctime>1201369111</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>310</id>
+<title>Jumbo</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>11</tracknumber>
+<genre>Electronica</genre>
+<year>1998</year>
+<durationms>419000</durationms>
+<codec>mp3</codec>
+<sizebytes>9303709</sizebytes>
+<bitspersec>177000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/1992-2002/11 Jumbo.mp3</path>
+<mtime>1159200486</mtime>
+<ctime>1201368911</ctime>
+<type>tune</type>
+<idhigh>328</idhigh>
+</record>
+
+<record>
+<id>311</id>
+<title>Push Upstairs</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>12</tracknumber>
+<genre>Electronica</genre>
+<year>1998</year>
+<durationms>369000</durationms>
+<codec>mp3</codec>
+<sizebytes>8923808</sizebytes>
+<bitspersec>193000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/1992-2002/12 Push Upstairs.mp3</path>
+<mtime>1159200606</mtime>
+<ctime>1201368904</ctime>
+<type>tune</type>
+<idhigh>320</idhigh>
+</record>
+
+<record>
+<id>312</id>
+<title>Moaner</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>13</tracknumber>
+<genre>Electronica</genre>
+<year>1997</year>
+<durationms>622000</durationms>
+<codec>mp3</codec>
+<sizebytes>16087000</sizebytes>
+<bitspersec>206000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/1992-2002/13 Moaner.mp3</path>
+<mtime>1159200830</mtime>
+<ctime>1201368906</ctime>
+<type>tune</type>
+<idhigh>324</idhigh>
+</record>
+
+<record>
+<id>313</id>
+<title>Shudder / King Of Snake</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>14</tracknumber>
+<genre>Electronica</genre>
+<year>1998</year>
+<durationms>570000</durationms>
+<codec>mp3</codec>
+<sizebytes>15704659</sizebytes>
+<bitspersec>220000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/1992-2002/14 Shudder ／ King Of Snake.mp3</path>
+<mtime>1159201025</mtime>
+<ctime>1201368918</ctime>
+<type>tune</type>
+<idhigh>314</idhigh>
+</record>
+
+<record>
+<id>314</id>
+<title>Shudder / King Of Snake</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>14</tracknumber>
+<genre>Electronica</genre>
+<year>1998</year>
+<durationms>570000</durationms>
+<codec>flac</codec>
+<sizebytes>72178586</sizebytes>
+<bitspersec>1013000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/1992-2002/14 Shudder ／ King Of Snake.flac</path>
+<mtime>1159200827</mtime>
+<ctime>1201369031</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>315</id>
+<title>8 Ball</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>15</tracknumber>
+<genre>Electronica</genre>
+<year>1999</year>
+<durationms>534000</durationms>
+<codec>mp3</codec>
+<sizebytes>12163579</sizebytes>
+<bitspersec>182000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/1992-2002/15 8 Ball.mp3</path>
+<mtime>1159201183</mtime>
+<ctime>1201368929</ctime>
+<type>tune</type>
+</record>
+
+<record>
+<id>316</id>
+<title>Two Months Off</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>16</tracknumber>
+<genre>Electronica</genre>
+<year>2002</year>
+<durationms>550000</durationms>
+<codec>mp3</codec>
+<sizebytes>14305572</sizebytes>
+<bitspersec>208000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/1992-2002/16 Two Months Off.mp3</path>
+<mtime>1159201347</mtime>
+<ctime>1201368945</ctime>
+<type>tune</type>
+</record>
+
+<record>
+<id>317</id>
+<title>Get Your Guns</title>
+<artist>Nine Black Alps</artist>
+<album>Everything Is</album>
+<tracknumber>1</tracknumber>
+<genre>Electronica</genre>
+<year>2005</year>
+<durationms>215000</durationms>
+<codec>mp3</codec>
+<sizebytes>4557285</sizebytes>
+<bitspersec>169000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/Everything Is/01 Get Your Guns.mp3</path>
+<mtime>1159203393</mtime>
+<ctime>1201368923</ctime>
+<type>tune</type>
+<idhigh>321</idhigh>
+</record>
+
+<record>
+<id>318</id>
+<title>Cowgirl</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>8</tracknumber>
+<genre>Electronica</genre>
+<year>1994</year>
+<durationms>510000</durationms>
+<codec>flac</codec>
+<sizebytes>63095852</sizebytes>
+<bitspersec>989000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/1992-2002/08 Cowgirl.flac</path>
+<mtime>1159199917</mtime>
+<ctime>1201369109</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>319</id>
+<title>Cosmopolitan</title>
+<artist>Nine Black Alps</artist>
+<album>Everything Is</album>
+<tracknumber>2</tracknumber>
+<genre>Electronica</genre>
+<year>2005</year>
+<durationms>156000</durationms>
+<codec>mp3</codec>
+<sizebytes>3581187</sizebytes>
+<bitspersec>183000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/Everything Is/02 Cosmopolitan.mp3</path>
+<mtime>1159203434</mtime>
+<ctime>1201368922</ctime>
+<type>tune</type>
+<idhigh>326</idhigh>
+</record>
+
+<record>
+<id>320</id>
+<title>Push Upstairs</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>12</tracknumber>
+<genre>Electronica</genre>
+<year>1998</year>
+<durationms>369000</durationms>
+<codec>flac</codec>
+<sizebytes>44925003</sizebytes>
+<bitspersec>973000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/1992-2002/12 Push Upstairs.flac</path>
+<mtime>1159200498</mtime>
+<ctime>1201369002</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>321</id>
+<title>Get Your Guns</title>
+<artist>Nine Black Alps</artist>
+<album>Everything Is</album>
+<tracknumber>1</tracknumber>
+<genre>Electronica</genre>
+<year>2005</year>
+<durationms>215000</durationms>
+<codec>flac</codec>
+<sizebytes>28998906</sizebytes>
+<bitspersec>1078000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/Everything Is/01 Get Your Guns.flac</path>
+<mtime>1159203343</mtime>
+<ctime>1201369011</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>322</id>
+<title>Not Everyone</title>
+<artist>Nine Black Alps</artist>
+<album>Everything Is</album>
+<tracknumber>3</tracknumber>
+<genre>Electronica</genre>
+<year>2005</year>
+<durationms>204000</durationms>
+<codec>mp3</codec>
+<sizebytes>4487049</sizebytes>
+<bitspersec>175000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/Everything Is/03 Not Everyone.mp3</path>
+<mtime>1159203484</mtime>
+<ctime>1201368919</ctime>
+<type>tune</type>
+<idhigh>335</idhigh>
+</record>
+
+<record>
+<id>323</id>
+<title>Unsatisfied</title>
+<artist>Nine Black Alps</artist>
+<album>Everything Is</album>
+<tracknumber>4</tracknumber>
+<genre>Electronica</genre>
+<year>2005</year>
+<durationms>190000</durationms>
+<codec>mp3</codec>
+<sizebytes>4438455</sizebytes>
+<bitspersec>186000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/Everything Is/04 Unsatisfied.mp3</path>
+<mtime>1159203532</mtime>
+<ctime>1201368917</ctime>
+<type>tune</type>
+<idhigh>336</idhigh>
+</record>
+
+<record>
+<id>324</id>
+<title>Moaner</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>13</tracknumber>
+<genre>Electronica</genre>
+<year>1997</year>
+<durationms>622000</durationms>
+<codec>flac</codec>
+<sizebytes>70045299</sizebytes>
+<bitspersec>900000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/1992-2002/13 Moaner.flac</path>
+<mtime>1159200678</mtime>
+<ctime>1201369080</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>325</id>
+<title>Futures</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>1</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>229000</durationms>
+<codec>mp3</codec>
+<sizebytes>5741150</sizebytes>
+<bitspersec>200000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/The Garden/01 Futures.mp3</path>
+<mtime>1152135718</mtime>
+<ctime>1201368941</ctime>
+<type>tune</type>
+<idhigh>342</idhigh>
+</record>
+
+<record>
+<id>326</id>
+<title>Cosmopolitan</title>
+<artist>Nine Black Alps</artist>
+<album>Everything Is</album>
+<tracknumber>2</tracknumber>
+<genre>Electronica</genre>
+<year>2005</year>
+<durationms>155000</durationms>
+<codec>flac</codec>
+<sizebytes>20911015</sizebytes>
+<bitspersec>1079000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/Everything Is/02 Cosmopolitan.flac</path>
+<mtime>1159203425</mtime>
+<ctime>1201368964</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>327</id>
+<title>Throw It All Away</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>2</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>320000</durationms>
+<codec>mp3</codec>
+<sizebytes>7977932</sizebytes>
+<bitspersec>199000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/The Garden/02 Throw It All Away.mp3</path>
+<mtime>1152135808</mtime>
+<ctime>1201368929</ctime>
+<type>tune</type>
+<idhigh>344</idhigh>
+</record>
+
+<record>
+<id>328</id>
+<title>Jumbo</title>
+<artist>Underworld</artist>
+<album>1992-2002</album>
+<tracknumber>11</tracknumber>
+<genre>Electronica</genre>
+<year>1998</year>
+<durationms>419000</durationms>
+<codec>flac</codec>
+<sizebytes>46005633</sizebytes>
+<bitspersec>878000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/1992-2002/11 Jumbo.flac</path>
+<mtime>1159200328</mtime>
+<ctime>1201369050</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>329</id>
+<title>Seeing Things</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>3</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>309000</durationms>
+<codec>mp3</codec>
+<sizebytes>8039198</sizebytes>
+<bitspersec>208000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/The Garden/03 Seeing Things.mp3</path>
+<mtime>1152135831</mtime>
+<ctime>1201368937</ctime>
+<type>tune</type>
+<idhigh>347</idhigh>
+</record>
+
+<record>
+<id>330</id>
+<title>Behind Your Eyes</title>
+<artist>Nine Black Alps</artist>
+<album>Everything Is</album>
+<tracknumber>6</tracknumber>
+<genre>Electronica</genre>
+<year>2005</year>
+<durationms>171000</durationms>
+<codec>flac</codec>
+<sizebytes>20175433</sizebytes>
+<bitspersec>943000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/Everything Is/06 Behind Your Eyes.flac</path>
+<mtime>1159203574</mtime>
+<ctime>1201369032</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>331</id>
+<title>Blue Dress</title>
+<artist>Depeche Mode</artist>
+<album>Violator</album>
+<tracknumber>8</tracknumber>
+<genre>Rock</genre>
+<year>1990</year>
+<durationms>338000</durationms>
+<codec>mp3</codec>
+<sizebytes>9557588</sizebytes>
+<bitspersec>226000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/Violator/08 Blue Dress.mp3</path>
+<mtime>1159198511</mtime>
+<ctime>1201368949</ctime>
+<type>tune</type>
+<idhigh>351</idhigh>
+</record>
+
+<record>
+<id>332</id>
+<title>The Pageant Of The Bizarre</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>4</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>261000</durationms>
+<codec>mp3</codec>
+<sizebytes>6576261</sizebytes>
+<bitspersec>201000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/The Garden/04 The Pageant Of The Bizarre.mp3</path>
+<mtime>1152135903</mtime>
+<ctime>1201368932</ctime>
+<type>tune</type>
+<idhigh>333</idhigh>
+</record>
+
+<record>
+<id>333</id>
+<title>The Pageant Of The Bizarre</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>4</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>261000</durationms>
+<codec>flac</codec>
+<sizebytes>26240931</sizebytes>
+<bitspersec>804000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/The Garden/04 The Pageant Of The Bizarre.flac</path>
+<mtime>1152128491</mtime>
+<ctime>1201369039</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>334</id>
+<title>You’re My Flame</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>5</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>195000</durationms>
+<codec>mp3</codec>
+<sizebytes>4927987</sizebytes>
+<bitspersec>202000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/The Garden/05 You’re My Flame.mp3</path>
+<mtime>1152135903</mtime>
+<ctime>1201368925</ctime>
+<type>tune</type>
+<idhigh>349</idhigh>
+</record>
+
+<record>
+<id>335</id>
+<title>Not Everyone</title>
+<artist>Nine Black Alps</artist>
+<album>Everything Is</album>
+<tracknumber>3</tracknumber>
+<genre>Electronica</genre>
+<year>2005</year>
+<durationms>204000</durationms>
+<codec>flac</codec>
+<sizebytes>27668804</sizebytes>
+<bitspersec>1084000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/Everything Is/03 Not Everyone.flac</path>
+<mtime>1159203467</mtime>
+<ctime>1201368971</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>336</id>
+<title>Unsatisfied</title>
+<artist>Nine Black Alps</artist>
+<album>Everything Is</album>
+<tracknumber>4</tracknumber>
+<genre>Electronica</genre>
+<year>2005</year>
+<durationms>190000</durationms>
+<codec>flac</codec>
+<sizebytes>24893117</sizebytes>
+<bitspersec>1048000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/Everything Is/04 Unsatisfied.flac</path>
+<mtime>1159203506</mtime>
+<ctime>1201369042</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>337</id>
+<title>Left Behind</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>6</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>75000</durationms>
+<codec>mp3</codec>
+<sizebytes>1806962</sizebytes>
+<bitspersec>192000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/The Garden/06 Left Behind.mp3</path>
+<mtime>1152135930</mtime>
+<ctime>1201368926</ctime>
+<type>tune</type>
+<idhigh>357</idhigh>
+</record>
+
+<record>
+<id>338</id>
+<title>Today</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>7</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>243000</durationms>
+<codec>mp3</codec>
+<sizebytes>6344896</sizebytes>
+<bitspersec>208000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/The Garden/07 Today.mp3</path>
+<mtime>1152136002</mtime>
+<ctime>1201368930</ctime>
+<type>tune</type>
+<idhigh>339</idhigh>
+</record>
+
+<record>
+<id>339</id>
+<title>Today</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>7</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>243000</durationms>
+<codec>flac</codec>
+<sizebytes>24717891</sizebytes>
+<bitspersec>813000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/The Garden/07 Today.flac</path>
+<mtime>1152128503</mtime>
+<ctime>1201369077</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>340</id>
+<title>This Fine Social Scene</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>8</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>267000</durationms>
+<codec>mp3</codec>
+<sizebytes>6639762</sizebytes>
+<bitspersec>198000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/The Garden/08 This Fine Social Scene.mp3</path>
+<mtime>1152136027</mtime>
+<ctime>1201368924</ctime>
+<type>tune</type>
+<idhigh>341</idhigh>
+</record>
+
+<record>
+<id>341</id>
+<title>This Fine Social Scene</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>8</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>267000</durationms>
+<codec>flac</codec>
+<sizebytes>28359122</sizebytes>
+<bitspersec>849000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/The Garden/08 This Fine Social Scene.flac</path>
+<mtime>1152128508</mtime>
+<ctime>1201369024</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>342</id>
+<title>Futures</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>1</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>229000</durationms>
+<codec>flac</codec>
+<sizebytes>24762432</sizebytes>
+<bitspersec>864000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/The Garden/01 Futures.flac</path>
+<mtime>1152128477</mtime>
+<ctime>1201369086</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>343</id>
+<title>Your Place</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>9</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>361000</durationms>
+<codec>mp3</codec>
+<sizebytes>8251735</sizebytes>
+<bitspersec>182000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/The Garden/09 Your Place.mp3</path>
+<mtime>1152136145</mtime>
+<ctime>1201368927</ctime>
+<type>tune</type>
+<idhigh>358</idhigh>
+</record>
+
+<record>
+<id>344</id>
+<title>Throw It All Away</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>2</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>320000</durationms>
+<codec>flac</codec>
+<sizebytes>33799716</sizebytes>
+<bitspersec>844000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/The Garden/02 Throw It All Away.flac</path>
+<mtime>1152128482</mtime>
+<ctime>1201369068</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>345</id>
+<title>If I Can’t Have You</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>10</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>202000</durationms>
+<codec>mp3</codec>
+<sizebytes>4890378</sizebytes>
+<bitspersec>193000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/The Garden/10 If I Can’t Have You.mp3</path>
+<mtime>1152136097</mtime>
+<ctime>1201368942</ctime>
+<type>tune</type>
+<idhigh>346</idhigh>
+</record>
+
+<record>
+<id>346</id>
+<title>If I Can’t Have You</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>10</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>202000</durationms>
+<codec>flac</codec>
+<sizebytes>22268851</sizebytes>
+<bitspersec>881000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/The Garden/10 If I Can’t Have You.flac</path>
+<mtime>1152128519</mtime>
+<ctime>1201368987</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>347</id>
+<title>Seeing Things</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>3</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>309000</durationms>
+<codec>flac</codec>
+<sizebytes>31569316</sizebytes>
+<bitspersec>817000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/The Garden/03 Seeing Things.flac</path>
+<mtime>1152128486</mtime>
+<ctime>1201368978</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>348</id>
+<title>Crosses</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>11</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>399000</durationms>
+<codec>mp3</codec>
+<sizebytes>10138973</sizebytes>
+<bitspersec>203000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/The Garden/11 Crosses.mp3</path>
+<mtime>1152136246</mtime>
+<ctime>1201368934</ctime>
+<type>tune</type>
+<idhigh>360</idhigh>
+</record>
+
+<record>
+<id>349</id>
+<title>You’re My Flame</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>5</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>195000</durationms>
+<codec>flac</codec>
+<sizebytes>22587147</sizebytes>
+<bitspersec>926000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/The Garden/05 You’re My Flame.flac</path>
+<mtime>1152128497</mtime>
+<ctime>1201369048</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>350</id>
+<title>Waiting To Die</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>12</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>219000</durationms>
+<codec>mp3</codec>
+<sizebytes>5242148</sizebytes>
+<bitspersec>191000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/The Garden/12 Waiting To Die.mp3</path>
+<mtime>1152136224</mtime>
+<ctime>1201368939</ctime>
+<type>tune</type>
+<idhigh>362</idhigh>
+</record>
+
+<record>
+<id>351</id>
+<title>Blue Dress</title>
+<artist>Depeche Mode</artist>
+<album>Violator</album>
+<tracknumber>8</tracknumber>
+<genre>Rock</genre>
+<year>1990</year>
+<durationms>338000</durationms>
+<codec>flac</codec>
+<sizebytes>33977715</sizebytes>
+<bitspersec>804000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/Violator/08 Blue Dress.flac</path>
+<mtime>1159198400</mtime>
+<ctime>1201368989</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>352</id>
+<title>folder</title>
+<sizebytes>94459</sizebytes>
+<path>/home/chorale/mp3/The Garden/folder.jpg</path>
+</record>
+
+<record>
+<id>353</id>
+<title>Headlights</title>
+<artist>Nine Black Alps</artist>
+<album>Everything Is</album>
+<tracknumber>5</tracknumber>
+<genre>Electronica</genre>
+<year>2005</year>
+<durationms>164000</durationms>
+<codec>mp3</codec>
+<sizebytes>4209148</sizebytes>
+<bitspersec>205000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/Everything Is/05 Headlights.mp3</path>
+<mtime>1159203572</mtime>
+<ctime>1201368918</ctime>
+<type>tune</type>
+<idhigh>354</idhigh>
+</record>
+
+<record>
+<id>354</id>
+<title>Headlights</title>
+<artist>Nine Black Alps</artist>
+<album>Everything Is</album>
+<tracknumber>5</tracknumber>
+<genre>Electronica</genre>
+<year>2005</year>
+<durationms>164000</durationms>
+<codec>flac</codec>
+<sizebytes>22115187</sizebytes>
+<bitspersec>1078000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/Everything Is/05 Headlights.flac</path>
+<mtime>1159203539</mtime>
+<ctime>1201368978</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>355</id>
+<title>Ironside</title>
+<artist>Nine Black Alps</artist>
+<album>Everything Is</album>
+<tracknumber>7</tracknumber>
+<genre>Electronica</genre>
+<year>2005</year>
+<durationms>166000</durationms>
+<codec>mp3</codec>
+<sizebytes>4039393</sizebytes>
+<bitspersec>194000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/Everything Is/07 Ironside.mp3</path>
+<mtime>1159203648</mtime>
+<ctime>1201368915</ctime>
+<type>tune</type>
+<idhigh>356</idhigh>
+</record>
+
+<record>
+<id>356</id>
+<title>Ironside</title>
+<artist>Nine Black Alps</artist>
+<album>Everything Is</album>
+<tracknumber>7</tracknumber>
+<genre>Electronica</genre>
+<year>2005</year>
+<durationms>166000</durationms>
+<codec>flac</codec>
+<sizebytes>22123268</sizebytes>
+<bitspersec>1066000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/Everything Is/07 Ironside.flac</path>
+<mtime>1159203607</mtime>
+<ctime>1201368999</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>357</id>
+<title>Left Behind</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>6</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>75000</durationms>
+<codec>flac</codec>
+<sizebytes>5780235</sizebytes>
+<bitspersec>616000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/The Garden/06 Left Behind.flac</path>
+<mtime>1152128501</mtime>
+<ctime>1201369027</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>358</id>
+<title>Your Place</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>9</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>361000</durationms>
+<codec>flac</codec>
+<sizebytes>35510850</sizebytes>
+<bitspersec>786000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/The Garden/09 Your Place.flac</path>
+<mtime>1152128511</mtime>
+<ctime>1201369002</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>359</id>
+<title>Shot Down</title>
+<artist>Nine Black Alps</artist>
+<album>Everything Is</album>
+<tracknumber>8</tracknumber>
+<genre>Electronica</genre>
+<year>2005</year>
+<durationms>175000</durationms>
+<codec>mp3</codec>
+<sizebytes>4258033</sizebytes>
+<bitspersec>194000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/Everything Is/08 Shot Down.mp3</path>
+<mtime>1159203689</mtime>
+<ctime>1201368916</ctime>
+<type>tune</type>
+<idhigh>382</idhigh>
+</record>
+
+<record>
+<id>360</id>
+<title>Crosses</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>11</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>399000</durationms>
+<codec>flac</codec>
+<sizebytes>41620869</sizebytes>
+<bitspersec>834000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/The Garden/11 Crosses.flac</path>
+<mtime>1152128522</mtime>
+<ctime>1201369099</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>361</id>
+<title>Just Friends</title>
+<artist>Nine Black Alps</artist>
+<album>Everything Is</album>
+<tracknumber>9</tracknumber>
+<genre>Electronica</genre>
+<year>2005</year>
+<durationms>138000</durationms>
+<codec>mp3</codec>
+<sizebytes>3105229</sizebytes>
+<bitspersec>179000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/Everything Is/09 Just Friends.mp3</path>
+<mtime>1159203715</mtime>
+<ctime>1201368920</ctime>
+<type>tune</type>
+<idhigh>376</idhigh>
+</record>
+
+<record>
+<id>362</id>
+<title>Waiting To Die</title>
+<artist>Zero 7</artist>
+<album>The Garden</album>
+<tracknumber>12</tracknumber>
+<genre>Ambient</genre>
+<year>2006</year>
+<durationms>219000</durationms>
+<codec>flac</codec>
+<sizebytes>23992552</sizebytes>
+<bitspersec>876000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/The Garden/12 Waiting To Die.flac</path>
+<mtime>1152128525</mtime>
+<ctime>1201369012</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>363</id>
+<title>Intermission</title>
+<artist>Nine Black Alps</artist>
+<album>Everything Is</album>
+<tracknumber>10</tracknumber>
+<genre>Electronica</genre>
+<year>2005</year>
+<durationms>185000</durationms>
+<codec>mp3</codec>
+<sizebytes>4470477</sizebytes>
+<bitspersec>193000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/Everything Is/10 Intermission.mp3</path>
+<mtime>1159203771</mtime>
+<ctime>1201368913</ctime>
+<type>tune</type>
+<idhigh>379</idhigh>
+</record>
+
+<record>
+<id>364</id>
+<title>Southern Cross</title>
+<artist>Nine Black Alps</artist>
+<album>Everything Is</album>
+<tracknumber>11</tracknumber>
+<genre>Electronica</genre>
+<year>2005</year>
+<durationms>215000</durationms>
+<codec>mp3</codec>
+<sizebytes>5491399</sizebytes>
+<bitspersec>204000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/Everything Is/11 Southern Cross.mp3</path>
+<mtime>1159203823</mtime>
+<ctime>1201368921</ctime>
+<type>tune</type>
+<idhigh>373</idhigh>
+</record>
+
+<record>
+<id>365</id>
+<title>folder</title>
+<sizebytes>118571</sizebytes>
+<path>/home/chorale/mp3/Everything Is/folder.jpg</path>
+</record>
+
+<record>
+<id>366</id>
+<title>World In My Eyes</title>
+<artist>Depeche Mode</artist>
+<album>Violator</album>
+<tracknumber>1</tracknumber>
+<genre>Rock</genre>
+<year>1990</year>
+<durationms>267000</durationms>
+<codec>mp3</codec>
+<sizebytes>7629896</sizebytes>
+<bitspersec>228000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/Violator/01 World In My Eyes.mp3</path>
+<mtime>1159198142</mtime>
+<ctime>1201368945</ctime>
+<type>tune</type>
+<idhigh>367</idhigh>
+</record>
+
+<record>
+<id>367</id>
+<title>World In My Eyes</title>
+<artist>Depeche Mode</artist>
+<album>Violator</album>
+<tracknumber>1</tracknumber>
+<genre>Rock</genre>
+<year>1990</year>
+<durationms>267000</durationms>
+<codec>flac</codec>
+<sizebytes>30686347</sizebytes>
+<bitspersec>919000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/Violator/01 World In My Eyes.flac</path>
+<mtime>1159198141</mtime>
+<ctime>1201369002</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>368</id>
+<title>Sweetest Perfection</title>
+<artist>Depeche Mode</artist>
+<album>Violator</album>
+<tracknumber>2</tracknumber>
+<genre>Rock</genre>
+<year>1990</year>
+<durationms>283000</durationms>
+<codec>mp3</codec>
+<sizebytes>7170002</sizebytes>
+<bitspersec>202000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/Violator/02 Sweetest Perfection.mp3</path>
+<mtime>1159197856</mtime>
+<ctime>1201368943</ctime>
+<type>tune</type>
+<idhigh>369</idhigh>
+</record>
+
+<record>
+<id>369</id>
+<title>Sweetest Perfection</title>
+<artist>Depeche Mode</artist>
+<album>Violator</album>
+<tracknumber>2</tracknumber>
+<genre>Rock</genre>
+<year>1990</year>
+<durationms>283000</durationms>
+<codec>flac</codec>
+<sizebytes>32762805</sizebytes>
+<bitspersec>926000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/Violator/02 Sweetest Perfection.flac</path>
+<mtime>1159197852</mtime>
+<ctime>1201369079</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>370</id>
+<title>Personal Jesus</title>
+<artist>Depeche Mode</artist>
+<album>Violator</album>
+<tracknumber>3</tracknumber>
+<genre>Rock</genre>
+<year>1990</year>
+<durationms>296000</durationms>
+<codec>mp3</codec>
+<sizebytes>8600226</sizebytes>
+<bitspersec>232000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/Violator/03 Personal Jesus.mp3</path>
+<mtime>1159197959</mtime>
+<ctime>1201368946</ctime>
+<type>tune</type>
+<idhigh>386</idhigh>
+</record>
+
+<record>
+<id>371</id>
+<title>Halo</title>
+<artist>Depeche Mode</artist>
+<album>Violator</album>
+<tracknumber>4</tracknumber>
+<genre>Rock</genre>
+<year>1990</year>
+<durationms>270000</durationms>
+<codec>mp3</codec>
+<sizebytes>6992030</sizebytes>
+<bitspersec>207000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/Violator/04 Halo.mp3</path>
+<mtime>1159198046</mtime>
+<ctime>1201368948</ctime>
+<type>tune</type>
+<idhigh>384</idhigh>
+</record>
+
+<record>
+<id>372</id>
+<title>Waiting For The Night</title>
+<artist>Depeche Mode</artist>
+<album>Violator</album>
+<tracknumber>5</tracknumber>
+<genre>Rock</genre>
+<year>1990</year>
+<durationms>367000</durationms>
+<codec>mp3</codec>
+<sizebytes>8968521</sizebytes>
+<bitspersec>195000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/Violator/05 Waiting For The Night.mp3</path>
+<mtime>1159198207</mtime>
+<ctime>1201368939</ctime>
+<type>tune</type>
+<idhigh>378</idhigh>
+</record>
+
+<record>
+<id>373</id>
+<title>Southern Cross</title>
+<artist>Nine Black Alps</artist>
+<album>Everything Is</album>
+<tracknumber>11</tracknumber>
+<genre>Electronica</genre>
+<year>2005</year>
+<durationms>215000</durationms>
+<codec>flac</codec>
+<sizebytes>28316363</sizebytes>
+<bitspersec>1053000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/Everything Is/11 Southern Cross.flac</path>
+<mtime>1159203769</mtime>
+<ctime>1201369024</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>374</id>
+<title>Enjoy The Silence</title>
+<artist>Depeche Mode</artist>
+<album>Violator</album>
+<tracknumber>6</tracknumber>
+<genre>Rock</genre>
+<year>1990</year>
+<durationms>372000</durationms>
+<codec>mp3</codec>
+<sizebytes>8591772</sizebytes>
+<bitspersec>184000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/Violator/06 Enjoy The Silence.mp3</path>
+<mtime>1159198326</mtime>
+<ctime>1201368947</ctime>
+<type>tune</type>
+<idhigh>383</idhigh>
+</record>
+
+<record>
+<id>375</id>
+<title>Policy Of Truth</title>
+<artist>Depeche Mode</artist>
+<album>Violator</album>
+<tracknumber>7</tracknumber>
+<genre>Rock</genre>
+<year>1990</year>
+<durationms>295000</durationms>
+<codec>mp3</codec>
+<sizebytes>7373305</sizebytes>
+<bitspersec>199000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/Violator/07 Policy Of Truth.mp3</path>
+<mtime>1159198393</mtime>
+<ctime>1201368941</ctime>
+<type>tune</type>
+<idhigh>387</idhigh>
+</record>
+
+<record>
+<id>376</id>
+<title>Just Friends</title>
+<artist>Nine Black Alps</artist>
+<album>Everything Is</album>
+<tracknumber>9</tracknumber>
+<genre>Electronica</genre>
+<year>2005</year>
+<durationms>138000</durationms>
+<codec>flac</codec>
+<sizebytes>18682902</sizebytes>
+<bitspersec>1082000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/Everything Is/09 Just Friends.flac</path>
+<mtime>1159203683</mtime>
+<ctime>1201369066</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>377</id>
+<title>Clean</title>
+<artist>Depeche Mode</artist>
+<album>Violator</album>
+<tracknumber>9</tracknumber>
+<genre>Rock</genre>
+<year>1990</year>
+<durationms>332000</durationms>
+<codec>mp3</codec>
+<sizebytes>9031623</sizebytes>
+<bitspersec>217000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/mp3/Violator/09 Clean.mp3</path>
+<mtime>1159198589</mtime>
+<ctime>1201368936</ctime>
+<type>tune</type>
+<idhigh>385</idhigh>
+</record>
+
+<record>
+<id>378</id>
+<title>Waiting For The Night</title>
+<artist>Depeche Mode</artist>
+<album>Violator</album>
+<tracknumber>5</tracknumber>
+<genre>Rock</genre>
+<year>1990</year>
+<durationms>367000</durationms>
+<codec>flac</codec>
+<sizebytes>33564321</sizebytes>
+<bitspersec>731000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/Violator/05 Waiting For The Night.flac</path>
+<mtime>1159198138</mtime>
+<ctime>1201369016</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>379</id>
+<title>Intermission</title>
+<artist>Nine Black Alps</artist>
+<album>Everything Is</album>
+<tracknumber>10</tracknumber>
+<genre>Electronica</genre>
+<year>2005</year>
+<durationms>185000</durationms>
+<codec>flac</codec>
+<sizebytes>19874771</sizebytes>
+<bitspersec>859000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/Everything Is/10 Intermission.flac</path>
+<mtime>1159203726</mtime>
+<ctime>1201369051</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>380</id>
+<title>folder</title>
+<sizebytes>31746</sizebytes>
+<path>/home/chorale/mp3/Violator/folder.jpg</path>
+</record>
+
+<record>
+<id>381</id>
+<title>folder</title>
+<sizebytes>17433</sizebytes>
+<path>/home/chorale/mp3/1992-2002/folder.jpg</path>
+</record>
+
+<record>
+<id>382</id>
+<title>Shot Down</title>
+<artist>Nine Black Alps</artist>
+<album>Everything Is</album>
+<tracknumber>8</tracknumber>
+<genre>Electronica</genre>
+<year>2005</year>
+<durationms>175000</durationms>
+<codec>flac</codec>
+<sizebytes>24813209</sizebytes>
+<bitspersec>1134000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/Everything Is/08 Shot Down.flac</path>
+<mtime>1159203655</mtime>
+<ctime>1201368989</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>383</id>
+<title>Enjoy The Silence</title>
+<artist>Depeche Mode</artist>
+<album>Violator</album>
+<tracknumber>6</tracknumber>
+<genre>Rock</genre>
+<year>1990</year>
+<durationms>372000</durationms>
+<codec>flac</codec>
+<sizebytes>39107279</sizebytes>
+<bitspersec>840000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/Violator/06 Enjoy The Silence.flac</path>
+<mtime>1159198231</mtime>
+<ctime>1201369069</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>384</id>
+<title>Halo</title>
+<artist>Depeche Mode</artist>
+<album>Violator</album>
+<tracknumber>4</tracknumber>
+<genre>Rock</genre>
+<year>1990</year>
+<durationms>270000</durationms>
+<codec>flac</codec>
+<sizebytes>30494904</sizebytes>
+<bitspersec>903000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/Violator/04 Halo.flac</path>
+<mtime>1159198007</mtime>
+<ctime>1201369089</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>385</id>
+<title>Clean</title>
+<artist>Depeche Mode</artist>
+<album>Violator</album>
+<tracknumber>9</tracknumber>
+<genre>Rock</genre>
+<year>1990</year>
+<durationms>332000</durationms>
+<codec>flac</codec>
+<sizebytes>36537605</sizebytes>
+<bitspersec>880000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/Violator/09 Clean.flac</path>
+<mtime>1159198474</mtime>
+<ctime>1201369032</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>386</id>
+<title>Personal Jesus</title>
+<artist>Depeche Mode</artist>
+<album>Violator</album>
+<tracknumber>3</tracknumber>
+<genre>Rock</genre>
+<year>1990</year>
+<durationms>295000</durationms>
+<codec>flac</codec>
+<sizebytes>32184377</sizebytes>
+<bitspersec>872000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/Violator/03 Personal Jesus.flac</path>
+<mtime>1159197919</mtime>
+<ctime>1201369099</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>387</id>
+<title>Policy Of Truth</title>
+<artist>Depeche Mode</artist>
+<album>Violator</album>
+<tracknumber>7</tracknumber>
+<genre>Rock</genre>
+<year>1990</year>
+<durationms>295000</durationms>
+<codec>flac</codec>
+<sizebytes>35947165</sizebytes>
+<bitspersec>974000</bitspersec>
+<samplerate>44100</samplerate>
+<channels>2</channels>
+<path>/home/chorale/flac/Violator/07 Policy Of Truth.flac</path>
+<mtime>1159198301</mtime>
+<ctime>1201369047</ctime>
+<type>tunehigh</type>
+</record>
+
+<record>
+<id>256</id>
+<title>mp3</title>
+<path>/home/chorale/mp3</path>
+<type>dir</type>
+<children>
+  <child>289</child>
+  <child>290</child>
+  <child>291</child>
+  <child>292</child>
+  <child>293</child>
+  <child>294</child>
+</children>
+</record>
+
+</db>

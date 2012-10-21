@@ -1,0 +1,84 @@
+
+I've got a PC full of MP3s, a car-player, a Mercury, another PC, an
+Ipod, and a Rio 500.
+
+Or have I?
+
+No, you're right, bollocks have I. What I've got is a single
+continuous media topos, with different facets visible through
+different devices. Or at least I should have.
+
+It's *not my job* to ensure that when I rip a CD on my Windows PC, the
+MP3s end up on my Linux PC and are visible from Mercury and, next time
+the devices meet, end up also on the car-player, and, if I like 'em,
+on the Ipod, and, if I like 'em a lot, on the Rio 500. It should be
+all in the software.
+
+The software should be a media Borg. When I put an audio CD in my
+Windows PC, the default option should be "Assimilate". If my
+car-player leads a life of its own for a while, then returns to the
+fold with extra tunes on, then they should be assimilated too.
+
+	Interface
+
+All the media facets have different display and input hardware. But
+this should not preclude a certain unity of interface. If I rip a CD,
+the UI I get should be as similar as possible on Win32 and X11, and,
+for that matter, on Jupiter or Camelot.
+
+	Implementation
+
+SSDP over TCP/IP for facets able to peer. Facets not able to peer
+might end up using facet-specific protocols, e.g. Rio 500 or Ipod
+protocol.
+
+Ultra-thin client facets may not even be assimilable from their own
+UIs: a PC could grow an "Assimilate Rio 500" icon, but a Rio 500 is
+unlikely to grow an "Assimilate PC" icon.
+
+A slightly less thin, and permanently-connected client (Mercury, or
+video-Mercury) might run only a MediaBorg client, or even less:
+perhaps only an (audiovisual plus) VNC client.
+
+A PC, though, could run a MediaBorg client, or server, or both. If I
+don't need my Windows PC to access the Borg when the Linux PC isn't
+switched on, I could run only the client on it. In this mode, CDs
+ripped under Windows would end up stored on the Linux server only.
+
+Conversely, if two PCs may each be required to support other MediaBorg
+clients, then they both must run the server, and new media moves from
+one to the other via peering.
+
+	Domains
+
+We can't just assume everyone in SSDP range is part of Borg, nor can
+we assume that every part of Borg is in SSDP range. To cope with the
+former, the initial setup of a MediaBorg will include specifying a
+domain. Different domains operating on the same physical network are
+disjoint Borgs. If a media facet starts up and SSDP-discovers that
+several domains are visible, it must pick only one, or let the user
+choose.
+
+Conversely, even if a domain is SSDP-visible, media facets could allow
+a remote machine to be specified, so that the facet could join its
+domain instead.
+
+When setting up or administering a domain, a password can be set for
+write access (possibly read access too, later).
+
+	Media
+
+Perhaps I've got a Gaia, too, and perhaps another PC plugged into a
+television. Nothing so far is specific to audio, except for the fact
+that *all* facets are assumed able to play audio; many facets
+e.g. Mercury, will not be able to play video or display photographs.
+
+This could be distinguished by MIME type; a Mercury could claim to
+support audio/*, whereas a Mercury with a Camelot screen (if such were
+ever to exist) could also support image/*, and obviously a Gaia or PC
+could support video/* as well.
+
+This could be continued at the MIME subtype level, so that a PC could
+claim to grok Ogg Vorbis, but a Mercury not. All this would be hidden
+from the user (like Wendy filtering), unless the user actively asked
+why certain content wasn't available.

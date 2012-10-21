@@ -1,0 +1,33 @@
+The licensing of Chorale is a little unusual, as it is intended to
+honour fully the requirements placed on certain elements of it by the
+GPL and LGPL, while leaving the rest of it -- the parts with no such
+requirements -- available for reuse in any other software, even
+proprietary software, with or without attribution.
+
+Some configuration scripts in the "autotools" directory are derived
+works of the Autoconf Macro Archive (at
+http://autoconf-archive.cryp.to), though all use the AllPermissive
+licence.
+
+The remaining source code, i.e. everything not in the "autotools"
+directory, is hereby released by its author or authors into the public
+domain, and all copyright is disclaimed.
+
+Some sections of source code in the "choralecd" directory are, in
+part, derived works of example code supplied with Qt3. Unlike Qt
+itself, the example code is not licensed under the GPL:
+qfileiconview.cpp, for instance, says "This example program may be
+used, distributed and modified without limitation".
+
+Binaries compiled from the "choralecd" directory link against Qt, and
+must thus be distributed under the licence under which you obtained
+Qt: typically, this will be the GNU General Public Licence, found in
+the file COPYING.GPL.
+
+Other binaries compiled from this source code, including the daemon
+"choraled", typically link with libraries (including, at least,
+libxml++ and Taglib) which are licensed under the GNU Library General
+Public Licence, found in the file COPYING.LGPL. Such binaries are
+therefore "works that use the Library" as per Section 5 of the LGPL,
+and you must not redistribute them without complying with the
+requirements of Section 6.

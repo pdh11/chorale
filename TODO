@@ -1,0 +1,53 @@
+  TP1
+  ---
+choralecd: Finish setlist window (delete)
+
+  TP2
+  ---
+choralecd: Finish coloured slots (CDWindow)
+choralecd: Source renaming
+choralecd: track vs folder icons in browse window
+choralecd: is tagtable still needed? can we just use Q3Table or QTableWidget?
+libupnp: Let soap actions return errors (sort out parameter ordering too)
+libmediatree: attempt queries before displaying (e.g.) genres top-level item
+libdbupnp: work out whether (e.g.) genre search is supported, fail query if not
+libutil: give content-factories more info (IP) and control (Content-Type)
+audio out via UPnP (eventing)
+DBus/Hal
+
+  1.0
+  ---
+choralecd: get rid of Qt3 compatibility classes
+choralecd: tooltips in browse window
+liboutput: repeat/shuffle
+libdb: GetRecord?
+libimport: M3U
+libreceiverd: better README (how to obtain layouts etc)
+asynchronous db (for dbreceiver)
+man pages (!)
+more doxy comments
+type=spoken (cf new Vibez implementation)
+UPnP server
+CDDA via UPnP
+album art
+
+  2.0
+  ---
+NF2 genre
+more-homemade audio out (gapless, RG)
+more-homemade XML parser (instead of needing IXML *and* libxml++)
+more-homemade UPnP classes (instead of using IXML_Parse everywhere)
+empeg sync
+MSC sync
+DAAP
+internet radio (UPnP CDS v2)
+DVB-T radio with EPG
+i18n (gettext)
+
+  Perhaps never
+  -------------
+
+libdbsqlite: sort out dbsqlite field defs properly
+libreceiverd: split RCF into separate content-factories
+libutil: SeekableStream::WriteAt to let AsyncWriteBuffer work properly
+new empeg receiver distribution (freetype, ...)

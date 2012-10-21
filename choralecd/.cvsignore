@@ -1,0 +1,5 @@
+choralecd
+*.moc.cpp
+.libs
+db.xml
+obj-*

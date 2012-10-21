@@ -1,0 +1,9 @@
+*.s
+map.txt
+pparse
+playlist2dir
+dir2playlist
+readtags
+readtags.db
+obj-*
+.libs

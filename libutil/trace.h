@@ -1,0 +1,72 @@
+/* libutil/trace.h
+ *
+ * Debug tracing
+ */
+
+#ifndef LIBUTIL_TRACE_H
+#define LIBUTIL_TRACE_H
+
+#include <stdio.h>
+#include <string>
+#include <map>
+#include <set>
+
+class Tracer
+{
+public:
+    Tracer(const char *file, unsigned int line)
+    {
+	printf("%-25s:%4u: ", file, line);
+    }
+    ~Tracer() { fflush(stdout); }
+};
+
+class NullTracer
+{
+};
+
+inline const Tracer& operator<<(const Tracer& n, const char* s) { printf("%s",s?s:"NULL"); return n; }
+inline const Tracer& operator<<(const Tracer& n, const std::string& s) { printf("%s", s.c_str()); return n; }
+inline const Tracer& operator<<(const Tracer& n, unsigned int ui) { printf("%u",ui); return n; }
+inline const Tracer& operator<<(const Tracer& n, unsigned long ul) { printf("%lu",ul); return n; }
+inline const Tracer& operator<<(const Tracer& n, unsigned long long ull) { printf("%llu",ull); return n; }
+inline const Tracer& operator<<(const Tracer& n, int i) { printf("%d",i); return n; }
+inline const Tracer& operator<<(const Tracer& n, long i) { printf("%ld",i); return n; }
+inline const Tracer& operator<<(const Tracer& n, long long i) { printf("%lld",i); return n; }
+inline const Tracer& operator<<(const Tracer& n, const void *p) { printf("%p",p); return n; }
+inline const Tracer& operator<<(const Tracer& n, double d) { printf("%f",d); return n; }
+
+template<typename X> 
+    inline const Tracer& operator<<(const Tracer& n, const std::set<X>& m)
+{
+    n << "{ ";
+    for (typename std::set<X>::const_iterator i = m.begin(); i != m.end(); ++i)
+    {
+	n << *i << ", ";
+    }
+    n << "}\n";
+    return n;
+}
+
+template<typename X, typename Y> 
+    inline const Tracer& operator<<(const Tracer& n, const std::map<X,Y>& m)
+{
+    n << "[ ";
+    for (typename std::map<X,Y>::const_iterator i = m.begin(); i != m.end(); ++i)
+    {
+	n << i->first << "=" << i->second << " ";
+    }
+    n << "]\n";
+    return n;
+}
+
+template <class T>
+inline const NullTracer& operator<<(const NullTracer& n, T) { return n; }
+
+#ifdef WITH_DEBUG
+#define TRACE Tracer(__FILE__,__LINE__)
+#else
+#define TRACE NullTracer()
+#endif
+
+#endif

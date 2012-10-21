@@ -1,0 +1,128 @@
+	Chorale 0.01 (Technology Preview 1)
+	-----------------------------------
+
+How to build it:
+    ./configure
+    make
+    sudo make install
+
+What you get:
+    choraled (background daemon)
+      - Rio Receiver server
+      - UPnP MediaRenderer server (experimental)
+    choralecd (desktop application)
+      - CD ripping
+      - Rio Receiver client
+      - Media playback
+      - UPnP MediaRenderer client
+      - UPnP MediaServer client (experimental)
+
+You also get a certain amount of Doxygen documentation ("make doc").
+
+
+Configure problems
+------------------
+
+In many cases Chorale might not really need software versions quite as
+new as the configure script demands. If you have older ones, try
+fiddling with version numbers in configure.ac.
+
+Some of the things that the configure script claims are optional,
+aren't really optional yet.
+
+
+Rio Receiver server
+-------------------
+
+This is a replacement for Audio Receiver Manager and/or receiverd. It
+offers the following advantages over those packages:
+  - Can be given both a directory tree of MP3s and a corresponding
+    directory tree of FLACs, and knows to serve MP3s to real Rio
+    Receivers but FLACs to car-player Receiver Edition or choralecd.
+  - Automatically rescans the media library when it changes; no more
+    manual updating or SIGHUP. (Though SIGHUP still works, just in
+    case.)
+
+Like receiverd, but unlike Audio Receiver Manager, choraled does not
+incorporate an NFS server or a DHCP server. If you want to use
+choraled with real Rio Receivers, you will need to arrange for them to
+be NFS-bootable; see libreceiverd/README.
+
+
+UPnP MediaRenderer server
+-------------------------
+
+This service is still incomplete. It doesn't yet support the
+ConnectionManager service, which among other things means that control
+points can't determine which audio formats it supports.
+
+The audio formats it supports are the ones GStreamer does. In
+particular, it only supports MP3 if your GStreamer installation does;
+note that the gst-plugins-ugly package release version 0.10.6 (the
+latest, at time of writing) has broken MP3 support, and you may
+require a CVS snapshot of it instead.
+
+
+CD ripping
+----------
+
+Ripping is done to both FLAC and MP3 simultaneously, in order to
+produce parallel directories as expected by choraled. Note that you
+can rip from multiple CD-ROM drives simultaneously -- though, if you
+try this with two drives on the same IDE channel, it might end up
+slower than ripping sequentially. Note also that you can start ripping
+a new CD as soon as a finished one is ejected, whether or not the encoding
+and tagging window is still open for the old one.
+
+Once you click Done in a CD ripping window, you need to watch the
+status bar of the main choralecd window to see when all the background
+encoding tasks have finished and choralecd can be safely quit.
+
+
+Rio Receiver client
+-------------------
+
+This is still incomplete, and lacks most of the "soup" queries you
+would expect. It is easiest to browse the server through the
+"Playlists" item. Items (songs) can be dragged from the right-hand
+pane, onto any audio output's set-list window.
+
+
+Media playback
+--------------
+
+Opens a set-list, or running-order, for playback of audio files. Drag
+tracks into the set-list window from a Receiver or MediaServer
+explorer window. Click on a track in the set-list window and click the
+play (">") button to play it.
+
+This currently uses GStreamer, which by default uses the default ALSA
+playback device, usually "plughw:0,0". Again, this means it only
+supports the audio formats that your GStreamer installation does; see
+"UPnP MediaRenderer server", above.
+
+
+UPnP MediaRenderer client
+-------------------------
+
+As well as a set-list for local playback, choralecd lets you open a
+set-list on any detected UPnP MediaRenderer device (tested with
+choraled, GMediaRender, and the Roku Soundbridge media player).
+
+Note that Rio Receiver servers can't negotiate content type, so that
+if you're using choraled as a Receiver server, it will be serving you
+FLACs where it can, which you won't be able to play on a Roku
+Soundbridge.
+
+GMediaRender doesn't support SetNextAVTransportURI, nor give any
+indication when the currently-playing track has finished, so choralecd
+can only tell it to play one file at a time.
+
+
+UPnP MediaServer client
+-----------------------
+
+As well as Receiver servers, choralecd will let you browse any
+detected UPnP MediaServer device (tested with GMediaServer and
+Microsoft Windows Media Connect). This is still very incomplete. Use
+the "Playlists" item to browse the server's folder structure.

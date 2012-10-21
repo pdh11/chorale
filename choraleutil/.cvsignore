@@ -1,0 +1,12 @@
+obj-*
+*.s
+map.txt
+play
+pparse
+playlist2dir
+dir2playlist
+readtags
+readtags.db
+squirt
+db.xml
+.libs
