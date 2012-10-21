@@ -7,6 +7,7 @@
  * are thus subject to the licence under which you obtained Qt:
  * typically, the GPL.
  */
+#include "features.h"
 #include "output_widget.h"
 #include <qlayout.h>
 #include <qpushbutton.h>
@@ -70,6 +71,7 @@ void OutputWidgetFactory::CreateWidgets(QWidget *parent)
         /* UpnpOutputWidgetFactory */
 
 
+#ifdef HAVE_LIBOUTPUT_UPNP
 UpnpOutputWidgetFactory::UpnpOutputWidgetFactory(QPixmap *pixmap,
 						 mediadb::Registry *registry)
     : m_pixmap(pixmap),
@@ -93,5 +95,6 @@ void UpnpOutputWidgetFactory::OnService(const std::string& url)
     (void) new OutputWidget(m_parent, player->GetFriendlyName(), *m_pixmap,
 			    queue, m_registry);
 }
+#endif
 
 }; // namespace choraleqt

@@ -8,6 +8,9 @@
 #include "libdb/free_rs.h"
 #include "libutil/trace.h"
 #include <sstream>
+
+#ifdef HAVE_UPNP
+
 #include <upnp/ixml.h>
 
 namespace db {
@@ -234,3 +237,5 @@ bool RecordsetOne::IsEOF()
 
 }; // namespace upnpav
 }; // namespace db
+
+#endif // HAVE_UPNP

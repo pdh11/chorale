@@ -46,6 +46,7 @@ public:
     void AddEmbeddedDevice(Device*);
 
     Device *FindByUDN(const char *udn);
+    std::string UDN() const { return "uuid:" + m_uuid; }
 };
 
 class DeviceManager

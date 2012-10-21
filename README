@@ -10,6 +10,7 @@ What you get:
     choraled (background daemon)
       - Rio Receiver server
       - UPnP MediaRenderer server (experimental)
+      - UPnP MediaServer server (experimental)
     choralecd (desktop application)
       - CD ripping
       - Rio Receiver client
@@ -60,7 +61,8 @@ The audio formats it supports are the ones GStreamer does. In
 particular, it only supports MP3 if your GStreamer installation does;
 note that the gst-plugins-ugly package release version 0.10.6 (the
 latest, at time of writing) has broken MP3 support, and you may
-require a CVS snapshot of it instead.
+require a CVS snapshot of it instead. Or you could use the Fluendo MP3
+support.
 
 
 CD ripping
@@ -117,6 +119,15 @@ Soundbridge.
 GMediaRender doesn't support SetNextAVTransportURI, nor give any
 indication when the currently-playing track has finished, so choralecd
 can only tell it to play one file at a time.
+
+
+UPnP MediaServer server
+-----------------------
+
+This is very incomplete, but there's enough of it there to use a Roku
+Soundbridge with it in Browse mode. It offers both FLAC and MP3 <res>
+elements where both formats exist on the server; Soundbridge, which
+can't play FLAC, of course picks the MP3 one.
 
 
 UPnP MediaServer client

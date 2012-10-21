@@ -243,7 +243,8 @@ void WebServer::Task::Run()
 
 
 WebServer::WebServer()
-    : m_threads(12)
+    : m_port(0),
+      m_threads(12)
 {
 }
 

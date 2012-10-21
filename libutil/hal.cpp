@@ -1,9 +1,13 @@
+#include "config.h"
 #include "hal.h"
 #include "dbus.h"
 #include "trace.h"
 #include "poll.h"
-#include <libhal.h>
 #include <errno.h>
+
+#ifdef HAVE_HAL
+
+#include <libhal.h>
 #include <dbus/dbus.h>
 
 namespace util {
@@ -156,12 +160,19 @@ unsigned int Context::DeviceGetPropertyInt(const char *udi,
     return m_impl->DeviceGetPropertyInt(udi, property);
 }
 
-
 }; // namespace hal
 
 }; // namespace util
 
+#endif // HAVE_HAL
+
+
+        /* Unit tests */
+
+
 #ifdef TEST
+
+#ifdef HAVE_HAL
 
 class CDObserver: public util::hal::DeviceObserver
 {
@@ -201,8 +212,11 @@ void SoundObserver::OnDevice(const std::string& udi)
 	  << card << "," << device << "'\n";
 }
 
+#endif // HAVE_HAL
+
 int main()
 {
+#ifdef HAVE_HAL
     util::Poller poller;
     util::dbus::Connection conn(&poller);
     unsigned int rc = conn.Connect(util::dbus::Connection::SYSTEM);
@@ -224,8 +238,9 @@ int main()
     SoundObserver sobs(&ctx);
 
     ctx.GetMatchingDevices("alsa.type", "playback", &sobs);
+#endif // HAVE_HAL
 
     return 0;
 }
 
-#endif
+#endif // TEST

@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(chorale, [0.05], pdh@utter.chaos.org.uk)
+AC_INIT(chorale, [0.06], pdh@utter.chaos.org.uk)
 
 AC_MSG_NOTICE([Required: Taglib, Boost, xsltproc, and libxml++.])
 AC_MSG_NOTICE([Optional: qt, gstreamer, libcdio, libcddb, lame, flac, curl, libupnp, dbus, hal, libuuid, openssl.])
@@ -143,7 +143,7 @@ PDH_PKGCONFIG(DBUS,     dbus-1,  1.1.1)
 PDH_PKGCONFIG(TAGLIB,   taglib,  1.4)
 PDH_PKGCONFIG(LIBCDDB,  libcddb, 1.2.1)
 PDH_PKGCONFIG(CURL,     libcurl, 7.16.1)
-PDH_PKGCONFIG(UPNP,     libupnp, 1.4.3)
+PDH_PKGCONFIG(UPNP,     libupnp, 1.2.1)
 PDH_PKGCONFIG(OPENSSL,  openssl, 0.9.0)
 PDH_PKGCONFIG(SQLITE,   sqlite3, 3.3)
 PDH_PKGCONFIG(LIBXMLPP, libxml++-2.6, 2.14.0)
@@ -155,6 +155,9 @@ PDH_PKGCONFIG(LIBCDIOP,  libcdio_paranoia, 0.76)
 
 # ax_boost.m4 is AllPermissive
 AX_BOOST([1.33.1],[BOOST="yes"],[BOOST="no"])
+if test "${ax_cv_boost_thread}${ax_cv_boost_regex}" != "yesyes" ; then
+  BOOST="no"
+fi
 
 # Checks for header files.
 AC_CHECK_HEADERS([stdint.h unistd.h sys/types.h sys/socket.h netinet/in.h netinet/tcp.h])
@@ -247,7 +250,7 @@ fi
 # Required libraries
 if test "${TAGLIB}${BOOST}${LIBXMLPP}${HAVE_XSLTPROC}" != "yesyesyesyes" ; then
 test "${TAGLIB}" = "yes"   || printf "** Taglib 1.4 or later is required\n   http://developer.kde.org/~wheeler/taglib.html\n"
-test "${BOOST}" = "yes"    || printf "** Boost 1.33.1 or later is required\n   http://www.boost.org\n"
+test "${BOOST}" = "yes"    || printf "** Boost 1.33.1 or later (at least -regex and -thread) is required\n   http://www.boost.org\n"
 test "${LIBXMLPP}" = "yes" || printf "** Libxml++ 2.14.0 or later is required\n   http://libxmlplusplus.sourceforge.net\n"
 test "${HAVE_XSLTPROC}" = "yes" || printf "** Xsltproc from libxslt 1.0.0 or later is required\n  http://xmlsoft.org/XSLT/index.html\n"
 printf "\n"

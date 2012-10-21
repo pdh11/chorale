@@ -73,6 +73,7 @@ int main(int argc, char *argv[])
 
     mediadb::LocalDatabase ldb(&sdb);
 
+#ifdef HAVE_GSTREAMER
     output::GSTPlayer gp;
 
     sleep(1);
@@ -88,6 +89,9 @@ int main(int argc, char *argv[])
 	queue.Add(&ldb, 0x100 + i);
     }
     queue.SetPlayState(output::PLAY);
+#else
+    fprintf(stderr, "No playback available -- GStreamer not found\n");
+#endif
 
     return 0;
 }

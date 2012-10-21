@@ -7,7 +7,7 @@
  * are thus subject to the licence under which you obtained Qt:
  * typically, the GPL.
  */
-#include "config.h"
+#include "features.h"
 #include <qapplication.h>
 #include <qpixmap.h>
 #include "main_window.h"
@@ -30,22 +30,6 @@
 #include "folder.xpm"
 #include "network.xpm"
 #include "output.xpm"
-
-#if defined(HAVE_CURL)
-#define HAVE_LIBDBRECEIVER 1
-#endif
-#if defined(HAVE_UPNP) && defined(HAVE_LIBUUID) && defined(HAVE_OPENSSL)
-#define HAVE_LIBDBUPNP 1
-#endif
-#if defined(HAVE_UPNP)
-#define HAVE_LIBOUTPUT_UPNP 1
-#endif
-#if defined(HAVE_GSTREAMER)
-#define HAVE_LIBOUTPUT 1
-#endif
-#if defined(HAVE_LAME) && defined(HAVE_LIBFLAC) && defined(HAVE_LIBCDDB) && defined(HAVE_LIBCDIOP)
-#define HAVE_CD 1
-#endif
 
 int main(int argc, char *argv[])
 {
@@ -81,10 +65,10 @@ int main(int argc, char *argv[])
 
     mediadb::Registry registry;
 
+    QPixmap output_pixmap((const char**)output_xpm);
 #ifdef HAVE_LIBOUTPUT
     output::Queue queue(&player);
     queue.SetName("localhost");
-    QPixmap output_pixmap((const char**)output_xpm);
     choraleqt::OutputWidgetFactory owf(&output_pixmap, &queue, &registry);
     mainwin->AddWidgetFactory(&owf);
 #endif

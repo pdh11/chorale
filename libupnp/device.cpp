@@ -6,10 +6,13 @@
 #include "libutil/string_stream.h"
 #include "libutil/xmlescape.h"
 #include <sstream>
-#include <upnp/upnp.h>
 #include <errno.h>
 #include <openssl/md5.h>
 #include <uuid/uuid.h>
+
+#ifdef HAVE_UPNP
+
+#include <upnp/upnp.h>
 
 namespace upnp {
 
@@ -202,7 +205,7 @@ int DeviceManager::Impl::OnUPnPEvent(int et, void *event)
 
 	std::string s = ss.str();
 //	TRACE << "Reply doc:\n" << s << "\n";
-	uar->ActionResult = ixmlParseBuffer(s.c_str());
+	uar->ActionResult = ixmlParseBuffer(const_cast<char *>(s.c_str()));
 	uar->ErrCode = UPNP_E_SUCCESS;
 	break;
     }
@@ -328,3 +331,5 @@ unsigned int DeviceManager::SetRootDevice(Device *device)
 }
 
 }; // namespace upnp
+
+#endif // HAVE_UPNP

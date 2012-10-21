@@ -1,10 +1,14 @@
+#include "config.h"
 #include "dbus.h"
 #include "trace.h"
 #include "poll.h"
-#include <dbus/dbus.h>
 #include <map>
 #include <list>
 #include <errno.h>
+
+#ifdef HAVE_DBUS
+
+#include <dbus/dbus.h>
 
 namespace util {
 
@@ -273,6 +277,8 @@ void *Connection::GetUnderlyingConnection()
 
 }; // namespace util
 
+#endif // HAVE_DBUS
+
 #ifdef TEST
 
 class TestObserver: public util::dbus::SignalObserver
@@ -286,6 +292,7 @@ public:
 
 int main()
 {
+#ifdef HAVE_DBUS
     util::Poller poller;
     util::dbus::Connection conn(&poller);
     unsigned int rc = conn.Connect(util::dbus::Connection::SYSTEM);
@@ -310,8 +317,9 @@ int main()
     }
     else
 	TRACE << "Can't connect\n";
+#endif // HAVE_DBUS
 
     return 0;
 }
 
-#endif
+#endif // TEST

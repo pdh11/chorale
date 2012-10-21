@@ -1,20 +1,26 @@
+#include "config.h"
 #include "didl.h"
 #include "libutil/trace.h"
 #include "libmediadb/db.h"
 #include "libmediadb/schema.h"
 #include "libutil/xmlescape.h"
 #include <boost/format.hpp>
-#include <upnp/ixml.h>
 #include <sstream>
+
+#ifdef HAVE_UPNP
+#include <upnp/ixml.h>
+#endif
 
 namespace upnp {
 namespace didl {
+
+#ifdef HAVE_UPNP
 
 MetadataList Parse(const std::string& xml)
 {
     MetadataList results;
 
-    IXML_Document *didl = ixmlParseBuffer(xml.c_str());
+    IXML_Document *didl = ixmlParseBuffer(const_cast<char *>(xml.c_str()));
     if (didl)
     {
 	IXML_Node *child = ixmlNode_getFirstChild(&didl->n);
@@ -36,7 +42,7 @@ MetadataList Parse(const std::string& xml)
 		    if (attrs)
 		    {
 			IXML_Node *id = ixmlNamedNodeMap_getNamedItem(attrs,
-								      "id");
+								      const_cast<char *>("id"));
 			if (id)
 			{
 			    const DOMString ds = ixmlNode_getNodeValue(id);
@@ -123,12 +129,16 @@ MetadataList Parse(const std::string& xml)
 			else
 			    TRACE << "no node\n";
 		    }
+
+		    ixmlNodeList_free(nl);
 		}
 		else
 		    TRACE << "no cnode\n";
 
 		results.push_back(md);
 	    }
+
+	    ixmlNodeList_free(containers);
 	}
 	else
 	    TRACE << "no child\n";
@@ -140,6 +150,8 @@ MetadataList Parse(const std::string& xml)
 
     return results;
 }
+
+#endif // HAVE_UPNP
 
 static std::string IfPresent(const char *tag, const std::string& value)
 {
@@ -273,6 +285,10 @@ std::string FromRecord(mediadb::Database *db, db::RecordsetPtr rs,
 }; // namespace didl
 }; // namespace upnp
 
+
+        /* Unit tests */
+
+
 #ifdef TEST
 
 # include "libdbsteam/db.h"
@@ -346,6 +362,8 @@ enum { TESTS = sizeof(tests)/sizeof(tests[0]) };
 
 int main(int, char**)
 {
+#ifdef HAVE_UPNP
+
     /* Test Parse() */
 
     for (unsigned int i=0; i<TESTS; ++i)
@@ -419,6 +437,8 @@ int main(int, char**)
 	}
     }
 
+#endif // HAVE_UPNP
+
     /* Test FromRecord */
 
     db::steam::Database sdb(mediadb::FIELD_COUNT);
@@ -476,4 +496,4 @@ int main(int, char**)
     return 0;
 }
 
-#endif
+#endif // TEST

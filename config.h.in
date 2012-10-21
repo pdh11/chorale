@@ -108,7 +108,7 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
-/* Define to 1 if you have libupnp >= 1.4.3 */
+/* Define to 1 if you have libupnp >= 1.2.1 */
 #undef HAVE_UPNP
 
 /* Define to the address where bug reports for this package should be sent. */

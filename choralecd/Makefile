@@ -91,7 +91,7 @@ $(choralecd): $(CHORALECD_OBJS) $(libutil) $(libimport) $(libreceiver) \
 		$(libutil) $(LIBCDIOP_LIBS) \
 		$(LIBFLAC_LIBS) $(TAGLIB_LIBS) $(BOOST_LIBS) $(QT_LIBS) \
 		$(LAME_LIBS) $(LIBXMLPP_LIBS) $(CURL_LIBS) $(UPNP_LIBS) \
-		$(GSTREAMER_LIBS)
+		$(GSTREAMER_LIBS) -Wl,-Map,$@.map.txt
 	@echo $@: `ldd $@ | wc -l` shared libraries | fmt
 
 else

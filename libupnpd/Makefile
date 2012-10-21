@@ -41,9 +41,10 @@ ifeq ($(libdbsteam),)
 include $(TOP)libdbsteam/Makefile
 endif
 
-$(LIBUPNPD_TESTS) : TEST_LIBS += $(BOOST_LIBS) $(LIBXMLPP_LIBS) $(UPNP_LIBS)
+$(LIBUPNPD_TESTS) : TEST_LIBS += $(BOOST_LIBS) $(LIBXMLPP_LIBS) $(UPNP_LIBS) \
+		$(LIBUUID_LIBS) $(OPENSSL_LIBS)
 
-$(LIBUPNPD_TESTS) : $(libdbsteam) \
+$(LIBUPNPD_TESTS) : $(libupnpd) $(libdbsteam) \
 		$(libmediadb) $(libupnp) $(libdb) $(libutil)
 
 $(libupnpd): $(LIBUPNPD_OBJS)

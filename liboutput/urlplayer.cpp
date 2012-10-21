@@ -1,4 +1,8 @@
+#include "config.h"
 #include "urlplayer.h"
+
+#ifdef HAVE_GSTREAMER
+
 #include <gst/gst.h>
 #include "libutil/trace.h"
 #include "libutil/observable.h"
@@ -348,3 +352,5 @@ void GSTPlayer::RemoveObserver(URLObserver *obs)
 }
 
 }; // namespace output
+
+#endif // HAVE_GSTREAMER

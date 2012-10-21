@@ -1,11 +1,15 @@
+#include "config.h"
 #include "ssdp.h"
 #include "upnp.h"
 #include "poll.h"
+#include <boost/thread/recursive_mutex.hpp>
+#include <map>
+#include "trace.h"
+
+#ifdef HAVE_UPNP
+
 #include <upnp/upnp.h>
 #include <upnp/ixml.h>
-#include <map>
-#include <boost/thread/recursive_mutex.hpp>
-#include "trace.h"
 
 namespace util {
 
@@ -167,7 +171,15 @@ const char *const s_uuid_connectionmanager =
 
 }; // namespace util
 
+#endif // HAVE_UPNP
+
+
+        /* Unit tests */
+
+
 #ifdef TEST
+
+#ifdef HAVE_UPNP
 
 class MyCallback: public util::ssdp::Client::Callback
 {
@@ -193,13 +205,17 @@ void MyCallback::OnService(const std::string& url)
 	ixmlDocument_free(xmldoc);
 }
 
+#endif // HAVE_UPNP
+
 int main()
 {
+#ifdef HAVE_UPNP
     util::ssdp::Client client(NULL);
     MyCallback cb;
     client.Init(util::ssdp::s_uuid_contentdirectory, &cb);
 
     sleep(5);
+#endif // HAVE_UPNP
     
     return 0;
 }

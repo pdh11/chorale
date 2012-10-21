@@ -2,6 +2,9 @@
 #include "description.h"
 #include "libutil/trace.h"
 #include "libutil/http_client.h"
+
+#ifdef HAVE_UPNP
+
 #include <upnp/upnp.h>
 #include <upnp/upnptools.h>
 #include <upnp/ixml.h>
@@ -11,7 +14,7 @@ namespace upnp {
 static std::string ParseXML(IXML_Document *xmldoc, const char *searchFor)
 {
     std::string result;
-    IXML_NodeList *nl = ixmlDocument_getElementsByTagName(xmldoc, searchFor);
+    IXML_NodeList *nl = ixmlDocument_getElementsByTagName(xmldoc, const_cast<char *>(searchFor));
 
     if (nl)
     {
@@ -51,7 +54,7 @@ static std::string GetChildNode(IXML_Node *node, const char *searchFor)
     {
 	IXML_Element *element = (IXML_Element*) node;
 	IXML_NodeList *nl2 = ixmlElement_getElementsByTagName(element,
-							      searchFor);
+							      const_cast<char *>(searchFor));
 	if (nl2)
 	{
 	    IXML_Node *node2 = ixmlNodeList_item(nl2, 0);
@@ -111,7 +114,7 @@ unsigned Description::Fetch(const std::string& url)
 						  m_presentation_url);
 
 	IXML_NodeList *nl = ixmlDocument_getElementsByTagName(xmldoc,
-							      "service");
+							      const_cast<char *>("service"));
 	if (nl)
 	{
 	    unsigned int servicecount = ixmlNodeList_length(nl);
@@ -155,3 +158,4 @@ unsigned Description::Fetch(const std::string& url)
 
 }; // namespace upnp
 
+#endif // HAVE_UPNP

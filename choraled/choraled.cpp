@@ -39,7 +39,9 @@ static void Usage(FILE *f)
 "     --nfs=SERVER     Announce an alternative Receiver software server\n"
 " -w, --web=DIR        Web server root dir (default=" DEFAULT_WEB_DIR ")\n"
 #ifdef HAVE_UPNP
+#ifdef HAVE_GSTREAMER
 " -a, --no-audio     Don't become a UPnP MediaRenderer server\n"
+#endif
 " -m, --no-mserver   Don't become a UPnP MediaServer server\n"
 #endif
 	    "\n"
@@ -123,7 +125,11 @@ int main(int argc, char *argv[])
     bool do_nfs = true;
     bool do_daemon = true;
 #ifdef HAVE_UPNP
+# ifdef HAVE_GSTREAMER
     bool do_audio = true;
+# else
+    bool do_audio = false;
+# endif
     bool do_mserver = true;
 #else
     bool do_audio = false;
@@ -270,6 +276,7 @@ int main(int argc, char *argv[])
 	root_device = mediaserver->GetDevice();
     }
 
+# ifdef HAVE_GSTREAMER
     if (do_audio)
     {
 	player = new output::GSTPlayer;
@@ -279,6 +286,7 @@ int main(int argc, char *argv[])
 	else
 	    root_device = mediarenderer->GetDevice();
     }
+# endif
 
     if (root_device)
     {

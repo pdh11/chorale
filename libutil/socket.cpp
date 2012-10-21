@@ -375,7 +375,7 @@ unsigned StreamSocket::Listen(unsigned int queue)
 unsigned StreamSocket::Accept(StreamSocket *accepted)
 {
     struct sockaddr sa;
-    socklen_t sl;
+    socklen_t sl = sizeof(sa);
     int rc = ::accept(m_fd, &sa, &sl);
     if (rc<0)
 	return errno;

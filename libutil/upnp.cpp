@@ -2,9 +2,12 @@
 #include "upnp.h"
 #include "libutil/trace.h"
 #include <list>
+#include <boost/thread/recursive_mutex.hpp>
+
+#ifdef HAVE_UPNP
+
 #include <upnp/upnp.h>
 #include <upnp/ThreadPool.h>
-#include <boost/thread/recursive_mutex.hpp>
 
 namespace util {
 
@@ -71,3 +74,5 @@ int LibUPnPUser::OnUPnPEvent(int, void*)
 }
 
 }; // namespace util
+
+#endif // HAVE_UPNP

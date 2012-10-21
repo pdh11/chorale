@@ -1,3 +1,4 @@
+#include "config.h"
 #include "upnp.h"
 #include "libutil/trace.h"
 #include "libutil/upnp.h"
@@ -8,6 +9,8 @@
 #include "libupnp/AVTransport2_client.h"
 #include "libupnp/ConnectionManager2_client.h"
 #include <errno.h>
+
+#ifdef HAVE_UPNP
 
 namespace output {
 namespace upnpav {
@@ -154,7 +157,7 @@ xmlns=&amp;quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&amp;quot;&amp;gt;
 	    break;
 
 	IXML_NodeList *nl = ixmlDocument_getElementsByTagName(e->ChangedVariables,
-							      "LastChange");
+							      const_cast<char *>("LastChange"));
 	if (nl)
 	{
 	    IXML_Node *node = ixmlNodeList_item(nl, 0);
@@ -167,12 +170,12 @@ xmlns=&amp;quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&amp;quot;&amp;gt;
 		    if (ds)
 		    {
 //			TRACE << "LastChange: " << ds << "\n";
-			IXML_Document *innerdoc = ixmlParseBuffer(ds);
+			IXML_Document *innerdoc = ixmlParseBuffer(const_cast<char *>(ds));
 			if (innerdoc)
 			{
 			    IXML_NodeList *nl2 
 				= ixmlDocument_getElementsByTagName(innerdoc,
-								    "AVTransportURI");
+								    const_cast<char *>("AVTransportURI"));
 			    if (nl2)
 			    {
 				node = ixmlNodeList_item(nl2, 0);
@@ -183,7 +186,7 @@ xmlns=&amp;quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&amp;quot;&amp;gt;
 				    if (nnm)
 				    {
 					textnode = ixmlNamedNodeMap_getNamedItem(nnm,
-								    "val");
+										 const_cast<char *>("val"));
 					if (textnode)
 					{
 					    ds = ixmlNode_getNodeValue(textnode);
@@ -200,7 +203,7 @@ xmlns=&amp;quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&amp;quot;&amp;gt;
 				ixmlNodeList_free(nl2);
 			    }
 			    nl2 = ixmlDocument_getElementsByTagName(innerdoc,
-								   "TransportState");
+								    const_cast<char *>("TransportState"));
 			    if (nl2)
 			    {
 				node = ixmlNodeList_item(nl2, 0);
@@ -211,7 +214,7 @@ xmlns=&amp;quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&amp;quot;&amp;gt;
 				    if (nnm)
 				    {
 					textnode = ixmlNamedNodeMap_getNamedItem(nnm,
-										 "val");
+										 const_cast<char *>("val"));
 					if (textnode)
 					{
 					    ds = ixmlNode_getNodeValue(textnode);
@@ -306,3 +309,5 @@ void URLPlayer::RemoveObserver(URLObserver *obs)
 
 }; // namespace upnpav
 }; // namespace output
+
+#endif // HAVE_UPNP

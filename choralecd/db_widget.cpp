@@ -7,6 +7,7 @@
  * are thus subject to the licence under which you obtained Qt:
  * typically, the GPL.
  */
+#include "features.h"
 #include "db_widget.h"
 #include <qlayout.h>
 #include <qpushbutton.h>
@@ -40,6 +41,7 @@ void DBWidget::OnBottomButton() /* "Close" */
         /* ReceiverDBWidgetFactory */
 
 
+#ifdef HAVE_LIBDBRECEIVER
 ReceiverDBWidgetFactory::ReceiverDBWidgetFactory(QPixmap *pixmap,
 						 mediadb::Registry *registry)
     : m_pixmap(pixmap),
@@ -60,11 +62,13 @@ void ReceiverDBWidgetFactory::OnService(const util::IPEndPoint& ep)
     (void) new choraleqt::DBWidget(m_parent, "Receiver", *m_pixmap, thedb,
 				   m_registry);
 }
+#endif
 
 
         /* UpnpDBWidgetFactory */
 
 
+#ifdef HAVE_LIBDBUPNP
 UpnpDBWidgetFactory::UpnpDBWidgetFactory(QPixmap *pixmap,
 					 mediadb::Registry *registry)
     : m_pixmap(pixmap),
@@ -85,5 +89,6 @@ void UpnpDBWidgetFactory::OnService(const std::string& url)
     (void) new choraleqt::DBWidget(m_parent, thedb->GetFriendlyName(),
 				   *m_pixmap, thedb, m_registry);
 }
+#endif
 
 }; // namespace choraleqt

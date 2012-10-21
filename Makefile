@@ -86,13 +86,15 @@ distclean: clean
 	find . -name '*.o' -exec rm -f \{} \;
 	find . -name '*~' -exec rm -f \{} \;
 
-install: $(choraled) $(choralecd)
+install: $(choraled)
 	$(INSTALL) -d $(datadir)/chorale/upnp
 	$(INSTALL) libupnp/AVTransport2.xml $(datadir)/chorale/upnp/AVTransport.xml
 	$(INSTALL) -d $(localstatedir)/chorale
+	$(INSTALL) -d $(bindir)
 	$(INSTALL) -s $(choraled) $(bindir)
 
 install-choralecd: $(choralecd)
+	$(INSTALL) -d $(bindir)
 	$(INSTALL) -s $(choralecd) $(bindir)
 
 CHORALE:=chorale-$(CHORALE_VERSION)

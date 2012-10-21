@@ -1,12 +1,16 @@
+#include "config.h"
 #include "soap.h"
 #include "libutil/trace.h"
 #include "libutil/upnp.h"
 #include "libutil/xmlescape.h"
-#include <upnp/upnp.h>
-#include <upnp/ixml.h>
 #include <sstream>
 #include <iomanip>
 #include <string.h>
+
+#ifdef HAVE_UPNP
+
+#include <upnp/upnp.h>
+#include <upnp/ixml.h>
 
 namespace upnp {
 namespace soap {
@@ -78,7 +82,7 @@ Params Connection::Action(const char *action_name,
 
     TRACE << os.str() << "\n";
 
-    IXML_Document *request = ixmlParseBuffer(os.str().c_str());
+    IXML_Document *request = ixmlParseBuffer(const_cast<char *>(os.str().c_str()));
     if (!request)
     {
 	TRACE << "Can't ixmlparsebuffer\n";
@@ -143,6 +147,8 @@ Params Connection::Action(const char *action_name,
 	    else
 		TRACE << "no node\n";
 	}
+
+	ixmlNodeList_free(nl);
     }
     else
 	TRACE << "no child\n";
@@ -164,3 +170,5 @@ bool ParseBool(const std::string& s)
 
 }; // namespace soap
 }; // namespace upnp
+
+#endif // HAVE_UPNP

@@ -1,3 +1,4 @@
+#include "config.h"
 #include "db.h"
 #include "query.h"
 #include "rs.h"
@@ -8,6 +9,8 @@
 #include "libupnp/soap.h"
 #include "libmediadb/schema.h"
 #include <errno.h>
+
+#ifdef HAVE_UPNP
 
 namespace db {
 namespace upnpav {
@@ -106,6 +109,12 @@ unsigned int Database::IdForObjectId(const std::string& objectid)
 }; // namespace upnpav
 }; // namespace db
 
+#endif // HAVE_UPNP
+
+
+        /* Unit tests */
+
+
 #ifdef TEST
 
 #include "libmediadb/schema.h"
@@ -118,12 +127,15 @@ public:
 
 void MyCallback::OnService(const std::string& url)
 {
+#ifdef HAVE_UPNP
     db::upnpav::Database thedb;
     thedb.Init(url);
+#endif
 }
 
 int main()
 {
+#ifdef HAVE_UPNP
     util::LibUPnPUser uuu;
     db::upnpav::Database thedb;
 //    thedb.Init("http://10.35.1.65:50539/");
@@ -142,6 +154,8 @@ int main()
 
     sleep(5);
     
+#endif // HAVE_UPNP
+
     return 0;
 }
-#endif
+#endif // TEST
