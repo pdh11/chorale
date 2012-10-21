@@ -199,7 +199,7 @@ void RecordsetOne::MoveNext()
     m_id = 0;
     m_got_what = 0;
     if (m_freers)
-	m_freers.reset();
+	m_freers = NULL;
 }
 
 bool RecordsetOne::IsEOF()
@@ -376,5 +376,5 @@ bool CollateRecordset::IsEOF()
     return m_eof; 
 }
 
-}; // namespace receiver
-}; // namespace db
+} // namespace receiver
+} // namespace db

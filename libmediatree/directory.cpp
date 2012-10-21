@@ -72,10 +72,10 @@ db::RecordsetPtr Directory::GetInfo()
     {
 	TRACE << "Getting info for id " << m_id << "\n";
 	db::QueryPtr qp = m_db->CreateQuery();
-	qp->Restrict(mediadb::ID, db::EQ, m_id);
+	qp->Where(qp->Restrict(mediadb::ID, db::EQ, m_id));
 	m_info = qp->Execute();
     }
     return m_info;
 }
 
-}; // namespace mediatree
+} // namespace mediatree

@@ -87,6 +87,6 @@ AudioCD::~AudioCD()
 //    TRACE << "~AudioCD\n";
 }
 
-}; // namespace import
+} // namespace import
 
 #endif // HAVE_LIBCDIOP

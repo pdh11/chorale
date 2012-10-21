@@ -36,6 +36,6 @@ public:
     unsigned OnActivity();
 };
 
-}; // namespace import
+} // namespace import
 
 #endif

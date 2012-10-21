@@ -20,7 +20,7 @@ unsigned int AllocateID::Allocate()
     {
 	db::QueryPtr qp = m_db->CreateQuery();
 	qp->CollateBy(mediadb::ID);
-	qp->Restrict(mediadb::ID, db::GT, m_gap_end);
+	qp->Where(qp->Restrict(mediadb::ID, db::GT, m_gap_end));
 	db::RecordsetPtr rs = qp->Execute();
 	unsigned int expected = m_gap_end + 1;
 	while (!rs->IsEOF())
@@ -48,4 +48,4 @@ unsigned int AllocateID::Allocate()
     return m_gap_begin++;
 }
 
-}; // namespace mediadb
+} // namespace mediadb

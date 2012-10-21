@@ -5,10 +5,8 @@
 
 #include <boost/utility.hpp>
 
-namespace util { 
-class IPEndPoint;
-class PollerInterface; 
-};
+namespace util { class IPEndPoint; }
+namespace util { class PollerInterface; }
 
 namespace receiver {
 
@@ -78,8 +76,8 @@ extern const char *s_uuid_softwareserver;
  */
 extern const char *s_uuid_musicserver;
 
-}; // namespace ssdp
+} // namespace ssdp
 
-}; // namespace receiver
+} // namespace receiver
 
 #endif

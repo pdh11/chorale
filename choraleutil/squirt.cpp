@@ -37,7 +37,7 @@ static unsigned int next_fid = 0x120;
 void PreAllocateFIDs(db::Database *thedb, int type)
 {
     db::QueryPtr qp = thedb->CreateQuery();
-    qp->Restrict(mediadb::TYPE, db::EQ, type);
+    qp->Where(qp->Restrict(mediadb::TYPE, db::EQ, type));
     db::RecordsetPtr rs = qp->Execute();
 
     while (rs && !rs->IsEOF())
@@ -61,6 +61,7 @@ static const char *const typemap[] = {
     "playlist",
     "illegal",
     "illegal",
+    "illegal",
     "illegal"
 };
 
@@ -75,6 +76,7 @@ static const char *const codecmap[] = {
     "flac",
     "vorbis",
     "wav",
+    "pcm",
     "jpeg"
 };
 
@@ -119,7 +121,7 @@ void WriteFIDStructure(const char *outputdir, db::Database *thedb)
     for (fidmap_t::const_iterator i = fidmap.begin(); i != fidmap.end(); ++i)
     {
 	db::QueryPtr qp = thedb->CreateQuery();
-	qp->Restrict(mediadb::ID, db::EQ, i->first);
+	qp->Where(qp->Restrict(mediadb::ID, db::EQ, i->first));
 	db::RecordsetPtr rs = qp->Execute();
 	if (rs && !rs->IsEOF())
 	{
@@ -145,7 +147,7 @@ void WriteFIDStructure(const char *outputdir, db::Database *thedb)
 		if (highfid)
 		{
 		    qp = thedb->CreateQuery();
-		    qp->Restrict(mediadb::ID, db::EQ, highfid);
+		    qp->Where(qp->Restrict(mediadb::ID, db::EQ, highfid));
 		    db::RecordsetPtr rs2 = qp->Execute();
 		    if (rs2 && !rs2->IsEOF())
 			rs = rs2;
@@ -168,12 +170,12 @@ void WriteFIDStructure(const char *outputdir, db::Database *thedb)
 		FILE *f = fopen((s+outputleaf).c_str(), "w");
 		if (f)
 		{
-		    for (unsigned int i=0; i<children.size(); ++i)
+		    for (unsigned int j=0; j<children.size(); ++j)
 		    {
-			if (children[i])
+			if (children[j])
 			{
 			    uint32_t lefid;
-			    lefid = fidmap[children[i]];
+			    lefid = fidmap[children[j]];
 			    if (lefid)
 				length += fwrite(&lefid, 1, 4, f);
 			}
@@ -237,7 +239,6 @@ int main(int argc, char *argv[])
     };
 
     int nthreads = 0;
-    bool do_nfs = false;
     const char *dbfile = DEFAULT_DB_FILE;
 
     int option_index;
@@ -285,13 +286,18 @@ int main(int argc, char *argv[])
 
     TRACE << "reading\n";
 
+#ifdef HAVE_LIBXMLPP
     mediadb::ReadXML(&sdb, "db.xml");
+#endif
 
     TRACE << "scanning\n";
 
     util::WorkerThreadPool wtp(nthreads);
 
-    import::FileScanner ifs(mediaroot, flacroot, &sdb, wtp.GetTaskQueue());
+    mediadb::LocalDatabase ldb(&sdb);
+
+#ifdef HAVE_TAGLIB
+    import::FileScanner ifs(mediaroot, flacroot, &ldb, wtp.GetTaskQueue());
 
     ifs.Scan();
 
@@ -304,6 +310,7 @@ int main(int argc, char *argv[])
     TRACE << "arranging\n";
 
     WriteFIDStructure(outputdir, &sdb);
+#endif
 
     return 0;
 }

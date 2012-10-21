@@ -64,4 +64,4 @@ QString HiddenNumericTableItem::key() const
     return s;
 }
 
-};
+} // namespace choraleqt

@@ -27,7 +27,9 @@ ResourceWidget::ResourceWidget(QWidget *parent, const std::string& label,
     QHBoxLayout *hl = new QHBoxLayout(this);
 
     QVBoxLayout *left = new QVBoxLayout();
+    hl->addStretch(10);
     hl->addLayout(left);
+    hl->addStretch(10);
 
     left->addStretch(10);
 
@@ -80,4 +82,4 @@ void ResourceWidget::EnableBottom(bool whether)
     m_bottom->setEnabled(whether);
 }
 
-}; // namespace choraleqt
+} // namespace choraleqt

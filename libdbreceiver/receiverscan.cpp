@@ -9,7 +9,7 @@
 void DumpDB(db::Database *thedb, unsigned int id, unsigned int depth)
 {
     db::QueryPtr qp = thedb->CreateQuery();
-    qp->Restrict(mediadb::ID, db::EQ, id);
+    qp->Where(qp->Restrict(mediadb::ID, db::EQ, id));
     db::RecordsetPtr rs = qp->Execute();
 
     if (rs->IsEOF())
@@ -47,7 +47,7 @@ public:
 	return;
 
 	db::QueryPtr qp = thedb->CreateQuery();
-	qp->Restrict(mediadb::ID, db::EQ, 0x100);
+	qp->Where(qp->Restrict(mediadb::ID, db::EQ, 0x100));
 	db::RecordsetPtr rs = qp->Execute();
 
 	if (rs->IsEOF())

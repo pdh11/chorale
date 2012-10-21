@@ -36,6 +36,6 @@ public:
     bool hasChildren(const QModelIndex& parent) const;
 };
 
-}; // namespace choraleqt
+} // namespace choraleqt
 
 #endif

@@ -1,7 +1,11 @@
+#include "config.h"
 #include "playlist_asx.h"
 #include "libutil/trace.h"
 #include "libutil/file.h"
 #include "libutil/xmlescape.h"
+
+#ifdef HAVE_LIBXMLPP
+
 #include <libxml++/libxml++.h>
 #include <errno.h>
 
@@ -76,4 +80,6 @@ unsigned int PlaylistASX::Save()
     return 0;
 }
 
-}; // namespace import
+} // namespace import
+
+#endif // HAVE_LIBXMLPP

@@ -12,6 +12,8 @@
 
 namespace util {
 
+/** A WebServer plug-in, responsible for all the content under a certain root.
+ */
 class ContentFactory
 {
 public:
@@ -22,7 +24,8 @@ public:
     virtual SeekableStreamPtr StreamForPath(const char *path) = 0;
 };
 
-/** Exposes a directory on the server's filesystem */
+/** A ContentFactory which exposes a directory on the server's filesystem.
+ */
 class FileContentFactory: public ContentFactory
 {
     std::string m_file_root;
@@ -36,6 +39,8 @@ public:
     SeekableStreamPtr StreamForPath(const char *path);
 };
 
+/** An HTTP/1.1 web server.
+ */
 class WebServer: public Pollable
 {
     typedef std::list<ContentFactory*> list_t;
@@ -74,6 +79,6 @@ public:
     unsigned OnActivity();
 };
 
-}; // namespace util
+} // namespace util
 
 #endif

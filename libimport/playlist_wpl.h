@@ -13,6 +13,6 @@ public:
     unsigned int Save();
 };
 
-};
+} // namespace import
 
 #endif

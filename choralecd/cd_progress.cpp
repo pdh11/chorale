@@ -96,4 +96,4 @@ void CDProgress::customEvent(QEvent *ce)
     }
 }
 
-}; // namespace choraleqt
+} // namespace choraleqt

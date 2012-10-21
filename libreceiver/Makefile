@@ -24,7 +24,7 @@ include $(TOP)libutil/Makefile
 endif
 
 $(libreceiver): $(LIBRECEIVER_OBJS)
-	$(AR_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(LIBRECEIVER_OBJS)
 
 CLEANS += $(libreceiver)

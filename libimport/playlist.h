@@ -31,6 +31,6 @@ public:
 
 typedef boost::intrusive_ptr<Playlist> PlaylistPtr;
 
-}; // namespace import
+} // namespace import
 
 #endif

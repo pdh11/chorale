@@ -23,5 +23,5 @@ RecordsetPtr Query::Execute()
     return RecordsetPtr(new RecordsetOne(m_parent, 0));
 }
 
-}; // namespace upnpav
-}; // namespace db
+} // namespace upnpav
+} // namespace db

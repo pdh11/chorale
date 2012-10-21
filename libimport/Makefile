@@ -63,7 +63,7 @@ $(LIBIMPORT_TESTS) : $(libimport) $(libmediadb) $(libdbsteam) \
 	$(libdb) $(libutil)
 
 $(libimport): $(LIBIMPORT_OBJS)
-	$(AR_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		 $(CC) -o $@ $(LIBIMPORT_OBJS)
 
 CLEANS += $(libimport)

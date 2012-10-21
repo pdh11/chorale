@@ -1,9 +1,9 @@
 TOP?=../
 DIR:=liboutput/
 SRCS:=\
+	gstreamer.cpp \
 	queue.cpp \
-	upnp.cpp \
-	urlplayer.cpp
+	upnpav.cpp
 
 #	flac.cpp \
 #	oss.cpp \
@@ -30,7 +30,7 @@ include $(TOP)libutil/Makefile
 endif
 
 $(liboutput): $(LIBOUTPUT_OBJS)
-	$(AR_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		 $(CC) -o $@ $(LIBOUTPUT_OBJS)
 
 CLEANS += $(liboutput)

@@ -22,6 +22,13 @@ void Task::FireProgress(unsigned num, unsigned denom)
 	m_observer->OnProgress(this, num, denom);
 }
 
+void Task::FireError(unsigned int e)
+{
+    boost::mutex::scoped_lock lock(m_observer_mutex);
+    if (m_observer)
+	m_observer->OnError(this, e);
+}
+
 
 TaskQueue::TaskQueue()
     : m_nthreads(1),
@@ -65,4 +72,4 @@ unsigned TaskQueue::Count()
     return m_deque.size() + m_nthreads - m_waiting;
 }
 
-}; // namespace util
+} // namespace util

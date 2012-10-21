@@ -91,7 +91,7 @@ public:
     bool IsEOF();
 };
 
-}; // namespace receiver
-}; // namespace db
+} // namespace receiver
+} // namespace db
 
 #endif

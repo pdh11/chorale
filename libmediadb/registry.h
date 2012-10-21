@@ -25,6 +25,6 @@ public:
     mediadb::Database *DBForIndex(unsigned int);
 };
 
-}; // namespace mediadb
+} // namespace mediadb
 
 #endif

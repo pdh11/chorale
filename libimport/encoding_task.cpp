@@ -35,4 +35,4 @@ void EncodingTask::RenameAndTag(const std::string& new_filename,
     m_rename_tags = tags;
 }
 
-}; // namespace import
+} // namespace import

@@ -58,7 +58,7 @@ const char *LineReader::GetLeftovers(size_t *nbytes)
     return m_buffer;
 }
 
-}; // namespace util
+} // namespace util
 
 #ifdef TEST
 

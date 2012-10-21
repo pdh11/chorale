@@ -10,6 +10,9 @@
 #include "poller.h"
 #include "libutil/trace.h"
 #include <qsocketnotifier.h>
+#include <QApplication>
+#include <sys/time.h>
+#include <time.h>
 
 namespace choraleqt {
 
@@ -25,6 +28,27 @@ void Notifier::OnActivity(int fd)
     TRACE << "Notifier(" << fd << ")::OnActivity\n";
     m_pollable->OnActivity();
 }
+
+Timer::Timer(unsigned int repeatms, util::Timed *timed)
+    : QTimer(),
+      m_timed(timed),
+      m_repeatms(repeatms)
+{
+    connect(this, SIGNAL(timeout()), this, SLOT(OnTimer()));
+    setSingleShot(true);
+}
+
+void Timer::OnTimer()
+{
+    if (m_repeatms)
+    {
+	setSingleShot(false);
+	start(m_repeatms);
+	m_repeatms = 0;
+    }
+    m_timed->OnTimer();
+}
+
 
 Poller::Poller()
 {
@@ -48,6 +72,30 @@ void Poller::RemoveHandle(int poll_handle)
 {
     CheckThread();
     delete m_map[poll_handle];
+    m_map.erase(poll_handle);
 }
 
-}; // namespace choraleqt
+void Poller::AddTimer(time_t first, unsigned int repeatms, 
+		      util::Timed *callback)
+{
+    timeval now;
+    ::gettimeofday(&now, NULL);
+    uint64_t nowms = now.tv_sec*(uint64_t)1000 + now.tv_usec/1000;
+
+    uint64_t firstms = first*(uint64_t)1000;
+
+    Timer* t = new Timer(repeatms, callback);
+    t->moveToThread(QApplication::instance()->thread());
+    boost::mutex::scoped_lock lock(m_mutex);
+    m_timermap[callback] = t;
+    t->start((firstms > nowms) ? firstms - nowms : 0);
+}
+
+void Poller::RemoveTimer(util::Timed *callback)
+{
+    delete m_timermap[callback];
+    boost::mutex::scoped_lock lock(m_mutex);
+    m_timermap.erase(callback);
+}
+
+} // namespace choraleqt

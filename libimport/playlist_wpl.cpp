@@ -1,8 +1,12 @@
+#include "config.h"
 #include "playlist_wpl.h"
 #include "libutil/trace.h"
 #include "libutil/file.h"
 #include "libutil/xmlescape.h"
-#include <libxml++/libxml++.h>
+
+#ifdef HAVE_LIBXMLPP
+
+#include <libxml++/parsers/saxparser.h>
 #include <errno.h>
 
 namespace import {
@@ -77,7 +81,9 @@ unsigned int PlaylistWPL::Save()
     return rc;
 }
 
-}; // namespace import
+} // namespace import
+
+#endif // HAVE_LIBXMLPP
 
 #ifdef TEST
 

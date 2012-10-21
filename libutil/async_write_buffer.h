@@ -32,6 +32,6 @@ public:
     unsigned SetLength(pos64);
 };
 
-}; // namespace util
+} // namespace util
 
 #endif

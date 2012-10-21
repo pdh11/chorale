@@ -111,6 +111,6 @@ void EncodingTaskMP3::Run()
 //    TRACE << "MP3 encoding finished\n";
 }
 
-}; // namespace import
+} // namespace import
 
 #endif // HAVE_LAME

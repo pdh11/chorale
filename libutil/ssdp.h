@@ -30,7 +30,8 @@ public:
     public:
 	virtual ~Callback() {}
 
-	virtual void OnService(const std::string& url) = 0;
+	virtual void OnService(const std::string& descurl,
+			       const std::string& udn) = 0;
     };
 
     unsigned Init(const char *uuid, Callback*);
@@ -40,8 +41,8 @@ extern const char *const s_uuid_contentdirectory;
 extern const char *const s_uuid_avtransport;
 extern const char *const s_uuid_connectionmanager;
 
-}; // namespace ssdp
+} // namespace ssdp
 
-}; // namespace util
+} // namespace util
 
 #endif

@@ -4,7 +4,7 @@
 #include "libmediadb/schema.h"
 #include "libmediadb/localdb.h"
 
-int main(int argc, char *argv[])
+int main(int, char *argv[])
 {
     db::steam::Database sdb(mediadb::FIELD_COUNT);
     sdb.SetFieldInfo(mediadb::ID, 

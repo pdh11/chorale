@@ -32,7 +32,7 @@ include $(TOP)libreceiver/Makefile
 endif
 
 $(libmediatree): $(LIBMEDIATREE_OBJS)
-	$(AR_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(LIBMEDIATREE_OBJS)
 
 CLEANS += $(libmediatree)

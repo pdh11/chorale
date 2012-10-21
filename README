@@ -1,4 +1,4 @@
-	Chorale 0.01 (Technology Preview 1)
+	Chorale 0.07 (Technology Preview 7)
 	-----------------------------------
 
 How to build it:
@@ -29,7 +29,9 @@ new as the configure script demands. If you have older ones, try
 fiddling with version numbers in configure.ac.
 
 Some of the things that the configure script claims are optional,
-aren't really optional yet.
+aren't really optional yet. In all cases, optional dependencies cause
+desirable features to be disabled if they aren't there; arranging for
+them all to be found is definitely recommended.
 
 
 Rio Receiver server
@@ -43,6 +45,9 @@ offers the following advantages over those packages:
   - Automatically rescans the media library when it changes; no more
     manual updating or SIGHUP. (Though SIGHUP still works, just in
     case.)
+  - If the server PC has any DVB-T receivers, the server will gateway
+    Freeview radio stations to your Receivers. (Because Rio Receivers
+    can't decode MP2, the stations will be transcoded to WAV.)
 
 Unlike Audio Receiver Manager, choraled does not incorporate an NFS
 server or a DHCP server. If you want to use choraled with real Rio
@@ -125,9 +130,18 @@ UPnP MediaServer server
 -----------------------
 
 This is very incomplete, but there's enough of it there to use a Roku
-Soundbridge with it in Browse mode. It offers both FLAC and MP3 <res>
+Soundbridge with it in both Browse and Search mode, except for the
+"Browse Artists" and similar menus. It offers both FLAC and MP3 <res>
 elements where both formats exist on the server; Soundbridge, which
 can't play FLAC, of course picks the MP3 one.
+
+Like the Receiver server, the MediaServer server exposes available
+Freeview radio stations to its clients. Again, the stations are
+transcoded to WAV, as some clients can't decode MP2; UPnP allows
+client and server to negotiate supported formats, but, sadly, only by
+MIME type. RFC3003 assigns the same MIME type to MP2 and MP3, so
+there's no way the server could tell that the client can't play MP2,
+nor any way the client could tell that the station wasn't MP3.
 
 
 UPnP MediaServer client

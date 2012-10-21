@@ -22,13 +22,15 @@ class Client::Impl: public LibUPnPUser, public Pollable
     map_t m_map;
 
     typedef std::pair<std::string, std::string> pair_t;
+    typedef std::pair<std::string, pair_t> trio_t;
 
     typedef std::set<pair_t> set_t;
     /** Set of udn/service pairs seen so far */
     set_t m_set;
 
-    /** Set of service/location pairs not yet communicated to fg thread */
-    set_t m_new;
+    /** Set of service/location/udn trios not yet communicated to fg thread */
+    typedef std::set<trio_t> trios_t;
+    trios_t m_new;
 
     PollWaker* m_waker;
 
@@ -89,17 +91,20 @@ int Client::Impl::OnUPnPEvent(int et, void *event)
 		if (m_set.find(us) == m_set.end())
 		{
 		    m_set.insert(us);
-		    pair_t sl 
-			= std::make_pair(disc->ServiceType, disc->Location);
 		    if (m_waker)
 		    {
-			m_new.insert(sl);
+			pair_t lu
+			    = std::make_pair(disc->Location, disc->DeviceId);
+			trio_t slu
+			    = std::make_pair(disc->ServiceType, lu);
+			m_new.insert(slu);
 			m_waker->Wake();
 		    }
 		    else
 		    {
 			// Async
-			m_map[disc->ServiceType]->OnService(disc->Location);
+			m_map[disc->ServiceType]->OnService(disc->Location,
+							    disc->DeviceId);
 		    }
 		}
 //		else
@@ -124,17 +129,17 @@ int Client::Impl::OnUPnPEvent(int et, void *event)
 
 unsigned Client::Impl::OnActivity()
 {
-    set_t newservices;
+    trios_t newservices;
     {
 	boost::recursive_mutex::scoped_lock lock(m_mutex);
 	newservices.swap(m_new);
     }
-    for (set_t::const_iterator i = newservices.begin();
+    for (trios_t::const_iterator i = newservices.begin();
 	 i != newservices.end();
 	 ++i)
     {
 	TRACE << "Communicating " << i->second << " to fg\n";
-	m_map[i->first]->OnService(i->second);
+	m_map[i->first]->OnService(i->second.first, i->second.second);
     }
     return 0;
 }
@@ -167,9 +172,9 @@ const char *const s_uuid_avtransport =
 const char *const s_uuid_connectionmanager =
     "urn:schemas-upnp-org:service:ConnectionManager:1";
 
-}; // namespace ssdp
+} // namespace ssdp
 
-}; // namespace util
+} // namespace util
 
 #endif // HAVE_UPNP
 
@@ -184,21 +189,21 @@ const char *const s_uuid_connectionmanager =
 class MyCallback: public util::ssdp::Client::Callback
 {
 public:
-    void OnService(const std::string& url);
+    void OnService(const std::string& url, const std::string& udn);
 };
 
-void MyCallback::OnService(const std::string& url)
+void MyCallback::OnService(const std::string& url, const std::string& udn)
 {
     IXML_Document *xmldoc = NULL;
-    TRACE << "downloading " << url << "\n";
+//    TRACE << "downloading " << url << "\n";
     int rc = UpnpDownloadXmlDoc(url.c_str(), &xmldoc);
-    TRACE << "UDXD " << rc << "\n";
+//    TRACE << "UDXD " << rc << "\n";
 
     if (rc == 0)
     {
-	DOMString ds = ixmlPrintDocument(xmldoc);
-	TRACE << ds << "\n";
-	ixmlFreeDOMString(ds);
+//	DOMString ds = ixmlPrintDocument(xmldoc);
+//	TRACE << ds << "\n";
+//	ixmlFreeDOMString(ds);
     }
 
     if (xmldoc)

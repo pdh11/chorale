@@ -3,8 +3,6 @@
 #ifndef DB_WIDGET_H
 #define DB_WIDGET_H
 
-#include <qwidget.h>
-#include <qframe.h>
 #include "widget_factory.h"
 #include "resource_widget.h"
 #include "libreceiver/ssdp.h"
@@ -15,9 +13,12 @@ namespace mediadb { class Registry; }
 
 namespace choraleqt {
 
+/** A widget for the MainWindow's device list, representing a (remote)
+ * music server.
+ */
 class DBWidget: public ResourceWidget
 {
-    Q_OBJECT;
+    Q_OBJECT
     
     mediadb::Database *m_db;
     mediadb::Registry *m_registry;
@@ -31,6 +32,8 @@ public:
     void OnBottomButton();
 };
 
+/** A WidgetFactory which creates DBWidget items for Rio Receiver servers.
+ */
 class ReceiverDBWidgetFactory: public WidgetFactory,
 			       public receiver::ssdp::Client::Callback
 {
@@ -48,6 +51,8 @@ public:
     void OnService(const util::IPEndPoint&);
 };
 
+/** A WidgetFactory which creates DBWidget items for UPnP A/V media servers.
+ */
 class UpnpDBWidgetFactory: public WidgetFactory,
 			   public util::ssdp::Client::Callback
 {
@@ -62,9 +67,9 @@ public:
     void CreateWidgets(QWidget *parent);
 
     // Being a util::ssdp::Client::Callback
-    void OnService(const std::string& url);
+    void OnService(const std::string& url, const std::string& udn);
 };
 
-}; // namespace choraleqt
+} // namespace choraleqt
 
 #endif

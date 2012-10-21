@@ -6,6 +6,8 @@
 
 namespace output {
 
+/** Observer interface for URLPlayer.
+ */
 class URLObserver
 {
 public:
@@ -17,6 +19,8 @@ public:
     virtual void OnError(unsigned int) {}
 };
 
+/** Abstract base class for anything able to play back media content by URL.
+ */
 class URLPlayer
 {
 public:
@@ -33,24 +37,6 @@ public:
     virtual void RemoveObserver(URLObserver*) = 0;
 };
 
-class GSTPlayer: public URLPlayer
-{
-    class Impl;
-    Impl *m_impl;
-
-public:
-    GSTPlayer();
-    ~GSTPlayer();
-
-    unsigned int SetURL(const std::string&, const std::string&);
-    unsigned int SetNextURL(const std::string&, const std::string&);
-
-    unsigned int SetPlayState(output::PlayState);
-
-    void AddObserver(URLObserver*);
-    void RemoveObserver(URLObserver*);
-};
-
-}; // namespace output
+} // namespace output
 
 #endif

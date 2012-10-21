@@ -32,7 +32,7 @@ mediadb::Database *Registry::DBForIndex(unsigned int index)
     return i->second;
 }
 
-};
+} // namespace mediadb
 
 #ifdef TEST
 

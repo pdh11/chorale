@@ -7,8 +7,8 @@
 class QSplitter;
 class QModelIndex;
 
-namespace mediadb { class Database; };
-namespace mediadb { class Registry; };
+namespace mediadb { class Database; }
+namespace mediadb { class Registry; }
 
 namespace choraleqt {
 
@@ -16,9 +16,11 @@ class TagTable;
 class BrowseWidget;
 class TreeModel;
 
+/** Top-level window offering an Explorer-like view of a mediadb::Database.
+ */
 class ExplorerWindow: public QMainWindow
 {
-    Q_OBJECT;
+    Q_OBJECT
 
     mediadb::Database *m_db;
     mediadb::Registry *m_registry;
@@ -37,6 +39,6 @@ public slots:
     void OnTreeSelectionChanged(const QModelIndex&);
 };
 
-}; // namespace choraleqt
+} // namespace choraleqt
 
 #endif

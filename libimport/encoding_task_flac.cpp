@@ -176,6 +176,6 @@ void EncodingTaskFlac::Run()
 //    TRACE << "FLAC encoding finished\n";
 }
 
-}; // namespace import
+} // namespace import
 
 #endif // HAVE_FLAC

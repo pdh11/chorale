@@ -59,8 +59,8 @@ void ReceiverDBWidgetFactory::OnService(const util::IPEndPoint& ep)
     db::receiver::Database *thedb = new db::receiver::Database;
     thedb->Init(ep);
 
-    (void) new choraleqt::DBWidget(m_parent, "Receiver", *m_pixmap, thedb,
-				   m_registry);
+    (void) new choraleqt::DBWidget(m_parent, "Receiver server", *m_pixmap,
+				   thedb, m_registry);
 }
 #endif
 
@@ -81,14 +81,15 @@ void UpnpDBWidgetFactory::CreateWidgets(QWidget *parent)
     m_parent = parent;
 }
 
-void UpnpDBWidgetFactory::OnService(const std::string& url)
+void UpnpDBWidgetFactory::OnService(const std::string& url,
+				    const std::string& udn)
 {
     db::upnpav::Database *thedb = new db::upnpav::Database;
-    thedb->Init(url);
+    thedb->Init(url, udn);
 
     (void) new choraleqt::DBWidget(m_parent, thedb->GetFriendlyName(),
 				   *m_pixmap, thedb, m_registry);
 }
 #endif
 
-}; // namespace choraleqt
+} // namespace choraleqt

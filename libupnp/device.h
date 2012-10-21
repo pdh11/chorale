@@ -4,26 +4,37 @@
 #include <set>
 #include <map>
 #include <string>
-
-namespace util { class WebServer; };
+#include "soap.h"
+#include "libutil/observable.h"
 
 namespace upnp {
 
-namespace soap { class Server; };
+class Device;
 
-class Service
+/** Information about an offered UPnP service
+ */
+class Service: public soap::Server
 {
     const char *m_type;
     const char *m_scpdurl;
-    soap::Server *m_server;
+    Device *m_device;
+    const char *m_service_id;
+
+    friend class Device;
 
 public:
-    Service(const char *type, const char *scpdurl, soap::Server *server);
+    Service(const char *type, const char *scpdurl);
 
     const char *GetType() const { return m_type; }
     const char *GetSCPDUrl() const { return m_scpdurl; }
-    soap::Server *GetServer() { return m_server; }
+
+    // soap::Server::OnAction() not defined
+
+    void FireEvent(const char *variable, const std::string& value);
+    void FireEvent(const char *variable, unsigned int value);
 };
+
+class Server;
 
 class Device
 {
@@ -34,33 +45,28 @@ class Device
     services_t m_services;
     std::string m_resource;
     std::string m_uuid;
+    std::string m_friendly_name;
+    Server *m_server;
 
-    friend class DeviceManager;
+    friend class Server;
 
 public:
     Device(const char *deviceType, const std::string& resource);
+    virtual ~Device() {}
 
     void AddService(const char *serviceID,
 		    Service *service);
 
     void AddEmbeddedDevice(Device*);
+    void SetFriendlyName(const std::string& s) { m_friendly_name = s; }
 
     Device *FindByUDN(const char *udn);
     std::string UDN() const { return "uuid:" + m_uuid; }
+
+    void FireEvent(const char *serviceid, const char *variable,
+		   const std::string& value);
 };
 
-class DeviceManager
-{
-    class Impl;
-    Impl *m_impl;
-
-public:
-    DeviceManager();
-    ~DeviceManager();
-
-    unsigned int SetRootDevice(Device*);
-};
-
-}; // namespace upnp
+} // namespace upnp
 
 #endif

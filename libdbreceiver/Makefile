@@ -37,12 +37,12 @@ include $(TOP)libreceiver/Makefile
 endif
 
 $(libdbreceiver): $(LIBDBRECEIVER_OBJS)
-	$(AR_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(LIBDBRECEIVER_OBJS)
 
 $(receiverscan): $(RECEIVERSCAN_OBJS) $(libdbreceiver) $(libreceiver) \
 		$(libdb) $(libutil) Makefile $(libmediadb)
-	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(RECEIVERSCAN_OBJS) $(libdbreceiver) \
 		$(libreceiver) $(libmediadb) $(libdb) $(libutil) \
 		$(LIBXMLPP_LIBS) $(BOOST_LIBS) $(CURL_LIBS)

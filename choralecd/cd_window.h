@@ -6,9 +6,7 @@
 #include "libimport/cddb_service.h"
 #include "libutil/task.h"
 
-namespace util {
-class TaskQueue;
-};
+namespace util { class TaskQueue; }
 class Settings;
 class Q3ButtonGroup;
 class QSpinBox;
@@ -18,9 +16,11 @@ namespace choraleqt {
 
 class TagTable;
 
+/** The top-level ripping and tagging window for an audio CD.
+ */
 class CDWindow: public QDialog, public util::TaskObserver
 {
-    Q_OBJECT;
+    Q_OBJECT
 
     struct Entry;
 
@@ -67,6 +67,6 @@ public slots:
     void OnTableValueChanged(int,int);
 };
 
-}; // namespace choraleqt
+} // namespace choraleqt
 
 #endif

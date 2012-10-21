@@ -72,4 +72,4 @@ void MainWindow::ShowSettings()
     sw->show();
 }
 
-}; // namespace choraleqt
+} // namespace choraleqt

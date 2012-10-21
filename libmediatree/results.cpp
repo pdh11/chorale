@@ -37,7 +37,7 @@ Node::EnumeratorPtr Results::GetChildren()
     if (m_children.empty())
     {
 	db::QueryPtr qp = m_db->CreateQuery();
-	qp->Restrict(m_field, db::EQ, m_value);
+	qp->Where(qp->Restrict(m_field, db::EQ, m_value));
 	db::RecordsetPtr rs = qp->Execute();
 
 	while (rs && !rs->IsEOF())
@@ -56,4 +56,4 @@ db::RecordsetPtr Results::GetInfo()
     return m_info;
 }
 
-}; // namespace mediatree
+} // namespace mediatree

@@ -95,7 +95,7 @@ unsigned FileStream::SetLength(pos64 len)
     return 0;
 }
 
-}; // namespace util
+} // namespace util
 
 #ifdef TEST
 

@@ -47,7 +47,7 @@ public:
     bool IsEOF();
 };
 
-}; // namespace upnpav
-}; // namespace db
+} // namespace upnpav
+} // namespace db
 
 #endif

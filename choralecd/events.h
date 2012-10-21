@@ -11,7 +11,7 @@ enum {
     EVENT_PLAYSTATE
 };
 
-namespace util { class Task; };
+namespace util { class Task; }
 
 class ProgressEvent: public QEvent
 {

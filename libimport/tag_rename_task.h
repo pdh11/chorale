@@ -25,6 +25,6 @@ public:
     virtual void Run();
 };
 
-}; // namespace import
+} // namespace import
 
 #endif

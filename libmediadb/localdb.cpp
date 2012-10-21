@@ -20,26 +20,37 @@ db::QueryPtr LocalDatabase::CreateQuery()
 std::string LocalDatabase::GetURL(unsigned int id)
 {
     db::QueryPtr qp = m_db->CreateQuery();
-    qp->Restrict(ID, db::EQ, id);
+    qp->Where(qp->Restrict(ID, db::EQ, id));
     db::RecordsetPtr rs = qp->Execute();
     if (!rs || rs->IsEOF())
     {
 	TRACE << "Can't open ID " << id << " for reading\n";
 	return std::string();
     }
+
+    unsigned int type = rs->GetInteger(mediadb::TYPE);
+    factories_t::const_iterator i = m_factories.find(type);
+    if (i != m_factories.end())
+	return i->second->GetURL(rs);
+
     return util::PathToURL(rs->GetString(PATH));
 }
 
 util::SeekableStreamPtr LocalDatabase::OpenRead(unsigned int id)
 {
     db::QueryPtr qp = m_db->CreateQuery();
-    qp->Restrict(ID, db::EQ, id);
+    qp->Where(qp->Restrict(ID, db::EQ, id));
     db::RecordsetPtr rs = qp->Execute();
     if (!rs || rs->IsEOF())
     {
 	TRACE << "Can't open ID " << id << " for reading\n";
 	return util::SeekableStreamPtr();
     }
+
+    unsigned int type = rs->GetInteger(mediadb::TYPE);
+    factories_t::const_iterator i = m_factories.find(type);
+    if (i != m_factories.end())
+	return i->second->OpenRead(rs);
     
     util::FileStreamPtr fsp;
     unsigned int rc = util::FileStream::Create(rs->GetString(PATH).c_str(),
@@ -56,13 +67,18 @@ util::SeekableStreamPtr LocalDatabase::OpenRead(unsigned int id)
 util::SeekableStreamPtr LocalDatabase::OpenWrite(unsigned int id)
 {
     db::QueryPtr qp = m_db->CreateQuery();
-    qp->Restrict(ID, db::EQ, id);
+    qp->Where(qp->Restrict(ID, db::EQ, id));
     db::RecordsetPtr rs = qp->Execute();
     if (!rs || rs->IsEOF())
     {
 	TRACE << "Can't open ID " << id << " for reading\n";
 	return util::SeekableStreamPtr();
     }
+
+    unsigned int type = rs->GetInteger(mediadb::TYPE);
+    factories_t::const_iterator i = m_factories.find(type);
+    if (i != m_factories.end())
+	return i->second->OpenWrite(rs);
     
     util::FileStreamPtr fsp;
     unsigned int rc = util::FileStream::Create(rs->GetString(PATH).c_str(),
@@ -76,4 +92,4 @@ util::SeekableStreamPtr LocalDatabase::OpenWrite(unsigned int id)
     return fsp;
 }
 
-};
+} // namespace mediadb

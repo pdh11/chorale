@@ -25,6 +25,6 @@ public:
     TaskQueue *GetTaskQueue() { return &m_queue; }
 };
 
-}; // namespace util
+} // namespace util
 
 #endif

@@ -584,4 +584,4 @@ void CDWindow::SetUpCDDBStrings(unsigned int which)
     }
 }
 
-};
+} // namespace choraleqt

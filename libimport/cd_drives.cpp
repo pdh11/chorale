@@ -105,7 +105,7 @@ util::TaskQueue *CDDrive::GetTaskQueue()
     return m_impl->GetTaskQueue();
 }
 
-}; // namespace import
+} // namespace import
 
 #ifdef TEST
 

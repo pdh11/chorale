@@ -59,7 +59,7 @@ endif
 
 $(play): $(PLAY_OBJS) $(liboutput) $(libdbsqlite) $(libdb) $(libutil) \
 		Makefile $(libdbsteam) $(libmediadb) $(libimport)
-	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(PLAY_OBJS) \
 		$(liboutput) $(libdbsqlite) $(libdbsteam) $(libmediadb) \
 		$(libdb) $(libimport) $(libutil) $(LIBFLAC_LIBS) \
@@ -67,18 +67,18 @@ $(play): $(PLAY_OBJS) $(liboutput) $(libdbsqlite) $(libdb) $(libutil) \
 		$(GSTREAMER_LIBS)
 
 $(pparse): $(PPARSE_OBJS) $(libimport) $(libutil) Makefile
-	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
 		 $(CC) -o $@ $(PPARSE_OBJS) $(libimport) $(libutil) \
 		 $(LIBXMLPP_LIBS) $(BOOST_LIBS)
 
 $(playlist2dir): $(PLAYLIST2DIR_OBJS) $(libimport) $(libutil) Makefile
-	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		 $(CC) -o $@ $(PLAYLIST2DIR_OBJS) $(libimport) $(libutil) \
 		 $(LIBXMLPP_LIBS) $(BOOST_LIBS)
 
 $(readtags): $(READTAGS_OBJS) $(libimport) $(libdbsqlite) $(libdb) $(libutil) \
 		Makefile $(libdbsteam) $(libmediadb)
-	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(READTAGS_OBJS) \
 		$(libimport) $(libdbsqlite) $(libdbsteam) $(libmediadb) \
 		$(libdb) $(libutil) \
@@ -86,7 +86,7 @@ $(readtags): $(READTAGS_OBJS) $(libimport) $(libdbsqlite) $(libdb) $(libutil) \
 
 $(squirt): $(SQUIRT_OBJS) $(libimport) $(libdbsqlite) $(libdb) $(libutil) \
 		Makefile $(libdbsteam) $(libmediadb)
-	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(SQUIRT_OBJS) \
 		$(libimport) $(libdbsqlite) $(libdbsteam) $(libmediadb) \
 		$(libdb) $(libutil) \
@@ -94,7 +94,7 @@ $(squirt): $(SQUIRT_OBJS) $(libimport) $(libdbsqlite) $(libdb) $(libutil) \
 
 $(timedb): $(TIMEDB_OBJS) $(libimport) $(libdbsqlite) $(libdb) $(libutil) \
 		Makefile $(libdbsteam) $(libmediadb)
-	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(CXXFLAGS) $(TIMEDB_OBJS) \
 		$(libimport) $(libdbsqlite) $(libdbsteam) $(libmediadb) \
 		$(libdb) $(libutil) \

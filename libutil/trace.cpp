@@ -19,7 +19,7 @@ void Hex::Dump(const void *address, size_t nbytes)
 	for (i=0; i<line; ++i)
 	{
 	    unsigned char c = ((const unsigned char*)address)[offset+i];
-	    if (c<32 || c == 127)
+	    if (c<32 || c >= 127)
 		printf(".");
 	    else
 		printf("%c", c);

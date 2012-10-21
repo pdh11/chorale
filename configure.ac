@@ -2,14 +2,13 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(chorale, [0.06], pdh@utter.chaos.org.uk)
+AC_INIT(chorale, [0.07], pdh@utter.chaos.org.uk)
 
 AC_MSG_NOTICE([Required: Taglib, Boost, xsltproc, and libxml++.])
-AC_MSG_NOTICE([Optional: qt, gstreamer, libcdio, libcddb, lame, flac, curl, libupnp, dbus, hal, libuuid, openssl.])
+AC_MSG_NOTICE([Optional: qt, gstreamer, libcdio, libcddb, lame, flac, curl, libupnp, dbus, hal, libuuid, openssl, libmpg123.])
 AC_MSG_NOTICE([])
 
 AC_CONFIG_SRCDIR([libdb/db.h])
-AC_CONFIG_HEADER([config.h])
 AC_CONFIG_AUX_DIR([autotools])
 
 # Checks for programs.
@@ -34,12 +33,15 @@ PDH_C_WARNING([-Wextra])
 PDH_C_WARNING([-Wundef])
 PDH_C_WARNING([-Wshadow])
 PDH_C_WARNING([-Waddress])
+PDH_C_WARNING([-Wcoercion])
 PDH_C_WARNING([-Wcast-align])
 PDH_C_WARNING([-Wconversion])
 PDH_C_WARNING([-Wwrite-strings])
 PDH_C_WARNING([-Wpointer-arith])
+PDH_C_WARNING([-Wbad-function-cast])
 PDH_C_WARNING([-Wstrict-prototypes])
 PDH_C_WARNING([-Wmissing-prototypes])
+PDH_C_WARNING([-pedantic -Wno-long-long])
 PDH_C_WARNING([-fdiagnostics-show-option])
 PDH_C_WARNING([-Wdeclaration-after-statement])
 
@@ -66,10 +68,15 @@ PDH_CXX_WARNING([-Wextra])
 PDH_CXX_WARNING([-Wundef])
 PDH_CXX_WARNING([-Wshadow])
 PDH_CXX_WARNING([-Waddress])
+PDH_CXX_WARNING([-Wcoercion])
 PDH_CXX_WARNING([-Wcast-align])
 PDH_CXX_WARNING([-Wconversion])
 PDH_CXX_WARNING([-Wwrite-strings])
 PDH_CXX_WARNING([-Wpointer-arith])
+PDH_CXX_WARNING([-Wstrict-overflow])
+PDH_CXX_WARNING([-Wnon-virtual-dtor])
+PDH_CXX_WARNING([-Woverloaded-virtual])
+PDH_CXX_WARNING([-pedantic -Wno-long-long])
 PDH_CXX_WARNING([-fdiagnostics-show-option])
 
 AC_PROG_INSTALL
@@ -136,17 +143,18 @@ AC_SUBST($1_LIBS)
 ])
 
 
-PDH_PKGCONFIG(HAL,      hal,     0.5.9.1)
-PDH_PKGCONFIG(LIBFLAC,  flac,    1.1.3)
-PDH_PKGCONFIG(LIBUUID,  uuid,    1.00)
-PDH_PKGCONFIG(DBUS,     dbus-1,  1.1.1)
-PDH_PKGCONFIG(TAGLIB,   taglib,  1.4)
-PDH_PKGCONFIG(LIBCDDB,  libcddb, 1.2.1)
-PDH_PKGCONFIG(CURL,     libcurl, 7.16.1)
-PDH_PKGCONFIG(UPNP,     libupnp, 1.2.1)
-PDH_PKGCONFIG(OPENSSL,  openssl, 0.9.0)
-PDH_PKGCONFIG(SQLITE,   sqlite3, 3.3)
-PDH_PKGCONFIG(LIBXMLPP, libxml++-2.6, 2.14.0)
+PDH_PKGCONFIG(HAL,       hal,       0.5.9.1)
+PDH_PKGCONFIG(LIBFLAC,   flac,      1.1.3)
+PDH_PKGCONFIG(LIBUUID,   uuid,      1.00)
+PDH_PKGCONFIG(DBUS,      dbus-1,    1.1.1)
+PDH_PKGCONFIG(TAGLIB,    taglib,    1.4)
+PDH_PKGCONFIG(LIBCDDB,   libcddb,   1.2.1)
+PDH_PKGCONFIG(CURL,      libcurl,   7.16.1)
+PDH_PKGCONFIG(UPNP,      libupnp,   1.2.1)
+PDH_PKGCONFIG(OPENSSL,   openssl,   0.9.0)
+PDH_PKGCONFIG(SQLITE,    sqlite3,   3.3)
+PDH_PKGCONFIG(MPG123,    libmpg123, 1.2.0)
+PDH_PKGCONFIG(LIBXMLPP,  libxml++-2.6, 2.14.0)
 PDH_PKGCONFIG(GSTREAMER, gstreamer-0.10, 0.10.13)
 PDH_PKGCONFIG(LIBCDIOP,  libcdio_paranoia, 0.76)
 
@@ -160,7 +168,13 @@ if test "${ax_cv_boost_thread}${ax_cv_boost_regex}" != "yesyes" ; then
 fi
 
 # Checks for header files.
-AC_CHECK_HEADERS([stdint.h unistd.h sys/types.h sys/socket.h netinet/in.h netinet/tcp.h])
+AC_CHECK_HEADERS([stdint.h unistd.h sys/types.h sys/socket.h netinet/in.h netinet/tcp.h linux/dvb/dmx.h linux/dvb/frontend.h])
+
+AC_CHECK_DECLS([DMX_OUT_TS_TAP,DMX_OUT_TSDEMUX_TAP],,,[
+#ifdef HAVE_LINUX_DVB_DMX_H
+#include <linux/dvb/dmx.h>
+#endif
+])
 
 AC_CHECK_HEADERS([sys/inotify.h])
 AC_CHECK_FUNCS([inotify_init])
@@ -229,7 +243,7 @@ PDH_CHECK_SOCKOPT([TCP_NODELAY])
 printf "\n"
 pdh_ok=yes
 pdh_fail=no
-if test "${LIBCDIOP}${LIBCDDB}${QT}${LAME}${LIBFLAC}${CURL}${UPNP}${GSTREAMER}${DBUS}${HAL}${SQLITE}${LIBUUID}${OPENSSL}" != "yesyesyesyesyesyesyesyesyesyesyesyesyes" ; then
+if test "${LIBCDIOP}${LIBCDDB}${QT}${LAME}${LIBFLAC}${CURL}${UPNP}${GSTREAMER}${DBUS}${HAL}${SQLITE}${LIBUUID}${OPENSSL}${MPG123}${TAGLIB}" != "yesyesyesyesyesyesyesyesyesyesyesyesyesyesyes" ; then
 test "${QT}" = "yes"        || printf "** Install Qt 4.2.0 or later to build optional choralecd\n   http://www.troll.no\n"
 test "${LIBFLAC}" = "yes"   || printf "** Install flac 1.1.3 or later to build optional CD support\n   http://flac.sourceforge.net\n"
 test "${SQLITE}" = "yes"    || printf "** Install sqlite 3.3 or later to build optional SQL support\n   http://www.sqlite.org\n"
@@ -243,15 +257,16 @@ test "${HAL}" = "yes"       || printf "** Install hal 0.5.9.1 or later to build 
 test "${CURL}" = "yes"      || printf "** Install curl 7.16.1 or later to build optional Rio Receiver client\n   http://curl.haxx.se\n"
 test "${DBUS}" = "yes"      || printf "** Install libdbus 1.1.1 or later to build optional auto-configuration\n   http://dbus.freedesktop.org\n"
 test "${GSTREAMER}" = "yes" || printf "** Install gstreamer 0.10.13 or later to build optional playback support\n   http://gstreamer.freedesktop.org\n"
+test "${LIBXMLPP}" = "yes"  || printf "** Install libxml++-2.14.0 or later to build optional media-server support\n   http://libxmlplusplus.sourceforge.net\n"
+test "${TAGLIB}" = "yes"    || printf "** Install taglib-1.4 or later to build optional CD and media-server support\n   http://developer.kde.org/~wheeler/taglib.html\n"
+test "${MPG123}" = "yes"    || printf "** Install libmpg123 1.2.0 or later to build optional MP2 transcoding support\n   http://www.mpg123.de\n"
 printf "\n"
 pdh_ok=no
 fi
 
 # Required libraries
-if test "${TAGLIB}${BOOST}${LIBXMLPP}${HAVE_XSLTPROC}" != "yesyesyesyes" ; then
-test "${TAGLIB}" = "yes"   || printf "** Taglib 1.4 or later is required\n   http://developer.kde.org/~wheeler/taglib.html\n"
+if test "${BOOST}${HAVE_XSLTPROC}" != "yesyes" ; then
 test "${BOOST}" = "yes"    || printf "** Boost 1.33.1 or later (at least -regex and -thread) is required\n   http://www.boost.org\n"
-test "${LIBXMLPP}" = "yes" || printf "** Libxml++ 2.14.0 or later is required\n   http://libxmlplusplus.sourceforge.net\n"
 test "${HAVE_XSLTPROC}" = "yes" || printf "** Xsltproc from libxslt 1.0.0 or later is required\n  http://xmlsoft.org/XSLT/index.html\n"
 printf "\n"
 pdh_ok=no
@@ -274,5 +289,11 @@ if test "${pdh_fail}" = "yes" ; then
 AC_MSG_ERROR([Library dependencies not met])
 fi
 
-AC_CONFIG_FILES([Make.config stamp-h])
+TARGET=`${CC} -dumpmachine`
+AC_SUBST(TARGET)
+mv libtool libtool.${TARGET}
+LIBTOOL=${LIBTOOL}.${TARGET}
+
+AC_CONFIG_HEADER([config.${TARGET}.h:config.h.in])
+AC_CONFIG_FILES([Make.config.${TARGET}:Make.config.in stamp-h])
 AC_OUTPUT

@@ -98,12 +98,12 @@ class StreamSocket: public Socket
 public:
     StreamSocket();
     
-    unsigned Listen(unsigned queue = 64);
+    unsigned Listen(unsigned int queue = 64);
     unsigned Accept(StreamSocket *accepted);
 
     unsigned SetCork(bool corked);
 };
 
-}; // namespace util
+} // namespace util
 
 #endif

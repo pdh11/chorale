@@ -5,7 +5,7 @@
 
 namespace util { class TaskQueue; }
 
-namespace db { class Database; };
+namespace mediadb { class Database; }
 
 namespace import {
 
@@ -19,12 +19,12 @@ public:
     ~FileScannerThread();
 
     unsigned int Init(const std::string& loroot, const std::string& hiroot,
-		      db::Database *thedb, util::TaskQueue *queue,
+		      mediadb::Database *thedb, util::TaskQueue *queue,
 		      const std::string& dbfilename);
 
     void ForceRescan();
 };
 
-}; // namespace import
+} // namespace import
 
 #endif

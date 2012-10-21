@@ -10,15 +10,17 @@
 class QWidget;
 class QPixmap;
 
-namespace import { class CDDrives; };
+namespace import { class CDDrives; }
 class Settings;
-namespace util { class TaskQueue; };
+namespace util { class TaskQueue; }
 
 namespace choraleqt {
 
+/** A widget for the MainWindow's device list, representing a CD drive.
+ */
 class CDWidget: public ResourceWidget
 {
-    Q_OBJECT;
+    Q_OBJECT
 
     std::string m_device;
     import::CDDrives *m_drives;
@@ -37,6 +39,8 @@ public:
     void OnBottomButton();
 };
 
+/** A WidgetFactory which creates CDWidget items.
+ */
 class CDWidgetFactory: public WidgetFactory
 {
     QPixmap* m_pixmap;
@@ -52,6 +56,6 @@ public:
     void CreateWidgets(QWidget *parent);
 };
 
-}; // namespace choraleqt
+} // namespace choraleqt
 
 #endif

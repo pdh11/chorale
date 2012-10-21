@@ -54,4 +54,4 @@ void TestSeekableStream(SeekableStreamPtr msp)
     assert(nwrote == 0);
 }
 
-}; // namespace util
+} // namespace util

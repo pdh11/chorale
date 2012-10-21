@@ -7,6 +7,7 @@
 #include "file_scanner.h"
 #include "file_notifier.h"
 #include "libmediadb/xml.h"
+#include "libmediadb/db.h"
 #include "libutil/trace.h"
 
 namespace import {
@@ -33,18 +34,18 @@ class FileScannerThread::Impl: public FileNotifier::Observer
 
 public:
     Impl(const std::string& loroot, const std::string& hiroot,
-		      db::Database *thedb, util::TaskQueue *queue,
-		      const std::string& dbfilename);
+	 mediadb::Database *thedb, util::TaskQueue *queue,
+	 const std::string& dbfilename);
     ~Impl();
 
     void ForceRescan();
 };
 
 FileScannerThread::Impl::Impl(const std::string& loroot,
-				     const std::string& hiroot,
-				     db::Database *thedb,
-				     util::TaskQueue *queue,
-				     const std::string& dbfilename)
+			      const std::string& hiroot,
+			      mediadb::Database *thedb,
+			      util::TaskQueue *queue,
+			      const std::string& dbfilename)
     : m_waker(&m_poller, NULL),
       m_db(thedb),
       m_scanner(loroot, hiroot, thedb, queue, &m_notifier),
@@ -140,7 +141,7 @@ FileScannerThread::~FileScannerThread()
 
 unsigned int FileScannerThread::Init(const std::string& loroot,
 				     const std::string& hiroot,
-				     db::Database *thedb,
+				     mediadb::Database *thedb,
 				     util::TaskQueue *queue,
 				     const std::string& dbfilename)
 {    
@@ -158,5 +159,5 @@ void FileScannerThread::ForceRescan()
 	m_impl->ForceRescan();
 }
 
-}; // namespace import
+} // namespace import
 

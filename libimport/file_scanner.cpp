@@ -4,7 +4,8 @@
 #include "libutil/file.h"
 #include "libdb/db.h"
 #include "libmediadb/schema.h"
-#include "libmediadb/allocate_id.h"
+#include "libmediadb/db.h"
+#include "libmediadb/localdb.h"
 #include "playlist.h"
 #include "tags.h"
 #include "file_notifier.h"
@@ -29,10 +30,9 @@ class FileScanner::Impl: public util::DirectoryWalker::Observer
     uint64_t m_duration;
     std::string m_loroot;
     std::string m_hiroot;
-    db::Database *m_db;
+    mediadb::Database *m_db;
     util::TaskQueue *m_queue;
     FileNotifier *m_notifier;
-    mediadb::AllocateID m_allocateid;
 
     typedef std::map<std::string, unsigned int> map_t;
     /** Sadly, we need to keep the path->ID map ourselves, as the DB
@@ -52,12 +52,13 @@ class FileScanner::Impl: public util::DirectoryWalker::Observer
 
 public:
     Impl(const std::string& loroot, const std::string& hiroot,
-	 db::Database *thedb, util::TaskQueue *queue, FileNotifier *notifier)
+	 mediadb::Database *thedb, util::TaskQueue *queue,
+	 FileNotifier *notifier)
 	: m_count(0), m_tunes(0), m_hicount(0),
 	  m_size(0), m_hisize(0), m_duration(0),
 	  m_loroot(loroot), m_hiroot(hiroot),
-	  m_db(thedb), m_queue(queue), m_notifier(notifier),
-	  m_allocateid(thedb) {}
+	  m_db(thedb), m_queue(queue), m_notifier(notifier)
+    {}
     
     unsigned int OnFile(dircookie parent_cookie, unsigned int index, 
 			const std::string& path, const std::string&,
@@ -83,7 +84,7 @@ db::RecordsetPtr FileScanner::Impl::GetRecordForPath(const std::string& path,
     boost::recursive_mutex::scoped_lock lock(m_mutex);
 
     db::QueryPtr qp = m_db->CreateQuery();
-    qp->Restrict(mediadb::PATH, db::EQ, path);
+    qp->Where(qp->Restrict(mediadb::PATH, db::EQ, path));
     db::RecordsetPtr rs = qp->Execute();
     if (rs && !rs->IsEOF())
     {
@@ -93,11 +94,12 @@ db::RecordsetPtr FileScanner::Impl::GetRecordForPath(const std::string& path,
     else
     {
 	// Not found
-	*id = (path == m_loroot) ? 0x100 : m_allocateid.Allocate();
+	*id = (path == m_loroot) ? 0x100 : m_db->AllocateID();
 	rs = m_db->CreateRecordset();
 	rs->AddRecord();
 	rs->SetInteger(mediadb::ID, *id);
 	rs->SetString(mediadb::PATH, path);
+	rs->SetInteger(mediadb::TYPE, mediadb::PENDING);
 	rs->Commit();
 	m_map[path] = *id;
     }
@@ -170,7 +172,7 @@ unsigned int FileScanner::Impl::OnFile(dircookie parent_cookie,
 	    rs->SetInteger(mediadb::TYPE, mediadb::FILE);
 	    rs->SetString(mediadb::TITLE, util::StripExtension(leaf.c_str()));
     
-	    if (extension == "mp3" || extension == "ogg"
+	    if (extension == "mp3" || extension == "mp2" || extension == "ogg"
 		|| extension == "flac")
 	    {
 		import::TagsPtr tags = import::Tags::Create(path);
@@ -337,7 +339,7 @@ unsigned int FileScanner::Impl::OnLeaveDirectory(dircookie cookie,
 
 
 FileScanner::FileScanner(const std::string& loroot, const std::string& hiroot,
-			 db::Database *thedb, util::TaskQueue *queue,
+			 mediadb::Database *thedb, util::TaskQueue *queue,
 			 FileNotifier *fn)
     : m_impl(new Impl(loroot, hiroot, thedb, queue, fn))
 {
@@ -408,7 +410,7 @@ unsigned int FileScanner::Scan()
     return 0;
 }
 
-}; // namespace import
+} // namespace import
 
 #ifdef TEST
 
@@ -438,8 +440,10 @@ int main()
 
     util::WorkerThreadPool wtp(2);
 
+    mediadb::LocalDatabase ldb(&sdb);
+
     {
-	import::FileScanner ifs(fullname, "", &sdb, wtp.GetTaskQueue());
+	import::FileScanner ifs(fullname, "", &ldb, wtp.GetTaskQueue());
 
 	ifs.Scan();
     }
@@ -465,7 +469,7 @@ int main()
     fclose(f);
 
     {
-	import::FileScanner ifs(fullname, "", &sdb, wtp.GetTaskQueue());
+	import::FileScanner ifs(fullname, "", &ldb, wtp.GetTaskQueue());
 
 	ifs.Scan();
     }
@@ -496,7 +500,7 @@ int main()
     symlink(file.c_str(), link.c_str());
 
     {
-	import::FileScanner ifs(fullname, "", &sdb, wtp.GetTaskQueue());
+	import::FileScanner ifs(fullname, "", &ldb, wtp.GetTaskQueue());
 	ifs.Scan();
     }
 
@@ -529,7 +533,7 @@ int main()
     mkdir(subdir.c_str(), 0755);
 
     {
-	import::FileScanner ifs(fullname, "", &sdb, wtp.GetTaskQueue());
+	import::FileScanner ifs(fullname, "", &ldb, wtp.GetTaskQueue());
 	ifs.Scan();
     }
 
@@ -569,7 +573,7 @@ int main()
     TRACE << "deleting " << subdir << "\n";
     rmdir(subdir.c_str());
     {
-	import::FileScanner ifs(fullname, "", &sdb, wtp.GetTaskQueue());
+	import::FileScanner ifs(fullname, "", &ldb, wtp.GetTaskQueue());
 	ifs.Scan();
     }
 

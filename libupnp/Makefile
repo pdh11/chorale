@@ -2,12 +2,15 @@ TOP?=../
 DIR:=libupnp/
 LIBUPNP_DIR:=$(TOP)$(DIR)
 SRCS:=\
+	client.cpp \
 	description.cpp \
 	device.cpp \
 	didl.cpp \
+	server.cpp \
 	soap.cpp
 
-LIBUPNP_XML:=AVTransport2.xml \
+LIBUPNP_XML:= \
+	AVTransport2.xml \
 	ConnectionManager2.xml \
 	ContentDirectory2.xml \
 	RenderingControl2.xml \
@@ -97,12 +100,12 @@ $(LIBUPNP_TESTS): TEST_LIBS+= $(UPNP_LIBS) $(LIBXMLPP_LIBS) $(BOOST_LIBS)
 $(LIBUPNP_TESTS): $(libmediadb) $(libdbsteam) $(libdb) $(libupnp) $(libutil)
 
 $(libupnp): $(LIBUPNP_OBJS)
-	$(AR_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(LIBUPNP_OBJS)
 
 $(upnpscan): $(UPNPSCAN_OBJS) $(libupnp) \
 		$(libdb) $(libutil) Makefile $(libmediadb)
-	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(RECEIVERSCAN_OBJS) $(libupnp) \
 		$(libmediadb) $(libdb) $(libutil) \
 		$(LIBXMLPP_LIBS) $(BOOST_LIBS) $(CURL_LIBS) $(UPNP_LIBS)

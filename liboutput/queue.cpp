@@ -169,11 +169,14 @@ void Queue::SetURL()
     }
     std::string url = dbp.db->GetURL(dbp.id);
     db::QueryPtr qp = dbp.db->CreateQuery();
-    qp->Restrict(mediadb::ID, db::EQ, dbp.id);
+    qp->Where(qp->Restrict(mediadb::ID, db::EQ, dbp.id));
     db::RecordsetPtr rs = qp->Execute();
     std::string metadata;
     if (rs && !rs->IsEOF())
-	metadata = upnp::didl::FromRecord(dbp.db, rs);
+	metadata = upnp::didl::s_header
+	    + upnp::didl::FromRecord(dbp.db, rs)
+	    + upnp::didl::s_footer;
+    
     {
 	boost::mutex::scoped_lock lock(m_mutex);
 	m_impl->m_expected_url = url.c_str();
@@ -192,11 +195,14 @@ void Queue::SetNextURL()
     }
     std::string url = dbp.db->GetURL(dbp.id);
     db::QueryPtr qp = dbp.db->CreateQuery();
-    qp->Restrict(mediadb::ID, db::EQ, dbp.id);
+    qp->Where(qp->Restrict(mediadb::ID, db::EQ, dbp.id));
     db::RecordsetPtr rs = qp->Execute();
     std::string metadata;
     if (rs && !rs->IsEOF())
-	metadata = upnp::didl::FromRecord(dbp.db, rs);
+	metadata = upnp::didl::s_header
+	    + upnp::didl::FromRecord(dbp.db, rs)
+	    + upnp::didl::s_footer;
+
     {
 	boost::mutex::scoped_lock lock(m_mutex);
 	m_impl->m_expected_next_url = url.c_str();
@@ -204,4 +210,4 @@ void Queue::SetNextURL()
     m_impl->m_player->SetNextURL(url, metadata);
 }
 
-}; // namespace output
+} // namespace output

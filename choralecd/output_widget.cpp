@@ -17,7 +17,7 @@
 #include "tagtable.h"
 #include "libutil/ssdp.h"
 #include "libutil/trace.h"
-#include "liboutput/upnp.h"
+#include "liboutput/upnpav.h"
 
 namespace choraleqt {
 
@@ -73,9 +73,11 @@ void OutputWidgetFactory::CreateWidgets(QWidget *parent)
 
 #ifdef HAVE_LIBOUTPUT_UPNP
 UpnpOutputWidgetFactory::UpnpOutputWidgetFactory(QPixmap *pixmap,
-						 mediadb::Registry *registry)
+						 mediadb::Registry *registry,
+						 util::PollerInterface *poller)
     : m_pixmap(pixmap),
-      m_registry(registry)
+      m_registry(registry),
+      m_poller(poller)
 {
 }
 
@@ -84,17 +86,20 @@ void UpnpOutputWidgetFactory::CreateWidgets(QWidget *parent)
     m_parent = parent;
 }
 
-void UpnpOutputWidgetFactory::OnService(const std::string& url)
+void UpnpOutputWidgetFactory::OnService(const std::string& url,
+					const std::string& udn)
 {
     output::upnpav::URLPlayer *player = new output::upnpav::URLPlayer;
-    player->Init(url);
+    player->Init(url, udn, m_poller);
+
+    std::string fn = player->GetFriendlyName();
+    TRACE << "fn '" << fn << "'\n";
 
     output::Queue *queue = new output::Queue(player);
-    queue->SetName(player->GetFriendlyName());
+    queue->SetName(fn);
 
-    (void) new OutputWidget(m_parent, player->GetFriendlyName(), *m_pixmap,
-			    queue, m_registry);
+    (void) new OutputWidget(m_parent, fn, *m_pixmap, queue, m_registry);
 }
 #endif
 
-}; // namespace choraleqt
+} // namespace choraleqt

@@ -50,6 +50,6 @@ public:
     CDDBLookupPtr Lookup(AudioCDPtr);
 };
 
-};
+} // namespace import
 
 #endif

@@ -6,6 +6,10 @@
 
 namespace util {
 
+/** Returns single lines of text from a Stream.
+ *
+ * Useful for HTTP headers and the like.
+ */
 class LineReader
 {
     StreamPtr m_stream;
@@ -28,6 +32,6 @@ public:
     const char *GetLeftovers(size_t *nbytes);
 };
 
-}; // namespace util
+} // namespace util
 
 #endif

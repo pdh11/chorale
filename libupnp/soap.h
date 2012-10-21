@@ -3,6 +3,7 @@
 
 #include <map>
 #include <string>
+#include <list>
 
 /** Classes implementing UPnP.
  */
@@ -12,40 +13,76 @@ namespace upnp {
  */
 namespace soap {
 
-typedef std::map<std::string, std::string> Params;
-
-/** A SOAP client.
+/** Inbound SOAP parameters (requests if we're a server, responses if
+ * we're a client).
  */
-class Connection
+class Inbound
 {
-    class Impl;
-    Impl *m_impl;
-public:
-    Connection(const std::string& url,
-	       const std::string& udn,
-	       const char *service);
-    ~Connection();
+    typedef std::map<std::string, std::string> params_t;
+    params_t m_params;
 
-    Params Action(const char *action_name,
-		  const Params& params);
+public:
+    Inbound();
+    ~Inbound();
+
+    void Set(const std::string& tag, const std::string& value)
+    {
+	m_params[tag] = value;
+    }
+
+    void Get(std::string*, const char*);
+    void Get(uint32_t*,    const char*);
+    void Get(int32_t*,     const char*);
+    void Get(uint16_t*,    const char*);
+    void Get(int16_t*,     const char*);
+    void Get(bool*,        const char*);
+
+    std::string GetString(const char*) const;
+    uint32_t GetUInt(const char*) const;
+    int32_t GetInt(const char*) const;
+    bool GetBool(const char*) const;
+};
+
+/** Outbound SOAP parameters (requests if we're a client, responses if
+ * we're a server).
+ *
+ * Windows Media Connect needs its parameters in the right order
+ * (and in fact SOAP1.1 para 7.1, rather disappointingly, says
+ * that order is significant). So we preserve parameter order here.
+ */
+class Outbound
+{
+    typedef std::list<std::pair<const char*, std::string> > params_t;
+    params_t m_params;
+
+public:
+    Outbound();
+    ~Outbound();
+
+    void Add(const char*, const std::string& s);
+    void Add(const char*, int32_t i);
+    void Add(const char*, uint32_t i);
+
+    typedef params_t::const_iterator const_iterator;
+    const_iterator begin() const { return m_params.begin(); }
+    const_iterator end() const { return m_params.end(); }
 };
 
 /** A SOAP server.
+ *
+ * For the client implementation, see upnp::Client.
  */
 class Server
 {
 public:
     virtual ~Server() {}
 
-    virtual Params OnAction(const char *action_name, const Params& params) = 0;
+    virtual unsigned int OnAction(const char *action_name, 
+				  const Inbound& params,
+				  Outbound *result) = 0;
 };
 
-
-/** Helper routine to parse a SOAP boolean.
- */
-bool ParseBool(const std::string& s);
-
-}; // namespace soap
-}; // namespace upnp
+} // namespace soap
+} // namespace upnp
 
 #endif

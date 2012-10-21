@@ -25,8 +25,8 @@ db::QueryPtr Database::CreateQuery()
     return db::QueryPtr(new Query(this));
 }
 
-}; // namespace steam
-}; // namespace db
+} // namespace steam
+} // namespace db
 
 #ifdef TEST
 

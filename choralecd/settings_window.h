@@ -10,7 +10,7 @@ class Q3GroupBox;
 
 class SettingsWindow: public QDialog
 {
-    Q_OBJECT;
+    Q_OBJECT
 
     Settings *m_settings;
 

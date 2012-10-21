@@ -42,6 +42,6 @@ const char *NameForTag(int receivertag);
 /** Given a tag name, what's its mediadb::TAG number? */
 int TagForName(const char *tag);
 
-}; // namespace receiver
+} // namespace receiver
 
 #endif

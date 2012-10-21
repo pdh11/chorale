@@ -12,6 +12,8 @@
         /* db_Recordset */
 
 
+/** Wrapper structure for presenting C interface to db::RecordsetPtr.
+ */
 struct db__Recordset
 {
     db::RecordsetPtr rs;
@@ -64,22 +66,39 @@ extern "C" void db_Recordset_Free(db_Recordset *prs)
         /* db_Query */
 
 
+/** Wrapper structure for presenting C interface to db::QueryPtr.
+ */
 struct db__Query
 {
     db::QueryPtr qp;
     explicit db__Query(db::QueryPtr q) : qp(q) {}
 };
 
-extern "C" int db_Query_Restrict(db_Query q, int which, db_RestrictionType rt,
-				 const char *val)
+extern "C" const db_QueryRep db_Query_Restrict(db_Query q, int which,
+					       db_RestrictionType rt, 
+					       const char *val)
 {
-    return q->qp->Restrict(which, (db::RestrictionType)rt, val);
+    return (db_QueryRep) q->qp->Restrict(which, (db::RestrictionType)rt, val);
 }
 
-extern "C" int db_Query_Restrict2(db_Query q, int which,
-				  db_RestrictionType rt, int val)
+extern "C" const db_QueryRep db_Query_Restrict2(db_Query q, int which,
+						db_RestrictionType rt, int val)
 {
-    return q->qp->Restrict(which, (db::RestrictionType)rt, val);
+    return (db_QueryRep) q->qp->Restrict(which, (db::RestrictionType)rt, val);
+}
+
+extern "C" const db_QueryRep db_Query_And(db_Query q, const db_QueryRep a,
+					  const db_QueryRep b)
+{
+    return (db_QueryRep) q->qp->And((const db::Query::Rep*)a,
+				    (const db::Query::Rep*)b);
+}
+
+extern "C" const db_QueryRep db_Query_Or(db_Query q, const db_QueryRep a,
+					 const db_QueryRep b)
+{
+    return (db_QueryRep) q->qp->Or((const db::Query::Rep*)a,
+				   (const db::Query::Rep*)b);
 }
 
 extern "C" db_Recordset db_Query_Execute(db_Query q)
@@ -102,14 +121,16 @@ extern "C" void db_Query_Free(db_Query *pqp)
         /* db_Database */
 
 
+/** Wrapper structure for presenting C interface to db::Database.
+ */
 struct db__Database
 {
-    db::DatabasePtr thedb;
+    db::Database *thedb;
 
-    explicit db__Database(db::DatabasePtr d) : thedb(d) {}
+    explicit db__Database(db::Database *d) : thedb(d) {}
 };
 
-db_Database db_Database_Wrap(db::DatabasePtr db)
+db_Database db_Database_Wrap(db::Database *db)
 {
     return new db__Database(db);
 }

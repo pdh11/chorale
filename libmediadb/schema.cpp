@@ -170,7 +170,7 @@ void ChildrenToVector(const std::string& children_field,
 	(*vec_out)[i] = GetUTF8Char(&ptr);
 }
 
-}; // namespace mediadb
+} // namespace mediadb
 
 #ifdef TEST
 

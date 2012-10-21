@@ -14,15 +14,16 @@
 
 class Settings;
 
-namespace util {
-class TaskQueue;
-};
+namespace util { class TaskQueue; }
 
 namespace choraleqt {
 
+/** A progress dialog for initial CD reading (otherwise, there's a
+ * noticeable delay).
+ */
 class CDProgress: public QProgressDialog, public util::TaskObserver
 {
-    Q_OBJECT;
+    Q_OBJECT
 
     import::CDDrivePtr m_drive;
     const Settings *m_settings;
@@ -48,6 +49,6 @@ public slots:
     void OnCancel();
 };
 
-}; // namespace choraleqt
+} // namespace choraleqt
 
 #endif

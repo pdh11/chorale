@@ -228,7 +228,7 @@ void SetlistWindow::dropEvent(QDropEvent *e)
 	    unsigned int new_queue_len = m_queue->end() - m_queue->begin();
 	    m_table->setNumRows(new_queue_len);
 	    db::QueryPtr qp = db->CreateQuery();
-	    qp->Restrict(mediadb::ID, db::EQ, idp.fid);
+	    qp->Where(qp->Restrict(mediadb::ID, db::EQ, idp.fid));
 	    db::RecordsetPtr rs = qp->Execute();
 	    m_table->setItem(new_queue_len-1, 0,
 			     new BoldableTableItem(m_table,
@@ -293,4 +293,4 @@ void SetlistWindow::FastForward()
 	m_queue->Seek(m_current_index+1, 0);
 }
 
-};
+} // namespace choraleqt

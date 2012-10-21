@@ -273,9 +273,9 @@ void *Connection::GetUnderlyingConnection()
     return m_impl->GetUnderlyingConnection();
 }
 
-}; // namespace dbus
+} // namespace dbus
 
-}; // namespace util
+} // namespace util
 
 #endif // HAVE_DBUS
 

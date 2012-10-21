@@ -42,7 +42,7 @@ $(LIBDBUPNP_TESTS) : TEST_LIBS+= $(BOOST_LIBS) $(CURL_LIBS) $(UPNP_LIBS)
 $(LIBDBUPNP_TESTS) : $(libdbupnp) $(libmediadb) $(libdb) $(libupnp) $(libutil) 
 
 $(libdbupnp): $(LIBDBUPNP_OBJS)
-	$(AR_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(LIBDBUPNP_OBJS)
 
 CLEANS += $(libdbupnp)

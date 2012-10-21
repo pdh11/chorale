@@ -15,7 +15,7 @@ std::string URLEscape(const std::string& s)
 	    || strchr("$&+,/:?@'<>\"#%", c) != NULL)
 	{
 	    char buf[4];
-	    sprintf(buf, "%%%02x", c);
+	    sprintf(buf, "%%%02x", c & 0xFFu);
 	    result += buf;
 	}
 	else
@@ -50,7 +50,7 @@ std::string URLUnEscape(const std::string& s)
     return result;
 }
 
-}; // namespace util
+} // namespace util
 
 #ifdef TEST
 

@@ -60,7 +60,7 @@ std::string XmlUnEscape(const std::string& s)
     return result;
 }
 
-}; // namespace util
+} // namespace util
 
 #ifdef TEST
 

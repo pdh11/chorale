@@ -21,6 +21,7 @@ PlaylistPtr Playlist::Create(const std::string& filename)
 
     Playlist *result = NULL;
 
+#ifdef HAVE_LIBXMLPP
     if (ext == "asx")
     {
 	result = new PlaylistASX;
@@ -32,6 +33,7 @@ PlaylistPtr Playlist::Create(const std::string& filename)
 	result->m_impl->filename = filename;
     }
     else
+#endif
     {
 	TRACE << "Unexpected playlist file " << filename << "\n";
     }
@@ -72,4 +74,4 @@ size_t Playlist::GetLength() const
     return m_impl->entries.size();
 }
 
-};
+} // namespace import

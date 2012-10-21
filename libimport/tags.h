@@ -6,10 +6,11 @@
 #include <string>
 #include "libdb/db.h"
 #include <boost/thread/mutex.hpp>
+#include "libutil/counted_object.h"
 
 namespace import {
 
-class Tags
+class Tags: public CountedObject
 {
 protected:
     std::string m_filename;
@@ -20,7 +21,7 @@ public:
     virtual unsigned Read(db::RecordsetPtr);
     virtual unsigned Write(db::RecordsetPtr);
 
-    typedef ::boost::shared_ptr<Tags> Pointer;
+    typedef ::boost::intrusive_ptr<Tags> Pointer;
 
     static Pointer Create(const std::string& filename);
 };
@@ -35,6 +36,6 @@ unsigned WriteTags(const std::string& filename, db::RecordsetPtr tags);
  */
 extern boost::mutex s_taglib_mutex;
 
-}; // namespace import
+} // namespace import
 
 #endif

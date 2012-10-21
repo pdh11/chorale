@@ -5,6 +5,6 @@ namespace output {
 
 enum PlayState { STOP, PAUSE, PLAY };
 
-}; // namespace output
+} // namespace output
 
 #endif

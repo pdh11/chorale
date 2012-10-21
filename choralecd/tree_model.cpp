@@ -204,4 +204,4 @@ QVariant TreeModel::headerData(int, Qt::Orientation,
 
 
 
-}; // namespace choraleqt
+} // namespace choraleqt

@@ -10,6 +10,9 @@
 #include <assert.h>
 #include "libutil/trace.h"
 #include "libutil/file.h"
+#include "libutil/poll.h"
+#undef IN
+#undef OUT
 
 #ifndef HAVE_INOTIFY_INIT
 # ifdef HAVE_NR_INOTIFY_INIT
@@ -106,7 +109,7 @@ unsigned int FileNotifier::OnActivity()
     return 0;
 }
 
-}; // namespace import
+} // namespace import
 
 #ifdef TEST
 

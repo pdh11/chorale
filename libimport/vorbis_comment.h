@@ -8,6 +8,6 @@ namespace import {
  */
 const char *GetVorbisTagForField(unsigned field);
 
-}; // namespace import
+} // namespace import
 
 #endif

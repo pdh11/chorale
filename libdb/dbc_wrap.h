@@ -8,6 +8,6 @@
 #include "db.h"
 #include "dbc.h"
 
-db_Database db_Database_Wrap(db::DatabasePtr);
+db_Database db_Database_Wrap(db::Database*);
 
 #endif

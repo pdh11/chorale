@@ -40,6 +40,6 @@ std::string PathToURL(const std::string& path);
  */
 std::string URLToPath(const std::string& url);
 
-}; // namespace util
+} // namespace util
 
 #endif

@@ -1,5 +1,5 @@
 #include "config.h"
-#include "urlplayer.h"
+#include "gstreamer.h"
 
 #ifdef HAVE_GSTREAMER
 
@@ -12,18 +12,23 @@
 
 namespace output {
 
-class GSTPlayer::Impl: public util::Observable<URLObserver>
+namespace gstreamer {
+
+class URLPlayer::Impl: public util::Observable<URLObserver>
 {
     GMainLoop *m_loop;
     GstElement *m_play;
+    GstBus *m_bus;
 
     boost::mutex m_mutex;
+    boost::condition m_cstarted;
     std::string m_url;
     std::string m_next_url;
     GstState m_last_state;
     unsigned int m_last_timecode_sec;
     bool m_async_state_change;
 
+    volatile bool m_started;
     volatile bool m_exiting;
 
     boost::thread m_thread;
@@ -45,28 +50,32 @@ public:
     unsigned int SetPlayState(output::PlayState);
 };
 
-GSTPlayer::Impl::Impl()
-    : m_last_state(GST_STATE_NULL),
+URLPlayer::Impl::Impl()
+    : m_loop(NULL),
+      m_play(NULL),
+      m_bus(NULL),
+      m_last_state(GST_STATE_NULL),
       m_last_timecode_sec(UINT_MAX),
       m_async_state_change(false),
+      m_started(false),
       m_exiting(false),
       m_thread(boost::bind(&Impl::Run, this))
 {
 }
 
-GSTPlayer::Impl::~Impl()
+URLPlayer::Impl::~Impl()
 {
     m_exiting = true;
-    TRACE << "GSTPlayer::~Impl\n";
+    TRACE << "URLPlayer::~Impl\n";
     gst_element_set_state(m_play, GST_STATE_NULL);
     if (m_loop)
 	g_main_loop_quit(m_loop);
-    TRACE << "GSTPlayer::~Impl joining\n";
+    TRACE << "URLPlayer::~Impl joining\n";
     m_thread.join();
-    TRACE << "GSTPlayer::~Impl joined\n";
+    TRACE << "URLPlayer::~Impl joined\n";
 }
 
-void GSTPlayer::Impl::Run()
+void URLPlayer::Impl::Run()
 {
     TRACE << "starting\n";
 
@@ -90,14 +99,28 @@ void GSTPlayer::Impl::Run()
     gst_object_unref(GST_OBJECT(gnomevfs));
     
     m_play = gst_element_factory_make("playbin", "play");
-
-    GstBus *bus = gst_pipeline_get_bus(GST_PIPELINE(m_play));
-    gst_bus_add_watch(bus, &StaticBusCallback, this);
-    gst_object_unref(bus);
+    if (!m_play)
+    {
+	TRACE << "Oh-oh, no playbin\n";
+    }
 
     gst_element_set_state(m_play, GST_STATE_READY);
 
+    m_bus = gst_pipeline_get_bus(GST_PIPELINE(m_play));
+//    TRACE << "Apparently bus=" << m_bus << " (this=" << this << ")\n";
+    GSource *src = gst_bus_create_watch(m_bus);
+
+    // Hurrah for filthy GLib non-typesafety
+    g_source_set_callback(src, (GSourceFunc)&StaticBusCallback, this, NULL);
+    g_source_attach(src, context);
+
     TRACE << "running\n";
+
+    {
+	boost::mutex::scoped_lock lock(m_mutex);
+	m_started = true;
+	m_cstarted.notify_all();
+    }
 
     /* now run */
     g_main_loop_run(m_loop);
@@ -106,47 +129,64 @@ void GSTPlayer::Impl::Run()
     
     /* also clean up */
     gst_element_set_state(m_play, GST_STATE_NULL);
+    gst_object_unref(GST_OBJECT(m_bus));
     gst_object_unref(GST_OBJECT(m_play));
     g_main_loop_unref(m_loop);
     m_loop = NULL;
     g_source_destroy(timersource);
+    g_source_destroy(src);
     g_main_context_unref(context);
     gst_deinit();
 
     TRACE << "now falling off thread\n";
 }
 
-unsigned int GSTPlayer::Impl::SetURL(const std::string& url)
+unsigned int URLPlayer::Impl::SetURL(const std::string& url)
 {
     {
 	boost::mutex::scoped_lock lock(m_mutex);
 	m_url = url.c_str(); // Deep copy for thread-safety
 	m_next_url.clear();
+
+	if (!m_started)
+	{
+	    TRACE << "Waiting for start\n";
+	    m_cstarted.wait(lock);
+	}
     }
-    TRACE << "Calling g_object_set(" << m_url << ")\n";
+//    TRACE << "Calling g_object_set(" << m_url << ") on " << m_play << "\n";
     g_object_set(G_OBJECT(m_play), "uri", m_url.c_str(), NULL);
-    TRACE << "g_object_set returned\n";
+//    TRACE << "g_object_set returned\n";
+    Fire(&URLObserver::OnURL, m_url);
 
     return 0;
 }
 
-unsigned int GSTPlayer::Impl::SetNextURL(const std::string& url)
+unsigned int URLPlayer::Impl::SetNextURL(const std::string& url)
 {
     boost::mutex::scoped_lock lock(m_mutex);
     m_next_url = url.c_str(); // Deep copy for thread-safety
     return 0;
 }
 
-unsigned int GSTPlayer::Impl::SetPlayState(output::PlayState state)
+unsigned int URLPlayer::Impl::SetPlayState(output::PlayState state)
 {
+    {
+	boost::mutex::scoped_lock lock(m_mutex);
+	if (!m_started)
+	{
+	    TRACE << "Waiting for start again\n";
+	    m_cstarted.wait(lock);
+	}
+    }
     switch (state)
     {
     case PLAY:
     {
-	TRACE << "Calling set_state\n";
+//	TRACE << "Calling set_state\n";
 	GstStateChangeReturn sr = gst_element_set_state(m_play, 
 							GST_STATE_PLAYING);
-	TRACE << "set_state returned " << sr << "\n";
+//	TRACE << "set_state returned " << sr << "\n";
 	break;
     }
     case PAUSE:
@@ -161,9 +201,10 @@ unsigned int GSTPlayer::Impl::SetPlayState(output::PlayState state)
     return 0;
 }
 
-gboolean GSTPlayer::Impl::StaticBusCallback(GstBus *bus, GstMessage *message,
+gboolean URLPlayer::Impl::StaticBusCallback(GstBus *bus, GstMessage *message,
 					    gpointer data)
 {
+//    TRACE << "sbc(" << bus << "," << message << "," << data << ")\n";
     Impl *impl = (Impl*)data;
     return impl->OnBusCallback(bus, message);
 }
@@ -175,7 +216,7 @@ static void DumpTag(const GstTagList*, const gchar *tag, gpointer)
 }
 #endif
 
-gboolean GSTPlayer::Impl::OnBusCallback(GstBus*, GstMessage *message)
+gboolean URLPlayer::Impl::OnBusCallback(GstBus*, GstMessage* message)
 {
     switch (GST_MESSAGE_TYPE(message)) 
     {
@@ -185,7 +226,7 @@ gboolean GSTPlayer::Impl::OnBusCallback(GstBus*, GstMessage *message)
 	gchar *debug;
 	
 	gst_message_parse_error (message, &err, &debug);
-	TRACE << "GSTPlayer Error: " << err->message << "\n";
+	TRACE << "URLPlayer Error: " << err->message << "\n";
 	g_error_free (err);
 	g_free (debug);
 	gst_element_set_state(m_play, GST_STATE_NULL);
@@ -199,19 +240,25 @@ gboolean GSTPlayer::Impl::OnBusCallback(GstBus*, GstMessage *message)
 	{
 	    std::string url;
 	    {
+//		TRACE << "Taking lock\n";
 		boost::mutex::scoped_lock lock(m_mutex);
 		if (!m_next_url.empty())
 		{
 		    url = m_url = m_next_url;
 		    m_next_url.clear();
 		}
+//		TRACE << "Releasing lock\n";
 	    }
 
 	    if (!url.empty())
 	    {
+//		TRACE << "Calling setstate\n";
 		gst_element_set_state(m_play, GST_STATE_READY);
+//		TRACE << "Calling objectset\n";
 		g_object_set(G_OBJECT(m_play), "uri", url.c_str(), NULL);
+//		TRACE << "Calling fire\n";
 		Fire(&URLObserver::OnURL, m_url);
+//		TRACE << "Calling setps\n";
 		SetPlayState(PLAY);
 	    }
 	    else
@@ -220,6 +267,7 @@ gboolean GSTPlayer::Impl::OnBusCallback(GstBus*, GstMessage *message)
 		Fire(&URLObserver::OnPlayState, STOP);
 		m_last_state = GST_STATE_READY;
 	    }
+//	    TRACE << "Done\n";
 	}
 	break;
 
@@ -287,13 +335,13 @@ gboolean GSTPlayer::Impl::OnBusCallback(GstBus*, GstMessage *message)
     return true;
 }
 
-gboolean GSTPlayer::Impl::StaticAlarmCallback(gpointer data)
+gboolean URLPlayer::Impl::StaticAlarmCallback(gpointer data)
 {
     Impl *impl = (Impl*)data;
     return impl->OnAlarm();
 }
 
-gboolean GSTPlayer::Impl::OnAlarm()
+gboolean URLPlayer::Impl::OnAlarm()
 {
     GstFormat fmt = GST_FORMAT_TIME;
     gint64 ns;
@@ -313,44 +361,54 @@ gboolean GSTPlayer::Impl::OnAlarm()
 }
 
 
-/* GSTPlayer */
+/* URLPlayer */
 
 
-GSTPlayer::GSTPlayer()
-    : m_impl(new Impl)
+URLPlayer::URLPlayer()
 {
+    if (!g_thread_supported())
+    {
+	TRACE << "Initing g threads\n";
+	g_thread_init(NULL);
+    }
+    else
+	TRACE << "no need\n";
+
+    m_impl = new Impl;
 }
 
-GSTPlayer::~GSTPlayer()
+URLPlayer::~URLPlayer()
 {
     delete m_impl;
 }
 
-unsigned int GSTPlayer::SetURL(const std::string& url, const std::string&)
+unsigned int URLPlayer::SetURL(const std::string& url, const std::string&)
 {
     return m_impl->SetURL(url);
 }
 
-unsigned int GSTPlayer::SetNextURL(const std::string& url, const std::string&)
+unsigned int URLPlayer::SetNextURL(const std::string& url, const std::string&)
 {
     return m_impl->SetNextURL(url);
 }
 
-unsigned int GSTPlayer::SetPlayState(PlayState st)
+unsigned int URLPlayer::SetPlayState(PlayState st)
 {
     return m_impl->SetPlayState(st);
 }
 
-void GSTPlayer::AddObserver(URLObserver *obs)
+void URLPlayer::AddObserver(URLObserver *obs)
 {
     m_impl->AddObserver(obs);
 }
 
-void GSTPlayer::RemoveObserver(URLObserver *obs)
+void URLPlayer::RemoveObserver(URLObserver *obs)
 {
     m_impl->RemoveObserver(obs);
 }
 
-}; // namespace output
+} // namespace gstreamer
+
+} // namespace output
 
 #endif // HAVE_GSTREAMER

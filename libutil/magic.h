@@ -5,6 +5,9 @@
 
 namespace util {
 
+/** Generic "magic number" support, for validating that a pointer is what it
+ * ought to be.
+ */
 template <unsigned int VAL>
 class Magic
 {
@@ -21,6 +24,6 @@ public:
 template <class T>
 void AssertValid(const T *t) { t->AssertValid(); }
 
-}; // namespace util
+} // namespace util
 
 #endif

@@ -1,6 +1,10 @@
+#include "config.h"
 #include "tags_mp3.h"
 #include "libutil/trace.h"
 #include "libmediadb/schema.h"
+
+#ifdef HAVE_TAGLIB
+
 #include <mpegfile.h> /* from TagLib */
 #include <id3v2tag.h>
 #include <id3v1genres.h>
@@ -144,5 +148,7 @@ unsigned Tags::Read(db::RecordsetPtr tags)
     return 0;
 }
 
-}; // namespace mp3
-}; // namespace import
+} // namespace mp3
+} // namespace import
+
+#endif // HAVE_TAGLIB

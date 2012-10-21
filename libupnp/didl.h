@@ -6,7 +6,7 @@
 #include <list>
 #include "libdb/db.h"
 
-namespace mediadb { class Database; };
+namespace mediadb { class Database; }
 
 namespace upnp {
 
@@ -27,7 +27,10 @@ typedef std::list<Metadata> MetadataList;
 
 MetadataList Parse(const std::string&);
 
-/** Construct a DIDL string representing the contents of the recordset.
+/** Construct a DIDL fragment representing the contents of the recordset.
+ *
+ * The result is a single DIDL <item> or <container>; to make it valid DIDL,
+ * you need to prepend s_header and append s_footer.
  *
  * Assumes the recordset has the standard MediaDB schema.
  */
@@ -37,7 +40,7 @@ std::string FromRecord(mediadb::Database *db, db::RecordsetPtr rs,
 extern const char s_header[];
 extern const char s_footer[];
 
-}; // namespace didl
-}; // namespace upnp
+} // namespace didl
+} // namespace upnp
 
 #endif

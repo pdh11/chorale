@@ -22,6 +22,6 @@ public:
     virtual int OnUPnPEvent(int event_type, void *event);
 };
 
-}; // namespace util
+} // namespace util
 
 #endif

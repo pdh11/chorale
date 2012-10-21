@@ -39,10 +39,10 @@ RecordsetPtr Query::Execute()
 						     *m_restrictions.begin()));
     }
 
-    TRACE << "Warning, don't know how to do this query\n";
+    TRACE << "Warning, don't know how to do query \"" << ToString() << "\"\n";
 
     return RecordsetPtr();
 }
 
-}; // namespace receiver
-}; // namespace db
+} // namespace receiver
+} // namespace db

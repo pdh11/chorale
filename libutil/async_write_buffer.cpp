@@ -192,7 +192,7 @@ unsigned AsyncWriteBuffer::Read(void *buffer, size_t len, size_t *pread)
     return m_impl->m_stream->Read(buffer, len, pread);
 }
 
-void AsyncWriteBuffer::Seek(SeekableStream::pos64 pos)
+void AsyncWriteBuffer::Seek(pos64 pos)
 {
     m_impl->SynchronousFlush();
     return m_impl->m_stream->Seek(pos);
@@ -210,13 +210,13 @@ SeekableStream::pos64 AsyncWriteBuffer::GetLength()
     return m_impl->m_stream->GetLength();
 }
 
-unsigned AsyncWriteBuffer::SetLength(SeekableStream::pos64 pos)
+unsigned AsyncWriteBuffer::SetLength(pos64 pos)
 {
     m_impl->SynchronousFlush();
     return m_impl->m_stream->SetLength(pos);
 }
 
-}; // namespace util
+} // namespace util
 
 #ifdef TEST
 

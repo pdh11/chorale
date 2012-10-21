@@ -49,6 +49,6 @@ public:
 
 typedef boost::intrusive_ptr<AudioCD> AudioCDPtr;
 
-}; // namespace import
+} // namespace import
 
 #endif

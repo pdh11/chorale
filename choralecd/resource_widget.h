@@ -10,9 +10,11 @@ class QPushButton;
 
 namespace choraleqt {
 
+/** Abstract base class for all resource widgets in the MainWindow.
+ */
 class ResourceWidget: public QFrame
 {
-    Q_OBJECT;
+    Q_OBJECT
     
     std::string m_label;
     QPushButton *m_top;
@@ -29,6 +31,6 @@ public slots:
     virtual void OnBottomButton() = 0;
 };
 
-}; // namespace choraleqt
+} // namespace choraleqt
 
 #endif

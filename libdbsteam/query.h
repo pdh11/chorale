@@ -3,9 +3,8 @@
 #define DBSTEAM_QUERY_H 1
 
 #include "libdb/db.h"
-#include "libdb/query_impl.h"
 #include <boost/regex.hpp>
-#include <list>
+#include <map>
 
 namespace db {
 
@@ -13,12 +12,14 @@ namespace steam {
 
 class Database;
 
-class Query: public db::QueryImpl
+class Query: public db::Query
 {
     Database *m_db;
 
-    typedef std::list<boost::regex> regexes_t;
+    typedef std::map<unsigned int, boost::regex> regexes_t;
     regexes_t m_regexes;
+
+    bool MatchElement(db::Recordset*, ssize_t);
 
 public:
     explicit Query(Database*);
@@ -29,8 +30,8 @@ public:
     db::RecordsetPtr Execute();
 };
 
-}; // namespace steam
+} // namespace steam
 
-}; // namespace db
+} // namespace db
 
 #endif

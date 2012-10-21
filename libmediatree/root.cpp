@@ -41,4 +41,4 @@ db::RecordsetPtr Root::GetInfo()
     return db::FreeRecordset::Create();
 }
 
-}; // namespace mediatree
+} // namespace mediatree

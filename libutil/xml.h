@@ -4,9 +4,28 @@
 #include <string>
 #include "stream.h"
 
-//namespace util { typedef int StreamPtr ; };
-
+/** Classes for XML support
+ */
 namespace xml {
+
+class SaxParserObserver
+{
+public:
+    virtual ~SaxParserObserver() {}
+    virtual unsigned int OnBegin(const char *tag) = 0;
+    virtual unsigned int OnEnd(const char *tag) = 0;
+    virtual unsigned int OnAttribute(const char *name, const char *value) = 0;
+    virtual unsigned int OnContent(const char *content) = 0;
+};
+
+class SaxParser
+{
+    SaxParserObserver *m_observer;
+public:
+    explicit SaxParser(SaxParserObserver *observer) : m_observer(observer) {}
+
+    unsigned int Parse(util::StreamPtr);
+};
 
 class NullSelector;
 struct Data;
@@ -132,7 +151,7 @@ public:
     static const Data data;
 };
 
-};
+} // namespace xml
 
 #include "xml_internal.h"
 

@@ -1,3 +1,4 @@
+
 #ifndef IMPORT_PLAYLIST_ASX_H
 #define IMPORT_PLAYLIST_ASX_H
 
@@ -13,6 +14,6 @@ public:
     unsigned int Save();
 };
 
-};
+} // namespace import
 
 #endif

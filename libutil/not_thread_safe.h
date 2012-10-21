@@ -22,6 +22,6 @@ struct NotThreadSafe
 };
 #endif
 
-};
+} // namespace util
 
 #endif

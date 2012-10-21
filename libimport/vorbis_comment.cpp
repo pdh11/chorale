@@ -36,4 +36,4 @@ const char *GetVorbisTagForField(unsigned field)
     return NULL;
 }
 
-};
+} // namespace import

@@ -27,7 +27,7 @@ enum {
     BITSPERSEC,
     SAMPLERATE,
     CHANNELS,
-    PATH,
+    PATH, // Interpretation depends on value of TYPE
 
     MTIME,
     CTIME,
@@ -41,7 +41,7 @@ enum {
     ENSEMBLE,
     LYRICIST,
 
-    CHILDREN, ///< {#children, child-id, child-id...} as UTF-8 string
+    CHILDREN, ///< {nchildren, child-id, child-id...} as UTF-8 string
     IDHIGH,   ///< High-quality (FLAC) version of the file, or 0
     IDPARENT, ///< (An arbitrary one of) the parent directories of this file
 
@@ -49,6 +49,12 @@ enum {
 };
 
 enum { SCHEMA_VERSION = 1 };
+
+/** Special values of ID field */
+enum {
+    BROWSE_ROOT = 0x100,
+    RADIO_ROOT  =  0xf0
+};
 
 /** Values of TYPE field */
 enum {
@@ -62,6 +68,8 @@ enum {
     VIDEO,
     RADIO,
 
+    PENDING, ///< Placeholder for a future recording
+
     TYPE_COUNT
 };
 
@@ -73,6 +81,7 @@ enum {
     FLAC,
     OGGVORBIS,
     WAV,
+    PCM,
     JPEG,
 
     CODEC_COUNT
@@ -85,6 +94,6 @@ void ChildrenToVector(const std::string& children_field,
 
 std::string VectorToChildren(const std::vector<unsigned int>& vec_in);
 
-}; // namespace mediadb
+} // namespace mediadb
 
 #endif

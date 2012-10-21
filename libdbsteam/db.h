@@ -89,7 +89,7 @@ public:
 
 void Test();
 
-}; // namespace steam
-}; // namespace db
+} // namespace steam
+} // namespace db
 
 #endif

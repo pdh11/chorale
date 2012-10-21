@@ -7,15 +7,19 @@
 
 namespace choraleqt {
 
+/** A (database, file-id) pair used by drag-and-drop support.
+ */
 struct IDPair
 {
     unsigned int dbid;
     unsigned int fid;
 };
 
+/** A QListWidget representing the children of a mediatree::NodePtr.
+ */
 class BrowseWidget: public QListWidget
 {
-    Q_OBJECT;
+    Q_OBJECT
 
     unsigned int m_dbid;
     mediatree::NodePtr m_node;
@@ -30,6 +34,8 @@ public:
     QMimeData *mimeData(const QList<QListWidgetItem*> items) const;
 };
 
+/** A QListWidgetItem representing a child mediatree::NodePtr.
+ */
 class BrowseItem: public QListWidgetItem
 {
     mediatree::NodePtr m_node;
@@ -45,6 +51,6 @@ public:
     mediatree::NodePtr GetNode() { return m_node; }
 };
 
-}; // namespace choraleqt
+} // namespace choraleqt
 
 #endif

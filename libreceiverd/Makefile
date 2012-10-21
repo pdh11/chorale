@@ -45,7 +45,7 @@ $(LIBRECEIVERD_TESTS) : $(libreceiverd) $(libreceiver) $(libdbsteam) \
 		$(libmediadb) $(libdb) $(libutil)
 
 $(libreceiverd): $(LIBRECEIVERD_OBJS)
-	$(AR_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(LIBRECEIVERD_OBJS)
 
 CLEANS += $(libreceiverd) $(RECEIVERD_OBJS) $(MODRECEIVER_OBJS)

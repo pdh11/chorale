@@ -6,6 +6,8 @@
 
 namespace util {
 
+/** Abstract base class for anything which can be streamed.
+ */
 class Stream: public CountedObject
 {
 public:
@@ -37,6 +39,9 @@ public:
 typedef boost::intrusive_ptr<Stream> StreamPtr;
 
 
+/** Abstract base class for anything which can be streamed, and which is
+ * also seekable.
+ */
 class SeekableStream: public Stream
 {
 public:
@@ -50,6 +55,6 @@ public:
 
 typedef boost::intrusive_ptr<SeekableStream> SeekableStreamPtr;
 
-}; // namespace util
+} // namespace util
 
 #endif

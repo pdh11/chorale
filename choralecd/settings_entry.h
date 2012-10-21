@@ -11,7 +11,7 @@ class QTableWidget;
 
 class SettingsEntry: public Q3VBox
 {
-    Q_OBJECT;
+    Q_OBJECT
 
 public:
     SettingsEntry(QWidget *parent) : Q3VBox(parent) {}

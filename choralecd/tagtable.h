@@ -15,7 +15,7 @@ namespace choraleqt {
  */
 class TagTable: public Q3Table
 {
-    Q_OBJECT;
+    Q_OBJECT
 
  public:
     TagTable(int rows, int columns, QWidget *parent);
@@ -23,7 +23,7 @@ class TagTable: public Q3Table
     virtual void keyPressEvent( QKeyEvent* );
 };
 
-/** A table item that repaints in a given colour */
+/** A table item (for TagTable) that repaints in a given colour */
 class ColouredItem: public Q3TableItem
 {
     QColor m_colour;
@@ -50,8 +50,8 @@ public:
     virtual int alignment() const { return Qt::AlignLeft | Qt::AlignVCenter; }
 };
 
-/** A table item that sorts numerically, not lexicographically, and displays
- * zero as blank.
+/** A table item (for TagTable) that sorts numerically, not
+ * lexicographically, and displays zero as blank.
  */
 class NumericTableItem: public ColouredItem
 {
@@ -66,8 +66,9 @@ public:
 };
 
 
-/** A table item that sorts numerically, but doesn't display the actual number
- * (e.g. for time_t's). Probably makes no sense to be editable.
+/** A table item (for TagTable) that sorts numerically, but doesn't
+ * display the actual number (e.g. for time_t's). Probably makes no
+ * sense to be editable.
  */
 class HiddenNumericTableItem: public ColouredItem
 {
@@ -82,6 +83,10 @@ public:
     virtual int alignment() const { return Qt::AlignRight | Qt::AlignVCenter; }
 };
 
+/** A table item (for TagTable) whose boldness can be turned on and off.
+ *
+ * Used to represent the currently-playing item in a SetlistWindow.
+ */
 class BoldableTableItem: public Q3TableItem
 {
     bool m_bold;
@@ -110,6 +115,6 @@ public:
     }
 };
 
-}; // namespace choraleqt
+} // namespace choraleqt
 
 #endif

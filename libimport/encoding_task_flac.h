@@ -16,6 +16,6 @@ public:
     static EncodingTaskPtr Create(const std::string& output_filename);
 };
 
-};
+} // namespace import
 
 #endif

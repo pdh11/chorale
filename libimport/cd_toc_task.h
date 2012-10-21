@@ -32,6 +32,6 @@ public:
 
 typedef boost::intrusive_ptr<CDTocTask> CDTocTaskPtr;
 
-}; // namespace import
+} // namespace import
 
 #endif

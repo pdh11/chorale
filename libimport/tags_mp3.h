@@ -20,7 +20,7 @@ public:
     unsigned Write(db::RecordsetPtr);
 };
 
-}; // namespace mp3
-}; // namespace import
+} // namespace mp3
+} // namespace import
 
 #endif

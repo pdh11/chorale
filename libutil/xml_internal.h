@@ -266,6 +266,6 @@ const Data StructureContent<name, Product, pmem>::data = {
     0, NULL
 };
 
-};
+} // namespace xml
 
 #endif

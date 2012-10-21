@@ -617,8 +617,8 @@ void CollateRecordset::MoveNext()
     }
 }
 
-}; // namespace steam
-}; // namespace db
+} // namespace steam
+} // namespace db
 
 #ifdef TEST
 

@@ -7,6 +7,7 @@
 #include "libutil/ssdp.h"
 #include "libupnp/description.h"
 #include "libupnp/soap.h"
+#include "libupnp/ContentDirectory2_client.h"
 #include "libmediadb/schema.h"
 #include <errno.h>
 
@@ -15,57 +16,39 @@
 namespace db {
 namespace upnpav {
 
-unsigned Database::Init(const std::string& url)
+Database::Database()
 {
-    m_description_url = url;
+}
 
-    upnp::Description desc;
-    unsigned rc = desc.Fetch(url);
+Database::~Database()
+{
+}
+
+unsigned Database::Init(const std::string& url, const std::string& udn)
+{
+    unsigned int rc = m_upnp.Init(url, udn);
     if (rc != 0)
-    {
-	TRACE << "Can't Fetch()\n";
 	return rc;
-    }
 
-    m_friendly_name = desc.GetFriendlyName();
-    m_udn = desc.GetUDN();
-
-    const upnp::Services& svc = desc.GetServices();
-
-    upnp::Services::const_iterator it
-	= svc.find(util::ssdp::s_uuid_contentdirectory);
-    if (it == svc.end())
-    {
-	TRACE << "No ContentDirectory service\n";
-	return ENOENT;
-    }
-    
-    TRACE << "Content directory is at " << it->second.control_url << "\n";
-    m_control_url = it->second.control_url;
+    m_contentdirectory.Init(&m_upnp, util::ssdp::s_uuid_contentdirectory);
 
     // Set up root item
     m_idmap[0x100] = "0";
     m_revidmap["0"] = 0x100;
     m_nextid = 0x110;
 
-    upnp::soap::Connection usc(m_control_url,
-			       m_udn,
-			       util::ssdp::s_uuid_contentdirectory);
-
-/*
-    upnp::soap::Params in;
-
-    upnp::soap::Params out = usc.Action("GetSearchCapabilities", in);
-    in["ContainerID"] = "0";
-    in["SearchCriteria"] = "upnp:class derivedfrom \"object.container\"";
-    in["Filter"] = "*";
-    in["StartingIndex"] = "0";
-    in["RequestedCount"] = "0";
-    in["SortCriteria"] = "";
-    
-    out = usc.Action("Search", in);
-*/
+    std::string sc;
+    rc = m_contentdirectory.GetSearchCapabilities(&sc);
+    if (rc == 0)
+	TRACE << "SearchCaps='" << sc << "'\n";
+    else
+	TRACE << "Can't GetSearchCapabilities: " << rc << "\n";
     return 0;
+}
+
+const std::string& Database::GetFriendlyName() const
+{
+    return m_upnp.GetDescription().GetFriendlyName();
 }
 
 db::RecordsetPtr Database::CreateRecordset()
@@ -106,8 +89,8 @@ unsigned int Database::IdForObjectId(const std::string& objectid)
     return id;
 }
 
-}; // namespace upnpav
-}; // namespace db
+} // namespace upnpav
+} // namespace db
 
 #endif // HAVE_UPNP
 
@@ -122,14 +105,14 @@ unsigned int Database::IdForObjectId(const std::string& objectid)
 class MyCallback: public util::ssdp::Client::Callback
 {
 public:
-    void OnService(const std::string& url);
+    void OnService(const std::string& url, const std::string& udn);
 };
 
-void MyCallback::OnService(const std::string& url)
+void MyCallback::OnService(const std::string& url, const std::string& udn)
 {
 #ifdef HAVE_UPNP
     db::upnpav::Database thedb;
-    thedb.Init(url);
+    thedb.Init(url, udn);
 #endif
 }
 
@@ -152,7 +135,7 @@ int main()
     MyCallback cb;
     client.Init(util::ssdp::s_uuid_contentdirectory, &cb);
 
-    sleep(5);
+    sleep(25);
     
 #endif // HAVE_UPNP
 

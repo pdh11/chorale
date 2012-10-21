@@ -58,11 +58,11 @@ stamp-h.in: configure.ac aclocal.m4
 	autoheader
 	echo timestamp > stamp-h.in
 
-config.h: stamp-h
+config.$(TARGET).h: stamp-h
 stamp-h: config.h.in config.status
 	./config.status
 
-Make.config: Make.config.in config.status
+Make.config.$(TARGET): Make.config.in config.status
 	./config.status
 
 config.status: configure stamp-h.in
@@ -78,8 +78,8 @@ doc:
 .PHONY: distclean clean release doc
 
 distclean: clean
-	rm -rf config.h Make.config stamp-h config.log config.status \
-		autom4te.cache libtool
+	rm -rf config.*.h Make.config.*-* stamp-h config.log config.status \
+		autom4te.cache libtool.*
 	find . -name diff.txt -exec rm -f \{} \;
 	find . -name map.txt -exec rm -f \{} \;
 	find . -name '*.dep' -exec rm -f \{} \;
@@ -109,7 +109,7 @@ release: distclean
 
 SUBDIRS:= libdb libdbreceiver libimport libmediatree libreceiver \
 	libdbsteam libutil choraled choralecd libupnpd \
-	libmediadb libreceiverd liboutput choraleutil libupnp libdbupnp
+	libmediadb libreceiverd liboutput choraleutil libupnp libdbupnp libtv
 
 libdeps.dot: Makefile
 	echo "digraph G {" > $@

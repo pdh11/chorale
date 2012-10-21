@@ -24,6 +24,6 @@ public:
     void Next() { ++m_iter; }
 };
 
-}; // namespace mediatree
+} // namespace mediatree
 
 #endif

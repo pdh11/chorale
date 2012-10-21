@@ -60,6 +60,13 @@ template<typename X, typename Y>
     return n;
 }
 
+template<typename X, typename Y> 
+    inline const Tracer& operator<<(const Tracer& n, const std::pair<X,Y>& p)
+{
+    n << "(" << p.first << ", " << p.second << ")";
+    return n;
+}
+
 class Hex
 {
     const void *m_address;
@@ -79,7 +86,7 @@ inline const Tracer& operator<<(const Tracer&n, Hex hex)
     return n;
 }
 
-template <class T>
+template <typename T>
 inline const NullTracer& operator<<(const NullTracer& n, T) { return n; }
 
 #ifdef WITH_DEBUG

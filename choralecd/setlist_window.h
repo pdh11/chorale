@@ -8,15 +8,18 @@ class QLCDNumber;
 class QPushButton;
 class QHBoxLayout;
 
-namespace mediadb { class Registry; };
+namespace mediadb { class Registry; }
 
 namespace choraleqt {
 
 class TagTable;
 
+/** A top-level window representing the set-list, or running-order, for an
+ * audio output.
+ */
 class SetlistWindow: public QDialog, public output::QueueObserver
 {
-    Q_OBJECT;
+    Q_OBJECT
 
     output::Queue *m_queue;
     mediadb::Registry *m_registry;
@@ -53,6 +56,6 @@ public slots:
     void FastForward();
 };
 
-}; // namespace choraleqt
+} // namespace choraleqt
 
 #endif

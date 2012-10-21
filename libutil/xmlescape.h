@@ -8,6 +8,6 @@ namespace util {
 std::string XmlEscape(const std::string&);
 std::string XmlUnEscape(const std::string&);
 
-};
+} // namespace util
 
 #endif

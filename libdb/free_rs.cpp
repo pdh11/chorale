@@ -65,4 +65,4 @@ unsigned int FreeRecordset::Delete()
     return 0;
 }
 
-}; // namespace db
+} // namespace db

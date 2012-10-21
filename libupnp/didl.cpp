@@ -160,6 +160,14 @@ static std::string IfPresent(const char *tag, const std::string& value)
     return (boost::format("<%s>%u</%s>") % tag % util::XmlEscape(value) % tag).str();
 }
 
+static std::string IfPresent2(const char *tag, const char *attr,
+			      const std::string& value)
+{
+    if (value.empty())
+	return std::string();
+    return (boost::format("<%s %s>%u</%s>") % tag % attr % util::XmlEscape(value) % tag).str();
+}
+
 static std::string IfPresent(const char *tag, unsigned int value)
 {
     if (!value)
@@ -172,11 +180,34 @@ static std::string ResItem(mediadb::Database *db, db::RecordsetPtr rs,
 {
     const char *mimetype = "audio/mpeg"; // Until proven otherwise
 
+    /* RFC3003 says that MP2 should be audio/mpeg, just like MP3. But that's a
+     * bit unhelpful in the case where the client can play MP3 but not MP2.
+     * Perhaps we should use audio/x-mp2 instead.
+     */
+
+    unsigned int type = rs->GetInteger(mediadb::TYPE);
     unsigned int codec = rs->GetInteger(mediadb::CODEC);
-    switch (codec)
+    switch (type)
     {
-    case mediadb::FLAC: mimetype = "audio/x-flac"; break;
-    case mediadb::OGGVORBIS: mimetype = "application/ogg"; break;
+    case mediadb::TUNE:
+    case mediadb::RADIO:
+    case mediadb::TUNEHIGH:
+    case mediadb::SPOKEN:
+	switch (codec)
+	{
+	case mediadb::FLAC: mimetype = "audio/x-flac"; break;
+	case mediadb::OGGVORBIS: mimetype = "application/ogg"; break;
+	case mediadb::PCM: mimetype = "audio/L16"; break;
+	}
+	break;
+    case mediadb::IMAGE:
+	mimetype = "image/jpeg";
+	break;
+    case mediadb::VIDEO:
+	mimetype = "video/mpeg";
+	break;
+    default:
+	break;
     }
 
     unsigned int durationms = rs->GetInteger(mediadb::DURATIONMS);
@@ -230,26 +261,61 @@ std::string FromRecord(mediadb::Database *db, db::RecordsetPtr rs,
 	std::vector<unsigned int> children;
 	mediadb::ChildrenToVector(rs->GetString(mediadb::CHILDREN), &children);
 	os << "<container id=\"" << id << "\" parentID=\"" << parentid
-	   << "\" restricted=\"1\" childCount=\"" << children.size() << "\">"
+	   << "\" restricted=\"1\" childCount=\"" << children.size() << "\"";
+
+	/** IDs <= 0x100 are "magic" root ids: browse root, radio root, epg
+	 * root. Unlike everything else, they're searchable.
+	 */
+	if (id <= 0x100)
+	    os << " searchable=\"1\"";
+	
+	os << ">"
 	    "<dc:title>" << util::XmlEscape(rs->GetString(mediadb::TITLE))
 	   << "</dc:title>"
 	    "<upnp:class>";
+
 	if (type == mediadb::DIR)
 	    os << "object.container.storageFolder";
 	else
 	    os << "object.container.playlistContainer";
+
 	os << "</upnp:class>"
-	    "<upnp:storageUsed>-1</upnp:storageUsed>"
-	    "</container>";
+	    "<upnp:storageUsed>-1</upnp:storageUsed>";
+
+	if (id == 0)
+	{
+	    os << "<upnp:searchClass includeDerived=\"0\">"
+		"object.container.album.musicAlbum"
+		"</upnp:searchClass>"
+		"<upnp:searchClass includeDerived=\"0\">"
+		"object.container.genre.musicGenre"
+		"</upnp:searchClass>"
+		"<upnp:searchClass includeDerived=\"0\">"
+		"object.container.person.musicArtist"
+		"</upnp:searchClass>";
+	}
+
+	os << "</container>";
     }
     else
     {
+	const char *upnpclass = "object.item.audioItem.musicTrack";
+	switch (type)
+	{
+	case mediadb::RADIO:
+	    upnpclass = "object.item.audioItem.audioBroadcast";
+	    break;
+	case mediadb::IMAGE:
+	    upnpclass = "object.item.imageItem.photo";
+	    break;
+	}
+
 	os << "<item id=\"" << id << "\" parentID=\"" << parentid
 	   << "\" restricted=\"1\">"
 
 	    "<dc:title>" << util::XmlEscape(rs->GetString(mediadb::TITLE)) <<
 	    "</dc:title>"
-	    "<upnp:class>object.item.audioItem.musicTrack</upnp:class>";
+	    "<upnp:class>" << upnpclass << "</upnp:class>";
 
 	os << IfPresent("upnp:artist", rs->GetString(mediadb::ARTIST));
 	os << IfPresent("upnp:album", rs->GetString(mediadb::ALBUM));
@@ -260,8 +326,28 @@ std::string FromRecord(mediadb::Database *db, db::RecordsetPtr rs,
 	if (y)
 	    os << "<dc:date>" << y << "-01-01</dc:date>";
 
-	/** @todo Figure out what to do with MOOD, ORIGINALARTIST, REMIXED,
-	 * CONDUCTOR, COMPOSER, ENSEMBLE, LYRICIST.
+	os << IfPresent2("upnp:author", "role=\"Composer\"", 
+			 rs->GetString(mediadb::COMPOSER));
+	os << IfPresent2("upnp:author", "role=\"Remix\"", 
+			 rs->GetString(mediadb::REMIXED));
+	os << IfPresent2("upnp:author", "role=\"Ensemble\"", 
+			 rs->GetString(mediadb::ENSEMBLE));
+	os << IfPresent2("upnp:author", "role=\"Lyricist\"", 
+			 rs->GetString(mediadb::LYRICIST));
+	os << IfPresent2("upnp:author", "role=\"OriginalArtist\"", 
+			 rs->GetString(mediadb::ORIGINALARTIST));
+
+	if (type == mediadb::RADIO)
+	{
+	    unsigned int service_id = rs->GetInteger(mediadb::PATH);
+	    if (service_id)
+	    {
+		os << "<upnp:channelID type=\"SI\">0,0," << service_id
+		   << "</upnp:channelID>";
+	    }
+	}
+
+	/** @todo Figure out what to do with MOOD.
 	 *
 	 * @todo AlbumArtURL
 	 */
@@ -271,7 +357,7 @@ std::string FromRecord(mediadb::Database *db, db::RecordsetPtr rs,
 	if (idhigh)
 	{
 	    db::QueryPtr qp = db->CreateQuery();
-	    qp->Restrict(mediadb::ID, db::EQ, idhigh);
+	    qp->Where(qp->Restrict(mediadb::ID, db::EQ, idhigh));
 	    rs = qp->Execute();
 	    if (rs && !rs->IsEOF())
 		os << ResItem(db, rs, urlprefix);
@@ -282,8 +368,8 @@ std::string FromRecord(mediadb::Database *db, db::RecordsetPtr rs,
     return os.str();
 }
 
-}; // namespace didl
-}; // namespace upnp
+} // namespace didl
+} // namespace upnp
 
 
         /* Unit tests */
@@ -460,7 +546,7 @@ int main(int, char**)
     mediadb::LocalDatabase mdb(&sdb);
 
     db::QueryPtr qp = mdb.CreateQuery();
-    qp->Restrict(mediadb::ID, db::EQ, 377);
+    qp->Where(qp->Restrict(mediadb::ID, db::EQ, 377));
     db::RecordsetPtr rs = qp->Execute();
     assert(rs && !rs->IsEOF());
     std::string didl = upnp::didl::s_header + upnp::didl::FromRecord(&mdb, rs)

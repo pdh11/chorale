@@ -4,7 +4,7 @@
 #include "libutil/web_server.h"
 #include "libutil/stream.h"
 
-namespace mediadb { class Database; };
+namespace mediadb { class Database; }
 
 /** A server for the Rio Receiver protocol.
  */
@@ -21,7 +21,7 @@ public:
     util::SeekableStreamPtr StreamForPath(const char *path);
 };
 
-}; // namespace receiverd
+} // namespace receiverd
 
 #endif
 

@@ -1,9 +1,8 @@
 #include "config.h"
 #include "rs.h"
 #include "db.h"
-#include "libupnp/soap.h"
 #include "libupnp/didl.h"
-#include "libutil/ssdp.h"
+#include "libupnp/ContentDirectory2.h"
 #include "libmediadb/schema.h"
 #include "libdb/free_rs.h"
 #include "libutil/trace.h"
@@ -80,21 +79,13 @@ void Recordset::GetTags()
 
     TRACE << "GetTags(" << m_id << ")\n";
 
-    upnp::soap::Connection usc(m_parent->m_control_url,
-			       m_parent->m_udn,
-			       util::ssdp::s_uuid_contentdirectory);
-
-    upnp::soap::Params in;
-    in["ObjectID"] = objectid;
-    in["BrowseFlag"] = "BrowseMetadata";
-    in["Filter"] = "*";
-    in["StartingIndex"] = "0";
-    in["RequestedCount"] = "0";
-    in["SortCriteria"] = "";
-
-    upnp::soap::Params out = usc.Action("Browse", in);
-
-    upnp::didl::MetadataList ml = upnp::didl::Parse(out["Result"]);
+    std::string result;
+    m_parent->GetContentDirectory()->Browse(objectid,
+					    "BrowseMetadata",
+					    "*",
+					    0, 0, "", &result,
+					    NULL, NULL, NULL);
+    upnp::didl::MetadataList ml = upnp::didl::Parse(result);
 
     if (!ml.empty())
     {
@@ -169,47 +160,42 @@ void Recordset::GetChildren()
 
     TRACE << "GetChildren(" << m_id << "[=" << objectid << "])\n";
 
-    upnp::soap::Connection usc(m_parent->m_control_url,
-			       m_parent->m_udn,
-			       util::ssdp::s_uuid_contentdirectory);
-
-    upnp::soap::Params in;
-    in["ObjectID"] = objectid;
-    in["BrowseFlag"] = "BrowseDirectChildren";
-    in["Filter"] = "";
-    in["StartingIndex"] = "0";
-    in["RequestedCount"] = "0";
-    in["SortCriteria"] = "";
-
-    upnp::soap::Params out = usc.Action("Browse", in);
-
-    upnp::didl::MetadataList ml = upnp::didl::Parse(out["Result"]);
-
-    std::vector<unsigned int> childvec;
-
-    for (upnp::didl::MetadataList::iterator i = ml.begin();
-	 i != ml.end();
-	 ++i)
+    std::string result;
+    unsigned int rc = m_parent->GetContentDirectory()->Browse(objectid,
+							      "BrowseDirectChildren",
+							      "*", 0, 0, "",
+							      &result, NULL,
+							      NULL, NULL);
+    if (rc == 0)
     {
-	for (upnp::didl::Metadata::iterator j = i->begin();
-	     j != i->end();
-	     ++j)
+	upnp::didl::MetadataList ml = upnp::didl::Parse(result);
+
+	std::vector<unsigned int> childvec;
+
+	for (upnp::didl::MetadataList::iterator i = ml.begin();
+	     i != ml.end();
+	     ++i)
 	{
-	    if (j->tag == "id")
+	    for (upnp::didl::Metadata::iterator j = i->begin();
+		 j != i->end();
+		 ++j)
 	    {
-		std::string childid = j->content;
-		unsigned int id = m_parent->IdForObjectId(childid);
-		TRACE << "child '" << childid << "' = " << id << "\n";
-		childvec.push_back(id);
-		break;
+		if (j->tag == "id")
+		{
+		    std::string childid = j->content;
+		    unsigned int id = m_parent->IdForObjectId(childid);
+		    TRACE << "child '" << childid << "' = " << id << "\n";
+		    childvec.push_back(id);
+		    break;
+		}
 	    }
 	}
+
+	m_freers->SetString(mediadb::CHILDREN,
+			    mediadb::VectorToChildren(childvec));
+
+	m_got_what |= GOT_CHILDREN;
     }
-
-    m_freers->SetString(mediadb::CHILDREN,
-			mediadb::VectorToChildren(childvec));
-
-    m_got_what |= GOT_CHILDREN;
 }
 
 
@@ -227,7 +213,7 @@ void RecordsetOne::MoveNext()
     m_id = 0;
     m_got_what = 0;
     if (m_freers)
-	m_freers.reset();
+	m_freers = NULL;
 }
 
 bool RecordsetOne::IsEOF()
@@ -235,7 +221,7 @@ bool RecordsetOne::IsEOF()
     return m_id == 0;
 }
 
-}; // namespace upnpav
-}; // namespace db
+} // namespace upnpav
+} // namespace db
 
 #endif // HAVE_UPNP

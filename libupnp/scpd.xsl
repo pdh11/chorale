@@ -20,6 +20,8 @@
   <xsl:variable name="sh" select="$mode = 'serverheader'" />
   <xsl:variable name="ss" select="$mode = 'server'" />
 
+  <xsl:key name="arguments" match="argument/name" use="."/>
+
   <xsl:template match="/">
 /* This is an automatically-generated file -- DO NOT EDIT */
 
@@ -33,13 +35,59 @@
 
 #include &lt;string&gt;
 #include &lt;stdint.h&gt;
+#include &quot;libutil/observable.h&quot;
 
 namespace upnp {
 
-class <xsl:value-of select="$class"/>
+/** Observer interface generated automatically from SCPD <xsl:value-of select="$class"/>.xml
+ */
+class <xsl:value-of select="$class"/>Observer
+{
+public:
+    virtual ~<xsl:value-of select="$class"/>Observer() {}
+      <xsl:for-each select="//stateVariable">
+        <xsl:if test="sendEventsAttribute='yes'">
+          <xsl:variable name="type" select="dataType"/>
+    virtual void On<xsl:value-of select="name"/>(<xsl:choose>
+        <xsl:when test="$type='boolean'">bool</xsl:when>
+        <xsl:when test="$type='i2'">int16_t</xsl:when>
+        <xsl:when test="$type='ui2'">uint16_t</xsl:when>
+        <xsl:when test="$type='i4'">int32_t</xsl:when>
+        <xsl:when test="$type='ui4'">uint32_t</xsl:when>
+        <xsl:when test="$type='uri'">const std::string&amp;</xsl:when>
+        <xsl:when test="$type='string'">const std::string&amp;</xsl:when>
+          <xsl:otherwise><xsl:value-of select="$type"/></xsl:otherwise>
+        </xsl:choose>) {} </xsl:if>
+      </xsl:for-each>
+};
+
+/** Base class generated automatically from SCPD <xsl:value-of select="$class"/>.xml
+ *
+ * Also includes enumerators and string-tables for action and argument names.
+ */
+class <xsl:value-of select="$class"/>: public util::Observable&lt;<xsl:value-of select="$class"/>Observer, util::OneObserver&lt;<xsl:value-of select="$class"/>Observer&gt;, util::NoLocking&gt;
 {
 public:
     virtual ~<xsl:value-of select="$class"/>() {}
+
+    enum Action {
+      <xsl:for-each select="//action/name">
+        <xsl:sort select="."/>
+        <xsl:value-of select="translate(current(),$lcase,$ucase)"/>,
+      </xsl:for-each>
+      NUM_ACTIONS
+    };
+    enum Param {
+        <!-- This ick is the XSLT idiom for "select distinct" -->
+        <xsl:for-each select="//argument/name[generate-id()=generate-id(key('arguments',.))]">
+        <xsl:sort select="."/>
+        <xsl:value-of select="translate(current(),$lcase,$ucase)"/>,
+      </xsl:for-each>
+        NUM_PARAMS
+    };
+
+    static const char *const sm_action_names[];
+    static const char *const sm_param_names[];
 </xsl:when>
 
       <!-- Client header -->
@@ -49,27 +97,26 @@ public:
 #define UPNP_<xsl:value-of select="translate($class,$lcase,$ucase)"/>_CLIENT_H 1
 
 #include &quot;<xsl:value-of select="$class"/>.h&quot;
+#include &quot;client.h&quot;
 
 namespace upnp {
 
-namespace soap { class Connection; };
-
-class <xsl:value-of select="$class"/>Client: public <xsl:value-of select="$class"/>
+/** Client implementation generated automatically from SCPD <xsl:value-of select="$class"/>.xml
+ */
+class <xsl:value-of select="$class"/>Client: public <xsl:value-of select="$class"/>, public ClientConnection
 {
-    upnp::soap::Connection *m_soap;
-
 public:
-    explicit <xsl:value-of select="$class"/>Client(upnp::soap::Connection *soap)
-      : m_soap(soap) {}
-</xsl:when>
 
+    // Being a ServiceObserver
+    void OnEvent(const char *var, const std::string&amp; value);
+</xsl:when>
     <!-- Client source (or stubs) -->
 
     <xsl:when test="$cs or $s">
 #include &quot;config.h&quot;
 #include &quot;<xsl:value-of select="$class"/>_client.h&quot;
 #include &quot;soap.h&quot;
-#include &lt;boost/format.hpp&gt;
+#include &quot;libutil/trace.h&quot;
 #include &lt;errno.h&gt;
 
 namespace upnp {  
@@ -81,23 +128,47 @@ namespace upnp {
 #ifndef UPNP_<xsl:value-of select="translate($class,$lcase,$ucase)"/>_SERVER_H
 #define UPNP_<xsl:value-of select="translate($class,$lcase,$ucase)"/>_SERVER_H 1
 
-#include &quot;soap.h&quot;
+#include &quot;device.h&quot;
+#include &quot;<xsl:value-of select="$class"/>.h&quot;
 
 namespace upnp {
 
 class <xsl:value-of select="$class"/>;
 
-class <xsl:value-of select="$class"/>Server: public soap::Server
+/** Server implementation generated automatically from SCPD <xsl:value-of select="$class"/>.xml
+ */
+class <xsl:value-of select="$class"/>Server: public Service, public <xsl:value-of select="$class"/>Observer
 {
     <xsl:value-of select="$class"/> *m_impl;
 
 public:
-    explicit <xsl:value-of select="$class"/>Server(<xsl:value-of select="$class"/> *impl)
-        : m_impl(impl)
-    {}
+    <xsl:value-of select="$class"/>Server(const char *type, const char *scpdurl, <xsl:value-of select="$class"/> *impl)
+        : Service(type, scpdurl),
+          m_impl(impl)
+    {
+        m_impl->AddObserver(this);
+    }
 
     // Being a soap::Server
-    soap::Params OnAction(const char *name, const soap::Params&amp; in);
+    unsigned int OnAction(const char *name, const soap::Inbound&amp; in,
+                          soap::Outbound *out);
+    //const char *const GetActionNameTable() const;
+    //const char *const GetParamNameTable() const;
+
+    // Being a <xsl:value-of select="$class"/>Observer <xsl:for-each select="//stateVariable">
+        <xsl:if test="sendEventsAttribute='yes'">
+          <xsl:variable name="type" select="dataType"/>
+    void On<xsl:value-of select="name"/>(<xsl:choose>
+        <xsl:when test="$type='boolean'">bool</xsl:when>
+        <xsl:when test="$type='i2'">int16_t</xsl:when>
+        <xsl:when test="$type='ui2'">uint16_t</xsl:when>
+        <xsl:when test="$type='i4'">int32_t</xsl:when>
+        <xsl:when test="$type='ui4'">uint32_t</xsl:when>
+        <xsl:when test="$type='uri'">const std::string&amp;</xsl:when>
+        <xsl:when test="$type='string'">const std::string&amp;</xsl:when>
+          <xsl:otherwise><xsl:value-of select="$type"/></xsl:otherwise>
+        </xsl:choose>);</xsl:if>
+      </xsl:for-each>
 };
     </xsl:when>
 
@@ -108,7 +179,6 @@ public:
 #include &quot;<xsl:value-of select="$class"/>_server.h&quot;
 #include &quot;<xsl:value-of select="$class"/>.h&quot;
 #include &quot;soap.h&quot;
-#include &lt;boost/format.hpp&gt;
 
 namespace upnp {
     </xsl:when>
@@ -121,11 +191,9 @@ namespace upnp {
       <xsl:when test="$sh">
       </xsl:when>
       <xsl:when test="$ss">
-soap::Params <xsl:value-of select="$class"/>Server::OnAction(const char *name, const soap::Params&amp; params0)
+unsigned int <xsl:value-of select="$class"/>Server::OnAction(const char *name, const soap::Inbound&amp; in, soap::Outbound *result)
 {
-    soap::Params in = params0;
-    soap::Params result;
-    unsigned int rc;
+    unsigned int rc = 0;
 
     <xsl:for-each select="//action">
     if (!strcmp(name, &quot;<xsl:value-of select="name"/>&quot;))
@@ -150,19 +218,18 @@ soap::Params <xsl:value-of select="$class"/>Server::OnAction(const char *name, c
 
       <!-- Call implementation -->
       rc = m_impl-&gt;<xsl:value-of select="name"/>(
-      <xsl:for-each select="argumentList/argument">
-        <xsl:text>                </xsl:text>
+<xsl:for-each select="argumentList/argument">
+        <xsl:text>        </xsl:text>
         <xsl:if test="direction='out'">&amp;<xsl:value-of select="name"/></xsl:if>
       <xsl:if test="direction='in'">
       <xsl:variable name="type" select="//stateVariable[name=current()/relatedStateVariable]/dataType"/><xsl:choose>
-          <xsl:when test="$type='boolean'">upnp::soap::ParseBool(in[&quot;<xsl:value-of select="name"/>&quot;])</xsl:when>
-          <xsl:when test="$type='i2' or $type='i4'">strtol(in[&quot;<xsl:value-of select="name"/>&quot;].c_str(), NULL, 10)</xsl:when>
-          <xsl:when test="$type='ui2' or $type='ui4'">strtoul(in[&quot;<xsl:value-of select="name"/>&quot;].c_str(), NULL, 10)</xsl:when>
-          <xsl:when test="$type='uri' or $type='string'">in[&quot;<xsl:value-of select="name"/>&quot;]</xsl:when>
-          <xsl:otherwise><xsl:value-of select="$type"/></xsl:otherwise>
-          </xsl:choose>
-      </xsl:if>
-      <xsl:if test="not(position()=last())">,
+      <xsl:when test="$type='boolean'">in.GetBool</xsl:when>
+      <xsl:when test="$type='i2' or $type='i4'">in.GetInt</xsl:when>
+      <xsl:when test="$type='ui2' or $type='ui4'">in.GetUInt</xsl:when>
+      <xsl:when test="$type='uri' or $type='string'">in.GetString</xsl:when>
+      <xsl:otherwise><xsl:value-of select="$type"/></xsl:otherwise>
+    </xsl:choose>(<xsl:value-of select="$class"/>::sm_param_names[<xsl:value-of select="$class"/>::<xsl:value-of select="translate(name,$lcase,$ucase)"/>])</xsl:if>
+    <xsl:if test="not(position()=last())">,
 </xsl:if>
     </xsl:for-each>
       );
@@ -171,21 +238,34 @@ soap::Params <xsl:value-of select="$class"/>Server::OnAction(const char *name, c
 <xsl:for-each select="argumentList/argument">
         <xsl:if test="direction='out'">
           <xsl:variable name="type" select="//stateVariable[name=current()/relatedStateVariable]/dataType"/>
-        result[&quot;<xsl:value-of select="name"/>&quot;] = <xsl:choose>
-            <xsl:when test="$type='boolean'"><xsl:value-of select="name"/> ? &quot;1&quot; : &quot;0&quot;</xsl:when>
-            <xsl:when test="$type='i2' or $type='i4'">(boost::format(&quot;%d&quot;) % <xsl:value-of select="name"/>).str()</xsl:when>
-            <xsl:when test="$type='ui2' or $type='ui4'">(boost::format(&quot;%u&quot;) % <xsl:value-of select="name"/>).str()</xsl:when>
-            <xsl:when test="$type='uri' or $type='string'"><xsl:value-of select="name"/></xsl:when>
-            <xsl:otherwise><xsl:value-of select="$type"/></xsl:otherwise>
-          </xsl:choose>;</xsl:if>
+          result->Add(<xsl:value-of select="$class"/>::sm_param_names[<xsl:value-of select="$class"/>::<xsl:value-of select="translate(name,$lcase,$ucase)"/>], <xsl:value-of select="name"/>);</xsl:if>
       </xsl:for-each>
     }
       <xsl:if test="not(position()=last())">else
       </xsl:if>
     </xsl:for-each>
 
-    return result;
+    return rc;
 }
+      <xsl:for-each select="//stateVariable">
+        <xsl:if test="sendEventsAttribute='yes'">
+          <xsl:variable name="type" select="dataType"/>
+void <xsl:value-of select="$class"/>Server::On<xsl:value-of select="name"/>(<xsl:choose>
+        <xsl:when test="$type='boolean'">bool</xsl:when>
+        <xsl:when test="$type='i2'">int16_t</xsl:when>
+        <xsl:when test="$type='ui2'">uint16_t</xsl:when>
+        <xsl:when test="$type='i4'">int32_t</xsl:when>
+        <xsl:when test="$type='ui4'">uint32_t</xsl:when>
+        <xsl:when test="$type='uri'">const std::string&amp;</xsl:when>
+        <xsl:when test="$type='string'">const std::string&amp;</xsl:when>
+          <xsl:otherwise><xsl:value-of select="$type"/></xsl:otherwise>
+        </xsl:choose> value)
+{
+    FireEvent(&quot;<xsl:value-of select="name"/>&quot;, value);
+}
+</xsl:if>
+      </xsl:for-each>
+
       </xsl:when>
       <xsl:otherwise>
     <xsl:for-each select="//action">
@@ -236,31 +316,21 @@ soap::Params <xsl:value-of select="$class"/>Server::OnAction(const char *name, c
     </xsl:when>
     <xsl:when test="$cs">
 {
-    upnp::soap::Params in;
+    upnp::soap::Outbound out;
+    upnp::soap::Inbound in;
       
 <xsl:for-each select="argumentList/argument">
         <xsl:if test="direction='in'">
-          <xsl:variable name="type" select="//stateVariable[name=current()/relatedStateVariable]/dataType"/>    in[&quot;<xsl:value-of select="name"/>&quot;] = <xsl:choose>
-            <xsl:when test="$type='boolean'"><xsl:value-of select="name"/> ? &quot;1&quot; : &quot;0&quot;</xsl:when>
-            <xsl:when test="$type='i2' or $type='i4'">(boost::format(&quot;%d&quot;) % <xsl:value-of select="name"/>).str()</xsl:when>
-            <xsl:when test="$type='ui2' or $type='ui4'">(boost::format(&quot;%u&quot;) % <xsl:value-of select="name"/>).str()</xsl:when>
-            <xsl:when test="$type='uri' or $type='string'"><xsl:value-of select="name"/></xsl:when>
-            <xsl:otherwise><xsl:value-of select="$type"/></xsl:otherwise>
-          </xsl:choose>;
+          <xsl:variable name="type" select="//stateVariable[name=current()/relatedStateVariable]/dataType"/>    out.Add(sm_param_names[<xsl:value-of select="translate(name,$lcase,$ucase)"/>], <xsl:value-of select="name"/>);
 </xsl:if>
       </xsl:for-each>
-    upnp::soap::Params out = m_soap->Action(&quot;<xsl:value-of select="name"/>&quot;, in);
+    unsigned int rc = SoapAction(&quot;<xsl:value-of select="name"/>&quot;, out, &amp;in);
+    if (rc != 0)
+        return rc;
       
 <xsl:for-each select="argumentList/argument">
         <xsl:if test="direction='out'">
-          <xsl:variable name="type" select="//stateVariable[name=current()/relatedStateVariable]/dataType"/>    *<xsl:value-of select="name"/> = <xsl:choose>
-          <xsl:when test="$type='boolean'">upnp::soap::ParseBool(out[&quot;<xsl:value-of select="name"/>&quot;])</xsl:when>
-          <xsl:when test="$type='i2' or $type='i4'">strtol(out[&quot;<xsl:value-of select="name"/>&quot;].c_str(), NULL, 10)</xsl:when>
-          <xsl:when test="$type='ui2' or $type='ui4'">strtoul(out[&quot;<xsl:value-of select="name"/>&quot;].c_str(), NULL, 10)</xsl:when>
-          <xsl:when test="$type='uri' or $type='string'">out[&quot;<xsl:value-of select="name"/>&quot;]</xsl:when>
-          <xsl:otherwise><xsl:value-of select="$type"/></xsl:otherwise>
-          </xsl:choose>;
-</xsl:if>
+    in.Get(<xsl:value-of select="name"/>, sm_param_names[<xsl:value-of select="translate(name,$lcase,$ucase)"/>]);</xsl:if>
       </xsl:for-each>
     return 0;
 }
@@ -272,7 +342,43 @@ soap::Params <xsl:value-of select="$class"/>Server::OnAction(const char *name, c
       </xsl:otherwise>
     </xsl:choose>
 
-}; // namespace upnp
+<xsl:if test="$cs">
+
+void <xsl:value-of select="$class"/>Client::OnEvent(const char *var, const std::string&amp; value)
+{
+    <xsl:for-each select="//stateVariable">
+        <xsl:if test="sendEventsAttribute='yes'">
+          <xsl:variable name="type" select="dataType"/>if (!strcmp(var, &quot;<xsl:value-of select="name"/>&quot;))
+        Fire(&amp;<xsl:value-of select="$class"/>Observer::On<xsl:value-of select="name"/>, <xsl:choose>
+        <xsl:when test="$type='boolean'">GenaBool(value)</xsl:when>
+        <xsl:when test="$type='i2'or $type='i4'">GenaInt(value)</xsl:when>
+        <xsl:when test="$type='ui2' or $type='ui4'">GenaUInt(value)</xsl:when>
+        <xsl:when test="$type='uri' or $type='string'">value</xsl:when>
+          <xsl:otherwise><xsl:value-of select="$type"/></xsl:otherwise>
+        </xsl:choose>);
+    else </xsl:if>
+      </xsl:for-each>
+      { TRACE &lt;&lt; "Unexpected event " &lt;&lt; var &lt;&lt; "\n"; }
+}
+     
+</xsl:if>
+
+<xsl:if test="$s">
+
+  const char *const <xsl:value-of select="$class"/>::sm_action_names[] = {
+      <xsl:for-each select="//action/name">
+        <xsl:sort select="."/>&quot;<xsl:value-of select="current()"/>&quot;,
+      </xsl:for-each>
+    };
+  const char *const <xsl:value-of select="$class"/>::sm_param_names[] = {
+        <!-- This ick is the XSLT idiom for "select distinct" -->
+      <xsl:for-each select="//argument/name[generate-id()=generate-id(key('arguments',.))]">
+        <xsl:sort select="."/>&quot;<xsl:value-of select="current()"/>&quot;,
+      </xsl:for-each>
+    };
+</xsl:if>
+
+} // namespace upnp
 
 <xsl:if test="$h or $ch or $sh">#endif</xsl:if>
 

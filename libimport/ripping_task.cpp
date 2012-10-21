@@ -80,7 +80,12 @@ void RippingTask::Run()
 //	TRACE << "Chosen to rip via disk\n";
     }
     util::MultiStreamPtr ms;
-    util::MultiStream::Create(backingstream, pcmsize, &ms);
+    unsigned int rc = util::MultiStream::Create(backingstream, pcmsize, &ms);
+    if (rc != 0)
+    {
+	FireError(rc);
+	return;
+    }
 
     util::StreamPtr pcmforflac;
     ms->CreateOutput(&pcmforflac);
@@ -104,7 +109,12 @@ void RippingTask::Run()
     for (lsn_t i = start; i<= end; ++i)
     {
 	int16_t *buf = paranoia_read(p, NULL);
-	ms->WriteAll(buf, CDIO_CD_FRAMESIZE_RAW);
+	rc = ms->WriteAll(buf, CDIO_CD_FRAMESIZE_RAW);
+	if (rc != 0)
+	{
+	    FireError(rc);
+	    return;
+	}
 
 	FireProgress(i-start+1, end-start+1);
     }
@@ -118,6 +128,6 @@ void RippingTask::Run()
     TRACE << "Rip track " << (m_track+1) << " done " << x << "x\n";
 }
 
-}; // namespace import
+} // namespace import
 
 #endif // HAVE_LIBCDIOP

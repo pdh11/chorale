@@ -188,7 +188,7 @@ MemoryStream::~MemoryStream()
     delete m_impl;
 }
 
-}; // namespace util
+} // namespace util
 
 #ifdef TEST
 

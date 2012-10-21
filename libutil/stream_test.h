@@ -7,7 +7,7 @@ namespace util {
 
 void TestSeekableStream(SeekableStreamPtr);
 
-};
+} // namespace util
 
 #endif
 

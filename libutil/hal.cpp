@@ -160,9 +160,9 @@ unsigned int Context::DeviceGetPropertyInt(const char *udi,
     return m_impl->DeviceGetPropertyInt(udi, property);
 }
 
-}; // namespace hal
+} // namespace hal
 
-}; // namespace util
+} // namespace util
 
 #endif // HAVE_HAL
 
@@ -212,6 +212,25 @@ void SoundObserver::OnDevice(const std::string& udi)
 	  << card << "," << device << "'\n";
 }
 
+class DVBObserver: public util::hal::DeviceObserver
+{
+    util::hal::Context *m_hal;
+
+public:
+    explicit DVBObserver(util::hal::Context *hal) : m_hal(hal) {}
+
+    void OnDevice(const std::string& udi);
+};
+
+void DVBObserver::OnDevice(const std::string& udi)
+{
+    std::string product = m_hal->DeviceGetPropertyString(udi.c_str(), "info.product");
+    std::string device = m_hal->DeviceGetPropertyString(udi.c_str(), "dvb.device");
+
+    if (device.find("frontend") != std::string::npos)
+	TRACE << "Found DVB '" << product << "' at '" << device << "'\n";
+}
+
 #endif // HAVE_HAL
 
 int main()
@@ -238,6 +257,10 @@ int main()
     SoundObserver sobs(&ctx);
 
     ctx.GetMatchingDevices("alsa.type", "playback", &sobs);
+ 
+    DVBObserver dobs(&ctx);
+
+    ctx.GetMatchingDevices("info.category", "dvb", &dobs);
 #endif // HAVE_HAL
 
     return 0;

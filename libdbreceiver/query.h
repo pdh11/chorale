@@ -2,7 +2,6 @@
 #define LIBDBRECEIVER_QUERY_H 1
 
 #include "libdb/db.h"
-#include "libdb/query_impl.h"
 #include <list>
 #include <string>
 
@@ -11,7 +10,7 @@ namespace receiver {
 
 class Database;
 
-class Query: public db::QueryImpl
+class Query: public db::Query
 {
     Database *m_parent;
 public:
@@ -21,7 +20,7 @@ public:
     RecordsetPtr Execute();
 };
 
-}; // namespace receiver
-}; // namespace db
+} // namespace receiver
+} // namespace db
 
 #endif

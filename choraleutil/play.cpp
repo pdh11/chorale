@@ -1,6 +1,6 @@
 #include "config.h"
 #include "liboutput/queue.h"
-#include "liboutput/urlplayer.h"
+#include "liboutput/gstreamer.h"
 #include "libimport/tags.h"
 #include "libdbsteam/db.h"
 #include "libmediadb/schema.h"
@@ -48,6 +48,7 @@ int main(int argc, char *argv[])
 	return 1;
     }
 
+#ifdef HAVE_TAGLIB
     db::steam::Database sdb(mediadb::FIELD_COUNT);
 
     for (int i=optind; i<argc; ++i)
@@ -72,11 +73,12 @@ int main(int argc, char *argv[])
     }
 
     mediadb::LocalDatabase ldb(&sdb);
+#endif
 
 #ifdef HAVE_GSTREAMER
-    output::GSTPlayer gp;
+    output::gstreamer::URLPlayer gp;
 
-    sleep(1);
+    sleep(6);
 
     gp.SetURL(std::string("file://") + argv[optind], "");
     gp.SetPlayState(output::PLAY);

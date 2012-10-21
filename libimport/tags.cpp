@@ -1,3 +1,4 @@
+#include "config.h"
 #include "tags.h"
 #include "tags_flac.h"
 #include "tags_mp3.h"
@@ -5,6 +6,9 @@
 #include <errno.h>
 #include "libmediadb/schema.h"
 #include <sys/stat.h>
+
+#ifdef HAVE_TAGLIB
+
 #include <fileref.h>
 #include <tag.h>
 
@@ -14,7 +18,7 @@ TagsPtr Tags::Create(const std::string& filename)
 {
     std::string ext = util::GetExtension(filename.c_str());
 
-    if (ext == "mp3")
+    if (ext == "mp3" || ext == "mp2")
 	return TagsPtr(new mp3::Tags(filename));
 
     if (ext == "flac")
@@ -79,4 +83,6 @@ unsigned WriteTags(const std::string& filename, db::RecordsetPtr tags)
 
 boost::mutex s_taglib_mutex;
 
-}; // namespace import
+} // namespace import
+
+#endif // HAVE_TAGLIB

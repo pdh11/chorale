@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <poll.h>
 #include "libutil/trace.h"
+#undef CTIME
 
 namespace util {
 
@@ -393,4 +394,4 @@ unsigned StreamSocket::SetCork(bool corked)
     return 0;
 }
 
-}; // namespace util
+} // namespace util

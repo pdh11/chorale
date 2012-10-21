@@ -25,6 +25,6 @@ public:
 
 void TestThreads();
 
-}; // namespace util
+} // namespace util
 
 #endif

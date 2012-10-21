@@ -13,7 +13,7 @@ namespace output {
 
 class URLPlayer;
 
-/** Output observer, called back on various audio threads
+/** Observer interface for Queue, called back on various audio threads
  */
 class QueueObserver
 {
@@ -26,6 +26,8 @@ public:
     virtual void OnEnd() {}
 };
 
+/** A queue of URLs waiting to play back on an audio output device.
+ */
 class Queue
 {
 public:
@@ -80,6 +82,6 @@ public:
     unsigned int GetCurrentIndex() const { return m_current_index; }
 };
 
-}; // namespace output
+} // namespace output
 
 #endif

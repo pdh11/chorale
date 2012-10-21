@@ -38,6 +38,7 @@ TEST_SRCS:= \
 	line_reader.cpp \
 	memory_stream.cpp \
 	partial_stream.cpp \
+	poll.cpp \
 	ssdp.cpp \
 	stream.cpp \
 	string_stream.cpp \
@@ -68,7 +69,7 @@ $(UTIL_TESTS): TEST_LIBS+= $(BOOST_LIBS) $(CURL_LIBS) $(UPNP_LIBS) $(DBUS_LIBS) 
 $(UTIL_TESTS): $(libutil)
 
 $(libutil): $(UTIL_OBJS)
-	$(AR_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(UTIL_OBJS)
 
 CLEANS += $(libutil)

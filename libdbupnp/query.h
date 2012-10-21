@@ -1,14 +1,14 @@
 #ifndef LIBDBUPNP_QUERY_H
 #define LIBDBUPNP_QUERY_H 1
 
-#include "libdb/query_impl.h"
+#include "libdb/db.h"
 
 namespace db {
 namespace upnpav {
 
 class Database;
 
-class Query: public db::QueryImpl
+class Query: public db::Query
 {
     Database *m_parent;
     
@@ -19,7 +19,7 @@ public:
     RecordsetPtr Execute();
 };
 
-}; // namespace upnpav
-}; // namespace db
+} // namespace upnpav
+} // namespace db
 
 #endif

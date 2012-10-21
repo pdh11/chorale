@@ -44,6 +44,6 @@ public:
     }
 };
 
-}; // namespace util
+} // namespace util
 
 #endif

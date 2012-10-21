@@ -58,7 +58,7 @@ unsigned Stream::Copy(StreamPtr other)
     return 0;
 }
 
-}; // namespace util
+} // namespace util
 
 #ifdef TEST
 

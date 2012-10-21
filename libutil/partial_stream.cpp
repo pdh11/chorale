@@ -59,7 +59,7 @@ unsigned PartialStream::SetLength(pos64)
     return EINVAL;
 }
 
-}; // namespace util
+} // namespace util
 
 #ifdef TEST
 

@@ -60,8 +60,8 @@ public:
     void *GetUnderlyingConnection();
 };
 
-}; // namespace dbus
+} // namespace dbus
 
-}; // namespace util
+} // namespace util
 
 #endif

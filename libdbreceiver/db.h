@@ -56,7 +56,7 @@ public:
     util::SeekableStreamPtr OpenWrite(unsigned int id);
 };
 
-}; // namespace receiver
-}; // namespace db
+} // namespace receiver
+} // namespace db
 
 #endif

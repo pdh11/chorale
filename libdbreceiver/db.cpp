@@ -130,5 +130,5 @@ util::SeekableStreamPtr Database::OpenWrite(unsigned int)
     return util::SeekableStreamPtr();
 }
 
-}; // namespace receiver
-}; // namespace db
+} // namespace receiver
+} // namespace db

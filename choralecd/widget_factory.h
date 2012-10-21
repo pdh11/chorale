@@ -5,6 +5,8 @@ class QWidget;
 
 namespace choraleqt {
 
+/** Abstract base class for factories making widgets for the MainWindow.
+ */
 class WidgetFactory
 {
 public:
@@ -13,6 +15,6 @@ public:
     virtual void CreateWidgets(QWidget *parent) = 0;
 };
 
-}; // namespace choraleqt
+} // namespace choraleqt
 
 #endif

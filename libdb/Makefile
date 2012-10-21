@@ -1,8 +1,8 @@
 TOP?=../
 DIR:=libdb/
-SRCS:=	dbc.cpp \
+SRCS:=  dbc.cpp \
 	free_rs.cpp \
-	query_impl.cpp \
+	query.cpp \
 	readonly_rs.cpp
 
 all-db:
@@ -20,7 +20,7 @@ DB_OBJS:=$(LOBJS)
 $(TOP)$(DIR)% : CXXFLAGS += $(BOOST_CXXFLAGS) $(LIBXMLPP_CXXFLAGS)
 
 $(libdb): $(DB_OBJS)
-	$(AR_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(DB_OBJS)
 
 CLEANS += $(libdb)

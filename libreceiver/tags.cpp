@@ -31,4 +31,4 @@ static const struct {
     { LYRICIST, "lyricist" }
 };
 
-};
+} // namespace receiver

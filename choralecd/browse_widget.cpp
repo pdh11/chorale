@@ -83,4 +83,4 @@ QMimeData *BrowseWidget::mimeData(const QList<QListWidgetItem*> items) const
     return md;
 }
 
-};
+} // namespace choraleqt

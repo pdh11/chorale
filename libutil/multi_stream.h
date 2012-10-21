@@ -19,8 +19,7 @@ public:
     typedef boost::intrusive_ptr<MultiStream> MultiStreamPtr;
     
     static unsigned Create(SeekableStreamPtr backingstream, size_t size,
-			   MultiStreamPtr *result);
-	ATTRIBUTE_WARNUNUSED; 
+			   MultiStreamPtr *result) ATTRIBUTE_WARNUNUSED; 
 
     /** Create an output. You can't create any new outputs once you've
      * started Write'ing.
@@ -34,6 +33,6 @@ public:
 
 typedef boost::intrusive_ptr<MultiStream> MultiStreamPtr;
 
-}; // namespace util
+} // namespace util
 
 #endif

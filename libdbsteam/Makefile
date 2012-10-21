@@ -40,7 +40,7 @@ $(DBSTEAM_TESTS) : TEST_LIBS += $(BOOST_LIBS)
 $(DBSTEAM_TESTS) : $(libdbsteam) $(libimport) $(libdb) $(libutil)
 
 $(libdbsteam): $(DBSTEAM_OBJS)
-	$(AR_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(DBSTEAM_OBJS)
 
 CLEANS += $(libdbsteam)

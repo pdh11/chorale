@@ -31,4 +31,4 @@ WorkerThreadPool::~WorkerThreadPool()
 	delete m_threads[i];
 }
 
-}; // namespace util
+} // namespace util

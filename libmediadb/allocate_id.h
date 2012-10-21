@@ -3,7 +3,7 @@
 
 #include <boost/thread/mutex.hpp>
 
-namespace db { class Database; };
+namespace db { class Database; }
 
 namespace mediadb {
 
@@ -20,6 +20,6 @@ public:
     unsigned int Allocate();
 };
 
-};
+} // namespace mediadb
 
 #endif

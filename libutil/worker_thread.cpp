@@ -145,4 +145,4 @@ double doo(double dee)
 }
 #endif
 
-}; // namespace util
+} // namespace util

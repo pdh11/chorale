@@ -29,10 +29,16 @@ enum db_RestrictionType
 
 typedef struct db__Query *db_Query; // Opaque type
 
-int          db_Query_Restrict(db_Query, int which, db_RestrictionType rt,
+typedef struct db__QueryRep *db_QueryRep; // Opaque type
+
+const db_QueryRep db_Query_Restrict(db_Query, int which, db_RestrictionType rt,
 			       const char *val);
-int          db_Query_Restrict2(db_Query, int which, db_RestrictionType rt, 
-				int val);
+const db_QueryRep db_Query_Restrict2(db_Query, int which,
+				     db_RestrictionType rt, int val);
+const db_QueryRep db_Query_And(db_Query, const db_QueryRep, const db_QueryRep);
+const db_QueryRep db_Query_Or(db_Query, const db_QueryRep, const db_QueryRep);
+
+unsigned int db_Query_Where(const db_QueryRep);
 db_Recordset db_Query_Execute(db_Query);
 void         db_Query_Free(db_Query*);
 
@@ -44,7 +50,7 @@ db_Query     db_Database_CreateQuery(db_Database);
 void         db_Database_Free(db_Database*);
 
 #ifdef __cplusplus
-}; // extern "C"
+} // extern "C"
 #endif
 
 #endif

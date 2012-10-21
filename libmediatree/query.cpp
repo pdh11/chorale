@@ -57,4 +57,4 @@ db::RecordsetPtr Query::GetInfo()
     return m_info;
 }
 
-}; // namespace mediatree
+} // namespace mediatree

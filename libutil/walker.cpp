@@ -318,4 +318,4 @@ void DirectoryWalker::WaitForCompletion()
     }
 }
 
-}; // namespace util
+} // namespace util

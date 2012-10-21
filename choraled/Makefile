@@ -44,15 +44,21 @@ endif
 ifeq ($(libupnpd),)
 include $(TOP)libupnpd/Makefile
 endif
+ifeq ($(libtv),)
+include $(TOP)libtv/Makefile
+endif
 
-$(choraled): $(CHORALED_OBJS) $(libreceiverd) $(libreceiver) $(libimport) \
+$(choraled): $(CHORALED_OBJS) $(libtv) \
+		 $(libreceiverd) $(libreceiver) $(libimport) \
 		$(libdbsteam) $(libdb) $(libutil) $(libmediadb) \
 		$(libupnpd) $(libupnp) $(liboutput)
 	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
 		 $(CC) -o $@ $(CHORALED_OBJS) -Wl,-Map,map.txt \
+		 $(libtv) \
 		 $(libreceiverd) $(libreceiver) $(libupnpd) $(libupnp) \
 		 $(liboutput) \
 		 $(libimport) $(libdbsteam) $(libmediadb) $(libdb) $(libutil) \
+		 -Wl,--as-needed $(MPG123_LIBS) \
 		 $(TAGLIB_LIBS) $(BOOST_LIBS) $(UPNP_LIBS) $(LIBXMLPP_LIBS) \
 		 $(GSTREAMER_LIBS) $(LIBUUID_LIBS) $(OPENSSL_LIBS)
 	@echo $@: `ldd $@ | wc -l` shared libraries | fmt

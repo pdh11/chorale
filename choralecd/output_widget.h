@@ -8,16 +8,19 @@
 #include "widget_factory.h"
 #include "libutil/ssdp.h"
 
-namespace mediadb { class Registry; };
-namespace output { class Queue; };
+namespace mediadb { class Registry; }
+namespace output { class Queue; }
+namespace util { class PollerInterface; }
 
 namespace choraleqt {
 
 class SetlistWindow;
 
+/** A widget for the MainWindow's device list, representing an audio output.
+ */
 class OutputWidget: public ResourceWidget
 {
-    Q_OBJECT;
+    Q_OBJECT
     
     output::Queue *m_queue;
     mediadb::Registry *m_registry;
@@ -33,6 +36,9 @@ public:
     void OnBottomButton();
 };
 
+/** A WidgetFactory which creates OutputWidget items for local ALSA
+ * outputs.
+ */
 class OutputWidgetFactory: public WidgetFactory
 {
     QPixmap *m_pixmap;
@@ -46,23 +52,28 @@ public:
     void CreateWidgets(QWidget *parent);
 };
 
+/** A WidgetFactory which creates OutputWidget items for UPnP media
+ * renderers.
+ */
 class UpnpOutputWidgetFactory: public WidgetFactory,
 			       public util::ssdp::Client::Callback
 {
     QPixmap *m_pixmap;
     QWidget *m_parent;
     mediadb::Registry *m_registry;
+    util::PollerInterface *m_poller;
 
 public:
-    UpnpOutputWidgetFactory(QPixmap*, mediadb::Registry*);
+    UpnpOutputWidgetFactory(QPixmap*, mediadb::Registry*, 
+			    util::PollerInterface*);
 
     // Being a WidgetFactory
     void CreateWidgets(QWidget *parent);
 
     // Being a util::ssdp::Client::Callback
-    void OnService(const std::string& url);
+    void OnService(const std::string& url, const std::string& udn);
 };
 
-}; // namespace choraleqt
+} // namespace choraleqt
 
 #endif

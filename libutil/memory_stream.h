@@ -33,6 +33,6 @@ public:
 
 typedef boost::intrusive_ptr<MemoryStream> MemoryStreamPtr;
 
-}; // namespace util
+} // namespace util
 
 #endif

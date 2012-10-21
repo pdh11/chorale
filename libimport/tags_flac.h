@@ -21,7 +21,7 @@ public:
     // No Read() -- use the default one for now
 };
 
-}; // namespace flac
-}; // namespace import
+} // namespace flac
+} // namespace import
 
 #endif

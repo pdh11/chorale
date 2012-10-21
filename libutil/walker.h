@@ -86,6 +86,6 @@ public:
     void WaitForCompletion();
 };
 
-}; // namespace util
+} // namespace util
 
 #endif

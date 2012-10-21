@@ -13,24 +13,21 @@ namespace output { class URLPlayer; }
  */
 namespace upnpd {
 
-class MediaRenderer
+/** Wraps up the various components of a UPnP %MediaRenderer device ready to be
+ * exported by upnp::DeviceManager.
+ */
+class MediaRenderer: public upnp::Device
 {
     upnpd::AVTransportImpl m_avtransport;
     upnp::AVTransport2Server m_avtransportserver;
-    upnp::Service m_avtransportservice;
 
     upnp::RenderingControl2 m_rcstub;
     upnp::RenderingControl2Server m_rcserver;
-    upnp::Service m_rcservice;
-
-    upnp::Device m_device;
 
 public:
     MediaRenderer(output::URLPlayer*, const std::string& resource);
-
-    upnp::Device *GetDevice() { return &m_device; }
 };
 
-}; // namespace upnpd
+} // namespace upnpd
 
 #endif

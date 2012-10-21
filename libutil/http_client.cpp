@@ -1,7 +1,10 @@
-#include "http_client.h"
 #include "config.h"
+#include "http_client.h"
 #include "trace.h"
 #include "file.h"
+
+#ifdef HAVE_CURL
+
 #include <curl/curl.h>
 #include <curl/types.h>
 #include <curl/easy.h>
@@ -94,8 +97,9 @@ std::string ResolveURL(const std::string& base,
     return basehost + util::MakeAbsolutePath(basepath, linkpath);
 }
 
+} // namespace util
 
-}; // namespace util
+#endif // HAVE_CURL
 
 #ifdef TEST
 
@@ -104,13 +108,13 @@ static struct {
     const char *link;
     const char *expect;
 } tests[] = {
-    "http://foo.bar/foo", "frink",        "http://foo.bar/frink",
-    "http://foo.bar/foo/", "frink",        "http://foo.bar/foo/frink",
-    "http://foo.bar/foo/", "/frink",        "http://foo.bar/frink",
-    "http://foo.bar",      "wurdle",       "http://foo.bar/wurdle",
-    "http://foo.bar",      "/wurdle",       "http://foo.bar/wurdle",
-    "http://foo.bar:2888", "wurdle",       "http://foo.bar:2888/wurdle",
-    "http://foo.bar:2888","/wurdle",       "http://foo.bar:2888/wurdle",
+    { "http://foo.bar/foo", "frink",        "http://foo.bar/frink" },
+    { "http://foo.bar/foo/", "frink",       "http://foo.bar/foo/frink" },
+    { "http://foo.bar/foo/", "/frink",      "http://foo.bar/frink" },
+    { "http://foo.bar",      "wurdle",      "http://foo.bar/wurdle" },
+    { "http://foo.bar",      "/wurdle",     "http://foo.bar/wurdle" },
+    { "http://foo.bar:2888", "wurdle",      "http://foo.bar:2888/wurdle" },
+    { "http://foo.bar:2888","/wurdle",      "http://foo.bar:2888/wurdle" }
 };
 
 #define COUNTOF(x) (sizeof(x)/sizeof(x[0]))

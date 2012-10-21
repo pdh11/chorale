@@ -17,6 +17,6 @@ public:
 
 std::string ResolveURL(const std::string& base, const std::string& link);
 
-}; // namespace util
+} // namespace util
 
 #endif

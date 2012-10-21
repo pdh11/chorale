@@ -10,15 +10,20 @@
 #include "libutil/poll.h"
 #include "libreceiver/ssdp.h"
 #include "libreceiverd/content_factory.h"
-#include "libupnp/device.h"
-#include "liboutput/urlplayer.h"
+#include "libupnp/server.h"
+#include "liboutput/gstreamer.h"
 #include "libupnpd/media_renderer.h"
 #include "libupnpd/media_server.h"
+#include "libtv/stream_factory.h"
 #include <getopt.h>
 #include <signal.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/syslog.h>
+
+#if defined(HAVE_LINUX_DVB_DMX_H) && defined(HAVE_LINUX_DVB_FRONTEND_H)
+#define HAVE_DVB 1
+#endif
 
 #define DEFAULT_DB_FILE LOCALSTATEDIR "/chorale/db.xml"
 #define DEFAULT_WEB_DIR DATADIR "/chorale"
@@ -43,6 +48,10 @@ static void Usage(FILE *f)
 " -a, --no-audio     Don't become a UPnP MediaRenderer server\n"
 #endif
 " -m, --no-mserver   Don't become a UPnP MediaServer server\n"
+#endif
+#ifdef HAVE_DVB
+" -b, --no-broadcast Don't serve DVB channels\n"
+" -c, --channels=FILE  Use FILE as DVB channel list (default=/etc/channels.conf)\n"
 #endif
 	    "\n"
 	    "Send SIGHUP to force a media re-scan (not needed on systems with 'inotify'\n"
@@ -118,6 +127,8 @@ int main(int argc, char *argv[])
 	{ "no-receiver", no_argument, NULL, 'r' },
 	{ "no-audio", no_argument, NULL, 'a' },
 	{ "no-mserver", no_argument, NULL, 'm' },
+	{ "no-broadcast", no_argument, NULL, 'b' },
+	{ "channels", required_argument, NULL, 'c' },
 	{ NULL, 0, NULL, 0 }
     };
 
@@ -136,13 +147,19 @@ int main(int argc, char *argv[])
     bool do_mserver = false;
 #endif
     bool do_receiver = true;
+#ifdef HAVE_DVB
+    bool do_dvb = true;
+#else
+    bool do_dvb = false;
+#endif
     const char *dbfile = DEFAULT_DB_FILE;
     const char *webroot = DEFAULT_WEB_DIR;
     const char *software_server = NULL; // Null string means this host
+    const char *channelsconf = "/etc/channels.conf";
 
     int option_index;
     int option;
-    while ((option = getopt_long(argc, argv, "ardhmnt:f:l:", options,
+    while ((option = getopt_long(argc, argv, "abrdhmnt:f:l:c:", options,
 				 &option_index))
 	   != -1)
     {
@@ -166,6 +183,9 @@ int main(int argc, char *argv[])
 	case 'w':
 	    webroot = optarg;
 	    break;
+	case 'c':
+	    channelsconf = optarg;
+	    break;
 	case 'a':
 	    do_audio = false;
 	    break;
@@ -174,6 +194,9 @@ int main(int argc, char *argv[])
 	    break;
 	case 'r':
 	    do_receiver = false;
+	    break;
+	case 'b':
+	    do_dvb = false;
 	    break;
 	case 1:
 	    software_server = optarg;
@@ -198,6 +221,13 @@ int main(int argc, char *argv[])
 
     if (do_daemon)
 	daemonise();
+
+    output::URLPlayer *player = NULL;
+    if (do_audio)
+    {
+	// Start this off early, as it fork()s internally
+	player = new output::gstreamer::URLPlayer;
+    }
 
     if (!nthreads)
 	nthreads = util::CountCPUs() * 2;
@@ -225,11 +255,11 @@ int main(int argc, char *argv[])
 
     import::FileScannerThread ifs;
 
-    ifs.Init(mediaroot, flacroot, &sdb, wtp.GetTaskQueue(), dbfile);
+    mediadb::LocalDatabase ldb(&sdb);
+
+    ifs.Init(mediaroot, flacroot, &ldb, wtp.GetTaskQueue(), dbfile);
 
     TRACE << "serving\n";
-
-    mediadb::LocalDatabase ldb(&sdb);
 
     util::Poller poller;
 
@@ -263,35 +293,102 @@ int main(int argc, char *argv[])
 				 software_server);
     }
 
+    tv::dvb::Frontend dvbf;
+    if (do_dvb)
+    {
+	unsigned rc = dvbf.Open(0,0);
+	if (rc != 0)
+	{
+	    TRACE << "Can't open DVB frontend: " << rc << "\n";
+	    do_dvb = false;
+	}
+    }
+
+    tv::dvb::Channels dvbc;
+    if (do_dvb)
+    {
+	unsigned rc = dvbc.Load(channelsconf);
+	if (rc != 0)
+	{
+	    TRACE << "Can't load DVB channels from '" << channelsconf
+		  << "': " << rc << "\n";
+	    do_dvb = false;
+	}
+    }
+
+    if (do_dvb)
+    {
+	if (dvbc.Count() == 0)
+	{
+	    TRACE << "No DVB channels found\n";
+	    do_dvb = false;
+	}
+    }
+
+    if (do_dvb)
+    {
+	dvbf.Tune(*dvbc.begin());
+
+	int tries = 0;
+	bool tuned;
+	do {
+	    dvbf.GetState(NULL, NULL, &tuned);
+	    if (tuned)
+		break;
+	    sleep(1);
+	    ++tries;
+	} while (tries < 5);
+
+	if (!tuned)
+	{
+	    TRACE << "Can't tune DVB frontend\n";
+	    do_dvb = false;
+	}
+    }
+
+    tv::RadioStreamFactory rsf(&dvbf, &dvbc);
+    if (do_dvb)
+    {
+	rsf.AddRadioStations(&ldb);
+	ldb.RegisterStreamFactory(mediadb::RADIO, &rsf);
+    }
+
+    char hostname[256];
+    hostname[0] = '\0';
+    gethostname(hostname, sizeof(hostname));
+    char *dot = strchr(hostname, '.');
+    if (dot && dot > hostname)
+	*dot = '\0';
+
 #ifdef HAVE_UPNP
-    output::URLPlayer *player = NULL;
     upnpd::MediaRenderer *mediarenderer = NULL;
     upnpd::MediaServer *mediaserver = NULL;
-    upnp::DeviceManager *udm = NULL;
     upnp::Device *root_device = NULL;
+    upnp::Server *svr = NULL;
 
     if (do_mserver)
     {
 	mediaserver = new upnpd::MediaServer(&ldb, ws.GetPort(), mediaroot);
-	root_device = mediaserver->GetDevice();
+	mediaserver->SetFriendlyName(std::string(hostname) + ":" + mediaroot);
+	root_device = mediaserver;
     }
 
 # ifdef HAVE_GSTREAMER
     if (do_audio)
     {
-	player = new output::GSTPlayer;
 	mediarenderer = new upnpd::MediaRenderer(player, "/dev/pcmC0D0p");
+	mediarenderer->SetFriendlyName(std::string(hostname) + ":/dev/pcmC0D0p");
 	if (root_device)
-	    root_device->AddEmbeddedDevice(mediarenderer->GetDevice());
+	    root_device->AddEmbeddedDevice(mediarenderer);
 	else
-	    root_device = mediarenderer->GetDevice();
+	    root_device = mediarenderer;
     }
 # endif
 
     if (root_device)
     {
-	udm = new upnp::DeviceManager;
-	udm->SetRootDevice(root_device);
+	svr = new upnp::Server;
+	svr->Init(root_device);
     }
 #endif
 
@@ -311,7 +408,7 @@ int main(int argc, char *argv[])
     }
 
 #ifdef HAVE_UPNP
-    delete udm;
+    delete svr;
     delete mediaserver;
     delete mediarenderer;
     delete player;

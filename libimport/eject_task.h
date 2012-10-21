@@ -24,6 +24,6 @@ public:
     void Run();
 };
 
-}; // namespace import
+} // namespace import
 
 #endif

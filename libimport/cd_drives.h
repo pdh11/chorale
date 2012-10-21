@@ -8,7 +8,7 @@
 #include <string>
 #include "libutil/counted_object.h"
 
-namespace util { class TaskQueue; };
+namespace util { class TaskQueue; }
 
 namespace import {
 
@@ -53,6 +53,6 @@ public:
     CDDrivePtr GetDriveForDevice(const std::string& device);
 };
 
-}; // namespace import
+} // namespace import
 
 #endif

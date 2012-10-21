@@ -84,11 +84,11 @@ $(choralecd): $(CHORALECD_OBJS) $(libutil) $(libimport) $(libreceiver) \
 		$(libmediadb) $(libupnp) \
 		$(liboutput)
 	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
-		$(CC) -o $@ $(CHORALECD_OBJS) $(LIBCDDB_LIBS) \
+		$(CC) -o $@ $(CHORALECD_OBJS) \
 		$(libmediatree) $(libdbupnp) \
 		$(libdbreceiver) $(liboutput) $(libupnp) $(libmediadb) \
 		$(libdb) $(libimport) $(libreceiver) \
-		$(libutil) $(LIBCDIOP_LIBS) \
+		$(libutil) -Wl,--as-needed $(LIBCDIOP_LIBS) $(LIBCDDB_LIBS) \
 		$(LIBFLAC_LIBS) $(TAGLIB_LIBS) $(BOOST_LIBS) $(QT_LIBS) \
 		$(LAME_LIBS) $(LIBXMLPP_LIBS) $(CURL_LIBS) $(UPNP_LIBS) \
 		$(GSTREAMER_LIBS) -Wl,-Map,$@.map.txt

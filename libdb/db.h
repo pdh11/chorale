@@ -7,7 +7,11 @@
 #define DB_DB_H
 
 #include <stdint.h>
-#include <boost/shared_ptr.hpp>
+#include <vector>
+#include <list>
+#include <string>
+#include "libutil/counted_object.h"
+#include "libutil/attributes.h"
 
 /** Interface classes for a generic database abstraction.
  *
@@ -21,7 +25,7 @@ namespace db {
  * accessed via cursors, it's simpler to elide cursor->record->getfield into
  * just cursor->getfield.
  */
-class Recordset
+class Recordset: public CountedObject
 {
 public:
     virtual ~Recordset() {}
@@ -42,35 +46,88 @@ public:
     virtual unsigned int Delete() = 0;
 };
 
-typedef ::boost::shared_ptr<Recordset> RecordsetPtr;
+typedef ::boost::intrusive_ptr<Recordset> RecordsetPtr;
 
 enum RestrictionType 
 {
     EQ,
     NE,
     GT,
-    LIKE
+    LT,
+    GE,
+    LE,
+    LIKE ///< Wildcard match, strings only
 };
 
 /** Models a database query.
  *
- * Currently all restrictions are AND'd together; there's no way of doing OR.
+ * Note that Where, OrderBy, and Collate *always* succeed on this
+ * Query implementation. If yours sometimes don't, override them, make
+ * your checks, then call the base-class (Query) version.
  */
-class Query
+class Query: public CountedObject
 {
 public:
-    virtual ~Query() {}
-    virtual unsigned int Restrict(int which, RestrictionType rt, 
-				  const std::string& val) = 0;
-    virtual unsigned int Restrict(int which, RestrictionType rt,
-				  uint32_t val) = 0;
-    virtual unsigned int OrderBy(int which) = 0;
-    virtual unsigned int CollateBy(int which) = 0;
+    struct Restriction {
+	int which;
+	RestrictionType rt;
+	bool is_string;
+	std::string sval;
+	uint32_t ival;
+
+	Restriction(int w, RestrictionType r, const std::string& val)
+	    : which(w), rt(r), is_string(true), sval(val) {}
+
+	Restriction(int w, RestrictionType r, uint32_t val)
+	    : which(w), rt(r), is_string(false), ival(val) {}
+    };
+    typedef std::vector<Restriction> restrictions_t;
+
+protected:
+    struct Relation {
+	bool anditive; // false=oritive
+	ssize_t a;
+	ssize_t b;
+
+	Relation(bool anditive0, ssize_t a0, ssize_t b0)
+	    : anditive(anditive0), a(a0), b(b0) {}
+    };
+    typedef std::vector<Relation> relations_t;
+
+    typedef std::list<int> orderby_t;
+
+protected:
+    restrictions_t m_restrictions;
+    relations_t m_relations;
+    ssize_t m_root;
+    orderby_t m_orderby;
+    orderby_t m_collateby;
+
+    std::string ToStringElement(ssize_t);
+
+public:
+    Query();
+    virtual ~Query();
+
+    class Rep;
+
+    const Rep *Restrict(int which, RestrictionType rt, 
+			const std::string& val) ATTRIBUTE_WARNUNUSED;
+    const Rep *Restrict(int which, RestrictionType rt,
+			uint32_t val) ATTRIBUTE_WARNUNUSED;
+    const Rep *And(const Rep*, const Rep*);
+    const Rep *Or(const Rep*, const Rep*);
+
+    virtual unsigned int Where(const Rep*);
+    virtual unsigned int OrderBy(int which);
+    virtual unsigned int CollateBy(int which);
 
     virtual RecordsetPtr Execute() = 0;
+
+    std::string ToString();
 };
 
-typedef ::boost::shared_ptr<Query> QueryPtr;
+typedef ::boost::intrusive_ptr<Query> QueryPtr;
 
 /** Models a (flatfile) database.
  *
@@ -85,8 +142,6 @@ public:
     virtual QueryPtr CreateQuery() = 0;
 };
 
-typedef ::boost::shared_ptr<Database> DatabasePtr;
-
-}; // namespace db
+} // namespace db
 
 #endif

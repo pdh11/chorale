@@ -101,8 +101,8 @@ public:
     void MoveNext();
 };
 
-}; // namespace steam
+} // namespace steam
 
-}; // namespace db
+} // namespace db
 
 #endif

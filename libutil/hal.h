@@ -5,7 +5,7 @@
 
 namespace util {
 
-namespace dbus { class Connection; };
+namespace dbus { class Connection; }
 
 /** Classes for interacting with HAL for hardware enumeration and
  * notifications.
@@ -52,8 +52,8 @@ public:
 				      const char *property);
 };
 
-}; // namespace hal
+} // namespace hal
 
-}; // namespace util
+} // namespace util
 
 #endif

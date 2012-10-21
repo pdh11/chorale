@@ -8,6 +8,6 @@ namespace util {
 std::string URLEscape(const std::string&);
 std::string URLUnEscape(const std::string&);
 
-}; // namespace util
+} // namespace util
 
 #endif

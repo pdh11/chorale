@@ -69,4 +69,4 @@ void CDWidgetFactory::CreateWidgets(QWidget *parent)
     }
 }
 
-};
+} // namespace choraleqt

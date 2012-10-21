@@ -1,7 +1,11 @@
+#include "config.h"
 #include "tags_flac.h"
 #include "vorbis_comment.h"
 #include "libutil/trace.h"
 #include "libmediadb/schema.h"
+
+#ifdef HAVE_TAGLIB
+
 #include <flacfile.h> /* from TagLib */
 #include <xiphcomment.h>
 
@@ -38,5 +42,7 @@ unsigned Tags::Write(db::RecordsetPtr tags)
     return 0;
 }
 
-}; // namespace flac
-}; // namespace import
+} // namespace flac
+} // namespace import
+
+#endif // HAVE_TAGLIB

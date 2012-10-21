@@ -371,7 +371,7 @@ SeekableStreamPtr FileContentFactory::StreamForPath(const char *path)
     return fsp;
 }
 
-};
+} // namespace util
 
 #ifdef TEST
 

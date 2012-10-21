@@ -6,6 +6,9 @@
 #include <map>
 #include <sstream>
 
+#undef IN
+#undef OUT
+
 namespace receiver {
 
 namespace ssdp {
@@ -223,6 +226,6 @@ unsigned Client::Init(util::PollerInterface *p, const char *uuid,
     return m_impl->Init(p, uuid, cb);
 }
 
-}; // namespace ssdp
+} // namespace ssdp
 
-}; // namespace receiver
+} // namespace receiver

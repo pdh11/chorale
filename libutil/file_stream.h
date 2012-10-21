@@ -15,7 +15,7 @@ public:
     typedef boost::intrusive_ptr<FileStream> FileStreamPtr;
 
     /** flags are as for open(1) */
-    static unsigned Create(const char *filename, unsigned flags,
+    static unsigned Create(const char *filename, unsigned int flags,
 			   FileStreamPtr*) ATTRIBUTE_WARNUNUSED; 
 
     /** automatically deleted when no longer needed */
@@ -33,6 +33,6 @@ public:
 
 typedef boost::intrusive_ptr<FileStream> FileStreamPtr;
 
-}; // namespace util
+} // namespace util
 
 #endif

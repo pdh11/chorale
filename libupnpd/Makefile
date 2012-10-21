@@ -4,10 +4,12 @@ SRCS:=\
 	avtransport.cpp \
 	content_directory.cpp \
 	media_renderer.cpp \
-	media_server.cpp
+	media_server.cpp \
+	search.cpp
 
 TEST_SRCS:= \
-	content_directory.cpp
+	content_directory.cpp \
+	search.cpp
 
 all-libupnpd:
 
@@ -31,6 +33,9 @@ endif
 ifeq ($(libupnp),)
 include $(TOP)libupnp/Makefile
 endif
+ifeq ($(libdbupnp),)
+include $(TOP)libdbupnp/Makefile
+endif
 ifeq ($(libdb),)
 include $(TOP)libdb/Makefile
 endif
@@ -42,13 +47,13 @@ include $(TOP)libdbsteam/Makefile
 endif
 
 $(LIBUPNPD_TESTS) : TEST_LIBS += $(BOOST_LIBS) $(LIBXMLPP_LIBS) $(UPNP_LIBS) \
-		$(LIBUUID_LIBS) $(OPENSSL_LIBS)
+		$(LIBUUID_LIBS) $(OPENSSL_LIBS) $(CURL_LIBS)
 
-$(LIBUPNPD_TESTS) : $(libupnpd) $(libdbsteam) \
+$(LIBUPNPD_TESTS) : $(libupnpd) $(libdbupnp) $(libdbsteam) \
 		$(libmediadb) $(libupnp) $(libdb) $(libutil)
 
 $(libupnpd): $(LIBUPNPD_OBJS)
-	$(AR_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(LIBUPNPD_OBJS)
 
 CLEANS += $(libupnpd) $(UPNPD_OBJS)

@@ -74,7 +74,7 @@ void Test()
     /* Query by string */
 
     qp = sdb.CreateQuery();
-    qp->Restrict(1, db::EQ, "zachary");
+    qp->Where(qp->Restrict(1, db::EQ, "zachary"));
     rs = qp->Execute();
     assert(!rs->IsEOF());
     assert(rs->GetInteger(0) == 111);
@@ -85,7 +85,7 @@ void Test()
     /* Query by int */
 
     qp = sdb.CreateQuery();
-    qp->Restrict(0, db::EQ, 42);
+    qp->Where(qp->Restrict(0, db::EQ, 42));
     rs = qp->Execute();
     assert(!rs->IsEOF());
     assert(rs->GetInteger(0) == 42);
@@ -96,8 +96,9 @@ void Test()
     /* Two-factor query */
 
     qp = sdb.CreateQuery();
-    qp->Restrict(0, db::EQ, 111);
-    qp->Restrict(1, db::EQ, "zachary");
+    unsigned int rc = qp->Where(qp->And(qp->Restrict(0, db::EQ, 111),
+					qp->Restrict(1, db::EQ, "zachary")));
+    assert(rc == 0);
     rs = qp->Execute();
     assert(!rs->IsEOF());
     assert(rs->GetInteger(0) == 111);
@@ -108,15 +109,29 @@ void Test()
     /* Two-factor query, not found */
 
     qp = sdb.CreateQuery();
-    qp->Restrict(0, db::EQ, 111222);
-    qp->Restrict(1, db::EQ, "zachary");
+    rc = qp->Where(qp->And(qp->Restrict(0, db::EQ, 111222),
+			   qp->Restrict(1, db::EQ, "zachary")));
+    assert(rc == 0);
     rs = qp->Execute();
+    assert(rs->IsEOF());
+
+    /* Two-factor query, oritive */
+
+    qp = sdb.CreateQuery();
+    rc = qp->Where(qp->Or(qp->Restrict(0, db::EQ, 111222),
+			  qp->Restrict(1, db::EQ, "zachary")));
+    assert(rc == 0);
+    rs = qp->Execute();
+    assert(!rs->IsEOF());
+    assert(rs->GetInteger(0) == 111);
+    assert(rs->GetString(1) == "zachary");
+    rs->MoveNext();
     assert(rs->IsEOF());
 
     /* Delete a record */
 
     qp = sdb.CreateQuery();
-    qp->Restrict(0, db::EQ, 42);
+    qp->Where(qp->Restrict(0, db::EQ, 42));
     rs = qp->Execute();
     assert(!rs->IsEOF());
     assert(rs->GetInteger(0) == 42);
@@ -201,7 +216,7 @@ void Test()
     /* Collate-by with LIKE query */
 
     qp = sdb.CreateQuery();
-    qp->Restrict(1, db::LIKE, "b.*");
+    qp->Where(qp->Restrict(1, db::LIKE, "b.*"));
     qp->CollateBy(1);
     rs = qp->Execute();
     assert(!rs->IsEOF());
@@ -220,7 +235,7 @@ void Test()
     /* Look for it */
 
     qp = sdb.CreateQuery();
-    qp->Restrict(0, db::EQ, 112);
+    qp->Where(qp->Restrict(0, db::EQ, 112));
     rs = qp->Execute();
     assert(!rs->IsEOF());
     assert(rs->GetInteger(0) == 112);
@@ -254,5 +269,5 @@ void Test()
     rs->Delete();
 }
 
-}; // namespace steam
-}; // namespace db
+} // namespace steam
+} // namespace db

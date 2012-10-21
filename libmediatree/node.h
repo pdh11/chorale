@@ -50,6 +50,6 @@ public:
 
 typedef boost::intrusive_ptr<Node> NodePtr;
 
-}; // namespace mediatree
+} // namespace mediatree
 
 #endif

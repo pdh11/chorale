@@ -262,7 +262,7 @@ std::string URLToPath(const std::string& url)
     return result;
 }
 
-}; // namespace util
+} // namespace util
 
 #ifdef TEST
 

@@ -37,6 +37,6 @@ public:
 
 typedef boost::intrusive_ptr<RippingTask> RippingTaskPtr;
 
-}; // namespace import
+} // namespace import
 
 #endif

@@ -7,12 +7,9 @@ choralecd: Finish setlist window (delete)
 choralecd: Finish coloured slots (CDWindow)
 choralecd: Source renaming
 choralecd: track vs folder icons in browse window
-choralecd: is tagtable still needed? can we just use Q3Table or QTableWidget?
-libupnp: Let soap actions return errors (sort out parameter ordering too)
 libmediatree: attempt queries before displaying (e.g.) genres top-level item
 libdbupnp: work out whether (e.g.) genre search is supported, fail query if not
 libutil: give content-factories more info (IP) and control (Content-Type)
-audio out via UPnP (eventing)
 DBus/Hal
 
   1.0
@@ -46,7 +43,6 @@ i18n (gettext)
 
   Perhaps never
   -------------
-
 libdbsqlite: sort out dbsqlite field defs properly
 libreceiverd: split RCF into separate content-factories
 libutil: SeekableStream::WriteAt to let AsyncWriteBuffer work properly

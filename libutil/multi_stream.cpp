@@ -160,4 +160,4 @@ unsigned MultiStream::Write(const void *buffer, size_t len, size_t *pwrote)
     return m_impl->Write(buffer, len, pwrote);
 }
 
-}; // namespace util
+} // namespace util

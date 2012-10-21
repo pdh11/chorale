@@ -14,13 +14,16 @@ Query::Query(Database *db)
 
 db::RecordsetPtr Query::Execute()
 {
+    if (!m_restrictions.empty())
+	assert(m_root != 0);
+
     m_regexes.clear();
     for (restrictions_t::const_iterator i = m_restrictions.begin();
 	 i != m_restrictions.end();
 	 ++i)
     {
 	if (i->rt == db::LIKE)
-	    m_regexes.push_back(boost::regex(i->sval, boost::regex::icase));
+	    m_regexes[i-m_restrictions.begin()] = boost::regex(i->sval, boost::regex::icase);
     }
 
     if (!m_collateby.empty())
@@ -68,29 +71,37 @@ db::RecordsetPtr Query::Execute()
 
 bool Query::Match(db::Recordset *rs)
 {
-    regexes_t::iterator j = m_regexes.begin();
+    if (!m_root)
+	return true;
+    return MatchElement(rs, m_root);
+}
 
-    for (restrictions_t::const_iterator i = m_restrictions.begin();
-	 i != m_restrictions.end();
-	 ++i)
+bool Query::MatchElement(db::Recordset *rs, ssize_t elem)
+{
+    if (elem > 0)
     {
-	if (i->is_string)
+	const Restriction& r = m_restrictions[elem-1];
+
+	if (r.is_string)
 	{
-	    std::string val = rs->GetString(i->which);
-	    switch (i->rt)
+	    std::string val = rs->GetString(r.which);
+	    switch (r.rt)
 	    {
 	    case db::EQ:
-		if (val != i->sval)
+		if (val != r.sval)
+		    return false;
+		break;
+	    case db::NE:
+		if (val == r.sval)
 		    return false;
 		break;
 	    case db::LIKE:
 	    {
-		bool rc = boost::regex_match(val, *j);
-//		TRACE << "'" << val << "' like '" << i->sval << "' : " << rc
+		bool rc = boost::regex_match(val, m_regexes[elem-1]);
+//		TRACE << "'" << val << "' like '" << r.sval << "' : " << rc
 //		      << "\n";
 		if (!rc)
 		    return false;
-		++j;
 		break;
 	    }
 	    default:
@@ -100,16 +111,16 @@ bool Query::Match(db::Recordset *rs)
 	}
 	else
 	{
-	    uint32_t val = rs->GetInteger(i->which);
+	    uint32_t val = rs->GetInteger(r.which);
 
-	    switch (i->rt)
+	    switch (r.rt)
 	    {
 	    case db::EQ:
-		if (val != i->ival)
+		if (val != r.ival)
 		    return false;
 		break;
 	    case db::GT:
-		if (val <= i->ival)
+		if (val <= r.ival)
 		    return false;
 		break;
 	    default:
@@ -118,12 +129,30 @@ bool Query::Match(db::Recordset *rs)
 	    }
 	}
     }
+    else
+    {
+	assert(elem < 0);
+	
+	const Relation& r = m_relations[-elem-1];
+	bool lhs = MatchElement(rs, r.a);
+	if (r.anditive)
+	{
+	    if (!lhs)
+		return false;
+	}
+	else
+	{
+	    if (lhs)
+		return true;
+	}
+	return MatchElement(rs, r.b);
+    }
 
     return true;
 }
 
-}; // namespace steam
-}; // namespace db
+} // namespace steam
+} // namespace db
 
 #ifdef TEST
 

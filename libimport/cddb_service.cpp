@@ -1,7 +1,7 @@
 #include "config.h"
 #include "cddb_service.h"
 
-#if HAVE_LIBCDDB
+#ifdef HAVE_LIBCDDB
 
 #include <cddb/cddb.h>
 #include "libutil/trace.h"
@@ -114,6 +114,6 @@ CDDBLookupPtr CDDBService::Lookup(AudioCDPtr cd)
     return result;
 }
 
-}; // namespace import
+} // namespace import
 
 #endif // HAVE_LIBCDDB

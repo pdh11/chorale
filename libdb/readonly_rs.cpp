@@ -18,4 +18,4 @@ unsigned int ReadOnlyRecordset::Commit()
 unsigned int ReadOnlyRecordset::Delete()
 { return EPERM; }
 
-}; // namespace db
+} // namespace db

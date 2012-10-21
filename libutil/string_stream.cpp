@@ -49,7 +49,7 @@ SeekableStream::pos64 StringStream::GetLength()
     return m_string.length();
 }
 
-unsigned StringStream::SetLength(SeekableStream::pos64 len)
+unsigned StringStream::SetLength(pos64 len)
 {
     if (len > m_string.length())
 	m_string.append(len - m_string.length(), ' ');
@@ -62,7 +62,7 @@ unsigned StringStream::SetLength(SeekableStream::pos64 len)
     return 0;
 }
 
-}; // namespace util
+} // namespace util
 
 #ifdef TEST
 

@@ -5,7 +5,7 @@
 #include <vector>
 #include "node.h"
 
-namespace db { class Database; };
+namespace db { class Database; }
 
 namespace mediatree {
 
@@ -30,6 +30,6 @@ public:
     db::RecordsetPtr GetInfo();
 };
 
-}; // namespace mediatree
+} // namespace mediatree
 
 #endif

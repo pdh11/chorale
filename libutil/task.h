@@ -15,10 +15,9 @@ class TaskObserver
 public:
     virtual ~TaskObserver() {}
 
-    virtual void OnDone(const Task*) {} // NYI
     virtual void OnProgress(const Task*, unsigned num, unsigned denom) = 0;
     virtual void OnCancelled(const Task*) {} // NYI
-    virtual void OnError(const Task*, const std::string&) {} // NYI
+    virtual void OnError(const Task*, unsigned int /*error*/) {}
 };
 
 /** A Task is a unit of work suitable for handing off to a background
@@ -34,6 +33,7 @@ class Task: public CountedObject
 
 protected:
     void FireProgress(unsigned num, unsigned denom);
+    void FireError(unsigned int error);
 
 public:
     Task();
@@ -72,6 +72,6 @@ public:
     unsigned Count();
 };
 
-}; // namespace util
+} // namespace util
 
 #endif

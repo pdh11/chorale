@@ -3,6 +3,7 @@
 
 #include "libdb/db.h"
 #include "libutil/stream.h"
+#include "allocate_id.h"
 
 /** Classes specialising the general-purpose db::Database API for
  * media databases.
@@ -15,12 +16,16 @@ namespace mediadb
  */
 class Database: public db::Database
 {
+    class AllocateID m_aid;
 public:
+    Database() : m_aid(this) {}
+
+    virtual unsigned int AllocateID() { return m_aid.Allocate(); }
     virtual std::string GetURL(unsigned int id) = 0;
     virtual util::SeekableStreamPtr OpenRead(unsigned int id) = 0;
     virtual util::SeekableStreamPtr OpenWrite(unsigned int id) = 0;
 };
 
-};
+} // namespace mediadb
 
 #endif

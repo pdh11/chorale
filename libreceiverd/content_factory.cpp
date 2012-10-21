@@ -70,7 +70,7 @@ void StreamAddChildren(util::StringStreamPtr s, int receiver_tag,
 
     // Because our fids might not end in *0, we need to use New Playlists
 
-    playlist.push_back(0xFF);
+    playlist.push_back('\xFF');
     playlist.push_back(0x02);
     playlist.push_back(0);
     playlist.push_back(0);
@@ -95,7 +95,7 @@ void StreamAddChildren(util::StringStreamPtr s, int receiver_tag,
 util::SeekableStreamPtr TagsStream(mediadb::Database *db, unsigned int id)
 {
     db::QueryPtr qp = db->CreateQuery();
-    qp->Restrict(mediadb::ID, db::EQ, id);
+    qp->Where(qp->Restrict(mediadb::ID, db::EQ, id));
     db::RecordsetPtr rs = qp->Execute();
     if (!rs || rs->IsEOF())
     {
@@ -126,6 +126,7 @@ util::SeekableStreamPtr TagsStream(mediadb::Database *db, unsigned int id)
 	switch (rs->GetInteger(mediadb::CODEC))
 	{
 	case mediadb::FLAC: codec = "flac"; break;
+	case mediadb::WAV: codec = "wave"; break;
 	}
 	StreamAddString(ss, receiver::CODEC, codec);
 	StreamAddInt(ss, receiver::LENGTH, rs->GetInteger(mediadb::SIZEBYTES));
@@ -152,7 +153,7 @@ util::SeekableStreamPtr TagsStream(mediadb::Database *db, unsigned int id)
     unsigned char term = 0xFF;
     ss->str() += (char)term;
     ss->Seek(0);
-    /*
+/*
     unsigned int len = ss->GetLength();
     TRACE << "response " << len << " bytes:\n";
     for (unsigned int i=0; i<len; ++i)
@@ -165,7 +166,7 @@ util::SeekableStreamPtr TagsStream(mediadb::Database *db, unsigned int id)
     }
     printf("\n");
     ss->Seek(0);
-    */
+*/
     return ss;
 }
 
@@ -209,7 +210,7 @@ util::SeekableStreamPtr QueryStream(mediadb::Database *db,
     db::QueryPtr qp = db->CreateQuery();
     qp->CollateBy(field);
     if (!value.empty())
-	qp->Restrict(field, db::LIKE, value + ".*");
+	qp->Where(qp->Restrict(field, db::LIKE, value + ".*"));
     db::RecordsetPtr rs = qp->Execute();
 
     if (!rs)
@@ -292,8 +293,8 @@ util::SeekableStreamPtr ResultsStream(mediadb::Database *db,
     value = util::URLUnEscape(value);
 
     db::QueryPtr qp = db->CreateQuery();
-    qp->Restrict(field, db::EQ, value);
-    qp->Restrict(mediadb::TYPE, db::EQ, mediadb::TUNE);
+    qp->Where(qp->And(qp->Restrict(field, db::EQ, value),
+		      qp->Restrict(mediadb::TYPE, db::EQ, mediadb::TUNE)));
     db::RecordsetPtr rs = qp->Execute();
 
     if (!rs)
@@ -348,7 +349,7 @@ util::SeekableStreamPtr ContentStream(mediadb::Database *db,
 				      unsigned int id, const char *path)
 {
     db::QueryPtr qp = db->CreateQuery();
-    qp->Restrict(mediadb::ID, db::EQ, id);
+    qp->Where(qp->Restrict(mediadb::ID, db::EQ, id));
     db::RecordsetPtr rs = qp->Execute();
     if (!rs || rs->IsEOF())
     {
@@ -376,7 +377,7 @@ util::SeekableStreamPtr ContentStream(mediadb::Database *db,
 	     * New Playlists. Fortunately real Receivers always ask for
 	     * extended content.
 	     */
-	    playlist.push_back(0xFF);
+	    playlist.push_back('\xFF');
 	    playlist.push_back(0x02);
 	    playlist.push_back(0);
 	    playlist.push_back(0);
@@ -386,7 +387,7 @@ util::SeekableStreamPtr ContentStream(mediadb::Database *db,
 	for (unsigned int i=0; i<vec.size(); ++i)
 	{
 	    qp = db->CreateQuery();
-	    qp->Restrict(mediadb::ID, db::EQ, vec[i]);
+	    qp->Where(qp->Restrict(mediadb::ID, db::EQ, vec[i]));
 	    rs = qp->Execute();
 
 	    type = rs->GetInteger(mediadb::TYPE);
@@ -398,7 +399,6 @@ util::SeekableStreamPtr ContentStream(mediadb::Database *db,
 		chtype = 'P';
 		break;
 	    case mediadb::TUNE:
-	    case mediadb::TUNEHIGH:
 	    case mediadb::SPOKEN:
 	    case mediadb::RADIO:
 		chtype = 'T';
@@ -406,6 +406,12 @@ util::SeekableStreamPtr ContentStream(mediadb::Database *db,
 	    }
 	    if (!chtype)
 		continue; // Don't offer images or videos
+
+	    /** Radio stations are available in MP2 or WAV. Real Rio Receivers
+	     * can't play either.
+	     */
+	    if (type == mediadb::RADIO && !is_utf8)
+		continue;
 
 	    /** If client understands UTF-8, it understands FLAC. So
 	     * upgrade the file if possible.
@@ -460,32 +466,41 @@ void Flatten(mediadb::Database *db, unsigned int id, bool upgrade,
 	     Flattener *f)
 {
     db::QueryPtr qp = db->CreateQuery();
-    qp->Restrict(mediadb::ID, db::EQ, id);
+    qp->Where(qp->Restrict(mediadb::ID, db::EQ, id));
     db::RecordsetPtr rs = qp->Execute();  
 
     unsigned int type = rs->GetInteger(mediadb::TYPE);
-    if (type == mediadb::DIR || type == mediadb::PLAYLIST)
+    switch (type)
+    {
+    case mediadb::DIR:
+    case mediadb::PLAYLIST:
     {	
 	std::vector<unsigned int> vec;
 	mediadb::ChildrenToVector(rs->GetString(mediadb::CHILDREN), &vec);
 	for (unsigned int i=0; i<vec.size(); ++i)
 	    Flatten(db, vec[i], upgrade, f);
+	break;
     }
-    else
-    {
+    case mediadb::TUNE:
+    case mediadb::SPOKEN:
+    case mediadb::RADIO:
 	if (upgrade)
 	{
 	    unsigned int newid = rs->GetInteger(mediadb::IDHIGH);
 	    if (newid)
 	    {
 		qp = db->CreateQuery();
-		qp->Restrict(mediadb::ID, db::EQ, newid);
+		qp->Where(qp->Restrict(mediadb::ID, db::EQ, newid));
 		rs = qp->Execute();
 		if (rs && !rs->IsEOF())
 		    id = newid;
 	    }
 	}
 	f->OnItem(id, rs);
+	break;
+    default:
+	// Don't show Recievers videos or images
+	break;
     }
 }
 
@@ -520,7 +535,7 @@ util::SeekableStreamPtr ListStream(mediadb::Database *db,
 				   unsigned int id, const char *path)
 {
     db::QueryPtr qp = db->CreateQuery();
-    qp->Restrict(mediadb::ID, db::EQ, id);
+    qp->Where(qp->Restrict(mediadb::ID, db::EQ, id));
     db::RecordsetPtr rs = qp->Execute();
 
     bool extended = (strstr(path, "_extended=2") != NULL);
@@ -592,7 +607,7 @@ util::SeekableStreamPtr ContentFactory::StreamForPath(const char *path)
     return util::SeekableStreamPtr();
 }
 
-}; // namespace receiverd
+} // namespace receiverd
 
 #ifdef TEST
 

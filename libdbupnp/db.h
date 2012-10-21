@@ -6,6 +6,8 @@
 #include <map>
 #include "libutil/stream.h"
 #include "libmediadb/db.h"
+#include "libupnp/client.h"
+#include "libupnp/ContentDirectory2_client.h"
 
 namespace db {
 
@@ -20,11 +22,9 @@ namespace upnpav {
  */
 class Database: public mediadb::Database
 {
-    std::string m_udn;
-    std::string m_description_url;
-    std::string m_control_url;
-    std::string m_presentation_url;
-    std::string m_friendly_name;
+    upnp::Client m_upnp;
+    upnp::ContentDirectory2Client m_contentdirectory;
+
     typedef std::map<unsigned int, std::string> idmap_t;
     idmap_t m_idmap;
     typedef std::map<std::string, unsigned int> revidmap_t;
@@ -38,10 +38,16 @@ class Database: public mediadb::Database
     friend class RecordsetOne;
 
 public:
-    Database() {}
+    Database();
+    ~Database();
 
-    unsigned Init(const std::string& url);
-    const std::string& GetFriendlyName() const { return m_friendly_name; }
+    unsigned Init(const std::string& url, const std::string& udn);
+    const std::string& GetFriendlyName() const;
+
+    upnp::ContentDirectory2 *GetContentDirectory()
+    {
+	return &m_contentdirectory;
+    }
 
     // Being a Database
     RecordsetPtr CreateRecordset();
@@ -53,7 +59,7 @@ public:
     util::SeekableStreamPtr OpenWrite(unsigned int id);
 };
 
-}; // namespace upnpav
-}; // namespace db
+} // namespace upnpav
+} // namespace db
 
 #endif

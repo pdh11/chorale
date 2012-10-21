@@ -6,46 +6,9 @@
 #ifdef HAVE_UPNP
 
 #include <upnp/upnp.h>
-#include <upnp/upnptools.h>
 #include <upnp/ixml.h>
 
 namespace upnp {
-
-static std::string ParseXML(IXML_Document *xmldoc, const char *searchFor)
-{
-    std::string result;
-    IXML_NodeList *nl = ixmlDocument_getElementsByTagName(xmldoc, const_cast<char *>(searchFor));
-
-    if (nl)
-    {
-	IXML_Node *node = ixmlNodeList_item(nl, 0);
-	if (node)
-	{
-	    IXML_Node *textnode = ixmlNode_getFirstChild(node);
-	    if (textnode)
-	    {
-		const DOMString ds = ixmlNode_getNodeValue(textnode);
-		if (ds)
-		{
-//		    TRACE << "found '" << ds << "'\n";
-		    result = ds;
-		}
-		else
-		    TRACE << "no value\n";
-	    }
-	    else
-		TRACE << "no textnode\n";
-	}
-	else
-	    TRACE << "no node\n";
-	
-	ixmlNodeList_free(nl);
-    }
-    else
-	TRACE << "no nodelist\n";
-
-    return result;
-}
 
 static std::string GetChildNode(IXML_Node *node, const char *searchFor)
 {
@@ -88,7 +51,7 @@ static std::string GetChildNode(IXML_Node *node, const char *searchFor)
     return result;
 }
 
-unsigned Description::Fetch(const std::string& url)
+unsigned Description::Fetch(const std::string& url, const std::string& udn)
 {
     IXML_Document *xmldoc = NULL;
     TRACE << "downloading " << url << "\n";
@@ -101,51 +64,101 @@ unsigned Description::Fetch(const std::string& url)
 //	TRACE << ds << "\n";
 //	ixmlFreeDOMString(ds);
 
-	std::string base_url = ParseXML(xmldoc, "URLBase");
-	if (base_url.empty())
-	    base_url = url;
+	IXML_Node *device_root = NULL;
 
-	m_udn = ParseXML(xmldoc, "UDN");
-	m_friendly_name = ParseXML(xmldoc, "friendlyName");
-	m_presentation_url = ParseXML(xmldoc, "presentationURL");
-
-	if (!m_presentation_url.empty())
-	    m_presentation_url = util::ResolveURL(base_url,
-						  m_presentation_url);
-
-	IXML_NodeList *nl = ixmlDocument_getElementsByTagName(xmldoc,
-							      const_cast<char *>("service"));
-	if (nl)
+	IXML_NodeList *udns = ixmlDocument_getElementsByTagName(xmldoc,
+								    const_cast<char *>("UDN"));
+	if (udns)
 	{
-	    unsigned int servicecount = ixmlNodeList_length(nl);
-//	    TRACE << servicecount << " service(s)\n";
-	    for (unsigned int i=0; i<servicecount; ++i)
+	    unsigned int devicecount = ixmlNodeList_length(udns);
+	    TRACE << devicecount << " devices\n";
+	    for (unsigned int i=0; i<devicecount; ++i)
 	    {
-		IXML_Node *node = ixmlNodeList_item(nl, i);
+		IXML_Node *node = ixmlNodeList_item(udns, i);
 		if (node)
 		{
-		    Service svc;
-		    svc.type = GetChildNode(node, "serviceType");
-		    svc.id = GetChildNode(node, "serviceId");
-		    svc.control_url 
-			= util::ResolveURL(base_url,
-					   GetChildNode(node, "controlURL"));
-		    svc.event_url
-			= util::ResolveURL(base_url,
-					   GetChildNode(node, "eventSubURL"));
-		    svc.scpd_url
-			= util::ResolveURL(base_url, 
-					   GetChildNode(node, "SCPDURL"));
-		    m_services[svc.type] = svc;
+		    TRACE << "udn=" << node->firstChild->nodeValue << "\n";
+		    IXML_Node *dev = node->parentNode;
+		    TRACE << "dev->name=" << dev->nodeName << " value="
+			  << dev->nodeValue << "\n";
+		    if (node 
+			&& node->firstChild 
+			&& node->firstChild->nodeValue 
+			&& udn == node->firstChild->nodeValue)
+		    {
+			device_root = node->parentNode;
+			break;
+		    }
 		}
-		else
-		    TRACE << "no node\n";
 	    }
+	    ixmlNodeList_free(udns);
+	}
 
-	    ixmlNodeList_free(nl);
+	if (!device_root)
+	{
+	    TRACE << "UDN " << udn << " not found on this device\n";
 	}
 	else
-	    TRACE << "no nodelist\n";
+	{
+	    m_udn = udn;
+	    std::string base_url;
+	
+	    for (IXML_Node *node = device_root->firstChild;
+		 node != NULL;
+		 node = node->nextSibling)
+	    {
+		if (!strcmp(node->nodeName, "URLBase")
+		    && node->firstChild
+		    && node->firstChild->nodeValue)
+		    base_url = node->firstChild->nodeValue;
+		else if (!strcmp(node->nodeName, "friendlyName")
+		    && node->firstChild
+		    && node->firstChild->nodeValue)
+		    m_friendly_name = node->firstChild->nodeValue;
+		else if (!strcmp(node->nodeName, "presentationURL")
+		    && node->firstChild
+		    && node->firstChild->nodeValue)
+		    m_presentation_url = node->firstChild->nodeValue;
+	    }
+		
+	    if (base_url.empty())
+		base_url = url;
+	    
+	    TRACE << "fn '" << m_friendly_name << "'\n";
+	    
+	    if (!m_presentation_url.empty())
+		m_presentation_url = util::ResolveURL(base_url,
+						      m_presentation_url);
+
+	    for (IXML_Node *node = device_root->firstChild;
+		 node != NULL;
+		 node = node->nextSibling)
+	    {
+		if (!strcmp(node->nodeName, "serviceList")
+		    && node->firstChild)
+		{
+		    for (IXML_Node *service = node->firstChild;
+			 service != NULL;
+			 service = service->nextSibling)
+		    {
+			ServiceData svc;
+			svc.type = GetChildNode(service, "serviceType");
+			svc.id = GetChildNode(service, "serviceId");
+			svc.control_url 
+			    = util::ResolveURL(base_url,
+					       GetChildNode(service, "controlURL"));
+			svc.event_url
+			    = util::ResolveURL(base_url,
+					       GetChildNode(service, "eventSubURL"));
+			svc.scpd_url
+			    = util::ResolveURL(base_url, 
+					   GetChildNode(service, "SCPDURL"));
+			TRACE << "service " << svc.type << "\n";
+			m_services[svc.type] = svc;
+		    }
+		}
+	    }
+	}
     }
 
     if (xmldoc)
@@ -156,6 +169,6 @@ unsigned Description::Fetch(const std::string& url)
     return 0;
 }
 
-}; // namespace upnp
+} // namespace upnp
 
 #endif // HAVE_UPNP

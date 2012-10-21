@@ -19,4 +19,4 @@ void TagRenameTask::Run()
     WriteTags(m_newname, m_tags);
 }
 
-}; // namespace import
+} // namespace import

@@ -402,7 +402,7 @@ feature provided by your editor.
 			<name>MoveObject</name>
 			<argumentList>
 				<argument>
-					<name>objectID</name>
+					<name>ObjectID</name>
 					<direction>in</direction>
 					<relatedStateVariable>A_ARG_TYPE_ObjectID</relatedStateVariable>
 				</argument>

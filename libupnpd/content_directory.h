@@ -3,10 +3,13 @@
 
 #include "libupnp/ContentDirectory2.h"
 
-namespace mediadb { class Database; };
+namespace mediadb { class Database; }
 
 namespace upnpd {
 
+/** Actual implementation of upnp::ContentDirectory2 base class in terms of
+ * a mediadb::Database.
+ */
 class ContentDirectoryImpl: public upnp::ContentDirectory2
 {
     mediadb::Database *m_db;
@@ -26,8 +29,20 @@ public:
 			uint32_t *NumberReturned,
 			uint32_t *TotalMatches,
 			uint32_t *UpdateID);
+    unsigned int Search(const std::string& ContainerID,
+			const std::string& SearchCriteria,
+			const std::string& Filter,
+			uint32_t StartingIndex,
+			uint32_t RequestedCount,
+			const std::string& SortCriteria,
+			std::string *Result,
+			uint32_t *NumberReturned,
+			uint32_t *TotalMatches,
+			uint32_t *UpdateID);
+    unsigned int GetSearchCapabilities(std::string *SearchCaps);
+    unsigned int GetSortCapabilities(std::string *SortCaps);
 };
 
-}; // namespace upnpd
+} // namespace upnpd
 
 #endif

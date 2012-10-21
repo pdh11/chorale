@@ -35,6 +35,6 @@ public:
     unsigned int Delete();
 };
 
-}; // namespace db
+} // namespace db
 
 #endif

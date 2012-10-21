@@ -14,4 +14,4 @@ void EjectTask::Run(void)
     ::close(fd);
 }
 
-}; // namespace import
+} // namespace import

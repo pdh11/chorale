@@ -28,4 +28,4 @@ void CDTocTask::Run()
     }
 }
 
-}; // namespace import
+} // namespace import

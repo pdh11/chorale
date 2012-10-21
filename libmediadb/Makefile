@@ -38,7 +38,7 @@ $(MEDIADB_TESTS) : TEST_LIBS += $(BOOST_LIBS) $(LIBXMLPP_LIBS)
 $(MEDIADB_TESTS) : $(libmediadb) $(libdb) $(libutil)
 
 $(libmediadb): $(MEDIADB_OBJS)
-	$(AR_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(MEDIADB_OBJS)
 
 CLEANS += $(libmediadb)

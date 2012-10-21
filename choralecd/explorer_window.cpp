@@ -64,4 +64,4 @@ void ExplorerWindow::OnTreeSelectionChanged(const QModelIndex& qmi)
 	m_browse->SetNode(node);
 }
 
-};
+} // namespace choraleqt

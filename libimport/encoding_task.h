@@ -52,6 +52,6 @@ public:
 
 typedef boost::intrusive_ptr<EncodingTask> EncodingTaskPtr;
 
-}; // namespace import
+} // namespace import
 
 #endif

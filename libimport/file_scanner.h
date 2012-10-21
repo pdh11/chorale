@@ -5,7 +5,7 @@
 
 namespace util { class TaskQueue; }
 
-namespace db { class Database; };
+namespace mediadb { class Database; }
 
 /** Classes for reading media files and their metadata.
  *
@@ -22,13 +22,13 @@ class FileScanner
 
 public:
     FileScanner(const std::string& loroot, const std::string& hiroot,
-		db::Database *thedb, util::TaskQueue *queue, 
+		mediadb::Database *thedb, util::TaskQueue *queue, 
 		FileNotifier *fn = NULL);
     ~FileScanner();
 
     unsigned int Scan();
 };
 
-}; // namespace import
+} // namespace import
 
 #endif

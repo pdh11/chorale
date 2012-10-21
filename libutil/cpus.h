@@ -5,6 +5,6 @@ namespace util {
 
 unsigned int CountCPUs();
 
-};
+} // namespace util
 
 #endif

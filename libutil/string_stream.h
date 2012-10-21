@@ -34,6 +34,6 @@ public:
 
 typedef boost::intrusive_ptr<StringStream> StringStreamPtr;
 
-}; // namespace util
+} // namespace util
 
 #endif

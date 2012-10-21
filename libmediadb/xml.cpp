@@ -5,6 +5,9 @@
 #include "schema.h"
 #include <string>
 #include <boost/static_assert.hpp>
+
+#ifdef HAVE_LIBXMLPP
+
 #include <libxml++/libxml++.h>
 #include "libutil/trace.h"
 #include "libutil/xmlescape.h"
@@ -56,7 +59,8 @@ static const char *const typemap[] = {
     "dir",
     "image",
     "video",
-    "radio"
+    "radio",
+    "pending"
 };
 
 enum { NTYPES = sizeof(typemap)/sizeof(typemap[0]) };
@@ -70,6 +74,7 @@ static const char *const codecmap[] = {
     "flac",
     "vorbis",
     "wav",
+    "pcm",
     "jpeg"
 };
 
@@ -81,11 +86,19 @@ bool WriteXML(db::Database *db, unsigned int schema, ::FILE *f)
 {
     fprintf(f, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
     fprintf(f, "<db schema=\"%u\">\n", schema);
-    
-    db::RecordsetPtr rs = db->CreateRecordset();
 
-    while (!rs->IsEOF())
+    for (db::RecordsetPtr rs = db->CreateRecordset();
+	 !rs->IsEOF();
+	 rs->MoveNext())
     {
+	// Don't write special IDs
+	if (rs->GetInteger(mediadb::ID) < 0x100)
+	    continue;
+
+	// Don't write radio stations
+	if (rs->GetInteger(mediadb::TYPE) == mediadb::RADIO)
+	    continue;
+
 	fprintf(f, "<record>\n");
 	for (unsigned int i=0; i<mediadb::FIELD_COUNT; ++i)
 	{
@@ -110,7 +123,10 @@ bool WriteXML(db::Database *db, unsigned int schema, ::FILE *f)
 		    std::vector<unsigned int> vec;
 		    mediadb::ChildrenToVector(value, &vec);
 		    for (unsigned int j=0; j<vec.size(); ++j)
-			fprintf(f, "  <child>%u</child>\n", vec[j]);
+		    {
+			if (vec[j] >= 0x100)
+			    fprintf(f, "  <child>%u</child>\n", vec[j]);
+		    }
 		    fprintf(f, "</children>\n");
 		    value.clear();
 		}
@@ -128,7 +144,6 @@ bool WriteXML(db::Database *db, unsigned int schema, ::FILE *f)
 	    }
 	}
 	fprintf(f, "</record>\n\n");
-	rs->MoveNext();
     }
 
     fprintf(f, "</db>\n");
@@ -221,7 +236,7 @@ public:
 	if (name == "record" && m_rs)
 	{
 	    m_rs->Commit();
-	    m_rs.reset();
+	    m_rs = NULL;
 	}
 	else if (name == "children")
 	{
@@ -261,7 +276,9 @@ bool ReadXML(db::Database *db, const char *filename)
     return true;
 }
 
-}; // namespace mediadb
+} // namespace mediadb
+
+#endif // HAVE_LIBXMLPP
 
 #ifdef TEST
 
@@ -278,6 +295,7 @@ public:
 
 int main()
 {
+#ifdef HAVE_LIBXMLPP
     TestDB tdb;
     tdb.m_rs->SetInteger(mediadb::ID, 256);
     tdb.m_rs->SetString(mediadb::PATH, "You\xE2\x80\x99re My Flame.flac");
@@ -306,6 +324,7 @@ int main()
     assert(cv2 == cv);
 
     unlink("test.xml");
+#endif // HAVE_LIBXMLPP
 
     return 0;
 }

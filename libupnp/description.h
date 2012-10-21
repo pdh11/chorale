@@ -6,7 +6,7 @@
 
 namespace upnp {
 
-struct Service
+struct ServiceData
 {
     std::string type;
     std::string id;
@@ -15,7 +15,7 @@ struct Service
     std::string scpd_url;
 };
 
-typedef std::map<std::string, Service> Services;
+typedef std::map<std::string, ServiceData> Services;
 
 class Description
 {
@@ -26,15 +26,15 @@ class Description
 
 public:
     Description() {}
-    unsigned Fetch(const std::string& url);
+    unsigned Fetch(const std::string& url, const std::string& udn);
 
     std::string GetUDN() const { return m_udn; }
-    std::string GetFriendlyName() const { return m_friendly_name; }
+    const std::string& GetFriendlyName() const { return m_friendly_name; }
     std::string GetPresentationURL() const { return m_presentation_url; }
 
     const Services& GetServices() const { return m_services; };
 };
 
-}; // namespace upnp
+} // namespace upnp
 
 #endif

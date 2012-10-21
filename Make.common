@@ -11,9 +11,15 @@ else
 DIRSUFFIX:=-release
 endif
 endif
-TARGETDIR:=obj-$(shell $(CC) -dumpmachine)$(DIRSUFFIX)/
+TARGET:=$(shell $(CC) -dumpmachine)
+TARGETDIR:=obj-$(TARGET)$(DIRSUFFIX)/
 endif
 
+ifeq ($(ALL_SRCS),)
+ALL_SRCS:=$(SRCS:%.cpp=$(TOP)$(DIR)%.cpp)
+else
+ALL_SRCS+=$(SRCS:%.cpp=$(TOP)$(DIR)%.cpp)
+endif
 OBJS:=$(SRCS:%.cpp=$(TOP)$(DIR)%.o)
 OBJS:=$(OBJS:%.c=$(TOP)$(DIR)%.o)
 SOBJS:=$(SRCS:%.cpp=$(TOP)$(DIR)%.oS)
@@ -49,15 +55,22 @@ tests: all $(TESTS)
 
 -include .force-header-generation
 
--include $(TOP)Make.config
+-include $(TOP)Make.config.$(TARGET)
+
+# If we don't do this, GCC 4.2.3 somehow doesn't figure out they're
+# system headers (i.e. -Wno-system-headers doesn't work) despite <> includes
+LIBXMLPP_CXXFLAGS:=$(LIBXMLPP_CXXFLAGS:-I%=-isystem %)
+BOOST_CXXFLAGS:=$(BOOST_CXXFLAGS:-I%=-isystem %)
+QT_CXXFLAGS:=$(QT_CXXFLAGS:-I%=-isystem %)
+GSTREAMER_CXXFLAGS:=$(GSTREAMER_CXXFLAGS:-I%=-isystem %)
 
 CFLAGS += -DLOCALSTATEDIR=\"$(localstatedir)\" -DDATADIR=\"$(datarootdir)\"
 CXXFLAGS += -DLOCALSTATEDIR=\"$(localstatedir)\" -DDATADIR=\"$(datarootdir)\"
 
 ifneq ($(DEBUG),0)
 WITH_DEBUG:=1
-CFLAGS += -DDEBUG=1 -DWITH_DEBUG -D_FORTIFY_SOURCE=2
-CXXFLAGS += -DDEBUG=1 -DWITH_DEBUG -D_FORTIFY_SOURCE=2
+CFLAGS += -DDEBUG=1 -DWITH_DEBUG -D_FORTIFY_SOURCE=2 -ggdb
+CXXFLAGS += -DDEBUG=1 -DWITH_DEBUG -D_FORTIFY_SOURCE=2 -ggdb
 else
 WITH_DEBUG:=0
 CFLAGS += -fomit-frame-pointer -DNDEBUG
@@ -169,4 +182,4 @@ $(TOP)$(DIR)$(TARGETDIR)%__test: $(TOP)$(DIR)%.cpp
 	$(CXX) $(CXXFLAGS) $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) -I$(TOP) -S $< -o $@ -DTEST
 
 %.i: %.cpp
-	$(CXX) $(CXXFLAGS) -I$(TOP) -E -dD -C $< -o $@ $(QT_CXXFLAGS)
+	$(CXX) $(CXXFLAGS) $(LIBXMLPP_CXXFLAGS) -I$(TOP) -E -dD -C $< -o $@ $(QT_CXXFLAGS)
