@@ -6,6 +6,8 @@
 #include <set>
 #include <map>
 
+namespace util { namespace http { class Client; } }
+
 namespace db {
 
 /** A database representing the files on a remote Rio Receiver server.
@@ -23,6 +25,7 @@ class RestrictionRecordset;
  */
 class Database: public mediadb::Database
 {
+    util::http::Client *m_http;
     util::IPEndPoint m_ep;
     bool m_got_tags;
 
@@ -40,7 +43,7 @@ class Database: public mediadb::Database
     friend class RestrictionRecordset;
 
 public:
-    Database();
+    explicit Database(util::http::Client *http);
 
     unsigned int Init(const util::IPEndPoint&);
 

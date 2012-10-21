@@ -5,7 +5,7 @@
 #include <sstream>
 #include "libutil/trace.h"
 #include "libutil/urlescape.h"
-#include "libutil/http_client.h"
+#include "libutil/http_fetcher.h"
 #include <boost/tokenizer.hpp>
 
 namespace db {
@@ -76,7 +76,7 @@ void Recordset::GetTags()
     std::string url = os.str();
 
     std::string content;
-    util::HttpClient hc(url);
+    util::http::Fetcher hc(m_parent->m_http, url);
     hc.FetchToString(&content);
 
     if (!m_freers)
@@ -150,7 +150,7 @@ void Recordset::GetContent()
 //    TRACE << "m_id=" << m_id << " url=" << url << "\n";
 
     std::string content;
-    util::HttpClient hc(url);
+    util::http::Fetcher hc(m_parent->m_http, url);
     hc.FetchToString(&content);
 
     TRACE << "Content is\n" << Hex(content.c_str(), content.length());
@@ -214,6 +214,7 @@ bool RecordsetOne::IsEOF()
 RestrictionRecordset::RestrictionRecordset(Database *parent,
 			 const Query::Restriction& r)
     : Recordset(parent),
+      m_eof(true),
       m_recno(0)
 {
     std::ostringstream os;
@@ -240,7 +241,7 @@ RestrictionRecordset::RestrictionRecordset(Database *parent,
 
     TRACE << "restrict url=" << url << "\n";
     
-    util::HttpClient hc(url);
+    util::http::Fetcher hc(m_parent->m_http, url);
     hc.FetchToString(&m_content);
 
     TRACE << "results content (" << m_content.length() << ") =\n"
@@ -285,7 +286,8 @@ CollateRecordset::CollateRecordset(Database *parent,
 				   const Query::restrictions_t& restrictions,
 				   int collateby)
     : m_parent(parent),
-      m_recno(0)
+      m_recno(0),
+      m_eof(true)
 {
     std::ostringstream os;
 
@@ -316,7 +318,7 @@ CollateRecordset::CollateRecordset(Database *parent,
     TRACE << "collate url=" << url << "\n";
 
     std::string content;
-    util::HttpClient hc(url);
+    util::http::Fetcher hc(m_parent->m_http, url);
     hc.FetchToString(&content);
     
     TRACE << content << "\n";

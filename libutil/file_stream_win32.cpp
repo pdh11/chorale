@@ -50,7 +50,10 @@ unsigned FileStream::Open(const char *filename, FileMode mode)
 		      NULL, disposition, fanda, NULL);
 
     if (m_fd == INVALID_HANDLE_VALUE)
+    {
+	TRACE << "Can't open file\n";
 	return GetLastError();
+    }
 
     return 0;
 }
@@ -119,6 +122,9 @@ unsigned FileStream::SetLength(pos64 len)
     LONG hi = (LONG)(len >> 32);
     SetFilePointer(m_fd, (DWORD)len, &hi, FILE_BEGIN);
     SetEndOfFile(m_fd);
+
+    /* Sync-up internal idea of file pointer */
+    Seek(len);
     return 0;
 }
 

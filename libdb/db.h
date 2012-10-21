@@ -123,12 +123,13 @@ public:
 	bool IsValid() const { return val != 0; }
     };
 
-    Subexpression Restrict(field_t which, RestrictionType rt, 
-			const std::string& val) ATTRIBUTE_WARNUNUSED;
-    Subexpression Restrict(field_t which, RestrictionType rt,
-			uint32_t val) ATTRIBUTE_WARNUNUSED;
-    Subexpression And(const Subexpression&, const Subexpression&);
-    Subexpression Or(const Subexpression&, const Subexpression&);
+    virtual Subexpression Restrict(field_t which, RestrictionType rt, 
+				   const std::string& val)
+	ATTRIBUTE_WARNUNUSED;
+    virtual Subexpression Restrict(field_t which, RestrictionType rt,
+				   uint32_t val) ATTRIBUTE_WARNUNUSED;
+    virtual Subexpression And(const Subexpression&, const Subexpression&);
+    virtual Subexpression Or(const Subexpression&, const Subexpression&);
 
     virtual unsigned int Where(const Subexpression&);
     virtual unsigned int OrderBy(field_t which);

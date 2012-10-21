@@ -224,8 +224,8 @@ util::SeekableStreamPtr RootContentFactory::HomePageStream()
     return ss;
 }
 
-bool RootContentFactory::StreamForPath(const util::WebRequest *rq, 
-				       util::WebResponse *rs)
+bool RootContentFactory::StreamForPath(const util::http::Request *rq, 
+				       util::http::Response *rs)
 {
     TRACE << "Path '" << rq->path << "'\n";
     if (rq->path == "/")

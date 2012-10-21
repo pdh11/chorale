@@ -94,7 +94,7 @@ SetlistWindow::SetlistWindow(output::Queue *queue, mediadb::Registry *registry)
 
     vlayout->addLayout(m_toplayout);
 
-    m_table = new TagTable(1, 2, this);
+    m_table = new TagTable(0, 2, this);
 
     m_table->setReadOnly(true);
     m_table->setColumnStretchable(0, true);
@@ -147,12 +147,14 @@ void SetlistWindow::customEvent(QEvent *e)
 	    if (m_current_index < (unsigned)m_table->numRows())
 	    {
 		bti = (BoldableTableItem*)m_table->item(m_current_index, 0);
-		bti->SetBold(false);
+		if (bti)
+		    bti->SetBold(false);
 	    }
 	    if (index < (unsigned)m_table->numRows())
 	    {
 		bti = (BoldableTableItem*)m_table->item(index, 0);
-		bti->SetBold(true);
+		if (bti)
+		    bti->SetBold(true);
 	    }
 	    m_table->updateCell(index, 0);
 	    m_table->updateCell(m_current_index, 0);
@@ -211,12 +213,12 @@ void SetlistWindow::dropEvent(QDropEvent *e)
 {
     QByteArray qba = e->mimeData()->data("application/x-chorale-ids");
     std::vector<IDPair> idps;
-    unsigned int count = qba.size() / sizeof(IDPair);
+    size_t count = qba.size() / sizeof(IDPair);
     idps.resize(count);
     memcpy(&idps[0], qba.data(), count*sizeof(IDPair));
     bool ok = false;
 
-    for (unsigned int i=0; i<count; ++i)
+    for (size_t i=0; i<count; ++i)
     {
 	const IDPair& idp = idps[i];
 	mediadb::Database *db = m_registry->DBForIndex(idp.dbid);
@@ -225,7 +227,7 @@ void SetlistWindow::dropEvent(QDropEvent *e)
 	    m_queue->Add(db, idp.fid);
 	    ok = true;
 
-	    unsigned int new_queue_len = m_queue->end() - m_queue->begin();
+	    int new_queue_len = (int)(m_queue->end() - m_queue->begin());
 	    m_table->setNumRows(new_queue_len);
 	    db::QueryPtr qp = db->CreateQuery();
 	    qp->Where(qp->Restrict(mediadb::ID, db::EQ, idp.fid));

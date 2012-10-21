@@ -1,5 +1,6 @@
 #include "config.h"
 #include "file_notifier.h"
+#include "libutil/bind.h"
 #ifdef HAVE_INOTIFY_INIT
 #include <sys/inotify.h>
 #define HAVE_NOTIFY 1
@@ -46,7 +47,8 @@ static int inotify_add_watch(int fd, const char *name, uint32_t mask)
 namespace import {
 
 FileNotifier::FileNotifier()
-    : m_fd(-1)
+    : m_obs(NULL),
+      m_fd(util::NOT_POLLABLE)
 {
 }
 
@@ -68,8 +70,13 @@ unsigned int FileNotifier::Init(util::PollerInterface *poller)
 	    fcntl(m_fd, F_SETFL, flags);
 	}
     }
+    
+    poller->Add(this, 
+		util::Bind<FileNotifier, &FileNotifier::OnActivity>(this),
+		util::PollerInterface::IN);
 
-    poller->AddHandle(m_fd, this, util::PollerInterface::IN);
+    TRACE << "Notifier started successfully\n";
+
     return 0;
 #else
     return ENOSYS;
@@ -78,8 +85,10 @@ unsigned int FileNotifier::Init(util::PollerInterface *poller)
 
 FileNotifier::~FileNotifier()
 {
+#ifdef HAVE_NOTIFY
     if (m_fd != -1)
 	close(m_fd);
+#endif
 }
 
 void FileNotifier::Watch(const char *directory)
@@ -93,6 +102,7 @@ void FileNotifier::Watch(const char *directory)
 
 unsigned int FileNotifier::OnActivity()
 {
+#ifdef HAVE_NOTIFY
     enum { BUFSIZE = 1024 };
     char buffer[BUFSIZE];
     bool any = false;
@@ -106,7 +116,7 @@ unsigned int FileNotifier::OnActivity()
 
     if (m_obs)
 	m_obs->OnChange();
-
+#endif
     return 0;
 }
 
@@ -143,6 +153,7 @@ int main()
 
     assert(rc == 0);
 
+#ifndef WIN32
     char root[] = "file_notifier.test.XXXXXX";
 
     if (!mkdtemp(root))
@@ -172,7 +183,7 @@ int main()
 
     std::string rmrf = "rm -r " + util::Canonicalise(root);
     system(rmrf.c_str());
-
+#endif
     return 0;
 }
 

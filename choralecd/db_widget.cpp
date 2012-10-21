@@ -44,9 +44,11 @@ void DBWidget::OnBottomButton() /* "Close" */
 
 
 ReceiverDBWidgetFactory::ReceiverDBWidgetFactory(QPixmap *pixmap,
-						 mediadb::Registry *registry)
+						 mediadb::Registry *registry,
+						 util::http::Client *http)
     : m_pixmap(pixmap),
-      m_registry(registry)
+      m_registry(registry),
+      m_http(http)
 {
 }
 
@@ -57,7 +59,7 @@ void ReceiverDBWidgetFactory::CreateWidgets(QWidget *parent)
 
 void ReceiverDBWidgetFactory::OnService(const util::IPEndPoint& ep)
 {
-    db::receiver::Database *thedb = new db::receiver::Database;
+    db::receiver::Database *thedb = new db::receiver::Database(m_http);
     thedb->Init(ep);
 
     (void) new choraleqt::DBWidget(m_parent, "Receiver server", *m_pixmap,
@@ -68,11 +70,14 @@ void ReceiverDBWidgetFactory::OnService(const util::IPEndPoint& ep)
         /* UpnpDBWidgetFactory */
 
 
-#ifdef HAVE_LIBDBUPNP
 UpnpDBWidgetFactory::UpnpDBWidgetFactory(QPixmap *pixmap,
-					 mediadb::Registry *registry)
+					 mediadb::Registry *registry,
+					 util::http::Client *client,
+					 util::http::Server *server)
     : m_pixmap(pixmap),
-      m_registry(registry)
+      m_registry(registry),
+      m_client(client),
+      m_server(server)
 {
 }
 
@@ -84,22 +89,23 @@ void UpnpDBWidgetFactory::CreateWidgets(QWidget *parent)
 void UpnpDBWidgetFactory::OnService(const std::string& url,
 				    const std::string& udn)
 {
-    db::upnpav::Database *thedb = new db::upnpav::Database;
+    db::upnpav::Database *thedb = new db::upnpav::Database(m_client, m_server);
     thedb->Init(url, udn);
 
     (void) new choraleqt::DBWidget(m_parent, thedb->GetFriendlyName(),
 				   *m_pixmap, thedb, m_registry);
 }
-#endif
 
 
         /* UpnpDBWidgetFactory */
 
 
 EmpegDBWidgetFactory::EmpegDBWidgetFactory(QPixmap *pixmap,
-					 mediadb::Registry *registry)
+					 mediadb::Registry *registry,
+					 util::http::Server *server)
     : m_pixmap(pixmap),
-      m_registry(registry)
+      m_registry(registry),
+      m_server(server)
 {
 }
 
@@ -111,7 +117,7 @@ void EmpegDBWidgetFactory::CreateWidgets(QWidget *parent)
 void EmpegDBWidgetFactory::OnDiscoveredEmpeg(const util::IPAddress& ip,
 					     const std::string& name)
 {
-    db::empeg::Database *thedb = new db::empeg::Database;
+    db::empeg::Database *thedb = new db::empeg::Database(m_server);
     thedb->Init(ip);
     (void) new choraleqt::DBWidget(m_parent, name, *m_pixmap, thedb, 
 				   m_registry);

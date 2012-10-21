@@ -239,8 +239,8 @@ class <xsl:value-of select="$class"/>Server: public Service, public <xsl:value-o
     <xsl:value-of select="$class"/> *m_impl;
 
 public:
-    <xsl:value-of select="$class"/>Server(const char *type, const char *scpdurl, <xsl:value-of select="$class"/> *impl)
-        : Service(type, scpdurl),
+    <xsl:value-of select="$class"/>Server(Device *device, const char *service_id, const char *type, const char *scpdurl, <xsl:value-of select="$class"/> *impl)
+        : Service(device, service_id, type, scpdurl),
           m_impl(impl)
     {
         m_impl->AddObserver(this);

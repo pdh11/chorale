@@ -13,6 +13,7 @@
 #include "file_notifier.h"
 #include "libmediadb/xml.h"
 #include "libmediadb/db.h"
+#include "libutil/poll.h"
 #include "libutil/trace.h"
 
 namespace import {
@@ -20,7 +21,6 @@ namespace import {
 class FileScannerThread::Impl: public FileNotifier::Observer
 {
     util::Poller m_poller;
-    util::PollWaker m_waker;
     FileNotifier m_notifier;
     db::Database *m_db;
     FileScanner m_scanner;
@@ -51,8 +51,7 @@ FileScannerThread::Impl::Impl(const std::string& loroot,
 			      mediadb::Database *thedb,
 			      util::TaskQueue *queue,
 			      const std::string& dbfilename)
-    : m_waker(&m_poller, NULL),
-      m_db(thedb),
+    : m_db(thedb),
       m_scanner(loroot, hiroot, thedb, queue, &m_notifier),
       m_dbfilename(dbfilename),
       m_exiting(false),
@@ -64,7 +63,7 @@ FileScannerThread::Impl::Impl(const std::string& loroot,
 FileScannerThread::Impl::~Impl()
 {
     m_exiting = true;
-    m_waker.Wake();
+    m_poller.Wake();
     m_thread.join();
 }
 
@@ -161,7 +160,7 @@ void FileScannerThread::Impl::OnChange()
 void FileScannerThread::Impl::ForceRescan()
 {
     OnChange();
-    m_waker.Wake();
+    m_poller.Wake();
 }
 
 

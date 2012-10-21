@@ -67,12 +67,6 @@ Query::Subexpression Query::Or(const Subexpression& a, const Subexpression& b)
 }
 
 /** Apply a condition to the query (like SQL "SELECT * WHERE ...")
- *
- * The 'Rep' isn't actually a pointer -- that's a pretence to keep
- * client code honest. In fact, it's a ssize_t; positive values refer
- * to individual restrictions (leaf nodes of the syntax tree) in the
- * m_restrictions array, and negative values refer to ands and ors
- * (internal nodes of the syntax tree) in the m_relations array.
  */
 unsigned int Query::Where(const Subexpression& expr)
 {

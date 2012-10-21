@@ -6,6 +6,7 @@
 #include <string>
 #include <boost/noncopyable.hpp>
 #include "stream.h"
+#include "config.h"
 
 namespace util {
 
@@ -26,6 +27,9 @@ struct IPAddress
     static IPAddress ALL;
 
     std::string ToString() const;
+
+    bool operator==(const IPAddress& other) { return addr == other.addr; }
+    bool operator!=(const IPAddress& other) { return addr != other.addr; }
 };
 
 struct IPEndPoint
@@ -40,18 +44,21 @@ struct IPEndPoint
  *
  * Contains only calls useful to both UDP and TCP sockets.
  */
-class Socket: public boost::noncopyable
+class Socket: public Stream
 {
 protected:
     int m_fd;
     void *m_event;
+    enum { NONE, READ, WRITE } m_event_type;
+    /** Timeout for synchronous operations */
+    unsigned int m_timeout_ms;
+
+    /** How many bytes have we Peek'd but not yet read? */
+    unsigned int m_peeked;
 
     Socket();
     ~Socket();
     explicit Socket(int fd);
-
-    class Stream;
-    friend class Stream;
    
 public:
     unsigned SetNonBlocking(bool nonblocking);
@@ -77,31 +84,58 @@ public:
 
     unsigned Connect(const IPEndPoint&);
 
-    /** direction is PollerInterface::IN and/or OUT
-     */
-    int GetPollHandle(unsigned int direction);
+    PollHandle GetReadHandle();
+    PollHandle GetWriteHandle();
 
     bool IsOpen() const;
     unsigned Close();
 
-    StreamPtr CreateStream(unsigned int timeout_ms = 5000);
+    /** Reads up to len bytes without removing them from the input buffer.
+     *
+     * Note that on Windows (http://support.microsoft.com/kb/140263) you can't
+     * just go on peeking waiting for enough to arrive; you have to do a real
+     * read and then peek again.
+     */
+    unsigned ReadPeek(void *buffer, size_t len, size_t *pread);
+
+    /** Get amount of data in input buffer (i.e. how much we can Read)
+     */
+    unsigned GetReadable(size_t *preadable);
+
+    // Being a Stream
+    unsigned Read(void *buffer, size_t len, size_t *pread);
+    unsigned Write(const void *buffer, size_t len, size_t *pwrote);
+
+    /** Set the (automatic) timeout on Read and Write. Default is 5000ms.
+     *
+     * Clients which deal with EWOULDBLOCK themselves can use 0.
+     */
+    void SetTimeoutMS(unsigned int ms) { m_timeout_ms = ms; }
 };
 
-/** UDP socket */
+/** UDP socket
+ *
+ * Note that a UDP socket isn't quite like other Streams, in that Read() has
+ * the UDP recv() semantics.
+ */
 class DatagramSocket: public Socket
 {
 public:
     DatagramSocket();
-    DatagramSocket(const DatagramSocket& other);
-
     ~DatagramSocket();
 
     unsigned EnableBroadcast(bool broadcastable);
+    unsigned JoinMulticastGroup(IPAddress);
+    unsigned SetOutgoingMulticastInterface(IPAddress);
 
+    using Stream::Read;
     unsigned Read(void *buffer, size_t buflen, size_t *nread,
 		  IPEndPoint *wasfrom, IPAddress *wasto);
+    unsigned Read(std::string*, IPEndPoint *wasfrom, IPAddress *wasto);
 
+    using Stream::Write;
     unsigned Write(const void *buffer, size_t buflen, const IPEndPoint& to);
+    unsigned Write(const std::string&, const IPEndPoint& to);
 };
 
 /** TCP socket */
@@ -109,16 +143,21 @@ class StreamSocket: public Socket
 {
     explicit StreamSocket(int fd);
 
-public:
     StreamSocket();
+public:
+    typedef boost::intrusive_ptr<StreamSocket> StreamSocketPtr;
+
+    static StreamSocketPtr Create() { return new StreamSocket; }
     
     unsigned Listen(unsigned int queue = 64);
-    unsigned Accept(StreamSocket *accepted);
+    unsigned Accept(StreamSocketPtr *accepted);
    
     unsigned Open();
 
     unsigned SetCork(bool corked);
 };
+
+typedef boost::intrusive_ptr<StreamSocket> StreamSocketPtr;
 
 } // namespace util
 

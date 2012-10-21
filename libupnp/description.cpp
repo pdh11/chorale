@@ -1,176 +1,137 @@
-#include "config.h"
 #include "description.h"
+#include "libutil/string_stream.h"
+#include "libutil/xml.h"
 #include "libutil/trace.h"
-#include "libutil/http_client.h"
-
-#ifdef HAVE_UPNP
-
-#include <upnp/upnp.h>
-#include <upnp/ixml.h>
+#include "libutil/http_fetcher.h"
 
 namespace upnp {
 
-static std::string GetChildNode(IXML_Node *node, const char *searchFor)
+struct XMLDevice
 {
-    std::string result;
-    if (node->nodeType == eELEMENT_NODE)
-    {
-	IXML_Element *element = (IXML_Element*) node;
-	IXML_NodeList *nl2 = ixmlElement_getElementsByTagName(element,
-							      const_cast<char *>(searchFor));
-	if (nl2)
-	{
-	    IXML_Node *node2 = ixmlNodeList_item(nl2, 0);
-	    if (node2)
-	    {
-		IXML_Node *textnode = ixmlNode_getFirstChild(node2);
-		if (textnode)
-		{
-		    const DOMString ds2 = ixmlNode_getNodeValue(textnode);
-		    if (ds2)
-		    {
-//			TRACE << "found2 '" << ds2 << "'\n";
-			result = ds2;
-		    }
-		    else
-			TRACE << "no value\n";
-		}
-		else
-		    TRACE << "no textnode\n";
-	    }
-	    else
-		TRACE << "no node\n";
-	    
-	    ixmlNodeList_free(nl2);
-	}
-	else
-	    TRACE << "no nodelist 2\n";
-    }
-    else
-	TRACE << "no element\n";
-    return result;
-}
+    std::string udn;
+    std::string friendly_name;
+    std::string presentation_url;
+    std::list<ServiceData> services;
+    std::list<XMLDevice> embedded_devices;
+};
 
-unsigned Description::Fetch(const std::string& url, const std::string& udn)
+struct XMLDescription
 {
-    IXML_Document *xmldoc = NULL;
-//    TRACE << "downloading " << url << "\n";
-    int rc = UpnpDownloadXmlDoc(url.c_str(), &xmldoc);
+    std::string url_base;
+    XMLDevice root_device;
+};
 
+extern const char SERVICELIST[] = "serviceList";
+extern const char SERVICE[] = "service";
+extern const char SERVICETYPE[] = "serviceType";
+extern const char SERVICEID[] = "serviceId";
+extern const char CONTROLURL[] = "controlURL";
+extern const char EVENTSUBURL[] = "eventSubURL";
+extern const char SCPDURL[] = "SCPDURL";
+extern const char UDN[] = "UDN";
+extern const char FRIENDLYNAME[] = "friendlyName";
+extern const char PRESENTATIONURL[] = "presentationURL";
+
+extern const char ROOT[] = "root";
+extern const char URLBASE[] = "URLBase";
+extern const char DEVICE[] = "device";
+extern const char DEVICELIST[] = "deviceList";
+extern const char DEVICETYPE[] = "deviceType";
+
+typedef xml::Tag<SERVICELIST,
+		 xml::List<SERVICE, ServiceData,
+			   XMLDevice, &XMLDevice::services,
+			   xml::TagMember<SERVICETYPE, ServiceData,
+					  &ServiceData::type>,
+			   xml::TagMember<SERVICEID, ServiceData,
+					  &ServiceData::id>,
+			   xml::TagMember<CONTROLURL, ServiceData,
+					  &ServiceData::control_url>,
+			   xml::TagMember<EVENTSUBURL, ServiceData,
+					  &ServiceData::event_url>,
+			   xml::TagMember<SCPDURL, ServiceData,
+					  &ServiceData::scpd_url>
+> > ServiceListParser;
+
+typedef xml::Parser<
+    xml::Tag<ROOT,
+	     xml::TagMember<URLBASE, XMLDescription,
+			    &XMLDescription::url_base>,
+	     xml::Structure<DEVICE, XMLDevice,
+			    XMLDescription, &XMLDescription::root_device,
+			    xml::TagMember<FRIENDLYNAME, XMLDevice,
+					   &XMLDevice::friendly_name>,
+			    xml::TagMember<UDN, XMLDevice,
+					   &XMLDevice::udn>,
+			    xml::TagMember<PRESENTATIONURL, XMLDevice,
+					   &XMLDevice::presentation_url>,
+			    ServiceListParser,
+			    xml::Tag<DEVICELIST,
+				     xml::List<DEVICE, XMLDevice,
+					       XMLDevice, &XMLDevice::embedded_devices,
+					       xml::TagMember<FRIENDLYNAME, XMLDevice,
+							      &XMLDevice::friendly_name>,
+					       xml::TagMember<UDN, XMLDevice,
+							      &XMLDevice::udn>,
+					       xml::TagMember<PRESENTATIONURL, XMLDevice,
+							      &XMLDevice::presentation_url>,
+					       ServiceListParser
+> > > > > DescriptionParser;
+
+unsigned Description::Parse(const std::string& description,
+			    const std::string& url,
+			    const std::string& udn)
+{
+    util::SeekableStreamPtr sp = util::StringStream::Create(description);
+
+    XMLDescription xd;
+    DescriptionParser parser;
+    unsigned rc = parser.Parse(sp, &xd);
     if (rc)
-	TRACE << "UDXD " << rc << "\n";
-
-    if (rc == 0 && xmldoc)
     {
-//	DOMString ds = ixmlPrintDocument(xmldoc);
-//	TRACE << ds << "\n";
-//	ixmlFreeDOMString(ds);
+	TRACE << "Can't parse description\n";
+	return rc;
+    }
 
-	IXML_Node *device_root = NULL;
-
-	IXML_NodeList *udns = ixmlDocument_getElementsByTagName(xmldoc,
-								    const_cast<char *>("UDN"));
-	if (udns)
+    const XMLDevice *d = &xd.root_device;
+    if (d->udn != udn)
+    {
+	for (std::list<XMLDevice>::const_iterator i = d->embedded_devices.begin();
+	     i != d->embedded_devices.end();
+	     ++i)
 	{
-	    size_t devicecount = ixmlNodeList_length(udns);
-//	    TRACE << devicecount << " devices\n";
-	    for (unsigned int i=0; i<devicecount; ++i)
+	    if (i->udn == udn)
 	    {
-		IXML_Node *node = ixmlNodeList_item(udns, i);
-		if (node)
-		{
-//		    TRACE << "udn=" << node->firstChild->nodeValue << "\n";
-//		    IXML_Node *dev = node->parentNode;
-//		    TRACE << "dev->name=" << dev->nodeName << " value="
-//			  << dev->nodeValue << "\n";
-		    if (node 
-			&& node->firstChild 
-			&& node->firstChild->nodeValue 
-			&& udn == node->firstChild->nodeValue)
-		    {
-			device_root = node->parentNode;
-			break;
-		    }
-		}
+		d = &(*i);
+		break;
 	    }
-	    ixmlNodeList_free(udns);
 	}
-
-	if (!device_root)
+	if (d->udn != udn)
 	{
-	    TRACE << "UDN " << udn << " not found on this device\n";
-	}
-	else
-	{
-	    m_udn = udn;
-	    std::string base_url;
-	
-	    for (IXML_Node *node = device_root->firstChild;
-		 node != NULL;
-		 node = node->nextSibling)
-	    {
-		if (!strcmp(node->nodeName, "URLBase")
-		    && node->firstChild
-		    && node->firstChild->nodeValue)
-		    base_url = node->firstChild->nodeValue;
-		else if (!strcmp(node->nodeName, "friendlyName")
-		    && node->firstChild
-		    && node->firstChild->nodeValue)
-		    m_friendly_name = node->firstChild->nodeValue;
-		else if (!strcmp(node->nodeName, "presentationURL")
-		    && node->firstChild
-		    && node->firstChild->nodeValue)
-		    m_presentation_url = node->firstChild->nodeValue;
-	    }
-		
-	    if (base_url.empty())
-		base_url = url;
-	    
-//	    TRACE << "fn '" << m_friendly_name << "'\n";
-	    
-	    if (!m_presentation_url.empty())
-		m_presentation_url = util::ResolveURL(base_url,
-						      m_presentation_url);
-
-	    for (IXML_Node *node = device_root->firstChild;
-		 node != NULL;
-		 node = node->nextSibling)
-	    {
-		if (!strcmp(node->nodeName, "serviceList")
-		    && node->firstChild)
-		{
-		    for (IXML_Node *service = node->firstChild;
-			 service != NULL;
-			 service = service->nextSibling)
-		    {
-			ServiceData svc;
-			svc.type = GetChildNode(service, "serviceType");
-			svc.id = GetChildNode(service, "serviceId");
-			svc.control_url 
-			    = util::ResolveURL(base_url,
-					       GetChildNode(service, "controlURL"));
-			svc.event_url
-			    = util::ResolveURL(base_url,
-					       GetChildNode(service, "eventSubURL"));
-			svc.scpd_url
-			    = util::ResolveURL(base_url, 
-					   GetChildNode(service, "SCPDURL"));
-//			TRACE << "service " << svc.type << "\n";
-			m_services[svc.type] = svc;
-		    }
-		}
-	    }
+	    TRACE << "UDN not found in description\n";
+	    return ENOENT;
 	}
     }
 
-    if (xmldoc)
+    m_udn = udn;
+    m_friendly_name = d->friendly_name;
+    std::string base_url = xd.url_base.empty() ? url : xd.url_base;
+    if (!d->presentation_url.empty())
+	m_presentation_url = util::http::ResolveURL(base_url,
+						    d->presentation_url);
+
+    for (std::list<ServiceData>::const_iterator i = d->services.begin();
+	 i != d->services.end();
+	 ++i)
     {
-	ixmlDocument_free(xmldoc);
+	ServiceData sd = *i;
+	sd.control_url = util::http::ResolveURL(base_url, sd.control_url);
+	sd.event_url = util::http::ResolveURL(base_url, sd.event_url);
+	sd.scpd_url = util::http::ResolveURL(base_url, sd.scpd_url);
+	m_services[sd.type] = sd;
     }
 
     return 0;
 }
 
 } // namespace upnp
-
-#endif // HAVE_UPNP

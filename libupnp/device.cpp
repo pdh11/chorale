@@ -6,75 +6,66 @@
 
 namespace upnp {
 
-Service::Service(const char *type, const char *scpdurl)
-    : m_type(type), m_scpdurl(scpdurl), m_device(NULL)
+Device::Device(const char *device_type)
+    : m_server(NULL),
+      m_device_type(device_type),
+      m_friendly_name(PACKAGE_NAME)
 {
+}
+
+unsigned int Device::Init(Server *server, const std::string& resource)
+{
+    m_udn = server->RegisterDevice(this, resource);
+    m_server = server;
+    return 0;
+}
+
+void Device::RegisterService(Service *service)
+{
+    m_services.push_back(service);
+}
+
+Service *Device::FindServiceByID(const char *service_id) const
+{
+    for (services_t::const_iterator i = m_services.begin();
+	 i != m_services.end();
+	 ++i)
+    {
+	if (!strcmp((*i)->GetServiceID(), service_id))
+	    return *i;
+    }
+    return NULL;
+}
+
+void Device::FireEvent(Service *service, const char *variable,
+		       const std::string& value)
+{
+    if (!m_server)
+	TRACE << "Not initialised\n";
+    else
+	m_server->FireEvent(service, variable, value);
+}
+
+
+Service::Service(Device* device, const char *service_id, 
+		 const char *service_type, const char *scpd_url)
+    : m_device(device),
+      m_service_id(service_id),
+      m_service_type(service_type),
+      m_scpd_url(scpd_url)
+{
+    device->RegisterService(this);
 }
 
 void Service::FireEvent(const char *var, const std::string& value)
 {
-    if (m_device)
-	m_device->FireEvent(m_service_id, var, value);
-    else
-	TRACE << "No event -- no device\n";
+    m_device->FireEvent(this, var, value);
 }
 
 void Service::FireEvent(const char *var, unsigned int value)
 {
-    if (m_device)
-    {
-	std::string s = (boost::format("%u") % value).str();
-	m_device->FireEvent(m_service_id, var, s);
-    }
-    else
-	TRACE << "No event -- no device\n";
-}
-
-Device::Device(const char *type, const std::string& resource)
-    : m_type(type),
-      m_resource(resource),
-      m_friendly_name(PACKAGE_NAME),
-      m_server(NULL)
-{
-}
-
-void Device::AddService(const char *service_id, Service *service)
-{
-    m_services[service_id] = service;
-    service->m_device = this;
-    service->m_service_id = service_id;
-}
-
-void Device::AddEmbeddedDevice(Device *edev)
-{
-    m_devices.insert(edev);
-}
-
-Device *Device::FindByUDN(const char *udn)
-{
-    if (udn == ("uuid:" + m_uuid))
-	return this;
-
-    for (devices_t::const_iterator i = m_devices.begin();
-	 i != m_devices.end();
-	 ++i)
-    {
-	Device *d = (*i)->FindByUDN(udn);
-	if (d)
-	    return d;
-    }
-
-    TRACE << "can't find device '" << udn << "' uuid='uuid:" << m_uuid << "'\n";
-    return NULL;
-}
-
-void Device::FireEvent(const char *serviceid, const char *variable,
-		       const std::string& value)
-{
-    if (m_server)
-	m_server->FireEvent("uuid:" + m_uuid, serviceid, variable, value);
-    else
-	TRACE << "No event -- no server\n";
+    std::string s = (boost::format("%u") % value).str();
+    m_device->FireEvent(this, var, s);
 }
 
 } // namespace upnp

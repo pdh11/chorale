@@ -10,6 +10,14 @@ SRCS:= \
 	cd_window.cpp \
 	cd_window.moc.cpp \
 	choralecd.cpp \
+	cloud.cpp \
+	cloud_database_widget.cpp \
+	cloud_database_widget.moc.cpp \
+	cloud_style.cpp \
+	cloud_style.moc.cpp \
+	cloud_upnp_databases.cpp \
+	cloud_window.cpp \
+	cloud_window.moc.cpp \
 	db_widget.cpp \
 	db_widget.moc.cpp \
 	explorer_window.cpp \
@@ -35,14 +43,18 @@ SRCS:= \
 	tree_model.moc.cpp
 
 choralecd:=$(TOP)$(DIR)choralecd
+cloud:=$(TOP)$(DIR)cloud
 
-all-choralecd: $(choralecd)
+all-choralecd: $(choralecd) $(cloud)
 
 include $(TOP)Make.common
 
-CLEANS += $(choralecd) $(TOP)$(DIR)*.moc.cpp
+libchoralecd:=$(TOP)$(DIR)$(TARGETDIR)libchoralecd.a
+
+CLEANS += $(choralecd) $(TOP)$(DIR)*.moc.cpp $(choralecd).map.txt
 
 CHORALECD_OBJS:=$(LOBJS)
+CHORALECD_DIR:=$(DIR)
 
 $(TOP)$(DIR)% : CXXFLAGS += $(BOOST_CXXFLAGS) $(QT_CXXFLAGS) \
 		$(TAGLIB_CXXFLAGS) -Wno-shadow
@@ -86,23 +98,46 @@ endif
 
 ifeq ($(QT),yes)
 
+$(libchoralecd): $(CHORALECD_OBJS)
+	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
+		$(CC) -o $@ $(CHORALECD_OBJS)
+
 all: all-choralecd
 install: install-choralecd
 
-$(choralecd): $(CHORALECD_OBJS) $(libutil) $(libimport) $(libdbreceiver) \
+$(choralecd): $(libchoralecd) $(libutil) $(libimport) $(libdbreceiver) \
 		$(libreceiver) $(libdbupnp) $(libmediatree) \
 		$(libmediadb) $(libupnp) $(libdbempeg) $(libempeg) \
 		$(libdbsteam) $(libdb) $(liboutput)
 	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
-		$(CC) -o $@ $(CHORALECD_OBJS) \
+		$(CXX) -o $@ $(TOP)$(CHORALECD_DIR)$(TARGETDIR)choralecd.lo \
+		$(libchoralecd) \
 		$(libmediatree) $(libdbupnp) $(libimport) $(libdbempeg) \
 		$(libdbreceiver) $(liboutput) $(libupnp) $(libmediadb) \
 		$(libdbsteam) $(libdb) $(libreceiver) $(libempeg) $(libupnp) \
-		$(libutil) -Wl,--as-needed $(LIBCDIOP_LIBS) $(LIBCDDB_LIBS) \
+		$(libutil) -Wl,--as-needed $(PARANOIA_LIBS) \
+		$(LIBCDIOP_LIBS) $(LIBCDDB_LIBS) \
 		$(LIBFLAC_LIBS) $(TAGLIB_LIBS) $(BOOST_LIBS) $(QT_LIBS) \
-		$(LAME_LIBS) $(CURL_LIBS) $(UPNP_LIBS) \
+		$(LAME_LIBS) \
 		$(GSTREAMER_LIBS) $(HAL_LIBS) -Wl,-Map,$@.map.txt
 	@echo $@: `ldd $@ | wc -l` shared libraries | fmt
+
+$(cloud): $(libchoralecd) $(libutil) $(libimport) $(libdbreceiver) \
+		$(libreceiver) $(libdbupnp) $(libmediatree) \
+		$(libmediadb) $(libupnp) $(libdbempeg) $(libempeg) \
+		$(libdbsteam) $(libdb) $(liboutput)
+	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
+		$(CXX) -o $@ $(TOP)$(CHORALECD_DIR)$(TARGETDIR)cloud.lo \
+		$(libchoralecd) \
+		$(libmediatree) $(libdbupnp) $(libimport) $(libdbempeg) \
+		$(libdbreceiver) $(liboutput) $(libupnp) $(libmediadb) \
+		$(libdbsteam) $(libdb) $(libreceiver) $(libempeg) $(libupnp) \
+		$(libutil) \
+		-Wl,--as-needed $(PARANOIA_LIBS) \
+		$(LIBCDIOP_LIBS) $(LIBCDDB_LIBS) \
+		$(LIBFLAC_LIBS) $(TAGLIB_LIBS) $(BOOST_LIBS) $(QT_LIBS) \
+		$(LAME_LIBS) \
+		$(GSTREAMER_LIBS) $(HAL_LIBS)
 
 else
 $(choralecd):

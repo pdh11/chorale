@@ -6,11 +6,13 @@
 #include "widget_factory.h"
 #include "resource_widget.h"
 #include "libreceiver/ssdp.h"
-#include "libutil/ssdp.h"
+#include "libupnp/ssdp.h"
 #include "libempeg/discovery.h"
 
 namespace mediadb { class Database; }
 namespace mediadb { class Registry; }
+namespace util { namespace http { class Client; } }
+namespace util { namespace http { class Server; } }
 
 namespace choraleqt {
 
@@ -41,9 +43,11 @@ class ReceiverDBWidgetFactory: public WidgetFactory,
     QPixmap *m_pixmap;
     QWidget *m_parent;
     mediadb::Registry *m_registry;
+    util::http::Client *m_http;
 
 public:
-    ReceiverDBWidgetFactory(QPixmap*, mediadb::Registry *m_registry);
+    ReceiverDBWidgetFactory(QPixmap*, mediadb::Registry *m_registry,
+			    util::http::Client *http);
 
     // Being a WidgetFactory
     void CreateWidgets(QWidget *parent);
@@ -55,19 +59,22 @@ public:
 /** A WidgetFactory which creates DBWidget items for UPnP A/V media servers.
  */
 class UpnpDBWidgetFactory: public WidgetFactory,
-			   public util::ssdp::Client::Callback
+			   public upnp::ssdp::Responder::Callback
 {
     QPixmap *m_pixmap;
     QWidget *m_parent;
     mediadb::Registry *m_registry;
+    util::http::Client *m_client;
+    util::http::Server *m_server;
 
 public:
-    UpnpDBWidgetFactory(QPixmap*, mediadb::Registry *m_registry);
-
+    UpnpDBWidgetFactory(QPixmap*, mediadb::Registry *m_registry,
+			util::http::Client*, util::http::Server*);
+    
     // Being a WidgetFactory
     void CreateWidgets(QWidget *parent);
 
-    // Being a util::ssdp::Client::Callback
+    // Being a upnp::ssdp::Responder::Callback
     void OnService(const std::string& url, const std::string& udn);
 };
 
@@ -79,9 +86,11 @@ class EmpegDBWidgetFactory: public WidgetFactory,
     QPixmap *m_pixmap;
     QWidget *m_parent;
     mediadb::Registry *m_registry;
+    util::http::Server *m_server;
 
 public:
-    EmpegDBWidgetFactory(QPixmap*, mediadb::Registry *m_registry);
+    EmpegDBWidgetFactory(QPixmap*, mediadb::Registry *m_registry, 
+			 util::http::Server*);
 
     // Being a WidgetFactory
     void CreateWidgets(QWidget *parent);

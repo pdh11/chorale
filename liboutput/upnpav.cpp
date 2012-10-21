@@ -1,25 +1,24 @@
 #include "config.h"
 #include "upnpav.h"
 #include "libutil/trace.h"
-#include "libutil/upnp.h"
-#include "libutil/ssdp.h"
 #include "libutil/xmlescape.h"
+#include "libutil/xml.h"
+#include "libutil/string_stream.h"
 #include "libutil/poll.h"
 #include "libupnp/description.h"
 #include "libupnp/soap.h"
+#include "libupnp/ssdp.h"
 #include "libupnp/AVTransport2_client.h"
 #include "libupnp/ConnectionManager2_client.h"
 #include <errno.h>
 
-#ifdef HAVE_UPNP
-
-#include <upnp/ixml.h>
-
 namespace output {
 namespace upnpav {
 
-URLPlayer::URLPlayer()
-    : m_state(STOP),
+URLPlayer::URLPlayer(util::http::Client *client,
+		     util::http::Server *server)
+    : m_upnp(client, server),
+      m_state(STOP),
       m_poller(NULL)
 {
 }
@@ -39,96 +38,69 @@ unsigned URLPlayer::Init(const std::string& url, const std::string& udn,
 
     m_friendly_name = m_upnp.GetDescription().GetFriendlyName();
 
-    rc = m_avtransport.Init(&m_upnp, util::ssdp::s_uuid_avtransport);
+    rc = m_avtransport.Init(&m_upnp, upnp::s_service_type_av_transport);
     if (rc != 0)
 	return rc;
     m_avtransport.AddObserver(this);
 
     rc = m_connectionmanager.Init(&m_upnp, 
-				  util::ssdp::s_uuid_connectionmanager);
+				  upnp::s_service_type_connection_manager);
     if (rc != 0)
 	return rc;
 
     return 0;
 }
 
+unsigned int URLPlayer::OnTransportState(const std::string& state)
+{
+    TRACE << "Got TransportState " << state << "\n";
+    output::PlayState ps = output::STOP;
+    if (state == "PLAYING" || state == "TRANSITIONING")
+	ps = output::PLAY;
+    else if (state == "PAUSED_PLAYBACK")
+	ps = output::PAUSE;
+    
+    Fire(&URLObserver::OnPlayState, ps);
+			    
+    if (ps == output::PLAY && m_state != output::PLAY)
+	m_poller->Add(0, 500, this);
+    else 
+	if (ps != output::PLAY && m_state == output::PLAY)
+	    m_poller->Remove(this);
+    
+    m_state = ps;
+    return 0;
+}
+
+unsigned int URLPlayer::OnAVTransportURI(const std::string& url)
+{
+    TRACE << "Got URL " << url << "\n";
+    Fire(&URLObserver::OnURL, url);
+    return 0;
+}
+
+extern const char EVENT[] = "Event";
+extern const char INSTANCEID[] = "InstanceID";
+extern const char TRANSPORTSTATE[] = "TransportState";
+extern const char AVTRANSPORTURI[] = "AVTransportURI";
+extern const char VAL[] = "val";
+
+typedef xml::Parser<
+    xml::Tag<EVENT,
+	     xml::Tag<INSTANCEID,
+		      xml::Tag<TRANSPORTSTATE,
+			       xml::Attribute<VAL, URLPlayer,
+					      &URLPlayer::OnTransportState> >,
+		      xml::Tag<AVTRANSPORTURI,
+			       xml::Attribute<VAL, URLPlayer,
+					      &URLPlayer::OnAVTransportURI> >
+> > > LastChangeParser;
+			       
 void URLPlayer::OnLastChange(const std::string& value)
 {
-    IXML_Document *innerdoc = ixmlParseBuffer(const_cast<char *>(value.c_str()));
-    if (innerdoc)
-    {
-	IXML_NodeList *nl2 
-	    = ixmlDocument_getElementsByTagName(innerdoc,
-						const_cast<char *>("AVTransportURI"));
-	if (nl2)
-	{
-	    IXML_Node *node = ixmlNodeList_item(nl2, 0);
-	    if (node)
-	    {
-		IXML_NamedNodeMap *nnm =
-		    ixmlNode_getAttributes(node);
-		if (nnm)
-		{
-		    IXML_Node *textnode = ixmlNamedNodeMap_getNamedItem(nnm,
-							     const_cast<char *>("val"));
-		    if (textnode)
-		    {
-			const DOMString ds = ixmlNode_getNodeValue(textnode);
-			if (ds)
-			{
-			    std::string url = ds;
-			    TRACE << "Got URL " << url << "\n";
-			    Fire(&URLObserver::OnURL, url);
-			}
-		    }
-		}
-	    }
-	    ixmlNodeList_free(nl2);
-	}
-	nl2 = ixmlDocument_getElementsByTagName(innerdoc,
-						const_cast<char *>("TransportState"));
-	if (nl2)
-	{
-	    IXML_Node *node = ixmlNodeList_item(nl2, 0);
-	    if (node)
-	    {
-		IXML_NamedNodeMap *nnm =
-		    ixmlNode_getAttributes(node);
-		if (nnm)
-		{
-		    IXML_Node *textnode = ixmlNamedNodeMap_getNamedItem(nnm,
-							     const_cast<char *>("val"));
-		    if (textnode)
-		    {
-			const DOMString ds = ixmlNode_getNodeValue(textnode);
-			if (ds)
-			{
-			    std::string state = ds;
-			    TRACE << "Got TransportState " << state << "\n";
-			    output::PlayState ps = output::STOP;
-			    if (state == "PLAYING" || state == "TRANSITIONING")
-				ps = output::PLAY;
-			    else if (state == "PAUSED_PLAYBACK")
-				ps = output::PAUSE;
-			    
-			    Fire(&URLObserver::OnPlayState, ps);
-			    
-			    if (ps == output::PLAY && m_state != output::PLAY)
-				    m_poller->AddTimer(0, 500, this);
-			    else 
-				if (ps != output::PLAY && m_state == output::PLAY)
-				    m_poller->RemoveTimer(this);
-
-			    m_state = ps;
-			}
-		    }
-		}
-	    }
-	    ixmlNodeList_free(nl2);
-	}
-	
-	ixmlDocument_free(innerdoc);
-    }
+    LastChangeParser lcp;
+    util::StreamPtr sp = util::StringStream::Create(value);
+    lcp.Parse(sp, this);
 }
 
 unsigned int URLPlayer::SetURL(const std::string& url,
@@ -187,7 +159,7 @@ unsigned int URLPlayer::OnTimer()
     else
     {
 	TRACE << "Don't like timecode string '" << tcstr << "'\n";
-	m_poller->RemoveTimer(this);
+	m_poller->Remove(this);
     }
 
     return 0;
@@ -205,5 +177,3 @@ void URLPlayer::RemoveObserver(URLObserver *obs)
 
 } // namespace upnpav
 } // namespace output
-
-#endif // HAVE_UPNP

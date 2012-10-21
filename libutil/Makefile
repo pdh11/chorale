@@ -1,6 +1,7 @@
 TOP?=../
 DIR:=libutil/
-SRCS:=	async_write_buffer.cpp \
+SRCS:= \
+	async_write_buffer.cpp \
 	counted_object.cpp \
 	cpus.cpp \
 	dbus.cpp \
@@ -12,28 +13,31 @@ SRCS:=	async_write_buffer.cpp \
 	file_stream_win32.cpp \
 	hal.cpp \
 	http_client.cpp \
+	http_fetcher.cpp \
+	http_parser.cpp \
+	http_server.cpp \
 	http_stream.cpp \
+	ip_config.cpp \
 	line_reader.cpp \
 	memory_stream.cpp \
 	multi_stream.cpp \
 	partial_stream.cpp \
+	peeking_line_reader.cpp \
 	poll.cpp \
 	poll_posix.cpp \
 	poll_win32.cpp \
+	pollable_task.cpp \
+	poll_thread.cpp \
 	quote_escape.cpp \
 	socket.cpp \
-	ssdp.cpp \
 	stream.cpp \
 	stream_test.cpp \
 	string_stream.cpp \
 	task.cpp \
 	trace.cpp \
-	upnp.cpp \
 	urlescape.cpp \
 	utf8.cpp \
 	walker.cpp \
-	web_server.cpp \
-	worker_thread.cpp \
 	worker_thread_pool.cpp \
 	xml.cpp \
 	xmlescape.cpp
@@ -41,23 +45,26 @@ SRCS:=	async_write_buffer.cpp \
 TEST_SRCS:= \
 	async_write_buffer.cpp \
 	dbus.cpp \
+	diff.cpp \
 	file.cpp \
 	file_stream_posix.cpp \
 	hal.cpp \
 	http_client.cpp \
+	http_fetcher.cpp \
+	http_server.cpp \
 	http_stream.cpp \
+	ip_config.cpp \
 	line_reader.cpp \
 	memory_stream.cpp \
 	partial_stream.cpp \
 	poll.cpp \
+	pollable_task.cpp \
 	quote_escape.cpp \
-	ssdp.cpp \
 	stream.cpp \
 	string_stream.cpp \
 	urlescape.cpp \
 	utf8.cpp \
 	walker.cpp \
-	web_server.cpp \
 	xml.cpp \
 	xmlescape.cpp
 
@@ -74,10 +81,9 @@ all-util: $(libutil)
 UTIL_OBJS:=$(LOBJS)
 UTIL_TESTS:=$(TESTS)
 
-$(TOP)$(DIR)% : CXXFLAGS += $(BOOST_CXXFLAGS) $(CURL_CXXFLAGS) \
-	$(DBUS_CXXFLAGS) $(HAL_CXXFLAGS) $(UPNP_CXXFLAGS)
+$(TOP)$(DIR)% : CXXFLAGS += $(BOOST_CXXFLAGS) $(DBUS_CXXFLAGS) $(HAL_CXXFLAGS)
 
-$(UTIL_TESTS): TEST_LIBS+= $(BOOST_LIBS) $(CURL_LIBS) $(UPNP_LIBS) $(DBUS_LIBS) $(HAL_LIBS)
+$(UTIL_TESTS): TEST_LIBS+= $(BOOST_LIBS) $(DBUS_LIBS) $(HAL_LIBS) $(LIBS)
 
 $(UTIL_TESTS): $(libutil)
 

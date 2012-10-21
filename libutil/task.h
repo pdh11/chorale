@@ -1,10 +1,8 @@
 #ifndef TASK_H
 #define TASK_H
 
-#include <string>
-#include <deque>
-#include <boost/thread/condition.hpp>
 #include "counted_object.h"
+#include <boost/thread/mutex.hpp>
 
 namespace util {
 
@@ -38,7 +36,7 @@ protected:
 public:
     Task();
     virtual ~Task() {}
-    virtual void Run() = 0;
+    virtual unsigned int Run() = 0;
     virtual void Cancel() {} // NYI
     void SetObserver(TaskObserver*);
 };
@@ -46,30 +44,17 @@ public:
 typedef boost::intrusive_ptr<Task> TaskPtr;
 
 
-/** A queue of tasks waiting to be executed on one (or more)
- * background threads.
+/** Something to which tasks can be pushed (most likely a pool of background
+ * threads).
  */
 class TaskQueue
 {
-    boost::mutex m_deque_mutex;
-    boost::condition m_dequenotempty;
-    typedef std::deque<TaskPtr> deque_t;
-    deque_t m_deque;
-    unsigned m_nthreads;
-    unsigned m_waiting;
-
 public:
-    TaskQueue();
+    virtual ~TaskQueue() {}
 
-    /** Needs to know how many threads so it can calculate Count. If you never
-     * call this, assumes 1.
-     */
-    void SetNThreads(unsigned nthreads) { m_nthreads = nthreads; }
-
-    void PushTask(TaskPtr);
-    TaskPtr PopTask();
-    bool AnyWaiting();
-    size_t Count();
+    virtual void PushTask(TaskPtr) = 0;
+    virtual bool AnyWaiting() = 0;
+    virtual size_t Count() = 0;
 };
 
 } // namespace util

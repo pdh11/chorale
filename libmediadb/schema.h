@@ -55,7 +55,9 @@ enum { SCHEMA_VERSION = 1 };
 /** Special values of ID field */
 enum {
     BROWSE_ROOT = 0x100,
-    RADIO_ROOT  =  0xf0
+    RADIO_ROOT  =  0xf0,
+    EPG_ROOT    =  0xe0,
+    TV_ROOT     =  0xd0
 };
 
 /** Values of TYPE field */

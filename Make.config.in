@@ -8,7 +8,7 @@ LDFLAGS    := @LDFLAGS@
 
 #BOOST_CXXFLAGS := @BOOST_CPPFLAGS@
 #BOOST_LDFLAGS  := @BOOST_LDFLAGS@
-BOOST_LIBS     := @BOOST_THREAD_LIB@ @BOOST_REGEX_LIB@
+BOOST_LIBS     := @BOOST_LDFLAGS@ @BOOST_THREAD_LIB@ @BOOST_REGEX_LIB@
 
 HAVE_CONVERT := @HAVE_CONVERT@
 CONVERT := @CONVERT@
@@ -51,6 +51,9 @@ LAME_LIBS         := @LAME_LIBS@
 MPG123_CXXFLAGS   := @MPG123_CFLAGS@
 MPG123_LIBS       := @MPG123_LIBS@
 
+PARANOIA          := @PARANOIA@
+PARANOIA_LIBS     := @PARANOIA_LIBS@
+
 QT              := @QT@
 QT_CXXFLAGS	:= @QT_CFLAGS@ -DQT3_SUPPORT
 QT_LIBS		:= @QT_LIBS@
@@ -59,11 +62,6 @@ MOC		:= @QT_MOC@
 TAGLIB_CFLAGS   := @TAGLIB_CFLAGS@
 TAGLIB_CXXFLAGS := @TAGLIB_CFLAGS@
 TAGLIB_LIBS     := @TAGLIB_LIBS@
-
-UPNP            := @UPNP@
-UPNP_CFLAGS     := @UPNP_CFLAGS@ -DUPNP_STATIC_LIB
-UPNP_CXXFLAGS   := @UPNP_CFLAGS@ -DUPNP_STATIC_LIB
-UPNP_LIBS       := @UPNP_LIBS@
 
 HAVE_XSLTPROC   := @HAVE_XSLTPROC@
 XSLTPROC        := @XSLTPROC@
@@ -75,10 +73,15 @@ top_builddir:=@abs_top_builddir@
 
 INSTALL:=@INSTALL@
 LIBTOOL:=@LIBTOOL@
+CC:=@CC@
 CXX:=@CXX@
+GCOV:=@GCOV@
 LIBS:=@LIBS@
 FINAL:=@FINAL@
 STRIP:=@STRIP@
+
+HAVE_VALGRIND:=@HAVE_VALGRIND@
+VALGRIND_OPTS:=@VALGRIND_OPTS@
 
 # Overridable on 'make' command line, see Autoconf manual 4.7.2
 prefix=@prefix@
@@ -87,3 +90,4 @@ bindir=@bindir@
 datadir=@datadir@
 datarootdir=@datarootdir@
 localstatedir=@localstatedir@
+mandir=@mandir@

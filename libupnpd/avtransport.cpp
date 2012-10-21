@@ -12,12 +12,14 @@ AVTransportImpl::AVTransportImpl(output::URLPlayer *player)
       m_state(output::STOP),
       m_timecodesec(0)
 {
-    m_player->AddObserver(this);
+    if (m_player)
+	m_player->AddObserver(this);
 }
 
 AVTransportImpl::~AVTransportImpl()
 {
-    m_player->SetPlayState(output::STOP);
+    if (m_player)
+	m_player->SetPlayState(output::STOP);
 }
 
 unsigned int AVTransportImpl::SetAVTransportURI(uint32_t, 

@@ -17,7 +17,7 @@ endif
 # Autoconf stuff for remaking 'configure' and 'Make.config'
 
 $(TOP)configure: $(TOP)configure.ac $(TOP)aclocal.m4
-	autoconf
+	(cd ./$(TOP) && autoconf)
 
 configure:=configure
 
@@ -25,8 +25,9 @@ configure:=configure
 $(TOP)config.h.in: $(TOP)stamp-h.in
 
 $(TOP)stamp-h.in: $(TOP)configure.ac $(TOP)aclocal.m4
-	autoheader
-	echo timestamp > stamp-h.in
+	(cd ./$(TOP) \
+		&& autoheader \
+		&& echo timestamp > stamp-h.in)
 
 config.$(TARGET).h: stamp-h
 stamp-h: $(TOP)config.h.in config.status
@@ -40,7 +41,7 @@ config.status: $(TOP)configure $(TOP)stamp-h.in
 	./config.status --recheck
 
 $(TOP)aclocal.m4: $(TOP)configure.ac
-	aclocal -I autotools
+	(cd ./$(TOP) && aclocal -I autotools)
 
 doc:
 	doxygen Doxyfile
@@ -85,6 +86,9 @@ install: $(choraled)
 	$(INSTALL) -d $(localstatedir)/chorale
 	$(INSTALL) -d $(bindir)
 	$(INSTALL) -s $(choraled) $(bindir)
+	$(INSTALL) -s choraleutil/protocoltool $(bindir)
+	$(INSTALL) -d $(mandir)/man1
+	$(INSTALL) -m644 choraleutil/protocoltool.1 $(mandir)/man1
 
 install-choralecd: $(choralecd)
 	$(INSTALL) -d $(bindir)
@@ -124,6 +128,7 @@ libdeps.dot: Makefile
 	echo "digraph G {" > $@
 	for i in $(SUBDIRS) ; do \
 		grep "^#include.*\".*/" $$i/*.{h,cpp} \
+			| grep -v ".*include.*$$i" \
 			| sed -e 's,/[^\"]*\", -> ,'  -e s,/[^/]*\",, ; \
 	done | sort | uniq >> $@
 	echo "libdb -> libutil" >> $@
@@ -137,6 +142,9 @@ filedeps.dot: Makefile
 				-e 's,^"./,",' ; \
 	done >> $@
 	echo "}" >> $@
+
+%.gif: %.dot
+	tred $< | dot -Tgif -o $@
 
 %.png: %.dot
 	tred $< | dot -Tpng -o $@

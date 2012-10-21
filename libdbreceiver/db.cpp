@@ -1,7 +1,7 @@
 #include "db.h"
 #include "libutil/trace.h"
 #include "libutil/socket.h"
-#include "libutil/http_client.h"
+#include "libutil/http_fetcher.h"
 #include "query.h"
 #include <boost/tokenizer.hpp>
 #include <boost/format.hpp>
@@ -10,8 +10,9 @@
 namespace db {
 namespace receiver {
 
-Database::Database()
-    : m_got_tags(false)
+Database::Database(util::http::Client *http)
+    : m_http(http),
+      m_got_tags(false)
 {
 }
 
@@ -78,7 +79,7 @@ bool Database::HasTag(int which)
 	}
 
 	std::string url = "http://" + m_ep.ToString() + "/tags";
-	util::HttpClient hc(url);
+	util::http::Fetcher hc(m_http, url);
 	std::string tagstring;
 	hc.FetchToString(&tagstring);
 

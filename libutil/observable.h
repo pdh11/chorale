@@ -92,6 +92,13 @@ public:
 	StoragePolicy<Observer>::RemoveObserver(obs);
     }
 
+    template <typename T1, typename T2, typename T3>
+    void Fire(void (Observer::*fn)(T1, T2, T3), T1 t1, T2 t2, T3 t3)
+    {
+	typename LockingPolicy::Lock lock(this);
+	StoragePolicy<Observer>::Apply(boost::bind(fn, _1, t1, t2, t3));
+    }
+
     template <typename T1, typename T2>
     void Fire(void (Observer::*fn)(T1, T2), T1 t1, T2 t2)
     {

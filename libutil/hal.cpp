@@ -41,8 +41,8 @@ public:
 };
 
 Context::Impl::Impl(dbus::Connection *conn)
+    : m_ctx(libhal_ctx_new())
 {
-    m_ctx = libhal_ctx_new();
     if (!m_ctx)
     {
 	TRACE << "Can't create libhal context\n";
@@ -89,7 +89,7 @@ void Context::Impl::StaticDeviceAdded(LibHalContext *ctx, const char *udi)
 void Context::Impl::OnDeviceAdded(const char *udi)
 {
     DevicePtr dp(new Device(this, udi));
-//    TRACE << "New HAL device " << udi << "\n";
+    TRACE << "New HAL device " << udi << "\n";
     Fire(&Observer::OnDeviceAdded, dp);
 }
 

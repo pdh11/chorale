@@ -9,7 +9,7 @@ CDTocTaskPtr CDTocTask::Create(CDDrivePtr drive, CDDBService *cddb)
 
 /** Not much of a task but it needs doing on a background thread.
  */
-void CDTocTask::Run()
+unsigned int CDTocTask::Run()
 {
     if (m_cddb)
     {
@@ -26,6 +26,7 @@ void CDTocTask::Run()
 	m_drive->GetCD(&m_cd);
 	FireProgress(2,2);
     }
+    return 0;
 }
 
 } // namespace import

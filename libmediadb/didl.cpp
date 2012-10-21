@@ -1,161 +1,103 @@
 #include "config.h"
 #include "didl.h"
 #include "libutil/trace.h"
-#include "libmediadb/db.h"
-#include "libmediadb/schema.h"
+#include "db.h"
+#include "schema.h"
 #include "libutil/xmlescape.h"
+#include "libutil/xml.h"
+#include "libutil/string_stream.h"
 #include <boost/format.hpp>
 #include <sstream>
 
-#ifdef HAVE_UPNP
-#include <upnp/ixml.h>
-#endif
-
-namespace upnp {
+namespace mediadb {
 namespace didl {
 
-#ifdef HAVE_UPNP
+class ParserObserver: public xml::SaxParserObserver
+{
+    MetadataList *m_results;
+    Metadata m_current_item;
+    Field m_current_field;
+    bool m_in_item;
+
+public:
+    ParserObserver(MetadataList *ml) : m_results(ml), m_in_item(false) {}
+
+    unsigned int OnBegin(const char *tag)
+    {
+	if (!strcmp(tag, "item") || !strcmp(tag, "container"))
+	{
+	    m_current_item.clear();
+	    m_current_field.tag.clear();
+	    m_in_item = true;
+	}
+	else
+	{
+	    if (m_in_item)
+		m_current_field.tag = tag;
+	}
+	return 0;
+    }
+
+    unsigned int OnEnd(const char *tag)
+    {
+	if (!strcmp(tag, "item") || !strcmp(tag, "container"))
+	{
+	    m_results->push_back(m_current_item);
+	    m_in_item = false;
+	}
+	else
+	{
+	    if (m_in_item)
+	    {
+		m_current_item.push_back(m_current_field);
+		m_current_field.content.clear();
+		m_current_field.tag.clear();
+		m_current_field.attributes.clear();
+	    }
+	}
+	return 0; 
+    }
+
+    unsigned int OnAttribute(const char *name, const char* value)
+    {
+	if (m_current_field.tag.empty())
+	{
+	    // ID is really an attribute of the item tag, but it's
+	    // treated specially
+	    if (!strcmp(name, "id"))
+	    {
+		m_current_field.tag = name;
+		m_current_field.content = value;
+		m_current_item.push_back(m_current_field);
+		m_current_field.tag.clear();
+		m_current_field.content.clear();
+	    }
+	}
+	else
+	    m_current_field.attributes[name] = value;
+	return 0; 
+    }
+
+    unsigned int OnContent(const char *content)
+    {
+	m_current_field.content += content;
+	return 0;
+    }
+};
 
 MetadataList Parse(const std::string& xml)
 {
     MetadataList results;
-
-    IXML_Document *didl = ixmlParseBuffer(const_cast<char *>(xml.c_str()));
-    if (didl)
-    {
-	IXML_Node *child = ixmlNode_getFirstChild(&didl->n);
-	if (child)
-	{
-	    IXML_NodeList *containers = ixmlNode_getChildNodes(child);
-	
-	    size_t containercount = ixmlNodeList_length(containers);
-//	    TRACE << containercount << " container(s)\n";
-	
-	    for (unsigned int j=0; j<containercount; ++j)
-	    {
-		IXML_Node *cnode = ixmlNodeList_item(containers, j);
-		if (cnode)
-		{
-		    Metadata md;
-		
-		    IXML_NamedNodeMap *attrs = ixmlNode_getAttributes(cnode);
-		    if (attrs)
-		    {
-			IXML_Node *id = ixmlNamedNodeMap_getNamedItem(attrs,
-								      const_cast<char *>("id"));
-			if (id)
-			{
-			    const DOMString ds = ixmlNode_getNodeValue(id);
-			    if (ds)
-			    {
-				Field fd;
-				fd.tag = "id";
-				fd.content = ds;
-				md.push_back(fd);
-			    }
-			    else
-				TRACE << "no value in attr\n";
-			}
-			else
-			    TRACE << "no attr\n";
-			ixmlNamedNodeMap_free(attrs);
-		    }
-		    else
-			TRACE << "no attrs\n";
-
-		    IXML_NodeList *nl = ixmlNode_getChildNodes(cnode);
-		    
-		    size_t fieldcount = ixmlNodeList_length(nl);
-//		    TRACE << fieldcount << " field(s)\n";
-		    
-		    for (unsigned int i=0; i<fieldcount; ++i)
-		    {
-			IXML_Node *node2 = ixmlNodeList_item(nl, i);
-			if (node2)
-			{
-			    const DOMString ds = ixmlNode_getNodeName(node2);
-			    if (ds)
-			    {
-				Field field;
-				field.tag = ds;
-				IXML_Node *textnode = ixmlNode_getFirstChild(node2);
-				if (textnode)
-				{
-				    const DOMString ds2 = ixmlNode_getNodeValue(textnode);
-				    if (ds2)
-				    {
-//					TRACE << ds << "=" << ds2 << "\n";
-				        field.content = ds2;
-				    }
-				    else
-					TRACE << "no value\n";
-				}
-				else
-				    TRACE << "no textnode\n";
-
-				IXML_NamedNodeMap *attrs2 =
-				    ixmlNode_getAttributes(node2);
-				if (attrs2)
-				{
-				    size_t nattrs =
-					ixmlNamedNodeMap_getLength(attrs2);
-
-				    for (unsigned int k=0; k<nattrs; ++k)
-				    {
-					IXML_Node *attrnode =
-					    ixmlNamedNodeMap_item(attrs2, k);
-					if (attrnode)
-					{
-					    const DOMString attrname =
-						ixmlNode_getNodeName(attrnode);
-					    const DOMString attrvalue =
-						ixmlNode_getNodeValue(attrnode);
-					    if (attrname)
-						field.attributes[attrname]
-						    = attrvalue;
-					}
-				    }
-
-				    ixmlNamedNodeMap_free(attrs2);
-				}
-				else
-				    TRACE << "no attrs\n";
-
-				md.push_back(field);
-			    }
-			    else
-				TRACE << "no name\n";
-			}
-			else
-			    TRACE << "no node\n";
-		    }
-
-		    ixmlNodeList_free(nl);
-
-		    results.push_back(md);
-		}
-		else
-		    TRACE << "no cnode\n";
-	    }
-
-	    ixmlNodeList_free(containers);
-	}
-	else
-	    TRACE << "no child\n";
-	
-	ixmlDocument_free(didl);
-    }
-    else
-	TRACE << "can't parse didl response\n";
-
+    ParserObserver po(&results);
+    xml::SaxParser parser(&po);
+    parser.Parse(util::StringStream::Create(xml));
     return results;
 }
 
-#endif // HAVE_UPNP
 
 unsigned int ToRecord(const Metadata& md, db::RecordsetPtr rs)
 {
-    for (upnp::didl::Metadata::const_iterator i = md.begin();
+    for (Metadata::const_iterator i = md.begin();
 	 i != md.end();
 	 ++i)
     {
@@ -193,7 +135,7 @@ unsigned int ToRecord(const Metadata& md, db::RecordsetPtr rs)
 	}
 	else if (i->tag == "res")
 	{
-	    upnp::didl::Attributes::const_iterator ci =
+	    Attributes::const_iterator ci =
 		i->attributes.find("protocolInfo");
 	    if (ci != i->attributes.end()
 		&& ci->second == "http-get:*:audio/mpeg:*")
@@ -475,7 +417,7 @@ std::string FromRecord(mediadb::Database *db, db::RecordsetPtr rs,
 }
 
 } // namespace didl
-} // namespace upnp
+} // namespace mediadb
 
 
         /* Unit tests */
@@ -566,23 +508,21 @@ enum { TESTS = sizeof(tests)/sizeof(tests[0]) };
 
 int main(int, char**)
 {
-#ifdef HAVE_UPNP
-
     /* Test Parse() */
 
     for (unsigned int i=0; i<TESTS; ++i)
     {
 	const Test& test = tests[i];
 
-	upnp::didl::MetadataList mdl = upnp::didl::Parse(test.xml);
+	mediadb::didl::MetadataList mdl = mediadb::didl::Parse(test.xml);
 
-	upnp::didl::MetadataList::const_iterator mdli = mdl.begin();
+	mediadb::didl::MetadataList::const_iterator mdli = mdl.begin();
 
 	for (const TestItem *item = test.items; item->fields; ++item)
 	{
 	    assert(mdli != mdl.end());
 
-	    const upnp::didl::Metadata& md = *mdli;
+	    const mediadb::didl::Metadata& md = *mdli;
 
 	    unsigned int nfields = 0;
 	    for (const TestField *field = item->fields; field->name; ++field)
@@ -590,7 +530,7 @@ int main(int, char**)
 		++nfields;
 
 		bool found = false;
-		for (upnp::didl::Metadata::const_iterator mdi = md.begin();
+		for (mediadb::didl::Metadata::const_iterator mdi = md.begin();
 		     mdi != md.end();
 		     ++mdi)
 		{
@@ -641,8 +581,6 @@ int main(int, char**)
 	}
     }
 
-#endif // HAVE_UPNP
-
     /* Test FromRecord */
 
     db::steam::Database sdb(mediadb::FIELD_COUNT);
@@ -667,8 +605,8 @@ int main(int, char**)
     qp->Where(qp->Restrict(mediadb::ID, db::EQ, 377));
     db::RecordsetPtr rs = qp->Execute();
     assert(rs && !rs->IsEOF());
-    std::string didl = upnp::didl::s_header + upnp::didl::FromRecord(&mdb, rs)
-	+ upnp::didl::s_footer;
+    std::string didl = mediadb::didl::s_header + mediadb::didl::FromRecord(&mdb, rs)
+	+ mediadb::didl::s_footer;
 
     const char *expected =
 	"<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\""

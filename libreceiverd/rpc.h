@@ -1,8 +1,9 @@
 #ifndef LIBRECEIVERD_RPC_H
 #define LIBRECEIVERD_RPC_H 1
 
-#include "libutil/poll.h"
 #include "libutil/socket.h"
+
+namespace util { class PollerInterface; }
 
 namespace receiverd {
 
@@ -77,7 +78,7 @@ public:
 
 /** Server for Sun (ONC) RPC, as needed by NFS.
  */
-class RPCServer: public util::Pollable
+class RPCServer
 {
     uint32_t m_program_number;
     uint32_t m_version;

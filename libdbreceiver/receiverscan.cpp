@@ -2,7 +2,8 @@
 #include "libmediadb/schema.h"
 #include "libreceiver/ssdp.h"
 #include "libutil/poll.h"
-#include "libutil/web_server.h"
+#include "libutil/http_server.h"
+#include "libutil/http_client.h"
 #include "libutil/trace.h"
 #include "libutil/socket.h"
 
@@ -35,12 +36,16 @@ void DumpDB(db::Database *thedb, unsigned int id, unsigned int depth)
 
 class SSDPC: public receiver::ssdp::Client::Callback
 {
+    util::http::Client *m_http;
+
 public:
+    explicit SSDPC(util::http::Client *http) : m_http(http) {}
+
     void OnService(const util::IPEndPoint& ep)
     {
 	TRACE << "Found server on " << ep.ToString() << "\n";
 
-	db::receiver::Database *thedb = new db::receiver::Database;
+	db::receiver::Database *thedb = new db::receiver::Database(m_http);
 	thedb->Init(ep);
 
 	DumpDB(thedb, 0x100, 0);
@@ -71,11 +76,10 @@ public:
 
 int main()
 {
+    util::http::Client http;
+    SSDPC callback(&http);
     util::Poller poller;
-
     receiver::ssdp::Client ssdpc;
-
-    SSDPC callback;
 
     ssdpc.Init(&poller, receiver::ssdp::s_uuid_musicserver, &callback);
 

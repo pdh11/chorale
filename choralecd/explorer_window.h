@@ -26,7 +26,6 @@ class ExplorerWindow: public QMainWindow
     mediadb::Registry *m_registry;
 
     QSplitter *m_splitter;
-    TagTable *m_table;
     BrowseWidget *m_browse;
     TreeModel *m_treemodel;
 

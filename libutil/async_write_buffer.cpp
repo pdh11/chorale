@@ -19,31 +19,28 @@ class AsyncWriteBuffer::Impl
 
     enum { BUFSIZE = 128*1024 };
 
-    StreamPtr m_stream;
+    SeekableStreamPtr m_stream;
     TaskQueue *m_queue;
 
     boost::mutex m_mutex;
     boost::condition m_buffree;
     bool m_busy[2];
-    int  m_whichbuffer;
-    size_t m_bufpos;
+
+    /** Which buffer we're currently filling
+     */
+    int  m_filling;
+
+    size_t m_bufpos; // How much of the currently-filling buffer is filled
     unsigned char *m_buf[2];
     TaskPtr m_writetask[2];
-
-    /** Serialises writes, which (as we don't have pwrite) is essential to
-     * avoid interleaving.
-     *
-     * @todo Theoretically this is still not safe, as the two tasks could
-     *       get queued on different CPUs simultaneously, then run in the
-     *       wrong order. Look into boost::asio::io_service::strand.
-     */
-    boost::mutex m_write_mutex;
+    uint64_t m_buffer_offset[2]; // Offset in the destination file of buffers
+    uint64_t m_current_buffer_offset; // Offset in the destination file of curently-filling buffer
     unsigned int m_error;
 
     void SynchronousFlush();
 
 public:
-    Impl(StreamPtr stream, TaskQueue *queue);
+    Impl(SeekableStreamPtr stream, TaskQueue *queue);
     ~Impl();
 
     unsigned Write(const void *buffer, size_t len, size_t *pwrote);
@@ -59,7 +56,7 @@ public:
     static TaskPtr Create(AsyncWriteBuffer::Impl *parent, int which);
 
     // Being a Task
-    void Run();
+    unsigned int Run();
 };
 
 TaskPtr AsyncWriteBuffer::Impl::Task::Create(AsyncWriteBuffer::Impl *parent,
@@ -73,35 +70,34 @@ AsyncWriteBuffer::Impl::Task::Task(AsyncWriteBuffer::Impl *parent, int which)
       m_which(which)
 {}
 
-void AsyncWriteBuffer::Impl::Task::Run()
+unsigned int AsyncWriteBuffer::Impl::Task::Run()
 {
+    if (m_parent->m_error)
+	return m_parent->m_error;
+
+    unsigned int rc = m_parent->m_stream->WriteAllAt(m_parent->m_buf[m_which],
+						     m_parent->m_buffer_offset[m_which],
+						     AsyncWriteBuffer::Impl::BUFSIZE);
+    if (rc)
     {
-	boost::mutex::scoped_lock lock(m_parent->m_write_mutex);
-
-	if (m_parent->m_error)
-	    return;
-
-	unsigned int rc = m_parent->m_stream->WriteAll(m_parent->m_buf[m_which],
-						   AsyncWriteBuffer::Impl::BUFSIZE);
-	if (rc)
-	{
-	    TRACE << "warning, async write failed (" << rc << ")\n";
-	    m_parent->m_error = rc;
-	}
+	TRACE << "warning, async write failed (" << rc << ")\n";
+	m_parent->m_error = rc;
+    }
 //	else
 //	    TRACE << "Async Wrote\n";
-    }
 
     boost::mutex::scoped_lock lock(m_parent->m_mutex);
     m_parent->m_busy[m_which] = false;
     m_parent->m_buffree.notify_one();
+    return 0;
 }
 
-AsyncWriteBuffer::Impl::Impl(StreamPtr stream, TaskQueue *queue)
+AsyncWriteBuffer::Impl::Impl(SeekableStreamPtr stream, TaskQueue *queue)
     : m_stream(stream),
       m_queue(queue),
-      m_whichbuffer(0),
+      m_filling(0),
       m_bufpos(0),
+      m_current_buffer_offset(0),
       m_error(0)
 {
     m_busy[0] = false;
@@ -125,12 +121,15 @@ void AsyncWriteBuffer::Impl::SynchronousFlush()
     // Anything left, write synchronously
     if (m_bufpos)
     {
-	unsigned int rc = m_stream->WriteAll(m_buf[m_whichbuffer], m_bufpos);
+	unsigned int rc = m_stream->WriteAllAt(m_buf[m_filling],
+					       m_current_buffer_offset,
+					       m_bufpos);
 	if (rc)
 	{
 	    TRACE << "warning, async write 2 failed (" << rc << ")\n";
 	}
     }
+    m_current_buffer_offset += m_bufpos;
     m_bufpos = 0;
 }
 
@@ -141,9 +140,9 @@ AsyncWriteBuffer::Impl::~Impl()
     delete[] m_buf[1];
 }
 
-AsyncWriteBuffer::AsyncWriteBuffer(StreamPtr ptr, TaskQueue *queue)
+AsyncWriteBuffer::AsyncWriteBuffer(SeekableStreamPtr ptr, TaskQueue *queue)
+    : m_impl(new Impl(ptr, queue))
 {
-    m_impl = new Impl(ptr, queue);
 }
 
 AsyncWriteBuffer::~AsyncWriteBuffer()
@@ -151,7 +150,7 @@ AsyncWriteBuffer::~AsyncWriteBuffer()
     delete m_impl;
 }
 
-unsigned AsyncWriteBuffer::Create(StreamPtr backingstream,
+unsigned AsyncWriteBuffer::Create(SeekableStreamPtr backingstream,
 				  TaskQueue *queue,
 				  StreamPtr *result)
 {
@@ -179,23 +178,25 @@ unsigned AsyncWriteBuffer::Impl::Write(const void *buffer, size_t len,
 	    m_buffree.wait(lock);
 
 	if (!m_busy[0])
-	    m_whichbuffer = 0;
+	    m_filling = 0;
 	else
-	    m_whichbuffer = 1;
+	    m_filling = 1;
     }
 
     // We've got a buffer. Now write into it.
 
     size_t accept = std::min(len, BUFSIZE-m_bufpos);
 	
-    memcpy(m_buf[m_whichbuffer] + m_bufpos, buffer, accept);
+    memcpy(m_buf[m_filling] + m_bufpos, buffer, accept);
     *pwrote = accept;
     m_bufpos += accept;
 
     if (m_bufpos == BUFSIZE)
     {
-	m_busy[m_whichbuffer] = true;
-	m_queue->PushTask(m_writetask[m_whichbuffer]);
+	m_busy[m_filling] = true;
+	m_buffer_offset[m_filling] = m_current_buffer_offset;
+	m_current_buffer_offset += m_bufpos;
+	m_queue->PushTask(m_writetask[m_filling]);
 	m_bufpos = 0;
     }
     return 0;
@@ -226,10 +227,10 @@ int main()
     unsigned int rc = util::MemoryStream::Create(&msp);
     assert(rc == 0);
 
-    util::WorkerThreadPool wtp(1);
+    util::WorkerThreadPool wtp(util::WorkerThreadPool::NORMAL);
 
     util::StreamPtr asp;
-    rc = util::AsyncWriteBuffer::Create(msp, wtp.GetTaskQueue(), &asp);
+    rc = util::AsyncWriteBuffer::Create(msp, &wtp, &asp);
 
 //    TestSeekableStream(asp);
 
@@ -239,7 +240,7 @@ int main()
     assert(rc == 0);
 
     util::StreamPtr asp2;
-    rc = util::AsyncWriteBuffer::Create(fsp, wtp.GetTaskQueue(), &asp2);
+    rc = util::AsyncWriteBuffer::Create(fsp, &wtp, &asp2);
 
 //  TestSeekableStream(asp2);
 

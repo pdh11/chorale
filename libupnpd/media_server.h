@@ -6,6 +6,7 @@
 #include "content_directory.h"
 
 namespace mediadb { class Database; }
+namespace upnp { namespace soap { class InfoSource; } }
 
 namespace upnpd {
 
@@ -18,8 +19,7 @@ class MediaServer: public upnp::Device
     upnp::ContentDirectory2Server m_contentdirectoryserver;
 
 public:
-    MediaServer(mediadb::Database*, unsigned short port,
-		const std::string& resource);
+    MediaServer(mediadb::Database*, upnp::soap::InfoSource*);
 };
 
 } // namespace upnpd

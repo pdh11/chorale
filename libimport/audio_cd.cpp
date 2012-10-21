@@ -1,13 +1,26 @@
 #include "config.h"
 #include "audio_cd.h"
 
-#ifdef HAVE_LIBCDIOP
+#if defined(HAVE_LIBCDIOP) || defined(HAVE_PARANOIA)
 
 #include "libutil/trace.h"
+#ifdef HAVE_PARANOIA
+// Oh joy, not C++-compatible
+#define private c_private
+extern "C" {
+#include <cdda_interface.h>
+#include <cdda_paranoia.h>
+}
+#undef private
+typedef int paranoia_cb_mode_t;
+typedef unsigned int track_t;
+#else
 #include <cdio/cdio.h>
 #include <cdio/cdda.h>
 #include <cdio/cd_types.h>
 #include <cdio/paranoia.h>
+typedef cdrom_paranoia_t cdrom_paranoia;
+#endif
 #include <errno.h>
 #include <string.h>
 
@@ -19,8 +32,8 @@ unsigned LocalAudioCD::Create(const std::string& device, AudioCDPtr *pcd)
 
     TRACE << "Calling identify\n";
 
-    cdrom_drive_t *cdt =  cdio_cddap_identify(device.c_str(), 
-					      CDDA_MESSAGE_FORGETIT, NULL);
+    cdrom_drive *cdt =  cdda_identify(device.c_str(), CDDA_MESSAGE_FORGETIT, 
+				      NULL);
 
     if (!cdt)
     {
@@ -30,7 +43,7 @@ unsigned LocalAudioCD::Create(const std::string& device, AudioCDPtr *pcd)
 
     TRACE << "Identified\n";
 
-    int rc = cdio_cddap_open(cdt);
+    int rc = cdda_open(cdt);
     if (rc<0)
     {
 	TRACE << "Can't open CD drive\n";
@@ -39,13 +52,13 @@ unsigned LocalAudioCD::Create(const std::string& device, AudioCDPtr *pcd)
 
     TRACE << "Opened\n";
 
-    unsigned int total = cdio_cddap_tracks(cdt);
+    unsigned int total = (unsigned int)cdda_tracks(cdt);
 
     TRACE << "Got tracks\n";
 
     if (total == (track_t)-1)
     {
-	cdio_cddap_close(cdt);
+	cdda_close(cdt);
 	TRACE << "No audio tracks\n";
 	return ENOENT;
     }
@@ -56,11 +69,11 @@ unsigned LocalAudioCD::Create(const std::string& device, AudioCDPtr *pcd)
 
     for (track_t i=1; i<=total; ++i) // Peculiar 1-based numbering
     {
-	if (cdio_cddap_track_audiop(cdt, i))
+	if (cdda_track_audiop(cdt, i))
 	{
 	    TocEntry te;
-	    te.first_sector = cdio_cddap_track_firstsector(cdt, i);
-	    te.last_sector  = cdio_cddap_track_lastsector(cdt, i);
+	    te.first_sector = (int)cdda_track_firstsector(cdt, i);
+	    te.last_sector  = (int)cdda_track_lastsector(cdt, i);
 	    TRACE << "Track " << i << " " << te.first_sector
 		  << ".." << te.last_sector << "\n";
 	    
@@ -76,7 +89,7 @@ unsigned LocalAudioCD::Create(const std::string& device, AudioCDPtr *pcd)
 
     if (toc.empty())
     {
-	cdio_cddap_close(cdt);
+	cdda_close(cdt);
 	TRACE << "No audio tracks\n";
 	return ENOENT;
     }
@@ -94,13 +107,13 @@ unsigned LocalAudioCD::Create(const std::string& device, AudioCDPtr *pcd)
 LocalAudioCD::~LocalAudioCD()
 {
     if (m_cdt)
-	cdio_cddap_close((cdrom_drive_t*)m_cdt);
+	cdda_close((cdrom_drive*)m_cdt);
 //    TRACE << "~LocalAudioCD\n";
 }
 
 class ParanoiaStream: public util::SeekableStream
 {
-    cdrom_paranoia_t *m_paranoia;
+    cdrom_paranoia *m_paranoia;
     int m_first_sector;
     int m_last_sector;
     int m_sector;
@@ -113,13 +126,17 @@ class ParanoiaStream: public util::SeekableStream
 	if (cbm != PARANOIA_CB_READ && cbm != PARANOIA_CB_VERIFY
 	    && cbm != PARANOIA_CB_OVERLAP)
 	{
+#ifdef HAVE_LIBCDIOP
 	    const char *cbmstr = paranoia_cb_mode2str[cbm];
+#else
+	    const char *cbmstr = "unknown";
+#endif
 	    TRACE << "paranoia callback " << i << " mode " << cbmstr << "\n";
 	}
     }
 
 public:
-    ParanoiaStream(cdrom_drive_t *cdt, int first_sector, int last_sector)
+    ParanoiaStream(cdrom_drive *cdt, int first_sector, int last_sector)
 	: m_paranoia(paranoia_init(cdt)),
 	  m_first_sector(first_sector),
 	  m_last_sector(last_sector),
@@ -239,7 +256,7 @@ unsigned int ParanoiaStream::SetLength(pos64)
 
 util::SeekableStreamPtr LocalAudioCD::GetTrackStream(unsigned int track)
 {
-    return util::SeekableStreamPtr(new ParanoiaStream((cdrom_drive_t*)m_cdt,
+    return util::SeekableStreamPtr(new ParanoiaStream((cdrom_drive*)m_cdt,
 						      m_toc[track].first_sector,
 						      m_toc[track].last_sector));
 }

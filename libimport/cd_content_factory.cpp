@@ -8,8 +8,8 @@ std::string CDContentFactory::GetPrefix()
     return (boost::format("/cd%u/") % m_index).str();
 }
 
-bool CDContentFactory::StreamForPath(const util::WebRequest *rq, 
-				     util::WebResponse *rs)
+bool CDContentFactory::StreamForPath(const util::http::Request *rq, 
+				     util::http::Response *rs)
 {
     unsigned int index, track;
 //    TRACE << "CDCF looks at path " << path << "\n";

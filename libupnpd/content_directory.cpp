@@ -3,67 +3,65 @@
 #include "libmediadb/localdb.h"
 #include "libmediadb/schema.h"
 #include "libmediadb/xml.h"
+#include "libmediadb/didl.h"
 #include "libdbsteam/db.h"
-#include "libupnp/didl.h"
 #include "libutil/trace.h"
 #include "libutil/poll.h"
-#include "libutil/web_server.h"
+#include "libutil/poll_thread.h"
+#include "libutil/http_client.h"
+#include "libutil/http_server.h"
 #include "libutil/xmlescape.h"
 #include "libutil/urlescape.h"
 #include "libupnp/ContentDirectory2_client.h"
+#include "libupnp/soap_info_source.h"
 #include "media_server.h"
 #include "search.h"
-#include "libupnp/server.h"
 #include <sstream>
 #include <errno.h>
 #include <boost/format.hpp>
 
-#ifdef HAVE_UPNP
-
-#include <upnp/upnp.h>
-
 namespace upnpd {
 
 ContentDirectoryImpl::ContentDirectoryImpl(mediadb::Database *db,
-					   unsigned short port)
+					   upnp::soap::InfoSource *info_source)
     : m_db(db),
-      m_port(port)
+      m_info_source(info_source)
 {
 }
 
 static unsigned int DIDLFilter(const std::string& filter)
 {
     if (filter == "*")
-	return upnp::didl::ALL;
+	return mediadb::didl::ALL;
     
     unsigned int didl_filter = 0;
     if (strstr(filter.c_str(), "upnp:searchClass"))
-	didl_filter |= upnp::didl::SEARCHCLASS;
+	didl_filter |= mediadb::didl::SEARCHCLASS;
     if (strstr(filter.c_str(), "upnp:artist"))
-	didl_filter |= upnp::didl::ARTIST;
+	didl_filter |= mediadb::didl::ARTIST;
     if (strstr(filter.c_str(), "upnp:album"))
-	didl_filter |= upnp::didl::ALBUM;
+	didl_filter |= mediadb::didl::ALBUM;
     if (strstr(filter.c_str(), "upnp:genre"))
-	didl_filter |= upnp::didl::GENRE;
+	didl_filter |= mediadb::didl::GENRE;
     if (strstr(filter.c_str(), "upnp:originalTrackNumber"))
-	didl_filter |= upnp::didl::TRACKNUMBER;
+	didl_filter |= mediadb::didl::TRACKNUMBER;
     if (strstr(filter.c_str(), "upnp:author"))
-	didl_filter |= upnp::didl::AUTHOR;
+	didl_filter |= mediadb::didl::AUTHOR;
     if (strstr(filter.c_str(), "dc:date"))
-	didl_filter |= upnp::didl::DATE;
+	didl_filter |= mediadb::didl::DATE;
     if (strstr(filter.c_str(), "@duration")) // Subparts of RES imply RES
-	didl_filter |= upnp::didl::RES | upnp::didl::RES_DURATION;
+	didl_filter |= mediadb::didl::RES | mediadb::didl::RES_DURATION;
     if (strstr(filter.c_str(), "@size")) // Subparts of RES imply RES
-	didl_filter |= upnp::didl::RES | upnp::didl::RES_SIZE;
+	didl_filter |= mediadb::didl::RES | mediadb::didl::RES_SIZE;
     if (strstr(filter.c_str(), "@protocolInfo")) // Subparts of RES imply RES
-	didl_filter |= upnp::didl::RES | upnp::didl::RES_PROTOCOL;
+	didl_filter |= mediadb::didl::RES | mediadb::didl::RES_PROTOCOL;
     if (strstr(filter.c_str(), "didl-lite:res"))
-	didl_filter |= upnp::didl::RES | upnp::didl::RES_DURATION
-	    | upnp::didl::RES_SIZE | upnp::didl::RES_PROTOCOL;
+	didl_filter |= mediadb::didl::RES | mediadb::didl::RES_DURATION
+	    | mediadb::didl::RES_SIZE | mediadb::didl::RES_PROTOCOL;
     if (strstr(filter.c_str(), "upnp:channelID"))
-	didl_filter |= upnp::didl::CHANNELID;
+	didl_filter |= mediadb::didl::CHANNELID;
     if (strstr(filter.c_str(), "upnp:storageUsed"))
-	didl_filter |= upnp::didl::STORAGEUSED;
+	didl_filter |= mediadb::didl::STORAGEUSED;
 
     return didl_filter;
 }
@@ -106,21 +104,19 @@ unsigned int ContentDirectoryImpl::Browse(const std::string& object_id,
     unsigned int didl_filter = DIDLFilter(filter);
 
     std::ostringstream ss;
-    ss << upnp::didl::s_header;
+    ss << mediadb::didl::s_header;
 
-    /** @todo Determine IP address to use from socket (or SoapInfo structure)
-     */
     std::string urlprefix;
-    if (m_port)
+    if (m_info_source)
     {
-	urlprefix = (boost::format("http://%s:%u/content/")
-		     % UpnpGetServerIpAddress()
-		     % m_port).str();
+	util::IPEndPoint ipe = m_info_source->GetCurrentEndPoint();
+	urlprefix = "http://" + ipe.ToString() + "/content/";
     }
 
     if (browse_flag == BROWSEFLAG_BROWSE_METADATA)
     {
-	ss << upnp::didl::FromRecord(m_db, rs, urlprefix.c_str(), didl_filter);
+	ss << mediadb::didl::FromRecord(m_db, rs, urlprefix.c_str(), 
+					didl_filter);
 	*number_returned = 1;
 	*total_matches = 1;
 	*update_id = 1;
@@ -151,7 +147,7 @@ unsigned int ContentDirectoryImpl::Browse(const std::string& object_id,
 				   children[starting_index+i]));
 	    rs = qp->Execute();
 	    if (rs && !rs->IsEOF())
-		ss << upnp::didl::FromRecord(m_db, rs, urlprefix.c_str(),
+		ss << mediadb::didl::FromRecord(m_db, rs, urlprefix.c_str(),
 					     didl_filter);
 	    else
 	    {
@@ -168,7 +164,7 @@ unsigned int ContentDirectoryImpl::Browse(const std::string& object_id,
 	return EINVAL;
     }
 
-    ss << upnp::didl::s_footer;
+    ss << mediadb::didl::s_footer;
 
 //    TRACE << "Browse result is " << ss.str() << "\n\n";
 
@@ -202,16 +198,13 @@ unsigned int ContentDirectoryImpl::Search(const std::string& container_id,
     unsigned int didl_filter = DIDLFilter(filter);
 
     std::ostringstream ss;
-    ss << upnp::didl::s_header;
+    ss << mediadb::didl::s_header;
 
-    /** @todo Determine IP address to use from socket (or SoapInfo structure)
-     */
     std::string urlprefix;
-    if (m_port)
+    if (m_info_source)
     {
-	urlprefix = (boost::format("http://%s:%u/content/")
-		     % UpnpGetServerIpAddress()
-		     % m_port).str();
+	util::IPEndPoint ipe = m_info_source->GetCurrentEndPoint();
+	urlprefix = "http://" + ipe.ToString() + "/content/";
     }
 
     unsigned int n = 0;
@@ -275,7 +268,7 @@ unsigned int ContentDirectoryImpl::Search(const std::string& container_id,
 	    }
 	    else
 	    {
-		ss << upnp::didl::FromRecord(m_db, rs, urlprefix.c_str(),
+		ss << mediadb::didl::FromRecord(m_db, rs, urlprefix.c_str(),
 					     didl_filter);
 	    }
 	    ++nok;
@@ -284,7 +277,7 @@ unsigned int ContentDirectoryImpl::Search(const std::string& container_id,
 	rs->MoveNext();
 	++n;
     }
-    ss << upnp::didl::s_footer;
+    ss << mediadb::didl::s_footer;
 
 //    TRACE << "Search result is " << ss.str() << " (" << nok << " items)\n";
 
@@ -321,20 +314,24 @@ unsigned int ContentDirectoryImpl::GetSystemUpdateID(uint32_t *pui)
 
 unsigned int ContentDirectoryImpl::GetFeatureList(std::string *fl)
 {
-    *fl = 
+    *fl = (boost::format(
 	"<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
 	"<Features xmlns=\"urn:schemas-upnp-org:av:avs\">"
 	" <Feature name=\"TUNER\" version=\"1\">"
-	"  <objectIDs>240</objectIDs>"
+	"  <objectIDs>%u,%u</objectIDs>"
 	" </Feature>"
-	"</Features>";
+	" <Feature name=\"EPG\" version=\"1\">"
+	"  <objectIDs>%u</objectIDs>"
+	" </Feature>"
+	"</Features>")
+	   % (unsigned)mediadb::RADIO_ROOT
+	   % (unsigned)mediadb::TV_ROOT
+	   % (unsigned)mediadb::EPG_ROOT).str();
     
     return 0;
 }
 
 } // namespace upnpd
-
-#endif // HAVE_UPNP
 
 
         /* Unit tests */
@@ -343,7 +340,8 @@ unsigned int ContentDirectoryImpl::GetFeatureList(std::string *fl)
 #ifdef TEST
 
 # include "libdbupnp/db.h"
-# include "libutil/ssdp.h"
+# include "libupnp/ssdp.h"
+# include "libupnp/server.h"
 
 static const struct {
     const char *objectid;
@@ -768,7 +766,6 @@ enum { SEARCHTESTS = sizeof(searchtests)/sizeof(searchtests[0]) };
 
 int main(int, char**)
 {
-#ifdef HAVE_UPNP
     db::steam::Database sdb(mediadb::FIELD_COUNT);
     sdb.SetFieldInfo(mediadb::ID, 
 		     db::steam::FIELD_INT|db::steam::FIELD_INDEXED);
@@ -787,7 +784,7 @@ int main(int, char**)
 
     mediadb::LocalDatabase mdb(&sdb);
 
-    upnpd::ContentDirectoryImpl cd(&mdb, 0);
+    upnpd::ContentDirectoryImpl cd(&mdb, NULL);
 
     for (unsigned int i=0; i<BROWSETESTS; ++i)
     {
@@ -847,34 +844,50 @@ int main(int, char**)
     assert(rc == 0);
     assert(caps == "" );
     rc = cd.GetFeatureList(&caps);
-    assert(caps == 
+    assert(caps ==
 	"<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
 	"<Features xmlns=\"urn:schemas-upnp-org:av:avs\">"
 	" <Feature name=\"TUNER\" version=\"1\">"
-	"  <objectIDs>240</objectIDs>"
+	"  <objectIDs>240,208</objectIDs>"
 	" </Feature>"
-	   "</Features>");
+	" <Feature name=\"EPG\" version=\"1\">"
+	"  <objectIDs>224</objectIDs>"
+	" </Feature>"
+	"</Features>");
 
     // Now again via UPnP
 
-    util::Poller poller;
-    util::WebServer ws;
+    util::PollThread poller;
+    util::WorkerThreadPool wtp(util::WorkerThreadPool::NORMAL);
+    util::http::Client wc;
+    util::http::Server ws(&poller, &wtp);
+    upnp::ssdp::Responder ssdp(&poller);
 
-    upnpd::MediaServer ms(&mdb, ws.GetPort(), "tests");
-    upnp::Server server;
-    rc = server.Init(&ms, ws.GetPort());
+    ws.Init();
+
+    upnp::Server server(&poller, &wc, &ws, &ssdp);
+    upnpd::MediaServer ms(&mdb, NULL);
+    rc = ms.Init(&server, "tests");
+    assert(rc == 0);
+    rc = server.Init();
     assert(rc == 0);
 
-    std::string descurl = (boost::format("http://127.0.0.1:%u/description.xml")
-			      % UpnpGetServerPort()).str();
+    std::string descurl = (boost::format("http://127.0.0.1:%u/upnp/description.xml")
+			      % ws.GetPort()).str();
 
-    upnp::Client client;
-    rc = client.Init(descurl, ms.UDN());
+    upnp::Client client(&wc, &ws);
+    rc = client.Init(descurl, ms.GetUDN());
     assert(rc == 0);
 
     upnp::ContentDirectory2Client cdc;
-    rc = cdc.Init(&client, util::ssdp::s_uuid_contentdirectory);
+    rc = cdc.Init(&client, upnp::s_service_type_content_directory);
     assert(rc == 0);
+    
+#ifdef WIN32
+    Sleep(2000);
+#else
+    sleep(2);
+#endif
 
     for (unsigned int i=0; i<BROWSETESTS; ++i)
     {
@@ -891,6 +904,11 @@ int main(int, char**)
 			
 			&result, &n, &total, &updateid);
 	assert(rc == 0);
+	if (result != browsetests[i].result)
+	{
+	    TRACE << "*** Test failing\n" << result << "*** ISN'T\n"
+		  << browsetests[i].result << "***\n";
+	}
 	assert(result == browsetests[i].result);
 	assert(n      == browsetests[i].n);
 	assert(total  == browsetests[i].total);
@@ -923,20 +941,29 @@ int main(int, char**)
     assert(rc == 0);
     assert(caps == "" );
     rc = cdc.GetFeatureList(&caps);
-    assert(caps == 
+    assert(caps ==
 	"<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
 	"<Features xmlns=\"urn:schemas-upnp-org:av:avs\">"
 	" <Feature name=\"TUNER\" version=\"1\">"
-	"  <objectIDs>240</objectIDs>"
+	"  <objectIDs>240,208</objectIDs>"
 	" </Feature>"
-	   "</Features>");
+	" <Feature name=\"EPG\" version=\"1\">"
+	"  <objectIDs>224</objectIDs>"
+	" </Feature>"
+	"</Features>");
 
     // Now via a dbupnp
 
-    db::upnpav::Database udb;
-    rc = udb.Init(descurl, ms.UDN());
+    db::upnpav::Database udb(&wc, &ws);
+    rc = udb.Init(descurl, ms.GetUDN());
     assert(rc == 0);
     
+#ifdef WIN32
+    Sleep(2000);
+#else
+    sleep(2);
+#endif
+
     db::QueryPtr qp = udb.CreateQuery();
     qp->Where(qp->Restrict(mediadb::ID, db::EQ, 0x100));
     db::RecordsetPtr rs = qp->Execute();
@@ -972,7 +999,7 @@ int main(int, char**)
     rc = qp->CollateBy(mediadb::YEAR);
     assert(rc != 0);
 
-#endif // HAVE_UPNP
+//    TRACE << "Exiting\n";
 
     return 0;
 }

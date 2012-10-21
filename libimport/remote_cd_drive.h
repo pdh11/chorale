@@ -4,7 +4,7 @@
 #include "cd_drives.h"
 #include "libupnp/OpticalDrive_client.h"
 #include "libutil/task.h"
-#include "libutil/worker_thread.h"
+#include "libutil/worker_thread_pool.h"
 
 namespace import {
 
@@ -14,11 +14,18 @@ class RemoteCDDrive: public CDDrive, public upnp::OpticalDriveObserver
     upnp::OpticalDriveClient m_optical_drive;
     std::string m_friendly_name;
     bool m_disc_present;
-    util::TaskQueue m_queue;
-    util::WorkerThread m_thread; // One per CD drive
+
+    /** Our own thread.
+     *
+     * @todo This totally isn't necessary, it's really just here to serialise
+     *       ripping tasks. Fix by (a) making each ripping task start the next
+     *       one (b) having each local CD be a BufferSource so it can serve
+     *       ripping and playback simultaneously.
+     */
+    util::WorkerThreadPool m_threads;
 
 public:
-    RemoteCDDrive();
+    RemoteCDDrive(util::http::Client*, util::http::Server*);
     ~RemoteCDDrive();
 
     unsigned Init(const std::string& url, const std::string& udn);

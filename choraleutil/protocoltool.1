@@ -1,0 +1,134 @@
+.TH PROTOCOLTOOL 1 "20-Nov-2008"
+.SH NAME
+protocoltool \- control an "Empeg Protocol" network device: a car-player or Rio Central
+
+.SH SYNOPSIS
+
+\fBprotocoltool\fP [\fIoptions\fP] [\fIroot-directory\fP [\fIflac-root-directory\fP]]
+
+.SH DESCRIPTION
+
+\fBprotocoltool\fP searches for and controls Empeg (Mark 2)
+car-players and Rio Centrals using their inbuilt networking features.
+
+Its main use is to synchronise a directory tree full of media files,
+to a car-player or Rio Central, so that the playlist menu structure on
+the car-player ends up the same as the directory structure. See the
+\fBFILES\fP section for exactly how that works.
+
+.SH OPTIONS
+
+.TP
+.B \-d, --device\fP=w.x.y.z
+Specify a device (by IP address) rather than assuming there's just one. To
+scan for IP addresses of devices, use \fB-s\fP.
+
+.TP
+.B \-f, --full-scan
+Like \fB-s\fP, but display more information about each discovered device.
+
+.TP
+.B \-n, --dry-run
+When using the \fB-u\fP operation, don't actually do any synchronising
+-- just work out what would need to be transferred.
+
+.TP
+.B \-r, --restart
+Cause the player to exit and re-start the player firmware in an
+orderly fashion.
+
+.TP
+.B --reboot
+Cause the player to reboot completely via the kernel bootloader.
+
+.TP
+.B \-s, --scan
+Scan the local network for compatible devices.
+
+.TP
+.B \-u, --update
+Update (synchronise) the device with the media files in
+\fIroot-directory\fP (and perhaps \fIflac-root-directory\fP), or from
+the list of media files in the database dump named by \fB--xml\fP. One
+of \fIroot-directory\fP and \fB--xml\fP must be given. See the
+\fBFILES\fP section for exactly how that works.
+
+.TP
+.B \--xml\fP=FILE
+When using the \fB-u\fP operation, get the list of media files to
+transfer from an XML database file as used by \fBchoraled\fP(1),
+rather than directly from the filesystem.
+
+.TP
+.B \-h, --help
+Display help message and exit.
+
+.SH FILES
+
+If the \fB-u\fP option is given (and the \fB--xml\fP option isn't),
+protocoltool will scan the \fIroot-directory\fP, and all directories
+inside it, for media files. Symbolic links will be followed, as will
+playlist files (*.wpl and *.asx), even if they point to somewhere
+outside \fIroot-directory\fP. (Great care is taken to ensure that each
+file is transferred only once, even if it's reachable via several
+routes.)
+
+Any sub-directories, as well as any playlists, found during this scan
+will be represented by nested playlists on the car-player. The
+contents of the \fIroot-directory\fP end up as the contents of the
+top-level playlist menu on the player.
+
+Note that this is a \fBone-way sync\fP: files which exist on the
+player but have no counterpart in \fIroot-directory\fP will be
+\fBdeleted from the player\fP.
+
+If you have a car-player with the version 3 firmware (i.e., not
+version\ 2, nor a Rio Central, neither of which can play FLAC), you
+may want to add a \fIflac-root-directory\fP. This directory will be
+scanned in parallel with the \fIroot-directory\fP, and is assumed to
+have the same layout. Any time a file is found in
+\fIroot-directory\fP, and a corresponding file is found in
+\fIflac-root-directory\fP, the latter will be transferred
+instead. This eases the business of maintaining parallel collections
+of MP3 and FLAC files, as you can make a playlist inside
+\fIroot-directory\fP naming a bunch of MP3 files, and still get the
+corresponding FLAC files transferred to your car-player. See
+\fBchoralecd\fP(1) for a program which will rip CDs into this sort of
+parallel directory structure.
+
+.SH RESTRICTIONS
+
+\fBprotocoltool\fP can only access players on Ethernet, not USB or
+serial.
+
+There is currently no way to set playlist flags (such as "Ignore as child").
+
+\fBprotocoltool\fP currently assumes your player has enough capacity
+to store all your music, and "disk full" errors take it completely by
+surprise. Quite frankly, 120GB 2.5in winchesters are forty quid each these
+days. Upgrade already!
+
+.SH EXAMPLES
+
+ $ \fBprotocoltool -s\fP
+ 192.168.1.99 Ernest the Empeg
+
+ $ \fBprotocoltool -d 192.168.1.99 -u -n /home/sarah/mp3 /home/sarah/flac\fP
+ \fI...lots of information about what would be transferred...\fP
+
+ $ \fBprotocoltool -d 192.168.1.99 -u /home/sarah/mp3 /home/sarah/flac\fP
+ \fI...lots of progress information as the transfers happen...\fP
+
+.SH SEE ALSO
+
+\fBchoraled\fP(1), \fBchoralecd\fP(1)
+
+\fBhttp://chorale.sf.net\fP
+
+\fBhttp://empegbbs.com\fP
+
+.SH AUTHOR
+
+\fBprotocoltool\fP is part of the Chorale collection of multimedia software.
+
+Written by Peter Hartley <pdh@utter.chaos.org.uk>

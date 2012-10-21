@@ -24,6 +24,8 @@ protected:
     unsigned int m_total_sectors;
 
 public:
+    AudioCD() : m_total_sectors(0) {}
+
     /** Iterator over the TOC. Returns audio tracks only.
      */
     typedef toc_t::const_iterator const_iterator;
@@ -54,6 +56,7 @@ class LocalAudioCD: public AudioCD
     std::string m_device_name;
 
 public:
+    LocalAudioCD() : m_cdt(NULL) {}
     ~LocalAudioCD();
 
     static unsigned int Create(const std::string& device, AudioCDPtr *result);

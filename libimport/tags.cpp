@@ -7,6 +7,8 @@
 #include "libmediadb/schema.h"
 #include <sys/stat.h>
 
+#undef CTIME
+
 #ifdef HAVE_TAGLIB
 
 #include <fileref.h>

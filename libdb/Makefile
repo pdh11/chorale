@@ -1,6 +1,8 @@
 TOP?=../
 DIR:=libdb/
-SRCS:=	free_rs.cpp \
+SRCS:=	delegating_query.cpp \
+	delegating_rs.cpp \
+	free_rs.cpp \
 	query.cpp \
 	readonly_rs.cpp
 

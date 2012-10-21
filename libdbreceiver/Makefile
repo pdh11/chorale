@@ -38,14 +38,14 @@ endif
 
 $(libdbreceiver): $(LIBDBRECEIVER_OBJS)
 	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
-		$(CC) -o $@ $(LIBDBRECEIVER_OBJS)
+		$(CXX) -o $@ $(LIBDBRECEIVER_OBJS)
 
 $(receiverscan): $(RECEIVERSCAN_OBJS) $(libdbreceiver) $(libreceiver) \
 		$(libdb) $(libutil) Makefile $(libmediadb)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CXX) -o $@ $(RECEIVERSCAN_OBJS) $(libdbreceiver) \
 		$(libreceiver) $(libmediadb) $(libdb) $(libutil) \
-		$(BOOST_LIBS) $(CURL_LIBS) $(LIBS)
+		$(BOOST_LIBS) $(LIBS)
 
 -include $(RECEIVERSCAN_OBJS:%.lo=%.lo.dep)
 

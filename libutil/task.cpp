@@ -29,47 +29,4 @@ void Task::FireError(unsigned int e)
 	m_observer->OnError(this, e);
 }
 
-
-TaskQueue::TaskQueue()
-    : m_nthreads(1),
-      m_waiting(0)
-{
-}
-
-void TaskQueue::PushTask(TaskPtr t)
-{
-    boost::mutex::scoped_lock lock(m_deque_mutex);
-    m_deque.push_back(t);
-    m_dequenotempty.notify_one();
-}
-
-TaskPtr TaskQueue::PopTask()
-{
-    boost::mutex::scoped_lock lock(m_deque_mutex);
-
-    ++m_waiting;
-    while (m_deque.empty())
-    {
-//	TRACE << m_waiting << "waiting\n";
-	m_dequenotempty.wait(lock);
-//	TRACE << "waited\n";
-    }
-    --m_waiting;
-    TaskPtr result = m_deque.front();
-    m_deque.pop_front();
-    return result;
-}
-
-bool TaskQueue::AnyWaiting()
-{
-    boost::mutex::scoped_lock lock(m_deque_mutex);
-    return m_waiting > 0;
-}
-
-size_t TaskQueue::Count()
-{
-    boost::mutex::scoped_lock lock(m_deque_mutex);
-    return m_deque.size() + m_nthreads - m_waiting;
-}
-
 } // namespace util

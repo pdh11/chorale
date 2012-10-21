@@ -11,6 +11,9 @@ public:
     // Being a Playlist
     unsigned int Load();
     unsigned int Save();
+
+    /** Parser callback when an entry is found */
+    unsigned int OnSrc(const std::string&);
 };
 
 } // namespace import

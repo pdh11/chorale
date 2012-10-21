@@ -8,6 +8,8 @@
 
 namespace import { class CDContentFactory; }
 
+namespace upnp { namespace soap { class InfoSource; } }
+
 namespace upnpd {
 
 /** Actual implementation of upnp::OpticalDrive in terms of libimport.
@@ -17,14 +19,13 @@ class OpticalDriveImpl: public upnp::OpticalDrive,
 {
     import::CDDrivePtr m_cd;
     import::AudioCDPtr m_audiocd;
-    unsigned int m_index;
     import::CDContentFactory *m_factory;
-    unsigned short m_port;
+    upnp::soap::InfoSource *m_info_source;
     bool m_disc_present;
 
 public:
     OpticalDriveImpl(import::CDDrivePtr cd, import::CDContentFactory *factory,
-		     unsigned short port);
+		     upnp::soap::InfoSource *info_source);
     ~OpticalDriveImpl();
     
     // Being an OpticalDrive
@@ -47,8 +48,8 @@ class OpticalDriveDevice: public upnp::Device
     upnp::OpticalDriveServer m_opticaldriveserver;
 
 public:
-    OpticalDriveDevice(import::CDDrivePtr cd, import::CDContentFactory*,
-		       unsigned short port);
+    OpticalDriveDevice(import::CDDrivePtr cd, import::CDContentFactory*, 
+		       upnp::soap::InfoSource *info_source);
 };
 
 } // namespace upnpd

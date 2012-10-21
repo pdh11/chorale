@@ -16,6 +16,12 @@
 #define ATTRIBUTE(X)
 #endif
 
+#if HAVE_GCC(3,1)
+#define ATTRIBUTE_DEPRECATED ATTRIBUTE((deprecated))
+#else
+#define ATTRIBUTE_DEPRECATED
+#endif
+
 #if HAVE_GCC(3,4)
 #define ATTRIBUTE_WARNUNUSED ATTRIBUTE((warn_unused_result))
 #else

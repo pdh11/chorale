@@ -6,6 +6,11 @@
 
 namespace xml {
 
+/** These classes are used to implement the table-based XML parsing, and are
+ * not intended for direct use.
+ */
+namespace internals {
+
 
         /* Arrays of child pointers, of various sizes */
 
@@ -187,34 +192,40 @@ const Data *const Children<Selector0, NullSelector, NullSelector, NullSelector,
     &Selector0::data
 };
 
+template <>
+struct Children<NullSelector, NullSelector, NullSelector, NullSelector,
+		NullSelector, NullSelector, NullSelector, NullSelector>
+{
+    enum { N = 0 };
+    static const Data *const data[]; // declared in xml.cpp as not templated
+};
+
 
         /* xml::Data and its members */
 
 
 typedef unsigned int (*TextFn)(void*, const std::string&);
-typedef void* (*StructureBeginFn)();
-typedef unsigned int (*StructureEndFn)(void *obs, void *product);
-typedef void (*StructureContentFn)(void *product, const std::string&);
-
-enum { ROOT, TAG, ATTRIBUTE, STRUCT, STRUCTCONTENT };
+typedef void* (*StructureBeginFn)(void *prev_target);
 
 struct Data {
     const char *name;
-    int type;
     TextFn text;
     StructureBeginFn sbegin;
-    StructureEndFn send;
-    StructureContentFn scontent;
-    unsigned int n;
+    size_t n;
     const Data *const *children;
+
+    bool IsAttribute() const { return children == NULL; }
 };
+
+} // namespace internals
+
+using internals::Children;
 
 template <class Selector0, class Selector1, class Selector2, class Selector3,
 	  class Selector4, class Selector5, class Selector6, class Selector7>
-const Data Parser<Selector0, Selector1, Selector2, Selector3,
-		  Selector4, Selector5, Selector6, Selector7>::data = {
-    NULL, ROOT,
-    NULL, NULL, NULL, NULL,
+const internals::Data Parser<Selector0, Selector1, Selector2, Selector3,
+			    Selector4, Selector5, Selector6, Selector7>::data = {
+    NULL, NULL, NULL,
     Children<Selector0, Selector1, Selector2, Selector3,
              Selector4, Selector5, Selector6, Selector7>::N,
     Children<Selector0, Selector1, Selector2, Selector3,
@@ -224,11 +235,55 @@ const Data Parser<Selector0, Selector1, Selector2, Selector3,
 template <const char *name,
 	  class Selector0, class Selector1, class Selector2, class Selector3,
 	  class Selector4, class Selector5, class Selector6, class Selector7>
-const Data Tag<name,
-	       Selector0, Selector1, Selector2, Selector3,
-	       Selector4, Selector5, Selector6, Selector7>::data = {
-    name, TAG,
-    NULL, NULL, NULL, NULL,
+const internals::Data Tag<name,
+			 Selector0, Selector1, Selector2, Selector3,
+			 Selector4, Selector5, Selector6, Selector7>::data = {
+    name, NULL, NULL,
+    Children<Selector0, Selector1, Selector2, Selector3,
+             Selector4, Selector5, Selector6, Selector7>::N,
+    Children<Selector0, Selector1, Selector2, Selector3,
+              Selector4, Selector5, Selector6, Selector7>::data
+};
+
+template <const char *name,
+	  class T, unsigned int (T::*fn)(const std::string&),
+	  class Selector0, class Selector1, class Selector2, class Selector3,
+	  class Selector4, class Selector5, class Selector6, class Selector7>
+const internals::Data TagCallback<name, T, fn, 
+				 Selector0, Selector1, Selector2, Selector3,
+				 Selector4, Selector5, Selector6, Selector7>::data = {
+    name, &OnText, NULL,
+
+    Children<Selector0, Selector1, Selector2, Selector3,
+             Selector4, Selector5, Selector6, Selector7>::N,
+    Children<Selector0, Selector1, Selector2, Selector3,
+              Selector4, Selector5, Selector6, Selector7>::data
+};
+
+template <const char *name,
+	  class T, std::string (T::*pmem),
+	  class Selector0, class Selector1, class Selector2, class Selector3,
+	  class Selector4, class Selector5, class Selector6, class Selector7>
+const internals::Data TagMember<name, T, pmem, 
+			       Selector0, Selector1, Selector2, Selector3,
+			       Selector4, Selector5, Selector6, Selector7>::data = {
+    name, &OnText, NULL,
+
+    Children<Selector0, Selector1, Selector2, Selector3,
+             Selector4, Selector5, Selector6, Selector7>::N,
+    Children<Selector0, Selector1, Selector2, Selector3,
+              Selector4, Selector5, Selector6, Selector7>::data
+};
+
+template <const char *name,
+	  class T, unsigned int (T::*pmem),
+	  class Selector0, class Selector1, class Selector2, class Selector3,
+	  class Selector4, class Selector5, class Selector6, class Selector7>
+const internals::Data TagMemberInt<name, T, pmem, 
+				   Selector0, Selector1, Selector2, Selector3,
+				   Selector4, Selector5, Selector6, Selector7>::data = {
+    name, &OnText, NULL,
+
     Children<Selector0, Selector1, Selector2, Selector3,
              Selector4, Selector5, Selector6, Selector7>::N,
     Children<Selector0, Selector1, Selector2, Selector3,
@@ -237,21 +292,19 @@ const Data Tag<name,
 
 template <const char *name, class T,
 	  unsigned int (T::*fn)(const std::string&) >
-const Data Attribute<name, T, fn>::data = {
-    name, ATTRIBUTE,
-    &OnText, NULL, NULL, NULL,
+const internals::Data Attribute<name, T, fn>::data = {
+    name, &OnText, NULL,
     0, NULL
 };
 
-template <const char *name, class Product,
-	  class Obs, unsigned int (Obs::*fn)(const Product&),
+template <const char *name, class NewTarget,
+	  class T, NewTarget (T::*pmem),
 	  class Selector0, class Selector1, class Selector2, class Selector3,
 	  class Selector4, class Selector5, class Selector6, class Selector7>
-const Data Structure<name, Product, Obs, fn, 
+const internals::Data Structure<name, NewTarget, T, pmem,
 	       Selector0, Selector1, Selector2, Selector3,
 	       Selector4, Selector5, Selector6, Selector7>::data = {
-    name, STRUCT,
-    NULL, &OnBegin, &OnEnd, NULL,
+    name, NULL, &OnBegin,
 
     Children<Selector0, Selector1, Selector2, Selector3,
              Selector4, Selector5, Selector6, Selector7>::N,
@@ -259,11 +312,19 @@ const Data Structure<name, Product, Obs, fn,
               Selector4, Selector5, Selector6, Selector7>::data
 };
 
-template <const char *name, class Product, std::string (Product::*pmem)>
-const Data StructureContent<name, Product, pmem>::data = {
-    name, STRUCTCONTENT,
-    NULL, NULL, NULL, &OnText,
-    0, NULL
+template <const char *name, class NewTarget,
+	  class T, std::list<NewTarget> (T::*pmem),
+	  class Selector0, class Selector1, class Selector2, class Selector3,
+	  class Selector4, class Selector5, class Selector6, class Selector7>
+const internals::Data List<name, NewTarget, T, pmem,
+	       Selector0, Selector1, Selector2, Selector3,
+	       Selector4, Selector5, Selector6, Selector7>::data = {
+    name, NULL, &OnBegin,
+
+    Children<Selector0, Selector1, Selector2, Selector3,
+             Selector4, Selector5, Selector6, Selector7>::N,
+    Children<Selector0, Selector1, Selector2, Selector3,
+              Selector4, Selector5, Selector6, Selector7>::data
 };
 
 } // namespace xml

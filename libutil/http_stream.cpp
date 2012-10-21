@@ -1,57 +1,74 @@
-#include "config.h"
 #include "http_stream.h"
+#include "config.h"
 #include "http_client.h"
+#include "http_fetcher.h"
+#include "http_parser.h"
+#include "partial_stream.h"
+#include "string_stream.h"
 #include "trace.h"
-#include "line_reader.h"
+#include "errors.h"
 #include <errno.h>
 #include <string.h>
 #include <boost/format.hpp>
 #include <boost/tokenizer.hpp>
 
-#ifndef EWOULDBLOCK
-#define EWOULDBLOCK EAGAIN
-#endif
-
 namespace util {
 
-HTTPStream::HTTPStream(const IPEndPoint& ipe, const std::string& path)
+namespace http {
+
+Stream::Stream(const IPEndPoint& ipe, const std::string& host,
+	       const std::string& path,
+	       const char *extra_headers, const char *body)
     : m_ipe(ipe),
+      m_host(host),
       m_path(path),
+      m_extra_headers(extra_headers),
+      m_body(body),
+      m_socket(StreamSocket::Create()),
       m_len(0),
       m_need_fetch(true),
-      m_stm(m_socket.CreateStream())
+      m_last_pos(0)
 {
 }
 
-HTTPStream::~HTTPStream()
+Stream::~Stream()
 {
 }
 
-unsigned HTTPStream::Create(HTTPStreamPtr *result, const char *url)
+unsigned Stream::Create(StreamPtr *result, const char *url,
+			const char *extra_headers, const char *body)
 {
     std::string host;
     IPEndPoint ipe;
     std::string path;
     ParseURL(url, &host, &path);
-    ParseHost(host, 80, &host, &ipe.port);
-    ipe.addr = IPAddress::Resolve(host.c_str());
+    std::string hostonly;
+    ParseHost(host, 80, &hostonly, &ipe.port);
+    ipe.addr = IPAddress::Resolve(hostonly.c_str());
     if (ipe.addr.addr == 0)
 	return ENOENT;
 
-    *result = HTTPStreamPtr(new HTTPStream(ipe, path));
+    *result = StreamPtr(new Stream(ipe, host, path, extra_headers,
+				   body));
 
     return 0;
 }
 
-unsigned HTTPStream::ReadAt(void *buffer, pos64 pos, size_t len,
-			    size_t *pread)
+unsigned Stream::ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread)
 {
     /** @todo Isn't thread-safe like the other ReadAt's. Add a mutex. */
 
-    if (!m_need_fetch && pos != Tell())
+    if (!m_need_fetch && pos != m_last_pos)
     {
-	m_socket.Close();
-	m_socket.Open();
+	if (m_body) // Don't re-POST
+	{
+	    TRACE << "Oh-oh, not re-POST-ing just because pos (" << pos
+		  << ") != m_last_pos (" << m_last_pos << ")\n";
+	    return EINVAL;
+	}
+
+	m_socket->Close();
+	m_socket->Open();
 	m_need_fetch = true;
 	Seek(pos);
     }
@@ -64,21 +81,41 @@ unsigned HTTPStream::ReadAt(void *buffer, pos64 pos, size_t len,
 
     if (m_need_fetch)
     {
-	m_socket.SetNonBlocking(false);
+	m_socket->SetNonBlocking(false);
 
-	unsigned int rc = m_socket.Connect(m_ipe);
+	unsigned int rc = m_socket->Connect(m_ipe);
 	if (rc != 0)
 	    return rc;
 
 	std::string headers;
-	headers = "GET " + m_path + " HTTP/1.1\r\n";
+	if (m_body)
+	    headers = "POST";
+	else
+	    headers = "GET";
 
-	headers += (boost::format("Range: bytes=%llu-\r\n")
-		    % (unsigned long long)pos).str();
+	headers += " " + m_path + " HTTP/1.1\r\n";
+
+	headers += "Host: " + m_host + "\r\n";
+
+	if (pos)
+	    headers += (boost::format("Range: bytes=%llu-\r\n")
+			% (unsigned long long)pos).str();
+
 	headers += "User-Agent: " PACKAGE_NAME "/" PACKAGE_VERSION "\r\n";
+
+	if (m_body)
+	    headers += (boost::format("Content-Length: %llu\r\n")
+			% (unsigned long long)strlen(m_body)).str();
+
+	if (m_extra_headers)
+	    headers += m_extra_headers;
+
 	headers += "\r\n";
 
-	rc = m_stm->WriteAll(headers.c_str(), headers.length());
+	if (m_body)
+	    headers += m_body;
+
+	rc = m_socket->WriteAll(headers.c_str(), headers.length());
 	if (rc != 0)
 	{
 	    TRACE << "Can't even write headers: " << rc << "\n";
@@ -86,27 +123,32 @@ unsigned HTTPStream::ReadAt(void *buffer, pos64 pos, size_t len,
 	}
 
 //	TRACE << "Sent headers:\n" << headers;
+	rc = m_socket->SetNonBlocking(true);
 
-	util::LineReader lr(m_stm);
+	util::PeekingLineReader lr(m_socket);
+	http::Parser hp(&lr);
 
-	typedef boost::tokenizer<boost::char_separator<char> > tokenizer;
-	boost::char_separator<char> sep(" \t");
-
-	rc = m_socket.SetNonBlocking(true);
 	if (rc != 0)
 	{
 	    TRACE << "Can't set non-blocking: " << rc << "\n";
 	    return rc;
 	}
 
-	std::string line;
+	bool is_error = false;
 
 	for (;;)
 	{
-	    rc = lr.GetLine(&line);
-//	TRACE << "GetLine returned " << rc << "\n";
+	    unsigned int httpcode;
+
+	    rc = hp.GetResponseLine(&httpcode, NULL);
+
+//	    TRACE << "GetResponseLine returned " << rc << "\n";
+	    
 	    if (rc == 0)
+	    {
+		is_error = (httpcode != 206 && httpcode != 200);
 		break;
+	    }
 	    if (rc != EWOULDBLOCK)
 	    {
 		TRACE << "GetLine failed " << rc << "\n";
@@ -114,7 +156,7 @@ unsigned HTTPStream::ReadAt(void *buffer, pos64 pos, size_t len,
 	    }
 	    if (rc == EWOULDBLOCK)
 	    {
-		rc = m_socket.WaitForRead(5000);
+		rc = m_socket->WaitForRead(5000);
 		if (rc != 0)
 		{
 		    TRACE << "Socket won't come ready " << rc << "\n";
@@ -123,140 +165,114 @@ unsigned HTTPStream::ReadAt(void *buffer, pos64 pos, size_t len,
 	    }
 	}
 	
-	m_socket.SetNonBlocking(false);
+	m_socket->SetNonBlocking(false);
 
+	bool got_range = false;
+	unsigned long long clen = 0;
+
+	for (;;)
 	{
-	    tokenizer bt(line, sep);
-	    tokenizer::iterator bti = bt.begin();
-	    tokenizer::iterator end = bt.end();
-	    
-	    if (bti == end)
+	    std::string key, value;
+	    rc = hp.GetHeaderLine(&key, &value);
+	    if (rc)
 	    {
-		TRACE << "Don't like response line '" << line << "'\n";
-		return ENOENT;
+		TRACE << "GetHeaderLine says " << rc << ", bailing\n";
+		return rc;
 	    }
-	    if (*bti != "HTTP/1.0" && *bti != "HTTP/1.1")
-	    {
-		TRACE << "Don't like HTTP version '" << line << "'\n";
-		return ENOENT;
-	    }
-	    ++bti;
-	    if (bti == end)
-	    {
-		TRACE << "Don't like request line '" << line << "'\n";
-		return ENOENT;
-	    }
-	    unsigned int httpcode = atoi(bti->c_str());
-	    ++bti;
-	    if (bti == end)
-	    {
-		TRACE << "Don't like request line '" << line << "'\n";
-		return ENOENT;
-	    }
-	    
-	    if (httpcode != 206 && httpcode != 200)
-	    {
-		TRACE << "Don't like HTTP response " << httpcode << " ('"
-		      << line << "')\n";
-		return ENOENT;
-	    }
-	}
 
-	do {
-	    rc = lr.GetLine(&line);
-//	    TRACE << "Header " << line << "\n";
-
-	    tokenizer bt(line, sep);
-	    tokenizer::iterator bti = bt.begin();
-	    tokenizer::iterator end = bt.end();
-	    if (bti != end)
+	    if (!strcasecmp(key.c_str(), "Content-Range"))
 	    {
-		if (!strcasecmp(bti->c_str(), "Content-Range:"))
+		unsigned long long rmin, rmax, elen = 0;
+
+		/* HTTP/1.1 says "Content-Range: bytes X-Y/Z"
+		 * but traditional Receiver servers send
+		 * "Content-Range: bytes=X-Y"
+		 */
+
+		if (sscanf(value.c_str(), "bytes %llu-%llu/%llu",
+			   &rmin, &rmax, &elen) == 3
+		    || sscanf(value.c_str(), "bytes=%llu-%llu/%llu",
+			      &rmin, &rmax, &elen) == 3
+		    || sscanf(value.c_str(), "bytes %llu-%llu",
+			      &rmin, &rmax) == 2
+		    || sscanf(value.c_str(), "bytes=%llu-%llu",
+			      &rmin, &rmax) == 2)
 		{
-		    ++bti;
-
-		    if (bti != end && !strcasecmp(bti->c_str(), "bytes"))
-			++bti;
-
-		    if (bti != end)
-		    {
-			unsigned long long rmin, rmax, elen = 0;
-
-			/* HTTP/1.1 says "Content-Range: bytes X-Y/Z"
-			 * but traditional Receiver servers send
-			 * "Content-Range: bytes=X-Y"
-			 */
-
-			if (sscanf(bti->c_str(), "%llu-%llu/%llu",
-				   &rmin, &rmax, &elen) == 3
-			    || sscanf(bti->c_str(), "bytes=%llu-%llu/%llu",
-				      &rmin, &rmax, &elen) == 3
-			    || sscanf(bti->c_str(), "%llu-%llu",
-				      &rmin, &rmax) == 2
-			    || sscanf(bti->c_str(), "bytes=%llu-%llu",
-				      &rmin, &rmax) == 2)
-			{
-			    if (elen)
-				m_len = elen;
-			    else
-				m_len = rmax + 1;
-			}
-		    }
+		    if (elen)
+			m_len = elen;
+		    else
+			m_len = rmax + 1;
+		    
+		    got_range = true;
 		}
 	    }
-	} while (line != "");
+	    else if (!strcasecmp(key.c_str(), "Content-Length"))
+	    {
+		sscanf(value.c_str(), "%llu", &clen);
+	    }
+	    else if (key.empty())
+		break;
+	}
 
-	size_t nleft;
-	const char *leftovers = lr.GetLeftovers(&nleft);
+	if (!got_range)
+	    m_len = clen;
+
+	if (is_error)
+	{
+	    util::StreamPtr epage = CreatePartialStream(m_socket, clen);
+	    StringStreamPtr ssp = StringStream::Create();
+	    CopyStream(epage, ssp);
+	    TRACE << "HTTP error page: " << ssp->str() << "\n";
+	    return EINVAL;
+	}
 
 	m_need_fetch = false;
 
-	if (nleft)
-	{
-	    memcpy(buffer, leftovers, nleft);
-	    *pread = nleft;
-	    return 0;
-	}
+	m_last_pos = pos;
     }
 	
-    unsigned int rc = m_stm->Read(buffer, len, pread);
+    unsigned int rc = m_socket->Read(buffer, len, pread);
+    if (!rc)
+	m_last_pos += *pread;
     return rc;
 }
 
-unsigned HTTPStream::WriteAt(const void*, pos64, size_t, size_t*)
+unsigned Stream::WriteAt(const void*, pos64, size_t, size_t*)
 {
     return EPERM;
 }
 
-SeekableStream::pos64 HTTPStream::GetLength() { return m_len; }
+SeekableStream::pos64 Stream::GetLength() { return m_len; }
 
-unsigned HTTPStream::SetLength(pos64) { return EPERM; }
+unsigned Stream::SetLength(pos64) { return EPERM; }
+
+} // namespace http
 
 } // namespace util
 
 #ifdef TEST
 
-# include "web_server.h"
+# include "http_server.h"
 # include "poll.h"
 # include "string_stream.h"
-# include "worker_thread.h"
+# include "worker_thread_pool.h"
 
 class FetchTask: public util::Task
 {
     std::string m_url;
     std::string m_contents;
-    util::PollWaker *m_waker;
+    util::PollerInterface *m_waker;
     volatile bool m_done;
 
 public:
-    FetchTask(const std::string& url, util::PollWaker *waker)
+    FetchTask(const std::string& url, util::PollerInterface *waker)
 	: m_url(url), m_waker(waker), m_done(false) {}
 
-    void Run()
+    unsigned int Run()
     {
 //	TRACE << "Fetcher running\n";
-	util::HTTPStreamPtr hsp;
-	unsigned int rc = util::HTTPStream::Create(&hsp, m_url.c_str());
+	util::http::StreamPtr hsp;
+	unsigned int rc = util::http::Stream::Create(&hsp, m_url.c_str());
 	assert(rc == 0);
 
 	char buf[2048];
@@ -267,6 +283,7 @@ public:
 	m_waker->Wake();
 //	TRACE << "Fetcher done " << rc << "\n";
 	m_done = true;
+	return 0;
     }
 
     const std::string& GetContents() const { return m_contents; }
@@ -274,10 +291,10 @@ public:
     bool IsDone() const { return m_done; }
 };
 
-class EchoContentFactory: public util::ContentFactory
+class EchoContentFactory: public util::http::ContentFactory
 {
 public:
-    bool StreamForPath(const util::WebRequest *rq, util::WebResponse *rs)
+    bool StreamForPath(const util::http::Request *rq, util::http::Response *rs)
     {
 	util::StringStreamPtr ssp = util::StringStream::Create();
 	ssp->str() = rq->path;
@@ -289,32 +306,28 @@ public:
 int main(int, char*[])
 {
     util::Poller poller;
+    util::WorkerThreadPool wtp(util::WorkerThreadPool::NORMAL);
 
-    util::WebServer ws;
+    util::http::Server ws(&poller, &wtp);
 
-    unsigned rc = ws.Init(&poller, "/", 0);
+    unsigned rc = ws.Init();
 
     EchoContentFactory ecf;
     ws.AddContentFactory("/", &ecf);
 
     assert(rc == 0);
 
-    util::PollWaker waker(&poller);
-
     std::string url = (boost::format("http://127.0.0.1:%u/zootle/wurdle.html")
 		       % ws.GetPort()
 	).str();
 
-    FetchTask *ft = new FetchTask(url, &waker);
-
-    util::TaskQueue queue;
-    util::WorkerThread wt(&queue);
+    FetchTask *ft = new FetchTask(url, &poller);
 
     util::TaskPtr tp(ft);
-    queue.PushTask(tp);
+    wtp.PushTask(tp);
 
     time_t start = time(NULL);
-    time_t finish = start+2;
+    time_t finish = start+5;
     time_t now;
 
     do {
@@ -330,8 +343,6 @@ int main(int, char*[])
 //	  << strlen(ft->GetContents().c_str()) << " sz "
 //	  << ft->GetContents().length() << ")\n";
     assert(ft->GetContents() == "/zootle/wurdle.html");
-
-    queue.PushTask(util::TaskPtr(NULL));
 
     return 0;
 }

@@ -1,14 +1,11 @@
 #include "config.h"
 #include "optical_drive.h"
 #include "libimport/cd_content_factory.h"
-#include "libutil/ssdp.h"
+#include "libupnp/ssdp.h"
+#include "libupnp/soap_info_source.h"
 #include "libutil/trace.h"
 #include <errno.h>
 #include <boost/format.hpp>
-
-#ifdef HAVE_UPNP
-
-#include <upnp/upnp.h>
 
 namespace upnpd {
 
@@ -18,14 +15,14 @@ namespace upnpd {
 
 OpticalDriveDevice::OpticalDriveDevice(import::CDDrivePtr cd,
 				       import::CDContentFactory *factory,
-				       unsigned short port)
-    : upnp::Device("urn:chorale-sf-net:dev:OpticalDrive:1", cd->GetName()),
-      m_opticaldrive(cd, factory, port),
-      m_opticaldriveserver(util::ssdp::s_uuid_opticaldrive,
+				       upnp::soap::InfoSource *info_source)
+    : upnp::Device(upnp::s_device_type_optical_drive),
+      m_opticaldrive(cd, factory, info_source),
+      m_opticaldriveserver(this,
+			   "urn:chorale-sf-net:serviceId:OpticalDrive",
+			   upnp::s_service_type_optical_drive,
 			   "/upnp/OpticalDrive.xml", &m_opticaldrive)
 {
-    AddService("urn:chorale-sf-net:serviceId:OpticalDrive",
-	       &m_opticaldriveserver);
 }
 
 
@@ -34,10 +31,10 @@ OpticalDriveDevice::OpticalDriveDevice(import::CDDrivePtr cd,
 
 OpticalDriveImpl::OpticalDriveImpl(import::CDDrivePtr cd,
 				   import::CDContentFactory *factory,
-				   unsigned short port)
+				   upnp::soap::InfoSource *info_source)
     : m_cd(cd),
       m_factory(factory),
-      m_port(port),
+      m_info_source(info_source),
       m_disc_present(!cd->SupportsDiscPresent()) // Pretend always there
 {
     m_cd->AddObserver(this);
@@ -104,14 +101,11 @@ unsigned int OpticalDriveImpl::GetTrackInfo(uint8_t track,
     if (track >= m_audiocd->GetTrackCount())
 	return ERANGE;
 
-    /** @todo Determine IP address to use from socket (or SoapInfo structure)
-     */
     std::string urlprefix;
-    if (m_port)
+    if (m_info_source)
     {
-	urlprefix = (boost::format("http://%s:%u")
-		     % UpnpGetServerIpAddress()
-		     % m_port).str();
+	util::IPEndPoint ipe = m_info_source->GetCurrentEndPoint();
+	urlprefix = "http://" + ipe.ToString();
     }
 
     *type = TRACKTYPE_AUDIO;
@@ -126,5 +120,3 @@ unsigned int OpticalDriveImpl::GetTrackInfo(uint8_t track,
 }
 
 } // namespace upnpd
-
-#endif // HAVE_UPNP

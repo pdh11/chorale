@@ -21,12 +21,28 @@ unsigned int Registry::IndexForDB(mediadb::Database *db)
     return result;
 }
 
-mediadb::Database *Registry::DBForIndex(unsigned int index)
+mediadb::Database *Registry::DBForIndex(unsigned int index) const
 {
     revmap_t::const_iterator i = m_revmap.find(index);
     if (i == m_revmap.end())
     {
 	TRACE << "Can't find mediadb #" << index << "\n";
+	return NULL;
+    }
+    return i->second;
+}
+
+void Registry::NameDatabase(mediadb::Database *db, const std::string& name)
+{
+    TRACE << "db" << db << " is called '" << name << "'\n";
+    m_names[name] = db;
+}
+
+mediadb::Database* Registry::DatabaseForName(const std::string& name) const
+{
+    names_t::const_iterator i = m_names.find(name);
+    if (i == m_names.end())
+    {
 	return NULL;
     }
     return i->second;

@@ -49,6 +49,7 @@ class URLPlayer::Impl: public util::Observable<URLObserver>
     int m_device;
 
     GSTInitHelper m_init;
+    GMainContext *m_context;
     GMainLoop *m_loop;
     GstElement *m_play;
     GstBus *m_bus;
@@ -74,6 +75,9 @@ class URLPlayer::Impl: public util::Observable<URLObserver>
     static gboolean StaticAlarmCallback(gpointer);
     gboolean OnAlarm();
 
+    static gboolean StaticStartup(gpointer);
+    gboolean OnStartup();
+
 public:
     Impl(int card, int device);
     ~Impl();
@@ -86,6 +90,7 @@ public:
 URLPlayer::Impl::Impl(int card, int device)
     : m_card(card),
       m_device(device),
+      m_context(NULL),
       m_loop(NULL),
       m_play(NULL),
       m_bus(NULL),
@@ -96,30 +101,13 @@ URLPlayer::Impl::Impl(int card, int device)
       m_exiting(false),
       m_thread(boost::bind(&Impl::Run, this))
 {
-}
-
-URLPlayer::Impl::~Impl()
-{
-    m_exiting = true;
-    TRACE << "URLPlayer::~Impl\n";
-    gst_element_set_state(m_play, GST_STATE_NULL);
-    if (m_loop)
-	g_main_loop_quit(m_loop);
-    TRACE << "URLPlayer::~Impl joining\n";
-    m_thread.join();
-    TRACE << "URLPlayer::~Impl joined\n";
-}
-
-void URLPlayer::Impl::Run()
-{
-    TRACE << "starting\n";
-
-    GMainContext *context = g_main_context_new();
-    GSource *timersource = g_timeout_source_new(500);
-    g_source_set_callback(timersource, &StaticAlarmCallback, this, NULL);
-
-    g_source_attach(timersource, context);
-    m_loop = g_main_loop_new(context, false);
+    if (!g_thread_supported())
+    {
+	TRACE << "Initing g threads\n";
+	g_thread_init(NULL);
+    }
+    else
+	TRACE << "no need\n";
 
     /* For some reason, gstreamer deadlocks loading the gnomevfs
      * element if we call set_element_state on playbin from the wrong
@@ -130,52 +118,98 @@ void URLPlayer::Impl::Run()
      */    
     GstElement *gnomevfs = gst_element_factory_make("gnomevfssrc", "temp");
     gst_object_unref(GST_OBJECT(gnomevfs));
+}
 
-    /* GStreamer crashes if we call gst_element_factory_make from two threads
-     * simultaneously.
-     */
-    static boost::mutex gstreamer_unnecessarily_not_re_entrant;
+URLPlayer::Impl::~Impl()
+{
+    m_exiting = true;
+    TRACE << "URLPlayer::~Impl\n";
+    if (m_play)
+	gst_element_set_state(m_play, GST_STATE_NULL);
+    if (m_loop)
+	g_main_loop_quit(m_loop);
+    TRACE << "URLPlayer::~Impl joining\n";
+    m_thread.join();
+    TRACE << "URLPlayer::~Impl joined\n";
+}
 
+gboolean URLPlayer::Impl::StaticStartup(gpointer data)
+{
+    Impl *impl = (Impl*)data;
+    return impl->OnStartup();
+}
+
+/* GStreamer crashes if we call gst_element_factory_make from two threads
+ * simultaneously.
+ */
+static boost::mutex gstreamer_unnecessarily_not_re_entrant;
+
+gboolean URLPlayer::Impl::OnStartup()
+{
     {
 	boost::mutex::scoped_lock lock(gstreamer_unnecessarily_not_re_entrant);
     
+
 	m_play = gst_element_factory_make("playbin", "play");
 	if (!m_play)
 	{
 	    TRACE << "Oh-oh, no playbin\n";
 	}
-    }
 
-    GstElement *alsasink = NULL;
-    std::string alsadevice;
+	GstElement *alsasink = NULL;
+	std::string alsadevice;
 
-    if (m_card >= 0 && m_device >= 0)
-    {
-	alsadevice = (boost::format("plughw:%d,%d") % m_card % m_device).str();
+	if (m_card >= 0 && m_device >= 0)
+	{
+	    alsadevice = (boost::format("plughw:%d,%d") % m_card % m_device).str();
+	    
+	    alsasink = gst_element_factory_make("alsasink", "audio-sink");
+	    g_object_set(m_play, "audio-sink", alsasink, NULL);
+	    g_object_set(alsasink, "device", alsadevice.c_str(), NULL);
+	}
+	// Otherwise it uses the "default" ALSA output
 
-	alsasink = gst_element_factory_make("alsasink", "audio-sink");
-	g_object_set(m_play, "audio-sink", alsasink, NULL);
-	g_object_set(alsasink, "device", alsadevice.c_str(), NULL);
-    }
-    // Otherwise it uses the "default" ALSA output
-
-    gst_element_set_state(m_play, GST_STATE_NULL);
-
-    m_bus = gst_pipeline_get_bus(GST_PIPELINE(m_play));
+	gst_element_set_state(m_play, GST_STATE_NULL);
+	m_bus = gst_pipeline_get_bus(GST_PIPELINE(m_play));
 //    TRACE << "Apparently bus=" << m_bus << " (this=" << this << ")\n";
-    GSource *src = gst_bus_create_watch(m_bus);
 
-    // Hurrah for filthy GLib non-typesafety
-    g_source_set_callback(src, (GSourceFunc)&StaticBusCallback, this, NULL);
-    g_source_attach(src, context);
+	GSource *src = gst_bus_create_watch(m_bus);
 
-    TRACE << "running\n";
+	// Hurrah for filthy GLib non-typesafety
+	g_source_set_callback(src, (GSourceFunc)&StaticBusCallback, this, 
+			      NULL);
+	g_source_attach(src, m_context);
+    }
 
     {
 	boost::mutex::scoped_lock lock(m_mutex);
 	m_started = true;
 	m_cstarted.notify_all();
     }
+
+    return false; // Don't call me again
+}
+
+void URLPlayer::Impl::Run()
+{
+    TRACE << "starting\n";
+
+    GSource *timersource;
+
+    m_context = g_main_context_new();
+    g_main_context_acquire(m_context);
+
+    m_loop = g_main_loop_new(m_context, false);
+
+    GSource *idlesource = g_timeout_source_new(100);
+    g_source_set_callback(idlesource, &StaticStartup, this, NULL);
+    g_source_attach(idlesource, m_context);
+
+    timersource = g_timeout_source_new(500);
+    g_source_set_callback(timersource, &StaticAlarmCallback, this, NULL);
+    g_source_attach(timersource, m_context);
+	
+    TRACE << "running\n";
 
     /* now run */
     g_main_loop_run(m_loop);
@@ -186,16 +220,16 @@ void URLPlayer::Impl::Run()
     {
 	boost::mutex::scoped_lock lock(gstreamer_unnecessarily_not_re_entrant);
     
-    gst_element_set_state(m_play, GST_STATE_NULL);
-    gst_object_unref(GST_OBJECT(m_bus));
-    gst_object_unref(GST_OBJECT(m_play));
+	gst_element_set_state(m_play, GST_STATE_NULL);
+	gst_object_unref(GST_OBJECT(m_bus));
+	gst_object_unref(GST_OBJECT(m_play));
 //    if (alsasink)
 //	gst_object_unref(GST_OBJECT(alsasink));
-    g_main_loop_unref(m_loop);
-    m_loop = NULL;
-    g_source_destroy(timersource);
-    g_source_destroy(src);
-    g_main_context_unref(context);
+	g_main_loop_unref(m_loop);
+	m_loop = NULL;
+	g_source_destroy(timersource);
+//    g_source_destroy(src);
+	g_main_context_unref(m_context);
 
     }
 
@@ -406,6 +440,9 @@ gboolean URLPlayer::Impl::StaticAlarmCallback(gpointer data)
 
 gboolean URLPlayer::Impl::OnAlarm()
 {
+    if (!m_started)
+	return true;
+
     GstFormat fmt = GST_FORMAT_TIME;
     gint64 ns;
 
@@ -428,16 +465,8 @@ gboolean URLPlayer::Impl::OnAlarm()
 
 
 URLPlayer::URLPlayer(int card, int device)
+    : m_impl(new Impl(card, device))
 {
-    if (!g_thread_supported())
-    {
-	TRACE << "Initing g threads\n";
-	g_thread_init(NULL);
-    }
-    else
-	TRACE << "no need\n";
-
-    m_impl = new Impl(card, device);
 }
 
 URLPlayer::~URLPlayer()

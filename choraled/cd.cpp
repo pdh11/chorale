@@ -1,8 +1,10 @@
 #include "cd.h"
 #include "libimport/cd_content_factory.h"
 #include "libupnpd/optical_drive.h"
+#include "libupnp/server.h"
 #include <boost/lambda/lambda.hpp>
 #include <boost/lambda/construct.hpp>
+#include <algorithm>
 
 CDService::CDService(util::hal::Context *hal)
     : m_drives(hal)
@@ -17,8 +19,8 @@ CDService::~CDService()
 		  boost::lambda::delete_ptr());
 }
 
-unsigned int CDService::Init(util::WebServer *ws, const char *hostname,
-			     upnp::Device **ppdev)
+unsigned int CDService::Init(util::http::Server *ws, const char *hostname,
+			     upnp::Server *us)
 {
     m_drives.Refresh();
 
@@ -34,16 +36,12 @@ unsigned int CDService::Init(util::WebServer *ws, const char *hostname,
 
 	ws->AddContentFactory(fac->GetPrefix(), fac);
 	upnpd::OpticalDriveDevice *cdromdevice
-	    = new upnpd::OpticalDriveDevice(cdp, fac, ws->GetPort());
+	    = new upnpd::OpticalDriveDevice(cdp, fac, us);
 	m_devices.push_back(cdromdevice);
 
 	cdromdevice->SetFriendlyName(cdp->GetName()
 				     + " on " + std::string(hostname));
-	    
-	if (*ppdev)
-	    (*ppdev)->AddEmbeddedDevice(cdromdevice);
-	else
-	    *ppdev = cdromdevice;
+	cdromdevice->Init(us, cdp->GetName());
     }
     return 0;
 }

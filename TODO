@@ -8,8 +8,6 @@ choralecd: Finish coloured slots (CDWindow)
 choralecd: Source renaming
 choralecd: track vs folder icons in browse window
 choralecd: check settings window
-Shut down web server in mid-copy (polling copy?)
-once lgpl cdparanoia 10 released: switch from libcdio
 
   1.0
   ---
@@ -18,24 +16,28 @@ choralecd: tooltips in browse window
 liboutput: repeat/shuffle
 libdb: GetRecord?
 libimport: M3U
-libreceiverd: better README (how to obtain layouts etc)
 asynchronous db (for dbreceiver)
 man pages (!)
 more doxy comments
 type=spoken (cf new Vibez implementation)
 album art
-DVB-T RT recording thread
 DVB-T recording conflicts
 gateway Receiver server to UPnP clients
 gateway UPnP server to Receiver clients
 investigate optimisation with throw()
+asynchronous stream (GetPollHandle) + sync-to-async wrapper for remote CD rip
+Convert EncodingTask to PollableTask (wait for readability)
+Convert http::Connection to PollableTask
+Convert dvb::Recording to PollableTask
+Convert EPG::Impl to PollableTask
+Pass a Callback to Task::Create? to TaskPoller::WaitFor*?
+Rewrite http::Stream in terms of http::Client
+Pass a name mapper to Synchronise for carv2 (UTF8->Latin1)
 
   2.0
   ---
 NF2 genre
 more-homemade audio out (gapless, RG)
-more-homemade UPnP classes (instead of using IXML_Parse everywhere)
-empeg sync
 MSC sync
 DAAP
 internet radio (UPnP CDS v2)
@@ -44,7 +46,9 @@ i18n (gettext)
   Perhaps never
   -------------
 libreceiverd: split RCF into separate content-factories
-libutil: boost::asio instead of class Socket?
+libutil: boost::asio instead of class Socket? (no, can't use choraleqt::Poller)
+libutil: boost::bind instead of Task::Run/OnActivity/OnTimer?
 How much Boost do we lose out on if we insist on -fno-rtti -fno-exceptions?
 new empeg receiver distribution (freetype, ...)
 Turn Stream/SeekableStream into BufferPtr factories?
+If Queue'd URLs refer to localhost, rewrite ITO IP as seen by target

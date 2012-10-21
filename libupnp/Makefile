@@ -5,9 +5,9 @@ SRCS:=\
 	client.cpp \
 	description.cpp \
 	device.cpp \
-	didl.cpp \
 	server.cpp \
-	soap.cpp
+	soap.cpp \
+	ssdp.cpp
 
 LIBUPNP_XML:= \
 	AVTransport2.xml \
@@ -15,12 +15,14 @@ LIBUPNP_XML:= \
 	ContentDirectory2.xml \
 	OpticalDrive.xml \
 	RenderingControl2.xml \
-	ScheduledRecording1.xml
+	ScheduledRecording1.xml \
+	TestService.xml
 
 SRCS:=$(sort $(SRCS) $(LIBUPNP_XML:%.xml=%.cpp) $(LIBUPNP_XML:%.xml=%_server.cpp) $(LIBUPNP_XML:%.xml=%_client.cpp))
 
 TEST_SRCS:=\
-	didl.cpp
+	ssdp.cpp \
+	test_service.cpp
 
 all-libupnp:
 
@@ -101,29 +103,24 @@ endif
 ifeq ($(libdb),)
 include $(TOP)libdb/Makefile
 endif
-ifeq ($(libmediadb),)
-include $(TOP)libmediadb/Makefile
-endif
 ifeq ($(libdbsteam),)
 include $(TOP)libdbsteam/Makefile
 endif
 
-$(TOP)$(DIR)% : CXXFLAGS += $(UPNP_CXXFLAGS)
+$(LIBUPNP_TESTS): TEST_LIBS+= $(BOOST_LIBS) $(LIBS)
 
-$(LIBUPNP_TESTS): TEST_LIBS+= $(UPNP_LIBS) $(BOOST_LIBS)
-
-$(LIBUPNP_TESTS): $(libmediadb) $(libdbsteam) $(libdb) $(libupnp) $(libutil)
+$(LIBUPNP_TESTS): $(libdbsteam) $(libdb) $(libupnp) $(libutil)
 
 $(libupnp): $(LIBUPNP_OBJS)
 	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(LIBUPNP_OBJS)
 
 $(upnpscan): $(UPNPSCAN_OBJS) $(libupnp) \
-		$(libdb) $(libutil) Makefile $(libmediadb)
+		$(libdb) $(libutil) Makefile
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(RECEIVERSCAN_OBJS) $(libupnp) \
-		$(libmediadb) $(libdb) $(libutil) \
-		$(BOOST_LIBS) $(CURL_LIBS) $(UPNP_LIBS)
+		$(libdb) $(libutil) \
+		$(BOOST_LIBS)
 
 -include $(UPNPSCAN_OBJS:%.lo=%.lo.dep)
 

@@ -346,7 +346,7 @@ util::SeekableStreamPtr ResultsStream(mediadb::Database *db,
 }
 
 void GetContentStream(mediadb::Database *db, unsigned int id, 
-		      const char *path, util::WebResponse *rsp)
+		      const char *path, util::http::Response *rsp)
 {
     db::QueryPtr qp = db->CreateQuery();
     qp->Where(qp->Restrict(mediadb::ID, db::EQ, id));
@@ -575,8 +575,8 @@ util::SeekableStreamPtr ListStream(mediadb::Database *db,
     return ms;
 }
 
-bool ContentFactory::StreamForPath(const util::WebRequest *rq, 
-				   util::WebResponse *rs)
+bool ContentFactory::StreamForPath(const util::http::Request *rq, 
+				   util::http::Response *rs)
 {
     unsigned int id = 0;
 
@@ -853,9 +853,9 @@ int main()
 
     for (unsigned int i=0; i<NTESTS; ++i)
     {
-	util::WebRequest rq;
+	util::http::Request rq;
 	rq.path = tests[i].url;
-	util::WebResponse rs;
+	util::http::Response rs;
 	bool found = rcf.StreamForPath(&rq, &rs);
 
 	assert(found);
@@ -876,9 +876,9 @@ int main()
 
     for (unsigned int i=0; i<NTESTS2; ++i)
     {
-	util::WebRequest rq;
+	util::http::Request rq;
 	rq.path = tests2[i].url;
-	util::WebResponse rs;
+	util::http::Response rs;
 	bool found = rcf.StreamForPath(&rq,&rs);
 
 	assert(found);

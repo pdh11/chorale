@@ -10,6 +10,7 @@
 #include <string>
 #include <map>
 #include <set>
+//#include <sys/time.h>
 #include <boost/thread/mutex.hpp>
 
 class Tracer
@@ -25,6 +26,10 @@ public:
 	printf("%04u:%-25s:%4u: ", (unsigned int)GetCurrentThreadId(), file, 
 	       line);
 #else
+//	struct timeval tv;
+//	gettimeofday(&tv, NULL);
+
+//	printf("%09u.%06u:%-25s:%4u: ", (unsigned)tv.tv_sec, (unsigned)tv.tv_usec, file, line);
 	printf("%-25s:%4u: ", file, line);
 #endif
     }
@@ -43,6 +48,7 @@ inline const Tracer& operator<<(const Tracer& n, const std::string& s) { printf(
 inline const Tracer& operator<<(const Tracer& n, unsigned int ui) { printf("%u",ui); return n; }
 inline const Tracer& operator<<(const Tracer& n, unsigned long ul) { printf("%lu",ul); return n; }
 inline const Tracer& operator<<(const Tracer& n, unsigned long long ull) { printf("%llu",ull); return n; }
+inline const Tracer& operator<<(const Tracer& n, char i) { printf("'%c'",i); return n; }
 inline const Tracer& operator<<(const Tracer& n, int i) { printf("%d",i); return n; }
 inline const Tracer& operator<<(const Tracer& n, long i) { printf("%ld",i); return n; }
 inline const Tracer& operator<<(const Tracer& n, long long i) { printf("%lld",i); return n; }
@@ -50,7 +56,7 @@ inline const Tracer& operator<<(const Tracer& n, const void *p) { printf("%p",p)
 inline const Tracer& operator<<(const Tracer& n, double d) { printf("%f",d); return n; }
 
 template<typename X> 
-    inline const Tracer& operator<<(const Tracer& n, const std::set<X>& m)
+inline const Tracer& operator<<(const Tracer& n, const std::set<X>& m)
 {
     n << "{ ";
     for (typename std::set<X>::const_iterator i = m.begin(); i != m.end(); ++i)
@@ -61,8 +67,8 @@ template<typename X>
     return n;
 }
 
-template<typename X, typename Y> 
-    inline const Tracer& operator<<(const Tracer& n, const std::map<X,Y>& m)
+template<typename X, typename Y, typename Z> 
+inline const Tracer& operator<<(const Tracer& n, const std::map<X,Y,Z>& m)
 {
     n << "[ ";
     for (typename std::map<X,Y>::const_iterator i = m.begin(); i != m.end(); ++i)
@@ -74,9 +80,16 @@ template<typename X, typename Y>
 }
 
 template<typename X, typename Y> 
-    inline const Tracer& operator<<(const Tracer& n, const std::pair<X,Y>& p)
+inline const Tracer& operator<<(const Tracer& n, const std::pair<X,Y>& p)
 {
     n << "(" << p.first << ", " << p.second << ")";
+    return n;
+}
+
+template<typename X, template<typename Y> class SmartPtr>
+inline const Tracer& operator<<(const Tracer&n, const SmartPtr<X>& ptr)
+{
+    n << ptr.get();
     return n;
 }
 

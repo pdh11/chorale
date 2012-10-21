@@ -6,7 +6,7 @@
 #include <qframe.h>
 #include "resource_widget.h"
 #include "widget_factory.h"
-#include "libutil/ssdp.h"
+#include "libupnp/ssdp.h"
 #include "libimport/cd_drives.h"
 
 class QWidget;
@@ -14,6 +14,8 @@ class QPixmap;
 
 class Settings;
 namespace util { class TaskQueue; }
+namespace util { namespace http { class Client; } }
+namespace util { namespace http { class Server; } }
 
 namespace choraleqt {
 
@@ -59,27 +61,31 @@ public:
     void CreateWidgets(QWidget *parent);
 };
 
-/** A WidgetFactory which creates OutputWidget items for remote (UPnP)
+/** A WidgetFactory which creates CDWidget items for remote (UPnP)
  * CD drives.
  */
 class UpnpCDWidgetFactory: public WidgetFactory,
-			   public util::ssdp::Client::Callback
+			   public upnp::ssdp::Responder::Callback
 {
     QPixmap *m_pixmap;
     QWidget *m_parent;
     Settings *m_settings;
     util::TaskQueue *m_cpu_queue;
     util::TaskQueue *m_disk_queue;
+    util::http::Client *m_client;
+    util::http::Server *m_server;
 
 public:
     UpnpCDWidgetFactory(QPixmap*, Settings *settings,
 			util::TaskQueue *cpu_queue,
-			util::TaskQueue *disk_queue);
+			util::TaskQueue *disk_queue,
+			util::http::Client*,
+			util::http::Server*);
 
     // Being a WidgetFactory
     void CreateWidgets(QWidget *parent);
 
-    // Being a util::ssdp::Client::Callback
+    // Being a upnp::ssdp::Responder::Callback
     void OnService(const std::string& url, const std::string& udn);
 };
 

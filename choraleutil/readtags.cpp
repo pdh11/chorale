@@ -66,8 +66,7 @@ int main(int argc, char *argv[])
 	return 1;
     }
 
-    util::WorkerThreadPool wtp(nthreads);
-
+    util::WorkerThreadPool wtp(util::WorkerThreadPool::NORMAL, nthreads);
     
     db::steam::Database sdb(mediadb::FIELD_COUNT);
     sdb.SetFieldInfo(mediadb::ID, 
@@ -82,7 +81,7 @@ int main(int argc, char *argv[])
     mediadb::LocalDatabase ldb(&sdb);
 
 #ifdef HAVE_TAGLIB
-    import::FileScanner ifs(argv[optind], flacdir, &ldb, wtp.GetTaskQueue());
+    import::FileScanner ifs(argv[optind], flacdir, &ldb, &wtp);
 
     unsigned int rc = ifs.Scan();
     assert(rc == 0);

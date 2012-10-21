@@ -21,14 +21,11 @@ typedef int socklen_t;
 #include <errno.h>
 #include <sstream>
 #include <unistd.h>
+#include "errors.h"
 #include "trace.h"
 #include "poll.h"
 
 #undef CTIME
-
-#ifndef EWOULDBLOCK
-#define EWOULDBLOCK EAGAIN
-#endif
 
 #ifndef MSG_NOSIGNAL
 #define MSG_NOSIGNAL 0
@@ -38,6 +35,47 @@ typedef int socklen_t;
 #undef OUT
 
 namespace util {
+
+static const struct {
+    unsigned from;
+    unsigned to;
+} errnomap[] = {
+
+#if defined(EAGAIN)
+    { EAGAIN, EWOULDBLOCK },
+#endif
+#if defined(WSAEISCONN)
+    { WSAEISCONN, EISCONN },
+#endif
+#if defined(WSAEALREADY)
+    { WSAEALREADY, EALREADY },
+#endif
+#if defined(WSAEINPROGRESS)
+    { WSAEINPROGRESS, EINPROGRESS },
+#endif
+#if defined(WSAEWOULDBLOCK)
+    { WSAEWOULDBLOCK, EWOULDBLOCK },
+#endif
+
+// Nobody likes zero-sized arrays
+    { 0, 0 }
+
+};
+
+static unsigned int MappedError(unsigned int e)
+{
+    for (unsigned int i=0; i<sizeof(errnomap)/sizeof(*errnomap); ++i)
+	if (e == errnomap[i].from)
+	    return errnomap[i].to;
+    return e;
+}
+
+#ifdef WIN32
+unsigned int SocketError() { return MappedError(WSAGetLastError()); }
+#else
+unsigned int SocketError() { return MappedError((unsigned int)errno); }
+#endif
+
 
 #ifdef WIN32
 class SocketStartup
@@ -62,13 +100,19 @@ static void SetUpSockaddr(const IPEndPoint& ep, struct sockaddr_in *sin)
 
 Socket::Socket()
     : m_fd(NO_SOCKET),
-      m_event(0)
+      m_event(0),
+      m_event_type(NONE),
+      m_timeout_ms(5000),
+      m_peeked(0)
 {
 }
 
 Socket::Socket(int fd)
     : m_fd(fd),
-      m_event(0)
+      m_event(0),
+      m_event_type(NONE),
+      m_timeout_ms(5000),
+      m_peeked(0)
 {
 }
 
@@ -85,25 +129,31 @@ Socket::~Socket()
 	Close();
 }
 
-int Socket::GetPollHandle(unsigned int direction)
+PollHandle Socket::GetReadHandle()
 {
-    if (direction < 1 || direction > 3)
-    {
-	TRACE << "Bogus direction " << direction << "\n";
-    }
 #ifdef WIN32
     if (!m_event)
 	m_event = CreateEvent(NULL, false, false, NULL);
-    long events = 0;
-    if (direction & PollerInterface::IN)
-	events |= FD_READ | FD_ACCEPT;
-    if (direction & PollerInterface::OUT)
-	events |= FD_WRITE | FD_CONNECT;
-    WSAEventSelect(m_fd, m_event, events);
-    return (int)m_event;
+    if (m_event_type != READ)
+	WSAEventSelect(m_fd, m_event, FD_READ | FD_ACCEPT);
+    m_event_type = READ;
+    return m_event;
 #else
-    (void)direction;
-    return (int)m_fd;
+    return m_fd;
+#endif
+}
+
+PollHandle Socket::GetWriteHandle()
+{
+#ifdef WIN32
+    if (!m_event)
+	m_event = CreateEvent(NULL, false, false, NULL);
+    if (m_event_type != WRITE)
+	WSAEventSelect(m_fd, m_event, FD_WRITE | FD_CONNECT);
+    m_event_type = WRITE;
+    return m_event;
+#else
+    return m_fd;
 #endif
 }
 
@@ -121,7 +171,7 @@ unsigned Socket::Bind(const IPEndPoint& ep)
 
     int rc = ::bind(m_fd, &u.sa, sizeof(u.sin));
     if (rc < 0)
-	return (unsigned int)errno;
+	return SocketError();
     return 0;
 }
 
@@ -136,7 +186,11 @@ unsigned Socket::Connect(const IPEndPoint& ep)
 
     int rc = ::connect(m_fd, &u.sa, sizeof(u.sin));
     if (rc < 0)
-	return (unsigned int)errno;
+    {
+//	TRACE << "Connect gave error " << rc << " WSAGLE=" << WSAGetLastError()
+//	      << " (cf WSAEWOULDBLOCK=" << WSAEWOULDBLOCK << "\n";
+	return SocketError();
+    }
     return 0;
 }
 
@@ -173,7 +227,23 @@ unsigned Socket::SetNonBlocking(bool nonblocking)
     int rc = ::ioctl(m_fd, FIONBIO, &whether);
 #endif
     if (rc<0)
-	return (unsigned int)errno;
+	return SocketError();
+    return 0;
+}
+
+unsigned Socket::GetReadable(size_t *preadable)
+{
+#ifdef WIN32
+    unsigned long readable = 0;
+    int rc = ::ioctlsocket(m_fd, FIONREAD, &readable);
+//    TRACE << "FIONREAD says " << readable << " m_peeked=" << m_peeked << "\n";
+#else
+    int readable = 0;
+    int rc = ::ioctl(m_fd, FIONREAD, &readable);
+#endif
+    if (rc<0)
+	return SocketError();
+    *preadable = readable;
     return 0;
 }
 
@@ -194,13 +264,13 @@ unsigned Socket::Close()
     int rc = ::close(m_fd);
 #endif
     m_fd = NO_SOCKET;
-    return (rc<0) ? (unsigned int)errno : 0;
+    return (rc<0) ? SocketError() : 0;
 }
 
 unsigned Socket::WaitForRead(unsigned int ms)
 {
 #ifdef WIN32
-    HANDLE handle = (HANDLE)GetPollHandle(PollerInterface::IN);
+    HANDLE handle = GetReadHandle();
     DWORD rc = WaitForSingleObject(handle, ms);
 //    TRACE << "WFSO(" << ms << ") returned " << rc << " (WTO=" << WAIT_TIMEOUT
 //	  << " W0=" << WAIT_OBJECT_0 << ")\n";
@@ -210,13 +280,14 @@ unsigned Socket::WaitForRead(unsigned int ms)
 	return EWOULDBLOCK;
     return GetLastError();
 #else
+//    TRACE << "**** WaitForRead(" << m_fd << ") ****\n";
     struct pollfd pfd;
     pfd.fd = m_fd;
     pfd.events = POLLIN;
     
     int rc = ::poll(&pfd, 1, (int)ms);
     if (rc < 0)
-	return (unsigned int)errno;
+	return SocketError();
     if (rc == 0)
 	return EWOULDBLOCK;
     return 0;
@@ -226,7 +297,7 @@ unsigned Socket::WaitForRead(unsigned int ms)
 unsigned Socket::WaitForWrite(unsigned int ms)
 {
 #ifdef WIN32
-    HANDLE handle = (HANDLE)GetPollHandle(PollerInterface::OUT);
+    HANDLE handle = GetWriteHandle();
     DWORD rc = WaitForSingleObject(handle, ms);
     if (rc == WAIT_OBJECT_0)
 	return 0;
@@ -234,46 +305,62 @@ unsigned Socket::WaitForWrite(unsigned int ms)
 	return EWOULDBLOCK;
     return GetLastError();
 #else
+//    TRACE << "**** WaitForWrite(" << m_fd << ") ****\n";
     struct pollfd pfd;
     pfd.fd = m_fd;
     pfd.events = POLLOUT;
     
     int rc = ::poll(&pfd, 1, (int)ms);
     if (rc < 0)
-	return (unsigned int)errno;
+	return SocketError();
     if (rc == 0)
 	return EWOULDBLOCK;
     return 0;
 #endif
 }
 
-class Socket::Stream: public util::Stream
-{
-    Socket *m_socket;
-    unsigned int m_timeout_ms;
+unsigned Socket::ReadPeek(void *buffer, size_t len, size_t *pread)
+{   
+#ifdef WIN32
+    if (m_event)
+	WSAResetEvent(m_event);
 
-public:
-    Stream(Socket *socket, unsigned int timeout_ms) 
-	: m_socket(socket), m_timeout_ms(timeout_ms) {}
+    ssize_t rc = ::recv(m_fd, (char*)buffer, len, MSG_NOSIGNAL|MSG_PEEK);
+//    TRACE << "recv(peek) returned " << rc << "\n";
 
-    unsigned Read(void *buffer, size_t len, size_t *pread);
-    unsigned Write(const void *buffer, size_t len, size_t *pwrote);
-};
+    if (rc < 0)
+    {
+	unsigned rc3 = SocketError();
+//	TRACE << "Socket readpeek failed:" << rc3 << "\n";
+	return rc3;
+    }
+    m_peeked = rc;
+    *pread = (size_t)rc;
+#else
+    ssize_t rc = ::recv(m_fd, (char*)buffer, len, MSG_NOSIGNAL|MSG_PEEK);
 
-unsigned Socket::Stream::Read(void *buffer, size_t len, size_t *pread)
+    if (rc < 0)
+	return (unsigned int)errno;
+    m_peeked = (unsigned int)rc;
+    *pread = (size_t)rc;
+#endif
+    return 0;
+}
+
+unsigned Socket::Read(void *buffer, size_t len, size_t *pread)
 {
 #ifdef WIN32
-    if (m_socket->m_event)
-	WSAResetEvent(m_socket->m_event);
+    if (m_event)
+	WSAResetEvent(m_event);
 
-    ssize_t rc = ::recv(m_socket->m_fd, (char*)buffer, len, MSG_NOSIGNAL);
+    ssize_t rc = ::recv(m_fd, (char*)buffer, len, MSG_NOSIGNAL);
 
     if (rc < 0 && WSAGetLastError() == WSAEWOULDBLOCK)
     {
-	unsigned rc2 = m_socket->WaitForRead(m_timeout_ms);
+	unsigned rc2 = WaitForRead(m_timeout_ms);
 	if (rc2 != 0)
 	    return rc2;
-	rc = ::recv(m_socket->m_fd, (char*)buffer, len, MSG_NOSIGNAL);
+	rc = ::recv(m_fd, (char*)buffer, len, MSG_NOSIGNAL);
     }
 
     if (rc < 0)
@@ -285,15 +372,29 @@ unsigned Socket::Stream::Read(void *buffer, size_t len, size_t *pread)
 	return rc3;
     }
     *pread = (size_t)rc;
-#else
-    ssize_t rc = ::recv(m_socket->m_fd, (char*)buffer, len, MSG_NOSIGNAL);
 
-    if (rc < 0 && errno == EWOULDBLOCK)
+    if (rc > m_peeked)
+	m_peeked = 0;
+    else
+	m_peeked -= rc;
+
+    if (m_event && m_event_type == READ && m_peeked > 0)
+	WSASetEvent(m_event);
+#else
+    if (len == 0)
     {
-	unsigned rc2 = m_socket->WaitForRead(m_timeout_ms);
+	*pread = 0;
+	return 0;
+    }
+
+    ssize_t rc = ::recv(m_fd, (char*)buffer, len, MSG_NOSIGNAL);
+
+    if (rc < 0 && errno == EWOULDBLOCK && m_timeout_ms)
+    {
+	unsigned rc2 = WaitForRead(m_timeout_ms);
 	if (rc2 != 0)
 	    return rc2;
-	rc = ::recv(m_socket->m_fd, (char*)buffer, len, MSG_NOSIGNAL);
+	rc = ::recv(m_fd, (char*)buffer, len, MSG_NOSIGNAL);
     }
 
     if (rc < 0)
@@ -305,21 +406,21 @@ unsigned Socket::Stream::Read(void *buffer, size_t len, size_t *pread)
     return 0;
 }
 
-unsigned Socket::Stream::Write(const void *buffer, size_t len, size_t *pwrote)
+unsigned Socket::Write(const void *buffer, size_t len, size_t *pwrote)
 {
 #ifdef WIN32
-    if (m_socket->m_event)
-	WSAResetEvent(m_socket->m_event);
+    if (m_event)
+	WSAResetEvent(m_event);
 
-    ssize_t rc = ::send(m_socket->m_fd, (const char*)buffer, len,
+    ssize_t rc = ::send(m_fd, (const char*)buffer, len,
 			MSG_NOSIGNAL);
 
     if (rc < 0 && WSAGetLastError() == WSAEWOULDBLOCK)
     {
-	unsigned rc2 = m_socket->WaitForWrite(m_timeout_ms);
+	unsigned rc2 = WaitForWrite(m_timeout_ms);
 	if (rc2 != 0)
 	    return rc2;
-	rc = ::send(m_socket->m_fd, (const char*)buffer, len, MSG_NOSIGNAL);
+	rc = ::send(m_fd, (const char*)buffer, len, MSG_NOSIGNAL);
     }
 
     if (rc < 0)
@@ -331,15 +432,15 @@ unsigned Socket::Stream::Write(const void *buffer, size_t len, size_t *pwrote)
     }
     *pwrote = (size_t)rc;
 #else
-    ssize_t rc = ::send(m_socket->m_fd, (const char*)buffer, len,
-			MSG_NOSIGNAL);
+    ssize_t rc = ::send(m_fd, (const char*)buffer, len, MSG_NOSIGNAL);
+//    TRACE << "Send() returned " << rc << " errno " << errno << "\n";
 
-    if (rc < 0 && errno == EWOULDBLOCK)
+    if (rc < 0 && errno == EWOULDBLOCK && m_timeout_ms)
     {
-	unsigned rc2 = m_socket->WaitForWrite(m_timeout_ms);
+	unsigned rc2 = WaitForWrite(m_timeout_ms);
 	if (rc2 != 0)
 	    return rc2;
-	rc = ::send(m_socket->m_fd, (const char*)buffer, len, MSG_NOSIGNAL);
+	rc = ::send(m_fd, (const char*)buffer, len, MSG_NOSIGNAL);
     }
 
     if (rc < 0)
@@ -347,11 +448,6 @@ unsigned Socket::Stream::Write(const void *buffer, size_t len, size_t *pwrote)
     *pwrote = (size_t)rc;
 #endif
     return 0;
-}
-
-StreamPtr Socket::CreateStream(unsigned int timeout_ms)
-{
-    return StreamPtr(new Socket::Stream(this, timeout_ms));
 }
 
 
@@ -478,6 +574,39 @@ unsigned DatagramSocket::EnableBroadcast(bool broadcastable)
 			  sizeof(i));
     if (rc<0)
 	return (unsigned int)errno;
+    return 0;
+}
+
+unsigned DatagramSocket::JoinMulticastGroup(IPAddress addr)
+{
+    struct ip_mreq mreq;
+
+    memset(&mreq, '\0', sizeof(mreq));
+
+    mreq.imr_multiaddr.s_addr = addr.addr;
+    mreq.imr_interface.s_addr = INADDR_ANY;
+
+    int rc = ::setsockopt(m_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+			  (const char*)&mreq, sizeof(mreq));
+
+    if (rc < 0)
+	return (unsigned)errno;
+
+    return 0;
+}
+
+unsigned DatagramSocket::SetOutgoingMulticastInterface(IPAddress addr)
+{
+    struct in_addr ina;
+    ina.s_addr = addr.addr;
+    int rc = ::setsockopt(m_fd, IPPROTO_IP, IP_MULTICAST_IF,
+			  (const char*)&ina, sizeof(ina));
+    if (rc < 0)
+    {
+	TRACE << "SOMI failed " << errno << "\n";
+	return (unsigned)errno;
+    }
+
     return 0;
 }
 
@@ -617,6 +746,46 @@ unsigned DatagramSocket::Read(void *buffer, size_t buflen, size_t *nread,
 #endif
 }
 
+unsigned DatagramSocket::Read(std::string *s, IPEndPoint *wasfrom, 
+			      IPAddress *wasto)
+{
+#ifdef MSG_TRUNC
+    // Note that ioctl(FIONREAD) returns the total size of ALL waiting
+    // packets (UNP vol1 sec13.7) which is not what we want.
+
+    char nobuf;
+    ssize_t rc = ::recv(m_fd, &nobuf, 1, MSG_PEEK | MSG_TRUNC);
+    if (rc < 0)
+	return (unsigned)errno;
+    if (rc == 0)
+    {
+	s->clear();
+	return 0;
+    }
+
+//    TRACE << "MSG_PEEKed " << rc << " bytes\n";
+
+    char *ptr = new char[rc];
+    size_t nread;
+    unsigned int rc2 = Read(ptr, rc, &nread, wasfrom, wasto);
+    if (rc2 == 0)
+	s->assign(ptr, ptr+nread);
+
+    delete[] ptr;
+
+    return rc2;
+#else
+    // Without MSG_TRUNC, we just have to guess
+
+    char buffer[1500];
+    size_t nread;
+    unsigned int rc = Read(buffer, sizeof(buffer), &nread, wasfrom, wasto);
+    if (rc == 0)
+	s->assign(buffer, buffer+nread);
+    return rc;
+#endif
+}
+
 unsigned DatagramSocket::Write(const void *buffer, size_t buflen,
 			       const IPEndPoint& to)
 {
@@ -633,6 +802,11 @@ unsigned DatagramSocket::Write(const void *buffer, size_t buflen,
 	return (unsigned int)errno;
 
     return 0;
+}
+
+unsigned DatagramSocket::Write(const std::string& s, const IPEndPoint& to)
+{
+    return Write(s.data(), s.length(), to);
 }
 
 
@@ -662,11 +836,11 @@ unsigned StreamSocket::Listen(unsigned int queue)
 {
     int rc = ::listen(m_fd, (int)queue);
     if (rc<0)
-	return (unsigned int)errno;
+	return SocketError();
     return 0;
 }
 
-unsigned StreamSocket::Accept(StreamSocket *accepted)
+unsigned StreamSocket::Accept(StreamSocketPtr *accepted)
 {
     struct sockaddr sa;
     socklen_t sl = sizeof(sa);
@@ -677,7 +851,7 @@ unsigned StreamSocket::Accept(StreamSocket *accepted)
     SOCKET rc = ::accept(m_fd, &sa, &sl);
     if (rc == INVALID_SOCKET)
     {
-	unsigned int error = WSAGetLastError();
+	unsigned int error = SocketError();
 	TRACE << "Accept failed: " << error << "\n";
 	return error;
     }
@@ -691,9 +865,8 @@ unsigned StreamSocket::Accept(StreamSocket *accepted)
 #endif
 
 //    TRACE << "Accepted fd " << rc << "\n";
-    if (accepted->IsOpen())
-	accepted->Close();
-    accepted->m_fd = rc;
+
+    *accepted = StreamSocketPtr(new StreamSocket(rc));
     return 0;
 }
 
@@ -703,7 +876,9 @@ unsigned StreamSocket::SetCork(bool corked)
     int i = corked;
     int rc = ::setsockopt(m_fd, IPPROTO_TCP, TCP_CORK, &i, sizeof(i));
     if (rc<0)
-	return (unsigned int)errno;
+	return SocketError();
+#else
+    (void)corked;
 #endif
     return 0;
 }

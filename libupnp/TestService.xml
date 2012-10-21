@@ -1,0 +1,37 @@
+<!--
+ This is an application-specific SCPD, *not* sanctioned by UPnP.org.
+-->
+<scpd>
+	<serviceStateTable>
+		<stateVariable>
+			<name>Ptang</name>
+			<sendEventsAttribute>yes</sendEventsAttribute>
+			<dataType>ui4</dataType>
+		</stateVariable>
+
+		<stateVariable>
+			<name>A_ARG_TYPE_Frink</name>
+			<sendEventsAttribute>no</sendEventsAttribute>
+			<dataType>ui4</dataType>
+		</stateVariable>
+	</serviceStateTable>
+
+	<actionList>
+		<action>
+			<name>Wurdle</name>
+			<argumentList>
+				<argument>
+					<name>Fnoo</name>
+					<direction>in</direction>
+					<relatedStateVariable>A_ARG_TYPE_Frink</relatedStateVariable>
+				</argument>
+				<argument>
+					<name>Fnaa</name>
+					<direction>out</direction>
+					<relatedStateVariable>A_ARG_TYPE_Frink</relatedStateVariable>
+				</argument>
+			</argumentList>
+		</action>
+	</actionList>
+</scpd>
+

@@ -285,6 +285,15 @@ void Test()
     assert(rs->IsEOF());
     rs->MoveNext();
     rs->Delete();
+
+    /* Test coercion on unindexed fields */
+    Database sdb3(3);
+    db::RecordsetPtr rs3 = sdb3.CreateRecordset();
+    rs3->AddRecord();
+    rs3->SetString(1, "37");
+    assert(rs3->GetInteger(1) == 37);
+    rs3->SetInteger(2, 110);
+    assert(rs3->GetString(2) == "110");
 }
 
 } // namespace steam

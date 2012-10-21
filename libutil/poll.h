@@ -1,9 +1,9 @@
 #ifndef LIBUTIL_POLL_H
 #define LIBUTIL_POLL_H 1
 
-#include <string.h>
 #include <time.h>
-#include <map>
+#include <boost/intrusive_ptr.hpp>
+#include "pollable.h"
 
 #undef IN
 #undef OUT
@@ -12,13 +12,7 @@ struct pollfd;
 
 namespace util {
 
-class Pollable
-{
-public:
-    virtual ~Pollable() {}
-
-    virtual unsigned int OnActivity() = 0;
-};
+class Callback;
 
 class Timed
 {
@@ -39,27 +33,40 @@ public:
     enum { IN = 1, OUT = 2 };
 
     /** Add a handle to the list being polled for.
-     *
-     * On Posix systems, poll_handle is a file descriptor, and
-     * direction should be set appropriately. On Win32, poll_handle is
-     * a HANDLE, and direction is ignored. This API does not support
-     * Win64 (where sizeof(HANDLE) != sizeof(int)).
      */
-    virtual void AddHandle(int poll_handle, Pollable *callback,
-			   unsigned int direction = IN|OUT) = 0;
-    virtual void RemoveHandle(int poll_handle) = 0;
+    virtual void Add(Pollable*, const Callback& callback,
+		     unsigned int direction = IN|OUT) = 0;
+
+    /** Because so many Pollables are CountedPointers, provide an overload.
+     *
+     * Only compiles if T.get() is a subclass of Pollable.
+     */
+    template <class T>
+    void Add(boost::intrusive_ptr<T>& ptr, const Callback& c,
+	     unsigned int d)
+    {
+	Add(ptr.get(), c, d);
+    }
+
+    /** Remove a handle from the list being polled for.
+     */
+    virtual void Remove(Pollable*) = 0;
 
     /** Adds a new timer. Timers can be single-shot or repeating.
      *
-     * @param first The time at which the callback should happen, or 0 for
-     *              straightaway.
+     * @param first    The time at which the callback should happen, or 0 for
+     *                 straightaway.
      * @param repeatms The timer repeat rate in milliseconds, or 0 for single
-     *              shot.
+     *                 shot.
      * @param callback The callback.
      */
-    virtual void AddTimer(time_t first, unsigned int repeatms,
+    virtual void Add(time_t first, unsigned int repeatms,
 			  Timed *callback) = 0;
-    virtual void RemoveTimer(Timed*) = 0;
+    virtual void Remove(Timed*) = 0;
+
+    /** Wake the poller up, e.g. from another thread, whatever it's doing.
+     */
+    virtual void Wake() = 0;
 };
 
 /** Implementation of PollerInterface suitable for the main loop of a thread.
@@ -84,102 +91,15 @@ public:
     unsigned Poll(unsigned int timeout_ms);
 
     // Being a PollerInterface
-    void AddHandle(int poll_handle, Pollable *callback, 
-		   unsigned int direction);
-    void RemoveHandle(int poll_handle);
+    void Add(Pollable*, const Callback& callback, 
+	     unsigned int direction);
+    void Remove(Pollable*);
 
-    void AddTimer(time_t first, unsigned int repeatms, Timed*);
-    void RemoveTimer(Timed*);
-};
+    void Add(time_t first, unsigned int repeatms, Timed*);
+    void Remove(Timed*);
 
-namespace posix {
-
-/** For explicitly waking-up a Poller
- */
-class PollWaker: private Pollable
-{
-    int m_fd[2];
-    Pollable *m_pollable;
-
-    unsigned OnActivity();
-
-public:
-    /** Construct a PollWaker for waking up the given PollerInterface. 
-     *
-     * If the given Pollable is non-NULL, its OnActivity is called at
-     * wake time too.
-     */
-    PollWaker(PollerInterface*, Pollable* = NULL);
-    ~PollWaker();
-    
     void Wake();
 };
-
-class PollerCore
-{
-    pollfd *m_array;
-    size_t m_count;
-
-public:
-    PollerCore();
-    ~PollerCore();
-
-    unsigned int SetUpArray(const std::map<int,Pollable*>*,
-			    const std::map<int,unsigned int>*);
-    unsigned int Poll(unsigned int timeout_ms);
-    unsigned int DoCallbacks(const std::map<int,Pollable*>*);
-};
-
-} // namespace util::posix
-
-namespace win32 {
-
-/** For explicitly waking-up a Poller
- */
-class PollWaker: private Pollable
-{
-    Pollable *m_pollable;
-    void *m_event;
-
-    unsigned OnActivity();
-
-public:
-    /** Construct a PollWaker for waking up the given PollerInterface. 
-     *
-     * If the given Pollable is non-NULL, its OnActivity is called at
-     * wake time too.
-     */
-    PollWaker(PollerInterface*, Pollable* = NULL);
-    ~PollWaker();
-    
-    void Wake();
-};
-
-class PollerCore
-{
-    void **m_array;
-    size_t m_count;
-    int m_which;
-
-public:
-    PollerCore();
-    ~PollerCore();
-
-    unsigned int SetUpArray(const std::map<int,Pollable*>*,
-			    const std::map<int,unsigned int>*);
-    unsigned int Poll(unsigned int timeout_ms);
-    unsigned int DoCallbacks(const std::map<int,Pollable*>*);
-};
-
-} // namespace util::win32
-
-#ifdef WIN32
-namespace pollapi = ::util::win32;
-#else
-namespace pollapi = ::util::posix;
-#endif
-
-using pollapi::PollWaker;
 
 } // namespace util
 

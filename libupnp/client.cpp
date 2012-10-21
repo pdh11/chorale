@@ -1,137 +1,73 @@
-#include "config.h"
 #include "client.h"
 #include "libutil/trace.h"
-#include "libutil/upnp.h"
-#include "libutil/ssdp.h"
+#include "libutil/http_fetcher.h"
+#include "libutil/http_stream.h"
+#include "libutil/http_server.h"
+#include "libutil/socket.h"
+#include "libutil/string_stream.h"
+#include "libutil/xml.h"
 #include "libutil/xmlescape.h"
 #include "libupnp/description.h"
 #include "libupnp/soap.h"
-#include <sstream>
-#include <errno.h>
-
-#ifdef HAVE_UPNP
-
-#include <upnp/upnp.h>
-#include <upnp/ixml.h>
+#include <boost/format.hpp>
 
 namespace upnp {
 
-class Client::Impl: public util::LibUPnPUser
+class Client::Impl: public util::http::ContentFactory
 {
+    util::http::Client *m_client;
+    util::http::Server *m_server;
+
     upnp::Description m_desc;
 
     typedef std::map<std::string, ClientConnection*> sidmap_t;
     sidmap_t m_sidmap;
 
+    std::string m_gena_callback;
+
+    /** Local IP address from which we contacted this device.
+     */
+    util::IPAddress m_local_address;
+
+    static unsigned sm_gena_generation;
+
     friend class Client;
 
+    class EventXMLObserver;
+    class Response;
+
 public:
+    Impl(util::http::Client *client, util::http::Server *server)
+	: m_client(client),
+	  m_server(server),
+	  m_gena_callback((boost::format("/gena-%u")
+			   % (sm_gena_generation++)).str())
+    {
+	server->AddContentFactory(m_gena_callback, this);
+    }
+
     const upnp::Description& GetDescription() { return m_desc; }
+    util::http::Client *GetHttpClient() { return m_client; }
+    util::http::Server *GetHttpServer() { return m_server; }
+    const std::string& GetGenaCallback() { return m_gena_callback; }
+    void SetLocalIPAddress(util::IPAddress a) { m_local_address = a; }
+    util::IPAddress GetLocalIPAddress() { return m_local_address; }
 
     void AddListener(ClientConnection *conn, const std::string& sid)
-	{
-	    m_sidmap[sid] = conn;
-	}
+    {
+	m_sidmap[sid] = conn;
+    }
     void RemoveListener(ClientConnection*);
 
-    // Being a LibUPnPUser
-    int OnUPnPEvent(int, void*);
+    // Being a ContentFactory
+    bool StreamForPath(const util::http::Request*, util::http::Response*);
 };
 
-int Client::Impl::OnUPnPEvent(int et, void *event)
-{
-//    TRACE << "UPnP callback (" << et << ")\n";
+unsigned Client::Impl::sm_gena_generation = 0;
 
-    switch (et)
-    {
-    case UPNP_EVENT_RECEIVED:
-    {
-
-	/* An Event looks like this:
-
-<?xml version="1.0"?>
-<e:propertyset xmlns:e="urn:schemas-upnp-org:event-1-0">
-<e:property>
-<LastChange>&lt;Event xmlns=&quot;urn:schemas-upnp-org:metadata-1-0/AVT/&quot;&gt;
-&lt;InstanceID val=&quot;0&quot;&gt;
-&lt;TransportState val=&quot;PLAYING&quot;/&gt;
-&lt;/InstanceID&gt;
-&lt;/Event&gt;</LastChange>
-</e:property>
-</e:propertyset>
-
-        * or this:
-
-<?xml version="1.0"?>
-<e:propertyset xmlns:e="urn:schemas-upnp-org:event-1-0">
-<e:property>
-<LastChange>&lt;Event xmlns=&quot;urn:schemas-upnp-org:metadata-1-0/AVT/&quot;&gt;
-&lt;InstanceID val=&quot;0&quot;&gt;
-&lt;AVTransportURI val=&quot;http://192.168.168.1:12078/content/1b200&quot;/&gt;
-&lt;CurrentTrackMetaData val=&quot;&amp;lt;DIDL-Lite xmlns:dc=&amp;quot;http://purl.org/dc/elements/1.1/&amp;quot;
-xmlns:upnp=&amp;quot;urn:schemas-upnp-org:metadata-1-0/upnp/&amp;quot;
-xmlns=&amp;quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&amp;quot;&amp;gt;
-&amp;lt;item&amp;gt;&amp;lt;upnp:class&amp;gt;object.item.audioItem.musicTrack&amp;lt;/upnp:class&amp;gt;&amp;lt;/item&amp;gt;&amp;lt;/DIDL-Lite&amp;gt;&quot;/&gt;
-&lt;AVTransportURIMetaData val=&quot;&amp;lt;DIDL-Lite xmlns:dc=&amp;quot;http://purl.org/dc/elements/1.1/&amp;quot;
-xmlns:upnp=&amp;quot;urn:schemas-upnp-org:metadata-1-0/upnp/&amp;quot;
-xmlns=&amp;quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&amp;quot;&amp;gt;
-&amp;lt;item&amp;gt;&amp;lt;upnp:class&amp;gt;object.item.audioItem.musicTrack&amp;lt;/upnp:class&amp;gt;&amp;lt;/item&amp;gt;&amp;lt;/DIDL-Lite&amp;gt;&quot;/&gt;
-&lt;CurrentTrackDuration val=&quot;0:00:00&quot;/&gt;
-&lt;NumberOfTracks val=&quot;1&quot;/&gt;
-&lt;/InstanceID&gt;
-&lt;/Event&gt;</LastChange>
-</e:property>
-</e:propertyset>
-
-        * Yes, the contents of the LastChange tag is XML that's been
-        * escaped in order to travel via XML, and the contents of the
-        * CurrentTrackMetaData tag in that XML is more XML that's been
-        * escaped a second time.
-	*/
-
-	struct Upnp_Event *e = (struct Upnp_Event*)event;
-
-	sidmap_t::const_iterator it = m_sidmap.find(e->Sid);
-	if (it == m_sidmap.end())
-	    break;
-	ClientConnection *conn = it->second;
-
-	IXML_NodeList *nl = ixmlDocument_getElementsByTagName(e->ChangedVariables,
-							      const_cast<char *>("e:property"));
-	if (nl)
-	{
-	    for (unsigned int i=0; i<ixmlNodeList_length(nl); ++i)
-	    {
-		IXML_Node *node = ixmlNodeList_item(nl, i);
-		if (node)
-		{
-		    IXML_Node *textnode = ixmlNode_getFirstChild(node);
-		    if (textnode)
-		    {
-			const DOMString name = ixmlNode_getNodeName(textnode);
-			IXML_Node *node2 = ixmlNode_getFirstChild(textnode);
-			if (node2)
-			{
-			    const DOMString value = ixmlNode_getNodeValue(node2);
-//			    TRACE << "var '" << name << "' val '" << value << "'\n";
-			    conn->OnEvent(name, value);
-			}
-		    }
-		}
-	    }
-	    ixmlNodeList_free(nl);
-	}
-	break;
-    }
-    default:
-	break;
-    }
-
-    return UPNP_E_SUCCESS;
-}
-
-Client::Client()
-    : m_impl(NULL)
+Client::Client(util::http::Client *client,
+	       util::http::Server *server)
+    : m_impl(new Impl(client, server))
 {
 }
 
@@ -142,14 +78,28 @@ Client::~Client()
 
 unsigned int Client::Init(const std::string& descurl, const std::string& udn)
 {
-    m_impl = new Impl;
+    util::http::Fetcher fetcher(m_impl->GetHttpClient(), descurl);
 
-    unsigned int rc = m_impl->m_desc.Fetch(descurl, udn);
-    if (rc != 0)
+    std::string description;
+    unsigned int rc = fetcher.FetchToString(&description);
+    if (rc)
     {
-	TRACE << "Can't Fetch()\n";
+	TRACE << "Can't fetch description: " << rc << "\n";
 	return rc;
     }
+
+    TRACE << "descurl " << descurl << "\n";
+    TRACE << "description " << description << "\n";
+
+    rc = m_impl->m_desc.Parse(description, descurl, udn);
+    if (rc)
+    {
+	TRACE << "Can't parse description\n";
+	return rc;
+    }
+
+    util::IPEndPoint ipe = fetcher.GetLocalEndPoint();
+    m_impl->SetLocalIPAddress(ipe.addr);
 
     return 0;
 }
@@ -159,15 +109,98 @@ const Description& Client::GetDescription() const
     return m_impl->m_desc;
 }
 
+class Client::Impl::EventXMLObserver: public xml::SaxParserObserver,
+				      public util::BufferSink
+{
+    std::string m_key, m_value;
+    ClientConnection *m_connection;
+    xml::SaxParser m_parser;
 
-/* ClientConnection */
+public:
+    explicit EventXMLObserver(ClientConnection *connection)
+	: m_connection(connection),
+	  m_parser(this)
+    {
+    }
+
+    unsigned int OnBegin(const char *tag)
+    {
+//	TRACE << "Event: <" << tag << ">\n";
+	if (!strchr(tag, ':'))
+	{
+	    m_key = tag;
+	    m_value.clear();
+	}
+	else
+	    m_key.clear();
+	return 0;
+    }
+
+    unsigned int OnContent(const char *content)
+    {
+	if (!m_key.empty())
+	    m_value += content;
+	return 0;
+    }
+
+    unsigned int OnEnd(const char*)
+    {
+	if (!m_key.empty())
+	{
+//	    TRACE << "Event '" << m_key << "' = '" << m_value << "'\n";
+	    m_connection->OnEvent(m_key.c_str(), m_value);
+	    m_key.clear();
+	    m_value.clear();
+	}
+	return 0;
+    }
+
+    // Being a BufferSink
+    unsigned int OnBuffer(util::BufferPtr p)
+    {
+//	TRACE << "I think I've got a buffer, size " << (p ? p->actual_len : 0)
+//	      << " used " << p.start << "--" << (p.start+p.len) << "\n";
+	return m_parser.OnBuffer(p);
+    }
+};
+
+bool Client::Impl::StreamForPath(const util::http::Request *rq, 
+				 util::http::Response *rs)
+{
+//    TRACE << "In SfP\n";
+    if (rq->path == m_gena_callback)
+    {
+	std::map<std::string, std::string>::const_iterator ci
+	    = rq->headers.find("SID");
+	if (ci != rq->headers.end())
+	{
+	    std::string sid = ci->second;
+//	    TRACE << "mine " << rq->verb << " sid=" << sid << "\n";
+
+	    sidmap_t::const_iterator cii = m_sidmap.find(sid);
+	    if (cii != m_sidmap.end())
+	    {
+		ClientConnection *connection = cii->second;
+//		TRACE << "Connection=" << connection << "\n";
+
+		rs->body_sink.reset(new EventXMLObserver(connection));
+		rs->ssp = util::StringStream::Create("");
+		return true;
+	    }
+	}
+    }
+    return false;
+}
+
+
+        /* ClientConnection */
 
 
 struct ClientConnection::Impl
 {
     Client::Impl *parent;
     ClientConnection *connection;
-    const char *service;
+    const char *service_type;
     std::string control_url;
     std::string sid;
 };
@@ -183,39 +216,17 @@ ClientConnection::~ClientConnection()
     delete m_impl;
 }
 
-static int SubscriptionCallback(Upnp_EventType et, void *event, void *cookie)
-{
-    ClientConnection *conn = (ClientConnection*)cookie;
-
-    if (et == UPNP_EVENT_SUBSCRIBE_COMPLETE)
-    {
-	Upnp_Event_Subscribe *ues = (Upnp_Event_Subscribe*)event;
-	if (ues->ErrCode == UPNP_E_SUCCESS)
-	{
-	    std::string sid = ues->Sid;
-//	    TRACE << "Got sid '" << sid << "'\n";
-	    conn->SetSid(sid);
-	}
-	else
-	{
-	    TRACE << "Subscription failed\n";
-	}
-    }
-
-    return UPNP_E_SUCCESS;
-}
-
-unsigned int ClientConnection::Init(Client *parent, const char *service_id)
+unsigned int ClientConnection::Init(Client *parent, const char *service_type)
 {
     if (!parent || !parent->m_impl || m_impl)
 	return EINVAL;
 
     const upnp::Services& svc = parent->m_impl->GetDescription().GetServices();
 
-    upnp::Services::const_iterator it = svc.find(service_id);
+    upnp::Services::const_iterator it = svc.find(service_type);
     if (it == svc.end())
     {
-	TRACE << "No such service '" << service_id << "'\n";
+	TRACE << "No service of type '" << service_type << "'\n";
 	return ENOENT;
     }
 
@@ -223,16 +234,41 @@ unsigned int ClientConnection::Init(Client *parent, const char *service_id)
     m_impl->parent = parent->m_impl;
     m_impl->connection = this;
     m_impl->control_url = it->second.control_url;
-    m_impl->service = service_id;
+    m_impl->service_type = service_type;
 
-    int rc = UpnpSubscribeAsync((UpnpClient_Handle)parent->m_impl->GetHandle(),
-				it->second.event_url.c_str(), 7200u,
-				SubscriptionCallback, this);
+    util::IPEndPoint local_endpoint;
+    local_endpoint.addr = parent->m_impl->GetLocalIPAddress();
+    local_endpoint.port = parent->m_impl->GetHttpServer()->GetPort();
 
+    std::string headers = "Callback: <http://"
+	+ local_endpoint.ToString()
+	+ parent->m_impl->GetGenaCallback() + ">\r\n"
+	"NT: upnp:event\r\n"
+	"Timeout: Second-7200\r\n";
+
+//    TRACE << "GENA subscribe:\n" << headers;
+
+    util::http::Fetcher fetcher(parent->m_impl->GetHttpClient(),
+				it->second.event_url,
+				headers.c_str(),
+				NULL,
+				"SUBSCRIBE");
+    std::string result;
+    unsigned int rc = fetcher.FetchToString(&result);
     if (rc)
     {
-	TRACE << "USA returned " << rc << "\n";
-	return EINVAL;
+	TRACE << "Can't subscribe: " << rc << "\n";
+	return rc;
+    }
+    std::string sid = fetcher.GetHeader("SID");
+    if (!sid.empty())
+    {
+//	TRACE << "Got SID " << sid << "\n";
+	m_impl->parent->AddListener(this, sid);
+    }
+    else
+    {
+	TRACE << "Can't subscribe, no SID\n";
     }
 
     return 0;
@@ -262,101 +298,80 @@ unsigned int ClientConnection::SoapAction(const char *action_name,
     return SoapAction(action_name, no_params, result);
 }
 
+class ClientConnection::SoapXMLObserver: public xml::SaxParserObserver
+{
+    soap::Inbound *m_params;
+    std::string m_tag;
+    std::string m_value;
+
+public:
+    explicit SoapXMLObserver(soap::Inbound *params) : m_params(params) {}
+
+    unsigned int OnBegin(const char *tag);
+    unsigned int OnEnd(const char *tag);
+    unsigned int OnContent(const char *content);
+};
+
+unsigned int ClientConnection::SoapXMLObserver::OnBegin(const char *tag)
+{
+    if (!strchr(tag, ':'))
+	m_tag = tag;
+    m_value.clear();
+    return 0;
+}
+
+unsigned int ClientConnection::SoapXMLObserver::OnContent(const char *content)
+{
+    if (!m_tag.empty())
+	m_value += content;
+    return 0;
+}
+
+unsigned int ClientConnection::SoapXMLObserver::OnEnd(const char *tag)
+{
+    if (!strchr(tag, ':'))
+    {
+//	TRACE << "Setting " << tag << " to '''" << m_value << "'''\n";
+	m_params->Set(tag, m_value);
+    }
+    m_tag.clear();
+    m_value.clear();
+    return 0;
+}
+
 unsigned int ClientConnection::SoapAction(const char *action_name,
 					  const soap::Outbound& in,
 					  soap::Inbound *result)
 {
-    std::ostringstream os;
-    os << "<u:" << action_name << " xmlns:u=\"" << m_impl->service
-       << "\">";
+    std::string headers = "SOAPACTION: \"";
+    headers += m_impl->service_type;
+    headers += "#";
+    headers += action_name;
+    headers += "\"\r\nContent-Type: text/xml; charset=\"utf-8\"\r\n";
 
-    for (soap::Outbound::const_iterator i = in.begin(); i != in.end(); ++i)
-	os << "<" << i->first << ">" << util::XmlEscape(i->second) << "</" << i->first << ">";
-
-    os << "</u:" << action_name << ">";
-
-//    TRACE << os.str() << "\n";
-
-    IXML_Document *request = ixmlParseBuffer(const_cast<char *>(os.str().c_str()));
-    if (!request)
+    std::string body = in.CreateBody(action_name, m_impl->service_type);
+	
+    util::http::StreamPtr hsp;
+    unsigned int rc = util::http::Stream::Create(&hsp, 
+						 m_impl->control_url.c_str(),
+						 headers.c_str(),
+						 body.c_str());
+    if (rc)
     {
-	TRACE << "Can't ixmlparsebuffer\n";
-	return EINVAL;
+	TRACE << "Failed to soap\n";
+	return rc;
     }
 
-    IXML_Document *response = NULL;
-//    TRACE << "handle = " << m_impl->GetHandle() << "\n";
-    int rc2 = UpnpSendAction((UpnpClient_Handle)m_impl->parent->GetHandle(),
-			     m_impl->control_url.c_str(),
-			     m_impl->service,
-			     m_impl->parent->GetDescription().GetUDN().c_str(),
-			     request,
-			     &response);
-    if (rc2 != 0)
+    SoapXMLObserver sxo(result);
+    xml::SaxParser parser(&sxo);
+    rc = parser.Parse(hsp);
+    if (rc)
     {
-	TRACE << "SOAP failed, rc2 = " << rc2 << "\n";
-	return (unsigned)errno;
+	TRACE << "Failed to parse\n";
+	return rc;
     }
-
-//    if (response)
-//    {
-//	DOMString ds = ixmlPrintDocument(response);
-//	TRACE << ds << "\n";
-//	ixmlFreeDOMString(ds);
-//    }
-    ixmlDocument_free(request);
-
-    if (result)
-    {
-	IXML_Node *child = ixmlNode_getFirstChild(&response->n);
-	if (child)
-	{
-	    IXML_NodeList *nl = ixmlNode_getChildNodes(child);
-	    
-	    size_t resultcount = ixmlNodeList_length(nl);
-//	TRACE << resultcount << " result(s)\n";
-
-	    for (unsigned int i=0; i<resultcount; ++i)
-	    {
-		IXML_Node *node2 = ixmlNodeList_item(nl, i);
-		if (node2)
-		{
-		    const DOMString ds = ixmlNode_getNodeName(node2);
-		    if (ds)
-		    {
-			IXML_Node *textnode = ixmlNode_getFirstChild(node2);
-			if (textnode)
-			{
-			    const DOMString ds2 = ixmlNode_getNodeValue(textnode);
-			    if (ds2)
-			    {
-				//TRACE << ds << "=" << ds2 << "\n";
-				result->Set(ds, ds2);
-			    }
-			    else
-				TRACE << "no value\n";
-			}
-			//else
-			//TRACE << "no textnode\n";
-		    }
-		    else
-			TRACE << "no name\n";
-		}
-		else
-		    TRACE << "no node\n";
-	    }
-	    
-	    ixmlNodeList_free(nl);
-	}
-	else
-	    TRACE << "no child\n";
-    }
-
-    ixmlDocument_free(response);
 
     return 0;
 }
 
 } // namespace upnp
-
-#endif // HAVE_UPNP

@@ -29,8 +29,17 @@ LOBJS:=$(SRCS:%.cpp=$(TOP)$(DIR)$(TARGETDIR)%.lo)
 LOBJS:=$(LOBJS:%.c=$(TOP)$(DIR)$(TARGETDIR)%.lo)
 DEPS:=$(SRCS:%.cpp=$(TOP)$(DIR)$(TARGETDIR)%.lo.dep)
 DEPS:=$(DEPS:%.c=$(TOP)$(DIR)$(TARGETDIR)%.lo.dep)
-TESTS:=$(TEST_SRCS:%.cpp=$(TOP)$(DIR)$(TARGETDIR)%__test)
-TESTS:=$(TESTS:%.c=$(TOP)$(DIR)$(TARGETDIR)%__test)
+# Test last-modified file first
+TESTS:=$(TEST_SRCS:%.cpp=$(TOP)$(DIR)%.cpp)
+TESTS:=$(TESTS:%.c=$(TOP)$(DIR)%.c)
+ifneq ($(TESTS),)
+TESTS:=$(shell ls -t $(TESTS))
+endif
+ifeq ($(TEST_SUFFIX),)
+TEST_SUFFIX:=test
+endif
+TESTS:=$(TESTS:$(TOP)$(DIR)%.cpp=$(TOP)$(DIR)$(TARGETDIR)%__$(TEST_SUFFIX))
+TESTS:=$(TESTS:$(TOP)$(DIR)%.c=$(TOP)$(DIR)$(TARGETDIR)%__$(TEST_SUFFIX))
 TEST_DEPS:=$(TESTS:%=%.dep)
 TEST_SRCS:=
 
@@ -48,6 +57,10 @@ clean:
 	@find . -name 'obj-*-*-*' -print0 | xargs -0 rm -rf
 	@find . -name '*.all-*-*-*.[hi]' -print0 | xargs -0 rm -rf
 	@find . -name '*~' -o -name '*.i' -o -name '*.gcov' -print0 | xargs -0 rm -f
+
+vtests:
+	$(MAKE) tests TEST_RUN="valgrind --error-exitcode=99 --gen-suppressions=yes --leak-check=full $(VALGRIND_OPTS)" TEST_SUFFIX=vtest
+
 else
 CLEANS+=$(OBJS) $(SOBJS) $(LOBJS) $(DEPS) $(TESTS)
 endif
@@ -174,7 +187,7 @@ $(TOP)$(DIR)$(TARGETDIR)%.lo: $(TOP)$(DIR)%.c
 	@mv $@.dd $@.dep
 	@rm $@.d
 
-$(TOP)$(DIR)$(TARGETDIR)%__test: $(TOP)$(DIR)%.cpp
+$(TOP)$(DIR)$(TARGETDIR)%__$(TEST_SUFFIX): $(TOP)$(DIR)%.cpp
 	@mkdir -p $(dir $@)
 	$(CC_PRE)$(LIBTOOL) --tag=CXX --mode=compile --silent \
 		$(CXX) $(CXXFLAGS) -fprofile-arcs -ftest-coverage \
@@ -190,8 +203,8 @@ $(TOP)$(DIR)$(TARGETDIR)%__test: $(TOP)$(DIR)%.cpp
 	@$(LIBTOOL) --tag=CXX --mode=link --silent \
 		$(CXX) $(CXXFLAGS) -fprofile-arcs -ftest-coverage \
 		$@.lo $(filter %.la,$^) $(TEST_LIBS) -o $@ -Wl,-Map,$@.map
-	$(TEST_PRE)$(TEST_RUN) $@ || ( echo $@ FAILED ; rm $@ ; false )
-	@gcov -o $(dir $@).libs/$(notdir $@).cpp $< > $@.gcov.txt
+	$(TEST_PRE)$(TEST_RUN) $@ || ( echo $@ FAILED ; rm -f $@ ; false )
+	@$(GCOV) -o $(dir $@).libs/$(notdir $@).cpp $< > $@.gcov.txt
 	@rm -f *[^c]??.gcov
 	@mv $(notdir $<).gcov  $(notdir $<).gcov0
 	@mv $(notdir $<).gcov0 $(dir $@)/../$(notdir $<).gcov

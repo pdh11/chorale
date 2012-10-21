@@ -23,7 +23,7 @@ protected:
     bool m_eof;
 
 public:
-    Recordset(Database *db);
+    explicit Recordset(Database *db);
 
     bool IsEOF();
     uint32_t GetInteger(field_t which);

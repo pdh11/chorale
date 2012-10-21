@@ -1,11 +1,11 @@
 #ifndef CHORALED_WEB_H
 #define CHORALED_WEB_H
 
-#include "libutil/web_server.h"
+#include "libutil/http_server.h"
 
 namespace mediadb { class Database; }
 
-class RootContentFactory: public util::ContentFactory
+class RootContentFactory: public util::http::ContentFactory
 {
     mediadb::Database *m_db;
 
@@ -14,7 +14,8 @@ class RootContentFactory: public util::ContentFactory
 public:
     RootContentFactory(mediadb::Database *db);
 
-    bool StreamForPath(const util::WebRequest *rq, util::WebResponse *rs);
+    bool StreamForPath(const util::http::Request *rq,
+		       util::http::Response *rs);
 };
 
 #endif

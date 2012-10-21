@@ -1,7 +1,7 @@
 #ifndef LIBMEDIADB_WEB_CONTENT_H
 #define LIBMEDIADB_WEB_CONTENT_H 1
 
-#include "libutil/web_server.h"
+#include "libutil/http_server.h"
 
 namespace mediadb {
 
@@ -14,7 +14,7 @@ class Registry;
  * HTTP, such as UPnP or Receiver servers, don't need this. (Which they signal
  * by overriding mediadb::GetHttpURL.)
  */
-class WebContent: public util::ContentFactory
+class WebContent: public util::http::ContentFactory
 {
     Registry *m_registry;
 
@@ -22,7 +22,7 @@ public:
     explicit WebContent(Registry *r) : m_registry(r) {}
 
     // Being a ContentFactory
-    bool StreamForPath(const util::WebRequest*, util::WebResponse*);
+    bool StreamForPath(const util::http::Request*, util::http::Response*);
 };
 
 } // namespace mediadb

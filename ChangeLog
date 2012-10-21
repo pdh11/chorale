@@ -1,4 +1,22 @@
+2009-Feb-12: Version 0.13 released; changes since 0.12:
 
+	* libupnp: remove dependency on Intel libupnp/pupnp
+	* libutil: finally implement DSEL XML parser
+	* libimport: use new XML parser
+	* liboutput: use new XML parser
+	* libutil: rename WebServer to http::Server for consistency
+	* libutil: generic "diff" implementation
+	* libutil: completely asynchronous web server
+	* libutil: Stream now inherits from Pollable, so a task can sleep on it
+	* libutil: WorkerThreadPool now starts and stops threads as needed
+	* libdbempeg: fuller, read/write implementation
+	* libmediadb: database synchroniser
+	* configure: prefer cdparanoia (LGPL) to libcdio (GPL)
+	* Make.common: allow "make tests TEST_RUN=wine" for mingw compilation
+	* Make.common: allow "make vtests" with automatic Valgrind options
+	* choraled: persist timer recordings
+	* protocoltool: new tool for working with Empeg car-players
+	
 2008-Aug-05: Version 0.12 released; changes since 0.11:
 
 	* choraled: Reinstate accidentally-disabled web EPG

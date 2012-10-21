@@ -7,7 +7,7 @@
  * are thus subject to the licence under which you obtained Qt:
  * typically, the GPL.
  */
-#include "choralecd/features.h"
+#include "features.h"
 #include <qapplication.h>
 #include <qpixmap.h>
 #include <QPlastiqueStyle>
@@ -18,6 +18,9 @@
 #include "libutil/cpus.h"
 #include "libutil/dbus.h"
 #include "libutil/hal.h"
+#include "libutil/http_client.h"
+#include "libutil/http_server.h"
+#include "libutil/poll_thread.h"
 #include "libutil/trace.h"
 #include "libutil/worker_thread_pool.h"
 #include "libimport/cd_drives.h"
@@ -25,6 +28,7 @@
 #include "libdbreceiver/db.h"
 #include "libempeg/discovery.h"
 #include "libmediadb/registry.h"
+#include "libupnp/ssdp.h"
 #include "poller.h"
 #include "cd_widget.h"
 #include "db_widget.h"
@@ -41,19 +45,16 @@ int main(int argc, char *argv[])
 {
     QApplication app( argc, argv );
 
-//    app.setStyle(new QCleanlooksStyle);
-
     Settings settings;
-    util::WorkerThreadPool cpu_pool(util::CountCPUs()*2);
-    util::WorkerThreadPool disk_pool(util::CountCPUs()*2);
-    util::TaskQueue *cpu_queue = cpu_pool.GetTaskQueue();
-    util::TaskQueue *disk_queue = disk_pool.GetTaskQueue();
+    util::WorkerThreadPool cpu_pool(util::WorkerThreadPool::LOW);
+    util::WorkerThreadPool disk_pool(util::WorkerThreadPool::NORMAL, 32);
 
-    choraleqt::Poller poller;
+    choraleqt::Poller fg_poller;
+    util::PollThread bg_poller;
 
     util::hal::Context *halp = NULL;
 #ifdef HAVE_HAL
-    util::dbus::Connection dbusc(&poller);
+    util::dbus::Connection dbusc(&fg_poller);
     unsigned int res = dbusc.Connect(util::dbus::Connection::SYSTEM);
     if (res)
     {
@@ -70,18 +71,14 @@ int main(int argc, char *argv[])
 #endif
 
     std::auto_ptr<choraleqt::MainWindow> mainwin(
-	new choraleqt::MainWindow(&settings, cpu_queue, disk_queue) );
+	new choraleqt::MainWindow(&settings, &cpu_pool, &disk_pool) );
 
     app.setMainWidget(mainwin.get());
 
-//    QPixmap folder_pixmap((const char**)folder_xpm);
-//    choraleqt::LocalDBWidgetFactory ldbwf(&folder_pixmap, &settings);
-//    mainwin->AddWidgetFactory(&ldbwf);
-
-#ifdef HAVE_CD
     QPixmap cd_pixmap((const char**)cd_xpm);
-    choraleqt::CDWidgetFactory cwf(&cd_pixmap, &cds, &settings, cpu_queue,
-				   disk_queue);
+#ifdef HAVE_CD
+    choraleqt::CDWidgetFactory cwf(&cd_pixmap, &cds, &settings, &cpu_pool,
+				   &disk_pool);
     mainwin->AddWidgetFactory(&cwf);
 #endif
 
@@ -93,42 +90,45 @@ int main(int argc, char *argv[])
     mainwin->AddWidgetFactory(&owf);
 #endif
 
-#ifdef HAVE_LIBOUTPUT_UPNP
-    util::ssdp::Client uclient(&poller);
+    util::http::Client http_client;
+    util::http::Server http_server(&bg_poller, &disk_pool);
+    http_server.Init();
+
+    upnp::ssdp::Responder uclient(&fg_poller);
     choraleqt::UpnpOutputWidgetFactory uowf(&output_pixmap, &registry,
-					    &poller);
+					    &fg_poller, &http_client,
+					    &http_server);
     mainwin->AddWidgetFactory(&uowf);
 //    TRACE << "Calling uc.init\n";
-    uclient.Init(util::ssdp::s_uuid_avtransport, &uowf);
+    uclient.Search(upnp::s_service_type_av_transport, &uowf);
 //    TRACE << "uc.init done\n";
-#endif
 
     QPixmap network_pixmap((const char**)network_xpm);
-    choraleqt::ReceiverDBWidgetFactory rdbwf(&network_pixmap, &registry);
+    choraleqt::ReceiverDBWidgetFactory rdbwf(&network_pixmap, &registry,
+					     &http_client);
     mainwin->AddWidgetFactory(&rdbwf);
 
     receiver::ssdp::Client client;
-    client.Init(&poller, receiver::ssdp::s_uuid_musicserver, &rdbwf);
+    client.Init(&fg_poller, receiver::ssdp::s_uuid_musicserver, &rdbwf);
 
-#ifdef HAVE_LIBDBUPNP
-    choraleqt::UpnpDBWidgetFactory udbwf(&network_pixmap, &registry);
+    choraleqt::UpnpDBWidgetFactory udbwf(&network_pixmap, &registry,
+					 &http_client, &http_server);
     mainwin->AddWidgetFactory(&udbwf);
-    uclient.Init(util::ssdp::s_uuid_contentdirectory, &udbwf);
-#endif
+    uclient.Search(upnp::s_service_type_content_directory, &udbwf);
 
-#ifdef HAVE_UPNP
-    choraleqt::UpnpCDWidgetFactory ucdwf(&cd_pixmap, &settings, cpu_queue,
-					 disk_queue);
+    choraleqt::UpnpCDWidgetFactory ucdwf(&cd_pixmap, &settings, &cpu_pool,
+					 &disk_pool, &http_client,
+					 &http_server);
     mainwin->AddWidgetFactory(&ucdwf);
-    uclient.Init(util::ssdp::s_uuid_opticaldrive, &ucdwf);
-#endif
+    uclient.Search(upnp::s_service_type_optical_drive, &ucdwf);
 
     QPixmap empeg_pixmap((const char**)empeg_xpm);
-    choraleqt::EmpegDBWidgetFactory edbwf(&empeg_pixmap, &registry);
+    choraleqt::EmpegDBWidgetFactory edbwf(&empeg_pixmap, &registry,
+					  &http_server);
     mainwin->AddWidgetFactory(&edbwf);
 
     empeg::Discovery edisc;
-    edisc.Init(&poller, &edbwf);
+    edisc.Init(&fg_poller, &edbwf);
 
     mainwin->show();
     int rc = app.exec();
@@ -141,37 +141,44 @@ int main(int argc, char *argv[])
  * Chorale mainly consists of a bunch of implementations of the
  * abstract class mediadb::Database, which does what it says on the
  * tin: it represents a database of media files. There are derived
- * classes which encapsulate a collection of local files, a remote
- * UPnP A/V MediaServer, or a remote Rio Receiver server.
+ * classes which encapsulate a collection of local files, a networked
+ * UPnP A/V MediaServer, a networked Rio Receiver server, or a
+ * networked Empeg music player.
  *
  * There are also a bunch of things that can use a mediadb::Database
  * once you've got one: you can serve it out again over a different
- * protocol, or queue up tracks from it (on any audio device, local or
- * remote) and listen to them. Effectively, because of careful choice
- * of abstractions, Chorale acts as a giant crossbar switch between
- * sources of media and consumers of media:
+ * protocol, synchronise it with a different storage device, or queue up
+ * tracks from it (on any audio device, local or remote) and listen to
+ * them. Effectively, because of careful choice of abstractions,
+ * Chorale acts as a giant crossbar switch between sources of media
+ * and consumers of media:
  *
  * \dot
 digraph G {
   db2 -> sv2;
+  db4 -> sv2;
   db3 -> sv2;
   db1 -> q;
   db2 -> q;
   db3 -> q;
+  db4 -> q;
   db1 -> sv1;
   db3 -> sv1;
+  db4 -> sv1;
   db1 -> sync;
   db2 -> sync;
   db3 -> sync;
+  db4 -> sync;
   q -> op1;
   q -> op2;
   db1 [label="UPnP A/V client"];
   db2 [label="Receiver client"];
   db3 [label="Local files"];
+  db4 [label="Empeg client"];
   q [label="Playback queue"];
   sv1 [label="Receiver server"];
   sv2 [label="UPnP A/V server"];
-  sync [label="Sync to portable (NYI)", color=gray, fontcolor=gray];
+  sync [label="Sync to device"];
   op1 [label="Local playback"];
   op2 [label="UPnP A/V renderer"];
 };
@@ -217,6 +224,9 @@ digraph G {
  * upnp::AVTransport2Server, which unpackages a SOAP request and calls
  * the actual implementation of the AVTransport service (which is
  * itself derived from upnp::AVTransport2).
+ *
+ * @li DSEL for specifying XML parsers. Too cunning to describe here;
+ *     see @ref xml.
  *
  * @li Inter-library dependencies. Coupling between modules is a
  * source of undesirable complexity in software systems. One tool that

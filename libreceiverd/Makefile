@@ -45,7 +45,7 @@ include $(TOP)libreceiver/Makefile
 endif
 
 $(LIBRECEIVERD_TESTS) : TEST_LIBS += $(BOOST_LIBS) \
-	$(UPNP_LIBS) $(DBUS_LIBS) $(HAL_LIBS)
+	$(DBUS_LIBS) $(HAL_LIBS) $(LIBS)
 
 $(LIBRECEIVERD_TESTS) : $(libreceiverd) $(libreceiver) $(libdbsteam) \
 		$(libmediadb) $(libdb) $(libutil)

@@ -5,7 +5,7 @@
 #include "libmediadb/db.h"
 #include "libmediadb/schema.h"
 #include "libmediadb/registry.h"
-#include "libupnp/didl.h"
+#include "libmediadb/didl.h"
 #include <vector>
 
 namespace output {
@@ -174,9 +174,9 @@ void Queue::SetURL()
     db::RecordsetPtr rs = qp->Execute();
     std::string metadata;
     if (rs && !rs->IsEOF())
-	metadata = upnp::didl::s_header
-	    + upnp::didl::FromRecord(dbp.db, rs)
-	    + upnp::didl::s_footer;
+	metadata = mediadb::didl::s_header
+	    + mediadb::didl::FromRecord(dbp.db, rs)
+	    + mediadb::didl::s_footer;
     
     {
 	boost::mutex::scoped_lock lock(m_mutex);
@@ -200,9 +200,9 @@ void Queue::SetNextURL()
     db::RecordsetPtr rs = qp->Execute();
     std::string metadata;
     if (rs && !rs->IsEOF())
-	metadata = upnp::didl::s_header
-	    + upnp::didl::FromRecord(dbp.db, rs)
-	    + upnp::didl::s_footer;
+	metadata = mediadb::didl::s_header
+	    + mediadb::didl::FromRecord(dbp.db, rs)
+	    + mediadb::didl::s_footer;
 
     {
 	boost::mutex::scoped_lock lock(m_mutex);

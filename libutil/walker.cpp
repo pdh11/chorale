@@ -69,13 +69,13 @@ public:
     {
     }
 
-    void Run();
+    unsigned int Run();
 };
 
-void DirectoryWalker::FileTask::Run()
+unsigned int DirectoryWalker::FileTask::Run()
 {
     if (m_parent->m_stop)
-	return;
+	return 0;
 
     unsigned int error = m_parent->m_obs->OnFile(m_cookie, m_index, m_path, 
 						 m_leaf, &m_st);
@@ -86,6 +86,7 @@ void DirectoryWalker::FileTask::Run()
 	    m_parent->m_error = error;
 	m_parent->m_stop = true;
     }
+    return error;
 }
 
 
@@ -112,17 +113,18 @@ public:
 	  m_parent_index(parent_index),
 	  m_path(path.c_str()), // force string copy for thread-safety
 	  m_leaf(leaf.c_str()),
-	  m_st(*st)
+	  m_st(*st),
+	  m_cookie(0)
 	{}
     ~DirectoryTask();
     
-    void Run();
+    unsigned int Run();
 };
 
-void DirectoryWalker::DirectoryTask::Run()
+unsigned int DirectoryWalker::DirectoryTask::Run()
 {
     if (m_parent->m_stop)
-	return;
+	return 0;
 
     for (DirectoryTaskPtr dtp = m_parent_task;
 	 dtp;
@@ -131,7 +133,7 @@ void DirectoryWalker::DirectoryTask::Run()
 	if (dtp->m_path == m_path)
 	{
 	    TRACE << "Avoided loop through " << m_path << "\n";
-	    return;
+	    return 0;
 	}
     }
 
@@ -146,7 +148,7 @@ void DirectoryWalker::DirectoryTask::Run()
 
     unsigned int rc = ReadDirectory(m_path, &entries);
     if (rc != 0)
-	return;
+	return rc;
     
     /** Each child has a reference to its parent, so that the parent isn't
      * destroyed (and the LeaveDirectory called) until all children are done.
@@ -204,6 +206,7 @@ void DirectoryWalker::DirectoryTask::Run()
 	if (t)
 	    m_parent->m_queue->PushTask(t);
     }
+    return 0;
 }
 
 DirectoryWalker::DirectoryTask::~DirectoryTask()
@@ -329,7 +332,8 @@ void TestObserver::OnFinished(unsigned int error)
 
 int main()
 {
-    util::WorkerThreadPool wtp(2);
+#ifndef WIN32
+    util::WorkerThreadPool wtp(util::WorkerThreadPool::NORMAL);
 
     char root[] = "file_scanner.test.XXXXXX";
 
@@ -350,7 +354,7 @@ int main()
     util::posix::MakeRelativeLink(fullname + "/b/2", fullname + "/a");
 
     TestObserver obs;
-    util::DirectoryWalker dw(fullname, &obs, wtp.GetTaskQueue());
+    util::DirectoryWalker dw(fullname, &obs, &wtp);
     dw.Start();
     dw.WaitForCompletion();
 
@@ -361,7 +365,7 @@ int main()
 
     std::string rmrf = "rm -r " + fullname;
     system(rmrf.c_str());
-
+#endif
     return 0;
 }
 

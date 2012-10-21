@@ -2,6 +2,8 @@
 #define QTPOLLER_H 1
 
 #include "libutil/poll.h"
+#include "libutil/pollable.h"
+#include "libutil/bind.h"
 #include "libutil/not_thread_safe.h"
 #include <map>
 #include <qsocketnotifier.h>
@@ -16,10 +18,10 @@ class Notifier: public QSocketNotifier
 {
     Q_OBJECT
 
-    util::Pollable *m_pollable;
+    util::Callback m_callback;
 
 public:
-    Notifier(int fd, util::Pollable*, unsigned int direction);
+    Notifier(int fd, const util::Callback&, QSocketNotifier::Type direction);
 
 public slots:
     void OnActivity(int);
@@ -46,7 +48,7 @@ public slots:
  */
 class Poller: public util::PollerInterface, public util::NotThreadSafe
 {
-    typedef std::map<int, QSocketNotifier*> map_t;
+    typedef std::map<util::Pollable*, QSocketNotifier*> map_t;
     map_t m_map;
 
     boost::mutex m_mutex;
@@ -58,12 +60,13 @@ public:
     ~Poller();
 
     // Being a PollerInterface
-    void AddHandle(int poll_handle, util::Pollable *callback, 
-		   unsigned int direction);
-    void RemoveHandle(int poll_handle);
+    void Add(util::Pollable*, const util::Callback& callback, 
+	     unsigned int direction);
+    void Remove(util::Pollable*);
 
-    void AddTimer(time_t first, unsigned int repeatms, util::Timed*);
-    void RemoveTimer(util::Timed*);
+    void Add(time_t first, unsigned int repeatms, util::Timed*);
+    void Remove(util::Timed*);
+    void Wake();
 };
 
 } // namespace choraleqt

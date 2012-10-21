@@ -3,6 +3,7 @@
 #include "vfs.h"
 #include "libutil/trace.h"
 #include "libutil/endian.h"
+#include "libutil/poll.h"
 #include <errno.h>
 
 namespace receiverd {

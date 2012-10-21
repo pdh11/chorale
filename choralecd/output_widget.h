@@ -6,13 +6,15 @@
 #include <qwidget.h>
 #include "resource_widget.h"
 #include "widget_factory.h"
-#include "libutil/ssdp.h"
+#include "libupnp/ssdp.h"
 #include "libutil/hal.h"
 
 namespace mediadb { class Registry; }
 namespace output { class URLPlayer; }
 namespace output { class Queue; }
 namespace util { class PollerInterface; }
+namespace util { namespace http { class Client; } }
+namespace util { namespace http { class Server; } }
 
 namespace choraleqt {
 
@@ -66,21 +68,24 @@ public:
  * renderers.
  */
 class UpnpOutputWidgetFactory: public WidgetFactory,
-			       public util::ssdp::Client::Callback
+			       public upnp::ssdp::Responder::Callback
 {
     QPixmap *m_pixmap;
     QWidget *m_parent;
     mediadb::Registry *m_registry;
     util::PollerInterface *m_poller;
+    util::http::Client *m_client;
+    util::http::Server *m_server;
 
 public:
     UpnpOutputWidgetFactory(QPixmap*, mediadb::Registry*, 
-			    util::PollerInterface*);
+			    util::PollerInterface*,
+			    util::http::Client*, util::http::Server*);
 
     // Being a WidgetFactory
     void CreateWidgets(QWidget *parent);
 
-    // Being a util::ssdp::Client::Callback
+    // Being a upnp::ssdp::Responder::Callback
     void OnService(const std::string& url, const std::string& udn);
 };
 

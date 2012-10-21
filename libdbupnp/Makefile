@@ -37,7 +37,7 @@ ifeq ($(libmediadb),)
 include $(TOP)libmediadb/Makefile
 endif
 
-$(LIBDBUPNP_TESTS) : TEST_LIBS+= $(BOOST_LIBS) $(CURL_LIBS) $(UPNP_LIBS)
+$(LIBDBUPNP_TESTS) : TEST_LIBS+= $(BOOST_LIBS) $(LIBS)
 
 $(LIBDBUPNP_TESTS) : $(libdbupnp) $(libmediadb) $(libdb) $(libupnp) $(libutil) 
 

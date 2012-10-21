@@ -13,12 +13,14 @@ class StringStream: public SeekableStream
     std::string m_string;
 
     StringStream();
+    explicit StringStream(const std::string&);
     ~StringStream();
 
 public:    
     typedef boost::intrusive_ptr<StringStream> StringStreamPtr;
 
     static StringStreamPtr Create();
+    static StringStreamPtr Create(const std::string&);
 
     // Being a SeekableStream
     unsigned ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread);

@@ -5,8 +5,8 @@
 
 namespace mediadb {
 
-bool WebContent::StreamForPath(const util::WebRequest *rq, 
-			       util::WebResponse *rs)
+bool WebContent::StreamForPath(const util::http::Request *rq, 
+			       util::http::Response *rs)
 {
     unsigned int dbid, id;
     if (sscanf(rq->path.c_str(), "/dbcontent/%x/%x", &dbid, &id) == 2)

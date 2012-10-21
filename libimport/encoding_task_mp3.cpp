@@ -14,7 +14,7 @@ EncodingTaskPtr EncodingTaskMP3::Create(const std::string& filename)
     return EncodingTaskPtr(new EncodingTaskMP3(filename));
 }
 
-void EncodingTaskMP3::Run()
+unsigned int EncodingTaskMP3::Run()
 {
     size_t totalsamples = m_input_size / 4;
     
@@ -24,13 +24,13 @@ void EncodingTaskMP3::Run()
     if (rc2<0)
     {
 	TRACE << "lame_set_preset returned " << rc2 << "\n";
-	return;
+	return EINVAL;
     }
     rc2 = lame_init_params(gfp);
     if (rc2<0)
     {
 	TRACE << "lame_init_params returned " << rc2 << "\n";
-	return;
+	return EINVAL;
     }
 
     const int LUMP = 128*1024; // bytes
@@ -45,7 +45,7 @@ void EncodingTaskMP3::Run()
     if (!f)
     {
 	TRACE << "Lame encoder can't open '" << m_output_filename << "'\n";
-	return;
+	return (unsigned int)errno;
     }
 
     for (;;) 
@@ -110,6 +110,7 @@ void EncodingTaskMP3::Run()
     }
 
 //    TRACE << "MP3 encoding finished\n";
+    return 0;
 }
 
 } // namespace import

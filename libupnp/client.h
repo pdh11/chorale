@@ -3,6 +3,9 @@
 
 #include "device.h"
 
+namespace util { namespace http { class Client; } }
+namespace util { namespace http { class Server; } }
+
 namespace upnp {
 
 class Description;
@@ -20,7 +23,12 @@ class Client
     friend class ClientConnection;
 
 public:
-    Client();
+    /** UPnP client for a particular device.
+     *
+     * We need an HTTP server as well as the client, because we'll
+     * receive GENA notifications through it.
+     */
+    Client(util::http::Client*, util::http::Server*);
     ~Client();
 
     unsigned int Init(const std::string& description_url, 
@@ -34,6 +42,8 @@ class ClientConnection
     class Impl;
     Impl *m_impl;
 
+    class SoapXMLObserver;
+
 protected:
     static unsigned int GenaUInt(const std::string&);
     static int GenaInt(const std::string&);
@@ -45,7 +55,7 @@ public:
 
     void SetSid(const std::string& sid);
 
-    unsigned int Init(Client* parent, const char *service_id);
+    unsigned int Init(Client* parent, const char *service_type);
 
     unsigned int SoapAction(const char *action_name,
 			    const soap::Outbound& params,

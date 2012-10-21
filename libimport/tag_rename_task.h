@@ -22,7 +22,7 @@ public:
     static util::TaskPtr Create(const std::string& oldname, 
 				const std::string& newname, 
 				db::RecordsetPtr tags);
-    virtual void Run();
+    unsigned int Run();
 };
 
 } // namespace import

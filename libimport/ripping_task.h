@@ -11,7 +11,6 @@ class RippingTask: public util::Task
 {
     AudioCDPtr m_cd;
     unsigned int m_track;
-    volatile bool m_cancelling;
     std::string m_filename;
     EncodingTaskPtr m_etp1;
     EncodingTaskPtr m_etp2;
@@ -32,7 +31,7 @@ public:
 				 util::TaskQueue *encode_queue, 
 				 util::TaskQueue *disk_queue);
     
-    virtual void Run();
+    unsigned int Run();
 };
 
 typedef boost::intrusive_ptr<RippingTask> RippingTaskPtr;

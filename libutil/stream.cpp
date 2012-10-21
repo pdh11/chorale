@@ -77,6 +77,23 @@ unsigned SeekableStream::Write(const void *buffer, size_t len, size_t *pwrote)
     return rc;
 }
 
+unsigned SeekableStream::WriteAllAt(const void *buffer, pos64 pos, size_t len)
+{
+    while (len)
+    {
+	size_t nwritten;
+	unsigned int rc = WriteAt(buffer, pos, len, &nwritten);
+	if (rc)
+	    return rc;
+	if (!nwritten)
+	    return EIO;
+	len -= nwritten;
+	pos += nwritten;
+	buffer = ((char*)buffer) + nwritten;
+    }
+    return 0;
+}
+
 
         /* Utility functions */
 
@@ -119,6 +136,24 @@ unsigned CopyStream(SeekableStreamPtr from, StreamPtr to)
 	pos += nread;
     } while (nread);
 
+    return 0;
+}
+
+unsigned DiscardStream(StreamPtr s)
+{
+    enum { BUFSIZE = 8192 };
+    char buffer[BUFSIZE];
+
+    size_t nread;
+    do {
+	unsigned int rc = s->Read(buffer, BUFSIZE, &nread);
+	if (rc)
+	{
+	    TRACE << "Can't discard: " << rc << "\n";
+	    return rc;
+	}
+    } while (nread);
+    
     return 0;
 }
 

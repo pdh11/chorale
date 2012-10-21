@@ -17,9 +17,12 @@
 
 namespace choraleqt {
 
-BrowseWidget::BrowseWidget(QWidget *parent, unsigned int dbid)
+BrowseWidget::BrowseWidget(QWidget *parent, unsigned int dbid,
+			   QPixmap *dir_pixmap, QPixmap *file_pixmap)
     : QListWidget(parent),
-      m_dbid(dbid)
+      m_dbid(dbid),
+      m_dir_pixmap(dir_pixmap),
+      m_file_pixmap(file_pixmap)
 {
     setResizeMode(Adjust);
     setSelectionMode(ExtendedSelection);
@@ -40,9 +43,20 @@ void BrowseWidget::SetNode(mediatree::NodePtr np)
 	mediatree::Node::EnumeratorPtr ep = m_node->GetChildren();
 	while (ep->IsValid())
 	{
-	    new BrowseItem(this, 
-			   QString::fromUtf8(ep->Get()->GetName().c_str()),
-			   ep->Get());
+	    mediatree::NodePtr np = ep->Get();
+	    BrowseItem *item = new BrowseItem(this, 
+					      QString::fromUtf8(np->GetName().c_str()),
+					      np);
+	    if (np->IsCompound())
+	    {
+		if (m_dir_pixmap)
+		    item->setIcon(*m_dir_pixmap);
+	    }
+	    else
+	    {
+		if (m_file_pixmap)
+		    item->setIcon(*m_file_pixmap);
+	    }
 	    ep->Next();
 	}
     }

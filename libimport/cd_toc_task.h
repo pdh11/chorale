@@ -23,7 +23,7 @@ public:
 
     static CDTocTaskPtr Create(CDDrivePtr cd, CDDBService *cddb);
 
-    virtual void Run();
+    unsigned int Run();
 
     bool IsValid() { return m_cd; }
     AudioCDPtr GetCD() { return m_cd; }

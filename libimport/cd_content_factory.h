@@ -1,12 +1,12 @@
 #ifndef LIBIMPORT_CD_CONTENT_FACTORY_H
 #define LIBIMPORT_CD_CONTENT_FACTORY_H 1
 
-#include "libutil/web_server.h"
+#include "libutil/http_server.h"
 #include "audio_cd.h"
 
 namespace import {
 
-class CDContentFactory: public util::ContentFactory
+class CDContentFactory: public util::http::ContentFactory
 {
     AudioCDPtr m_audiocd;
     unsigned int m_index;
@@ -21,7 +21,8 @@ public:
     std::string GetPrefix();
 
     // Being a ContentFactory
-    bool StreamForPath(const util::WebRequest *rq, util::WebResponse *rs);
+    bool StreamForPath(const util::http::Request *rq,
+		       util::http::Response *rs);
 };
 
 } // namespace import

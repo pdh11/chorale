@@ -72,6 +72,9 @@ public:
     typedef params_t::const_iterator const_iterator;
     const_iterator begin() const { return m_params.begin(); }
     const_iterator end() const { return m_params.end(); }
+
+    std::string CreateBody(const std::string& action_name,
+			   const std::string& service_type) const;
 };
 
 /** A SOAP server.

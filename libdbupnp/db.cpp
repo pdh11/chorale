@@ -3,21 +3,22 @@
 #include "query.h"
 #include "rs.h"
 #include "libutil/trace.h"
-#include "libutil/upnp.h"
-#include "libutil/ssdp.h"
+#include "libupnp/ssdp.h"
 #include "libupnp/description.h"
 #include "libupnp/soap.h"
 #include "libupnp/ContentDirectory2_client.h"
 #include "libmediadb/schema.h"
 #include <errno.h>
-
-#ifdef HAVE_UPNP
+#include <string.h>
 
 namespace db {
 namespace upnpav {
 
-Database::Database()
-    : m_search_caps(0)
+Database::Database(util::http::Client *client,
+		   util::http::Server *server)
+    : m_upnp(client, server),
+      m_nextid(0x110),
+      m_search_caps(0)
 {
 }
 
@@ -31,7 +32,7 @@ unsigned Database::Init(const std::string& url, const std::string& udn)
     if (rc != 0)
 	return rc;
 
-    m_contentdirectory.Init(&m_upnp, util::ssdp::s_uuid_contentdirectory);
+    m_contentdirectory.Init(&m_upnp, upnp::s_service_type_content_directory);
 
     {
 	Lock lock(this);
@@ -143,17 +144,18 @@ std::string Database::ObjectIdForId(unsigned int id)
 } // namespace upnpav
 } // namespace db
 
-#endif // HAVE_UPNP
-
 
         /* Unit tests */
 
 
 #ifdef TEST
 
-#include "libmediadb/schema.h"
+# include "libutil/poll.h"
+# include "libutil/http_client.h"
+# include "libutil/http_server.h"
+# include "libmediadb/schema.h"
 
-class MyCallback: public util::ssdp::Client::Callback
+class MyCallback: public upnp::ssdp::Responder::Callback
 {
 public:
     void OnService(const std::string& url, const std::string& udn);
@@ -161,17 +163,18 @@ public:
 
 void MyCallback::OnService(const std::string& url, const std::string& udn)
 {
-#ifdef HAVE_UPNP
-    db::upnpav::Database thedb;
+    db::upnpav::Database thedb(NULL, NULL);
     thedb.Init(url, udn);
-#endif
 }
 
 int main()
 {
-#ifdef HAVE_UPNP
-    util::LibUPnPUser uuu;
-    db::upnpav::Database thedb;
+    util::Poller poller;
+    util::WorkerThreadPool wtp(util::WorkerThreadPool::NORMAL);
+    util::http::Server http_server(&poller, &wtp);
+    util::http::Client http_client;
+
+    db::upnpav::Database thedb(&http_client, &http_server);
 //    thedb.Init("http://10.35.1.65:50539/");
 /*
     db::QueryPtr qp = thedb.CreateQuery();
@@ -182,13 +185,15 @@ int main()
     */
     return 0;
 
-    util::ssdp::Client client(NULL);
+    upnp::ssdp::Responder client(NULL);
     MyCallback cb;
-    client.Init(util::ssdp::s_uuid_contentdirectory, &cb);
+    client.Search(upnp::s_service_type_content_directory, &cb);
 
+#ifdef WIN32
+    Sleep(25000);
+#else
     sleep(25);
-    
-#endif // HAVE_UPNP
+#endif
 
     return 0;
 }

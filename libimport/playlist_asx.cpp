@@ -5,31 +5,29 @@
 #include "libutil/xmlescape.h"
 #include "libutil/xml.h"
 #include <errno.h>
+#include <string.h>
 
 namespace import {
 
-class PlaylistASXParser: public xml::SaxParserObserver
+extern const char ASX[] = "asx";
+extern const char ENTRY[] = "entry";
+extern const char REF[] = "ref";
+extern const char HREF[] = "href";
+
+typedef xml::Parser<
+    xml::Tag<ASX,
+	     xml::Tag<ENTRY,
+		      xml::Tag<REF,
+			       xml::Attribute<HREF,
+					      PlaylistASX,
+					      &PlaylistASX::OnHref
+					      > > > > > ASXParser;
+
+unsigned int PlaylistASX::OnHref(const std::string& value)
 {
-    Playlist *m_playlist;
-    size_t m_index;
-
-public:
-    explicit PlaylistASXParser(Playlist *playlist)
-	: m_playlist(playlist),
-	  m_index(0)
-	{}
-
-    // Being an xml::SaxParserObserver
-    unsigned int OnAttribute(const char *name, const char *value)
-    {
-	if (!strcasecmp(name, "href"))
-	    m_playlist->SetEntry(m_index++,
-				 util::MakeAbsolutePath(
-				     m_playlist->GetFilename(),
-				     value));
-	return 0;
-    }
-};
+    AppendEntry(util::MakeAbsolutePath(GetFilename(), value));
+    return 0;
+}
 
 unsigned int PlaylistASX::Load()
 {
@@ -39,9 +37,8 @@ unsigned int PlaylistASX::Load()
     if (rc != 0)
 	return rc;
 
-    PlaylistASXParser obs(this);
-    xml::SaxParser parser(&obs);
-    return parser.Parse(ss);
+    ASXParser parser;
+    return parser.Parse(ss, this);
 }
 
 unsigned int PlaylistASX::Save()

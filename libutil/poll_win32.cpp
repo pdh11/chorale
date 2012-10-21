@@ -1,10 +1,14 @@
 #include "config.h"
 #include "poll.h"
+#include "poller_core.h"
 #include "trace.h"
 
 #ifdef WIN32
 
 #include <windows.h>
+
+#undef IN
+#undef OUT
 
 namespace util {
 
@@ -16,25 +20,18 @@ PollerCore::PollerCore()
 {
 }
 
-unsigned int PollerCore::SetUpArray(const std::map<int,Pollable*> *pollables,
-				    const std::map<int,unsigned int>*)
+unsigned int PollerCore::SetUpArray(const std::vector<PollRecord> *pollables)
 {
+    m_count = pollables->size();
+
     void **newarray = (void**)realloc(m_array,
 				      pollables->size() * sizeof(void*));
     if (!newarray)
 	return ENOMEM;
     m_array = newarray;
     
-    size_t i = 0;
-    for (std::map<int,Pollable*>::const_iterator j = pollables->begin();
-	 j != pollables->end();
-	 ++j)
-    {
-	m_array[i] = (void*)(j->first);
-	++i;
-    }
-
-    m_count = i;
+    for (size_t i = 0; i<m_count; ++i)
+	m_array[i] = (*pollables)[i].h;
 
     return 0;
 }
@@ -46,7 +43,7 @@ unsigned int PollerCore::Poll(unsigned int timeout_ms)
     DWORD rc = ::WaitForMultipleObjects(m_count, m_array, false, timeout_ms);
     if (rc == WAIT_FAILED)
     {
-	TRACE << "WFMO failed " << GetLastError() << "\n";
+//	TRACE << "WFMO failed " << GetLastError() << "\n";
 	return GetLastError();
     }
 
@@ -56,21 +53,30 @@ unsigned int PollerCore::Poll(unsigned int timeout_ms)
     {
 //	TRACE << "Poll returned " << (rc - WAIT_OBJECT_0) << "\n";
 	m_which = rc - WAIT_OBJECT_0;
+	m_which_handle = m_array[m_which];
     }
 
     return 0;
 }
 
-unsigned int PollerCore::DoCallbacks(const std::map<int,Pollable*> *pollables)
+unsigned int PollerCore::DoCallbacks(const std::vector<PollRecord> *pollables,
+				     bool valid)
 {
     if (m_which == -1)
 	return 0;
+    
+    if (valid)
+	return (*pollables)[m_which].c();
 
-    std::map<int,Pollable*>::const_iterator j
-	= pollables->find((int)m_array[m_which]);
-    if (j != pollables->end())
-	return j->second->OnActivity();
-    TRACE << "No callback found\n";
+//    TRACE << "Warning, pollables changed, searching for handle\n";
+
+    for (unsigned int i=0; i<pollables->size(); ++i)
+    {
+	if ((*pollables)[i].h == m_which_handle)
+	{
+	    return (*pollables)[i].c();
+	}
+    }
     return 0;
 }
 
@@ -79,11 +85,11 @@ PollerCore::~PollerCore()
     free(m_array);
 }
 
-PollWaker::PollWaker(PollerInterface *p, Pollable *pollable)
-    : m_pollable(pollable),
-      m_event(::CreateEvent(NULL, false, false, NULL))
+PollWaker::PollWaker(PollerInterface *p)
+    : m_event(::CreateEvent(NULL, false, false, NULL))
 {
-    p->AddHandle((int)m_event, this);
+    p->Add(this, Bind<PollWaker, &PollWaker::OnActivity>(this),
+	   util::PollerInterface::IN);
 }
 
 PollWaker::~PollWaker()
@@ -93,9 +99,9 @@ PollWaker::~PollWaker()
 
 unsigned PollWaker::OnActivity()
 {
-    TRACE << "PollWaker::OnActivity\n";
+//    TRACE << "PollWaker::OnActivity\n";
     ::ResetEvent(m_event);
-    return m_pollable ? m_pollable->OnActivity() : 0;
+    return 0;
 }
 
 void PollWaker::Wake()

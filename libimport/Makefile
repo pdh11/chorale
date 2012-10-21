@@ -61,13 +61,13 @@ include $(TOP)libmediadb/Makefile
 endif
 
 $(LIBIMPORT_TESTS) : TEST_LIBS += $(BOOST_LIBS) $(TAGLIB_LIBS) \
-	$(HAL_LIBS) $(LIBCDIOP_LIBS)
+	$(PARANOIA_LIBS) $(HAL_LIBS) $(LIBCDIOP_LIBS) $(LIBS)
 
 $(LIBIMPORT_TESTS) : $(libimport) $(libmediadb) $(libdbsteam) \
 	$(libdb) $(libutil)
 
 $(libimport): $(LIBIMPORT_OBJS)
 	$(AR_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
-		 $(CC) -o $@ $(LIBIMPORT_OBJS)
+		 $(CXX) -o $@ $(LIBIMPORT_OBJS)
 
 CLEANS += $(libimport)

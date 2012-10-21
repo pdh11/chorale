@@ -21,7 +21,7 @@ public:
 	return util::TaskPtr(new EjectTask(cd));
     }
 
-    void Run();
+    unsigned int Run();
 };
 
 } // namespace import

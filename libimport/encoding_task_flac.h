@@ -7,7 +7,7 @@ namespace import {
 
 class EncodingTaskFlac: public EncodingTask
 {
-    void Run();
+    unsigned int Run();
 
     explicit EncodingTaskFlac(const std::string& output_filename)
 	: EncodingTask(output_filename) {}

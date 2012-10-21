@@ -8,7 +8,6 @@
  * typically, the GPL.
  */
 #include "explorer_window.h"
-#include "tagtable.h"
 #include "browse_widget.h"
 #include "libmediadb/registry.h"
 #include "tree_model.h"

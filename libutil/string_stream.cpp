@@ -7,6 +7,11 @@ StringStream::StringStream()
 {
 }
 
+StringStream::StringStream(const std::string& s)
+    : m_string(s)
+{
+}
+
 StringStream::~StringStream()
 {
 }
@@ -16,10 +21,15 @@ StringStreamPtr StringStream::Create()
     return StringStreamPtr(new StringStream);
 }
 
+StringStreamPtr StringStream::Create(const std::string& s)
+{
+    return StringStreamPtr(new StringStream(s));
+}
+
 unsigned StringStream::ReadAt(void *buffer, pos64 pos, size_t len,
 			      size_t *pread)
 {
-    size_t remain = m_string.length() - pos;
+    size_t remain = m_string.length() - (size_t)pos;
     size_t nread = std::min(len, remain);
     memcpy(buffer, m_string.c_str() + pos, nread);
     *pread = nread;
@@ -29,7 +39,7 @@ unsigned StringStream::ReadAt(void *buffer, pos64 pos, size_t len,
 unsigned StringStream::WriteAt(const void *buffer, pos64 pos, size_t len, 
 			       size_t *pwrote)
 {
-    m_string.replace(pos, len, (const char*)buffer, len);
+    m_string.replace((size_t)pos, len, (const char*)buffer, len);
     *pwrote = len;
     return 0;
 }

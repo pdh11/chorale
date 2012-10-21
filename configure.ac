@@ -2,10 +2,10 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(chorale, [0.12], pdh@utter.chaos.org.uk)
+AC_INIT(chorale, [0.13], pdh@utter.chaos.org.uk)
 
 AC_MSG_NOTICE([Required: Boost.])
-AC_MSG_NOTICE([Optional: Taglib, Qt4, gstreamer, libcdio, libcddb, lame, flac, libupnp, dbus, hal, libmpg123, inkscape, xsltproc, imagemagick.])
+AC_MSG_NOTICE([Optional: Taglib, Qt4, gstreamer, cdparanoia or libcdio, libcddb, lame, flac, dbus, hal, libmpg123, inkscape, xsltproc, imagemagick.])
 AC_MSG_NOTICE([])
 
 AC_CONFIG_SRCDIR([libdb/db.h])
@@ -60,6 +60,7 @@ PDH_C_WARNING([-fdiagnostics-show-option])
 PDH_C_WARNING([-Wdeclaration-after-statement])
 
 AC_PROG_CXX
+AC_CHECK_TOOL([GCOV], [gcov], [:])
 
 AC_DEFUN([PDH_CXX_WARNING],
 [
@@ -96,6 +97,21 @@ PDH_CXX_WARNING([-Woverloaded-virtual])
 PDH_CXX_WARNING([-pedantic -Wno-long-long])
 PDH_CXX_WARNING([-fdiagnostics-show-option])
 
+AC_MSG_CHECKING([whether headers need -fpermissive])
+AC_LANG_PUSH([C++])
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <linux/cdrom.h>
+]],
+[[
+    return 0;
+]])], [AC_MSG_RESULT([no]) ; ac_pdh_fperm=no],
+      [AC_MSG_RESULT([yes]) ; ac_pdh_fperm=yes])
+AC_LANG_POP
+
+if test "$ac_pdh_fperm" = "yes"; then
+PDH_CXX_WARNING([-fpermissive])
+fi
+
 AC_PROG_INSTALL
 AC_SYS_LARGEFILE
 if test "x$ac_cv_sys_file_offset_bits" != "x" -a "x$ac_cv_sys_file_offset_bits" != "xno" -a "x$ac_cv_sys_file_offset_bits" != "xunknown" ; then
@@ -123,9 +139,25 @@ if test "$INKSCAPE" = "no"; then
 else
    HAVE_INKSCAPE="yes"
 fi
+AC_PATH_PROG(VALGRIND, valgrind, no)
+VALGRIND_OPTS=""
+if test "$VALGRIND" = "no"; then
+   HAVE_VALGRIND="no"
+else
+   HAVE_VALGRIND="yes"
+   if valgrind --help | grep -q -e --read-var-info ; then
+	VALGRIND_OPTS="$VALGRIND_OPTS --read-var-info=yes"
+   fi
+   if valgrind --help | grep -q -e --track-origins ; then
+	VALGRIND_OPTS="$VALGRIND_OPTS --track-origins=yes"
+   fi
+fi
 AC_SUBST(HAVE_CONVERT)
 AC_SUBST(HAVE_XSLTPROC)
 AC_SUBST(HAVE_INKSCAPE)
+AC_SUBST(HAVE_VALGRIND)
+AC_SUBST(VALGRIND_OPTS)
+
 
 # Checks for libraries.
 
@@ -149,6 +181,24 @@ AC_SUBST(LAME)
 AC_SUBST(LAME_LIBS)
 if test "${LAME}" = "yes" ; then
     AC_DEFINE(HAVE_LAME, 1, [Define to 1 if you have LAME])
+fi
+fi
+
+if test "x${with_lgpl}" != xno ; then
+AC_CHECK_LIB([cdda_paranoia],[paranoia_version], [PARANOIA="yes" PARANOIA_LIBS="-lcdda_paranoia"],[PARANOIA="no"])
+if test "${PARANOIA}" = "yes" ; then
+	AC_CHECK_HEADER([cdda_interface.h],,[PARANOIA="no"])
+fi
+if test "${PARANOIA}" = "yes" ; then
+	AC_CHECK_HEADER([cdda_paranoia.h],,[PARANOIA="no"],[
+AC_INCLUDES_DEFAULT()
+#include <cdda_interface.h>
+])
+fi
+AC_SUBST(PARANOIA)
+AC_SUBST(PARANOIA_LIBS)
+if test "${LAME}" = "yes" ; then
+    AC_DEFINE(HAVE_PARANOIA, 1, [Define to 1 if you have `real' cdparanoia (not libcdio)])
 fi
 fi
 
@@ -215,30 +265,32 @@ if test "x${with_lgpl}" != xno ; then
 PDH_PKGCONFIG(TAGLIB,    taglib,    1.4)
 PDH_PKGCONFIG(LIBCDDB,   libcddb,   1.2.1)
 fi
-PDH_PKGCONFIG(UPNP,      libupnp,   1.2.1)
 if test "x${with_lgpl}" != xno ; then
 PDH_PKGCONFIG(MPG123,    libmpg123, 1.2.0)
 PDH_PKGCONFIG(GSTREAMER, gstreamer-0.10, 0.10.13)
 fi
 if test "x${with_gpl}" != xno ; then
+if test "${PARANOIA}" == "no" ; then
 PDH_PKGCONFIG(LIBCDIOP,  libcdio_paranoia, 0.76)
+fi
 fi
 
 # NB do NOT use LIBFLAC_CFLAGS/LIBFLACPP_CFLAGS -- they introduce a directory
 # with a bogus <assert.h>.
 
 # ax_boost.m4 is AllPermissive
-AX_BOOST([1.33.1],[BOOST="yes"],[BOOST="no"])
+AX_BOOST([1.35.0],[BOOST="yes"],[BOOST="no"])
 if test "${ax_cv_boost_thread}${ax_cv_boost_regex}" != "yesyes" ; then
   BOOST="no"
 fi
 
 # Checks for header files.
-AC_CHECK_HEADERS([io.h poll.h stdint.h stdlib.h unistd.h shlwapi.h pthread.h sys/poll.h sys/types.h sys/socket.h netinet/in.h netinet/tcp.h sys/resource.h linux/dvb/dmx.h linux/dvb/frontend.h])
-AC_CHECK_FUNCS([mkstemp setpriority getaddrinfo gethostbyname_r])
+AC_CHECK_HEADERS([io.h poll.h errno.h sched.h net/if.h stdint.h stdlib.h unistd.h shlwapi.h pthread.h ws2tcpip.h sys/poll.h sys/time.h sys/types.h sys/socket.h netinet/in.h netinet/tcp.h sys/resource.h linux/dvb/dmx.h linux/dvb/frontend.h])
+AC_CHECK_FUNCS([mkstemp localtime_r setpriority getaddrinfo gettimeofday gethostbyname_r sched_setscheduler])
 
 AC_CHECK_LIB([ws2_32],[main])
 AC_CHECK_LIB([shlwapi],[main])
+AC_CHECK_LIB([pthread],[main])
 
 AC_CHECK_DECLS([DMX_OUT_TS_TAP,DMX_OUT_TSDEMUX_TAP],,,[
 #ifdef HAVE_LINUX_DVB_DMX_H
@@ -316,6 +368,31 @@ PDH_CHECK_SOCKOPT([TCP_NOPUSH])
 PDH_CHECK_SOCKOPT([IP_PKTINFO])
 PDH_CHECK_SOCKOPT([TCP_NODELAY])
 
+AC_DEFUN([PDH_CHECK_ERRNO], [
+AC_MSG_CHECKING([for $1])
+AC_LANG_PUSH([C++])
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif
+#include <boost/cerrno.hpp>
+]],
+[[
+    return (errno == $1);
+]])], [AC_MSG_RESULT([yes]) ; ac_pdh_errno=yes],
+      [AC_MSG_RESULT([no]) ; ac_pdh_errno=no])
+if test "$ac_pdh_errno" = "yes"; then
+AC_DEFINE_UNQUOTED([HAVE_$1], 1, [Define to 1 if you have the error-code $1])
+fi
+AC_LANG_POP
+])
+
+PDH_CHECK_ERRNO([EISCONN])
+PDH_CHECK_ERRNO([EALREADY])
+PDH_CHECK_ERRNO([EOPNOTSUPP])
+PDH_CHECK_ERRNO([EINPROGRESS])
+PDH_CHECK_ERRNO([EWOULDBLOCK])
+
 AC_ARG_ENABLE([final],
 [AS_HELP_STRING([--enable-final],
 [Compile final binaries in a single compiler invocation. Smaller output, but needs ~1GB RAM (or swap) during compilation.])],FINAL=yes,FINAL=no)
@@ -326,17 +403,26 @@ AC_SUBST(FINAL)
 #AC_C_CONST
 #AC_C_INLINE
 
+pdh_cd=no
+if test "${PARANOIA}" == "yes" ; then
+  pdh_cd=yes
+else
+  if test "${LIBCDIOP}" == "yes" ; then
+    pdh_cd=yes
+    printf "\n** Warning: cdparanoia 10 not found, using libcdio instead\n   A future version of Chorale will require cdparanoia\n"
+  fi
+fi
+
 # Optional libraries
 printf "\n"
 pdh_ok=yes
 pdh_fail=no
-if test "${LIBCDIOP}${LIBCDDB}${QT}${LAME}${LIBFLAC}${UPNP}${GSTREAMER}${DBUS}${HAL}${MPG123}${TAGLIB}${HAVE_CONVERT}${HAVE_XSLTPROC}${HAVE_INKSCAPE}" != "yesyesyesyesyesyesyesyesyesyesyesyesyesyes" ; then
+if test "${pdh_cd}${LIBCDDB}${QT}${LAME}${LIBFLAC}${GSTREAMER}${DBUS}${HAL}${MPG123}${TAGLIB}${HAVE_CONVERT}${HAVE_XSLTPROC}${HAVE_INKSCAPE}" != "yesyesyesyesyesyesyesyesyesyesyesyesyes" ; then
 test "${QT}" = "yes"        || printf "** Install Qt 4.2.0 or later to build optional choralecd\n   http://www.troll.no\n"
 test "${LIBFLAC}" = "yes"   || printf "** Install flac 1.1.3 or later to build optional CD support\n   http://flac.sourceforge.net\n"
 test "${LAME}" = "yes"      || printf "** Install Lame 3.96.1 or later to build optional CD support\n   http://lame.sourceforge.net\n"
-test "${LIBCDIOP}" = "yes"  || printf "** Install libcdio 0.76 or later to build optional CD support\n   http://www.gnu.org/software/libcdio\n"
+test "${pdh_cd}" = "yes"    || printf "** Install cdparanoia 10 or later, or libcdio 0.76 or later to build\n   optional CD support\n   http://www.xiph.org/paranoia/\n   http://www.gnu.org/software/libcdio\n"
 test "${LIBCDDB}" = "yes"   || printf "** Install libcddb 1.2.1 or later to build optional CD support\n   http://libcddb.sourceforge.net\n"
-test "${UPNP}" = "yes"      || printf "** Install libupnp-1.4.3 or later to build optional UPnP support\n   http://pupnp.sf.net\n"
 test "${HAL}" = "yes"       || printf "** Install hal 0.5.9.1 or later to build optional auto-configuration\n   http://hal.freedesktop.org\n"
 test "${DBUS}" = "yes"      || printf "** Install libdbus 1.1.1 or later to build optional auto-configuration\n   http://dbus.freedesktop.org\n"
 test "${GSTREAMER}" = "yes" || printf "** Install gstreamer 0.10.13 or later to build optional playback support\n   http://gstreamer.freedesktop.org\n"
@@ -351,7 +437,7 @@ fi
 
 # Required libraries
 if test "${BOOST}" != "yes" ; then
-test "${BOOST}" = "yes"         || printf "** Boost 1.33.1 or later (at least -regex and -thread) is required\n   http://www.boost.org\n"
+test "${BOOST}" = "yes"         || printf "** Boost 1.35 or later (at least -regex and -thread) is required\n   http://www.boost.org\n"
 printf "\n"
 pdh_ok=no
 pdh_fail=yes
@@ -363,7 +449,7 @@ printf "or Debian, try:\n"
 printf "   sudo apt-get install g++ autoconf automake libflac-dev\n"
 printf "        libdbus-1-dev libhal-dev libtag1-dev\n"
 printf "        libboost-thread-dev libboost-regex-dev liblame-dev\n"
-printf "        libupnp-dev libcdio-paranoia-dev libcddb2-dev\n"
+printf "        libcdio-paranoia-dev libcddb2-dev\n"
 printf "        libgstreamer0.10-dev libqt4-dev qt4-dev-tools\n"
 printf "        libmysqlclient15-dev imagemagick inkscape xsltproc\n"
 printf "\n"

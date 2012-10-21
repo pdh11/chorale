@@ -338,6 +338,7 @@ FileScanner::~FileScanner()
 unsigned int FileScanner::Scan()
 {
     m_impl->m_map.clear();
+    m_impl->m_children.clear();
     util::DirectoryWalker w(m_impl->m_loroot, m_impl, m_impl->m_queue);
     w.Start();
     w.WaitForCompletion();
@@ -416,6 +417,9 @@ int main()
 
     char root[] = "file_scanner.test.XXXXXX";
 
+#ifndef WIN32
+    /** @todo Write a test which runs on Win32 -- the code itself does */
+
     if (!mkdtemp(root))
     {
 	fprintf(stderr, "Can't create temporary dir\n");
@@ -424,12 +428,12 @@ int main()
 
     std::string fullname = util::Canonicalise(root);
 
-    util::WorkerThreadPool wtp(2);
+    util::WorkerThreadPool wtp(util::WorkerThreadPool::NORMAL, 2);
 
     mediadb::LocalDatabase ldb(&sdb);
 
     {
-	import::FileScanner ifs(fullname, "", &ldb, wtp.GetTaskQueue());
+	import::FileScanner ifs(fullname, "", &ldb, &wtp);
 
 	ifs.Scan();
     }
@@ -455,7 +459,7 @@ int main()
     fclose(f);
 
     {
-	import::FileScanner ifs(fullname, "", &ldb, wtp.GetTaskQueue());
+	import::FileScanner ifs(fullname, "", &ldb, &wtp);
 
 	ifs.Scan();
     }
@@ -486,7 +490,7 @@ int main()
     symlink(file.c_str(), link.c_str());
 
     {
-	import::FileScanner ifs(fullname, "", &ldb, wtp.GetTaskQueue());
+	import::FileScanner ifs(fullname, "", &ldb, &wtp);
 	ifs.Scan();
     }
 
@@ -519,7 +523,7 @@ int main()
     mkdir(subdir.c_str(), 0755);
 
     {
-	import::FileScanner ifs(fullname, "", &ldb, wtp.GetTaskQueue());
+	import::FileScanner ifs(fullname, "", &ldb, &wtp);
 	ifs.Scan();
     }
 
@@ -559,7 +563,7 @@ int main()
     TRACE << "deleting " << subdir << "\n";
     rmdir(subdir.c_str());
     {
-	import::FileScanner ifs(fullname, "", &ldb, wtp.GetTaskQueue());
+	import::FileScanner ifs(fullname, "", &ldb, &wtp);
 	ifs.Scan();
     }
 
@@ -590,7 +594,7 @@ int main()
 
     std::string rmrf = "rm -r " + fullname;
     system(rmrf.c_str());
-
+#endif
     return 0;
 }
 

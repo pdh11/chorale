@@ -1,6 +1,8 @@
 #ifndef LIBRECEIVERD_VFS_H
 #define LIBRECEIVERD_VFS_H 1
 
+#include <string>
+
 namespace receiverd {
 
 /** Virtual file system API.

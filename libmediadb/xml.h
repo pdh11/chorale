@@ -5,6 +5,8 @@
 #ifndef MEDIADB_XML_H
 #define MEDIADB_XML_H
 
+#include "libutil/stream.h"
+
 #include <stdio.h>
 
 namespace db { class Database; }
@@ -13,11 +15,15 @@ namespace mediadb {
 
 /** Write a db::Database (assumed to be a mediadb::Database) to a file as XML.
  */
-bool WriteXML(db::Database*, unsigned int schema, ::FILE *f);
+unsigned int WriteXML(db::Database*, unsigned int schema, ::FILE *f);
 
-/** Read a db::Database (assumed to be a mediadb::Database) from an XML file.x
+/** Read a db::Database (assumed to be a mediadb::Database) from an XML file.
  */
-bool ReadXML(db::Database*, const char *filename);
+unsigned int ReadXML(db::Database*, const char *filename);
+
+/** Read a db::Database (assumed to be a mediadb::Database) from a stream.
+ */
+unsigned int ReadXML(db::Database*, util::StreamPtr);
 
 } // namespace mediadb
 

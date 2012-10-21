@@ -2,9 +2,9 @@
 
 namespace import {
 
-void EjectTask::Run(void)
+unsigned int EjectTask::Run(void)
 {
-    m_cd->Eject();
+    return m_cd->Eject();
 }
 
 } // namespace import

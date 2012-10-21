@@ -1,7 +1,9 @@
 #ifndef IMPORT_FILE_NOTIFIER
 #define IMPORT_FILE_NOTIFIER 1
 
-#include "libutil/poll.h"
+#include "libutil/pollable.h"
+
+namespace util { class PollerInterface; }
 
 namespace import {
 
@@ -12,7 +14,7 @@ public:
 
 private:
     Observer *m_obs;
-    int m_fd;
+    util::PollHandle m_fd;
 
 public:
     FileNotifier();
@@ -32,8 +34,10 @@ public:
 
     void SetObserver(Observer *obs) { m_obs = obs; }
 
-    // being a Pollable
     unsigned OnActivity();
+
+    // Being a util::Pollable
+    util::PollHandle GetReadHandle() { return m_fd; }
 };
 
 } // namespace import

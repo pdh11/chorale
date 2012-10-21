@@ -3,72 +3,130 @@
 #include "trace.h"
 #include "stream_test.h"
 #include <string.h>
+#include <list>
 
 namespace xml {
 
+SaxParser::SaxParser(SaxParserObserver *observer)
+    : m_observer(observer),
+      m_buffered(0),
+      m_eof(false),
+      m_state(CONTENT)
+{
+}
+
 unsigned int SaxParser::Parse(util::StreamPtr s)
 {
-    enum { BUFSIZE = 1024 };
-    char buffer[BUFSIZE+1];
-    size_t bufused = 0;
-    bool eof = false;
     unsigned int rc = 0;
-    std::string tagname;
-    std::string attrname;
-    
-    enum { CONTENT, TAG, IN_TAG, IN_ATTR, SEEK_GT, ATTR_SEEKEQ,
-	   ATTR_SEEKVALUE, IN_QUOTEDVALUE, IN_VALUE } state = CONTENT;
 
     for (;;)
     {
-	if (bufused < BUFSIZE && !eof)
+	if (m_buffered < BUFSIZE && !m_eof)
 	{
 	    size_t nread = 0;
-	    rc = s->Read(buffer+bufused, BUFSIZE-bufused, &nread);
+	    rc = s->Read(m_buffer+m_buffered, BUFSIZE-m_buffered, &nread);
 	    if (rc)
 	    {
 		TRACE << "Read gave error " << rc << "\n";
 		return rc;
 	    }
+//	    TRACE << "Read got me " << nread << " bytes\n";
 	    if (nread == 0)
-		eof = true;
-	    bufused += (unsigned)nread;
+		m_eof = true;
+	    m_buffered += (unsigned)nread;
 	}
 
-	if (bufused == 0 && eof)
+	if (m_buffered == 0 && m_eof)
 	    return 0; // Done
 
-	buffer[bufused] = '\0';
+	m_buffer[m_buffered] = '\0';
 
-//	TRACE << "state " << (int)state << " buffer " << bufused << " "
-//	      << buffer << "\n";
+	Parse();
+    }
+}
 
-	switch (state)
+unsigned int SaxParser::OnBuffer(util::BufferPtr p)
+{
+//    TRACE << "I think I've got a buffer, size " << (p ? p->actual_len : 0)
+//	  << " used " << p.start << "--" << (p.start+p.len) << "\n";
+
+    do {
+	if (m_buffered < BUFSIZE && !m_eof)
+	{
+	    if (p)
+	    {
+		size_t size = std::min((size_t)p.len,
+				       BUFSIZE - m_buffered);
+		memcpy(m_buffer + m_buffered, (char*)p->data + p.start, size);
+		p.start += (util::bufsize_t)size;
+		p.len -= (util::bufsize_t)size;
+		m_buffered += size;
+		if (p.len == 0)
+		    p.reset(NULL);
+	    }
+	    else
+		m_eof = true;
+	}
+
+	m_buffer[m_buffered] = '\0';
+	Parse();
+    } while (p);
+
+    return 0;
+}
+
+void SaxParser::Parse()
+{
+    while (m_buffered)
+    {
+//	TRACE << "st " << (int)m_state
+//	      << " eof " << m_eof
+//	      << " buf " << m_buffered << " " << m_buffer << "\n";
+
+	switch (m_state)
 	{
 	case CONTENT:
 	{
-	    char *lt = strchr(buffer, '<');
+	    char *lt = strchr(m_buffer, '<');
 	    if (lt == NULL)
 	    {
 		// xmlunescape
-		std::string unesc = util::XmlUnEscape(buffer);
-		m_observer->OnContent(unesc.c_str());
-		bufused = 0;
+		char *amp = strrchr(m_buffer, '&');
+		char *semi = strrchr(m_buffer, ';');
+		if (amp && (!semi || semi<amp))
+		{
+		    // Take care not to split up an entity &qu .... ot;
+		    *amp = '\0';
+		    std::string unesc = util::XmlUnEscape(m_buffer);
+		    m_observer->OnContent(unesc.c_str());
+		    *amp = '&';
+		    unsigned int usedup = (unsigned)(amp-m_buffer);
+		    memmove(m_buffer, amp, m_buffered - usedup + 1);
+		    m_buffered -= usedup;
+		    if (!m_eof)
+			return; // Can't do anything until we see rest of it
+		}
+		else
+		{
+		    std::string unesc = util::XmlUnEscape(m_buffer);
+		    m_observer->OnContent(unesc.c_str());
+		    m_buffered = 0;
+		}
 	    }
 	    else
 	    {
 		*lt = '\0';
-		if (lt > buffer)
+		if (lt > m_buffer)
 		{
 		    // xmlunescape
-		    std::string unesc = util::XmlUnEscape(buffer);
+		    std::string unesc = util::XmlUnEscape(m_buffer);
 		    m_observer->OnContent(unesc.c_str());
 		}
-		state = TAG;
-		unsigned int usedup = (unsigned)(lt+1 - buffer);
+		m_state = TAG;
+		unsigned int usedup = (unsigned)(lt+1 - m_buffer);
 //		TRACE << "used up " << usedup << "\n";
-		memmove(buffer, lt+1, bufused-usedup);
-		bufused -= usedup;
+		memmove(m_buffer, lt+1, m_buffered-usedup+1);
+		m_buffered -= usedup;
 	    }
 	    break;
 	}
@@ -76,52 +134,52 @@ unsigned int SaxParser::Parse(util::StreamPtr s)
 	{
 	    bool end = false;
 	    size_t skip = 0;
-	    if (*buffer == '/')
+	    if (*m_buffer == '/')
 	    {
 		end = true;
 		skip = 1;
 	    }
-	    size_t taglen = strcspn(buffer + skip, " \t\r\n/>") + skip;
-	    if (taglen == bufused && !eof && bufused < BUFSIZE)
-		continue;
-	    char c = buffer[taglen];
-	    buffer[taglen] = '\0';
+	    size_t taglen = strcspn(m_buffer + skip, " \t\r\n/>") + skip;
+	    if (taglen == m_buffered && !m_eof && m_buffered < BUFSIZE)
+		return;
+	    char c = m_buffer[taglen];
+	    m_buffer[taglen] = '\0';
 	    if (end)
 	    {
-		m_observer->OnEnd(buffer+1);
+		m_observer->OnEnd(m_buffer+1);
 		if (c == '>')
-		    state = CONTENT;
+		    m_state = CONTENT;
 		else
-		    state = SEEK_GT;
+		    m_state = SEEK_GT;
 	    }
 	    else
 	    {
-		tagname = buffer;
-		m_observer->OnBegin(buffer);
+		m_tagname = m_buffer;
+		m_observer->OnBegin(m_buffer);
 		if (c == '/')
 		{
-		    m_observer->OnEnd(buffer);
-		    state = SEEK_GT;
+		    m_observer->OnEnd(m_buffer);
+		    m_state = SEEK_GT;
 		}
 		else if (c == '>')
-		    state = CONTENT;
+		    m_state = CONTENT;
 		else
-		    state = IN_TAG;
+		    m_state = IN_TAG;
 	    }
-	    memmove(buffer, buffer+taglen+1, bufused-taglen-1);
-	    bufused -= (unsigned)(taglen+1);
+	    memmove(m_buffer, m_buffer+taglen+1, m_buffered-taglen-1+1);
+	    m_buffered -= (unsigned)(taglen+1);
 	    break;
 	}
 	
 	case SEEK_GT:
 	{
-	    char *gt = strchr(buffer, '>');
-	    if (gt == NULL && !eof && bufused < BUFSIZE)
-		continue;
-	    unsigned int usedup = (unsigned)(gt+1 - buffer);
-	    memmove(buffer, gt+1, bufused-usedup);
-	    bufused -= usedup;
-	    state = CONTENT;
+	    char *gt = strchr(m_buffer, '>');
+	    if (gt == NULL && !m_eof && m_buffered < BUFSIZE)
+		return;
+	    unsigned int usedup = (unsigned)(gt+1 - m_buffer);
+	    memmove(m_buffer, gt+1, m_buffered-usedup + 1);
+	    m_buffered -= usedup;
+	    m_state = CONTENT;
 	    break;
 	}
 
@@ -129,24 +187,24 @@ unsigned int SaxParser::Parse(util::StreamPtr s)
 	//     ^
 	case IN_TAG:
 	{
-	    size_t skip = strspn(buffer, " \t\n\r");
-	    if (skip == bufused)
+	    size_t skip = strspn(m_buffer, " \t\n\r");
+	    if (skip == m_buffered)
 	    {
-		bufused = 0;
+		m_buffered = 0;
 		break;
 	    }
-	    char c = buffer[skip];
+	    char c = m_buffer[skip];
 	    if (c == '>')
-		state = SEEK_GT;
+		m_state = SEEK_GT;
 	    else if (c == '/')
 	    {
-		m_observer->OnEnd(tagname.c_str());
+		m_observer->OnEnd(m_tagname.c_str());
 		++skip;
 	    }
 	    else
-		state = IN_ATTR;
-	    memmove(buffer, buffer+skip, bufused - skip);
-	    bufused -= skip;
+		m_state = IN_ATTR;
+	    memmove(m_buffer, m_buffer+skip, m_buffered - skip + 1);
+	    m_buffered -= skip;
 	    break;
 	}
 
@@ -154,31 +212,31 @@ unsigned int SaxParser::Parse(util::StreamPtr s)
 	//       ^
 	case IN_ATTR:
 	{
-	    size_t attrlen = strcspn(buffer, " \t\n\r=/>");
-	    if (attrlen == bufused && !eof && bufused < BUFSIZE)
-		continue;
-	    char c = buffer[attrlen];
-	    buffer[attrlen] = '\0';
-	    attrname = buffer;
+	    size_t attrlen = strcspn(m_buffer, " \t\n\r=/>");
+	    if (attrlen == m_buffered && !m_eof && m_buffered < BUFSIZE)
+		return;
+	    char c = m_buffer[attrlen];
+	    m_buffer[attrlen] = '\0';
+	    m_attrname = m_buffer;
 	    if (c == '=')
-		state = ATTR_SEEKVALUE;
+		m_state = ATTR_SEEKVALUE;
 	    else if (c == '>')
 	    {
-		m_observer->OnAttribute(buffer, "");
-		state = CONTENT;
+		m_observer->OnAttribute(m_buffer, "");
+		m_state = CONTENT;
 	    }
 	    else if (c == '/')
 	    {
-		m_observer->OnAttribute(buffer, "");
-		m_observer->OnEnd(tagname.c_str());
-		state = SEEK_GT;
+		m_observer->OnAttribute(m_buffer, "");
+		m_observer->OnEnd(m_tagname.c_str());
+		m_state = SEEK_GT;
 	    }
 	    else
-		state = ATTR_SEEKEQ;
+		m_state = ATTR_SEEKEQ;
 
 	    unsigned int usedup = (unsigned)(attrlen+1);
-	    memmove(buffer, buffer+usedup, bufused-usedup);
-	    bufused -= usedup;
+	    memmove(m_buffer, m_buffer+usedup, m_buffered-usedup + 1);
+	    m_buffered -= usedup;
 	    break;
 	}
 
@@ -190,26 +248,26 @@ unsigned int SaxParser::Parse(util::StreamPtr s)
 	// character) it isn't ambiguous.
 	case ATTR_SEEKEQ:
 	{
-	    size_t skip = strspn(buffer, " \t\n\r");
-	    if (skip == bufused)
+	    size_t skip = strspn(m_buffer, " \t\n\r");
+	    if (skip == m_buffered)
 	    {
-		bufused = 0;
+		m_buffered = 0;
 		break;
 	    }
-	    char c = buffer[skip];
+	    char c = m_buffer[skip];
 	    if (c == '=')
 	    {
-		state = ATTR_SEEKVALUE;
+		m_state = ATTR_SEEKVALUE;
 		++skip;
 	    }
 	    else
 	    {
-		m_observer->OnAttribute(attrname.c_str(), "");
-		state = IN_TAG;
+		m_observer->OnAttribute(m_attrname.c_str(), "");
+		m_state = IN_TAG;
 	    }
 
-	    memmove(buffer, buffer+skip, bufused-skip);
-	    bufused -= skip;
+	    memmove(m_buffer, m_buffer+skip, m_buffered-skip + 1);
+	    m_buffered -= skip;
 	    break;
 	}
 
@@ -217,23 +275,23 @@ unsigned int SaxParser::Parse(util::StreamPtr s)
 	//            ^
 	case ATTR_SEEKVALUE:
 	{
-	    size_t skip = strspn(buffer, " \t\n\r");
-	    if (skip == bufused)
+	    size_t skip = strspn(m_buffer, " \t\n\r");
+	    if (skip == m_buffered)
 	    {
-		bufused = 0;
+		m_buffered = 0;
 		break;
 	    }
-	    char c = buffer[skip];
+	    char c = m_buffer[skip];
 	    if (c == '\"')
 	    {
 		++skip;
-		state = IN_QUOTEDVALUE;
+		m_state = IN_QUOTEDVALUE;
 	    }
 	    else
-		state = IN_VALUE;
+		m_state = IN_VALUE;
 
-	    memmove(buffer, buffer+skip, bufused - skip);
-	    bufused -= skip;
+	    memmove(m_buffer, m_buffer+skip, m_buffered - skip + 1);
+	    m_buffered -= skip;
 	    break;
 	}
 
@@ -241,18 +299,18 @@ unsigned int SaxParser::Parse(util::StreamPtr s)
 	//              ^
 	case IN_QUOTEDVALUE:
 	{
-	    char *quote = strchr(buffer, '"');
-	    if (!quote && !eof && bufused < BUFSIZE)
-		continue;
+	    char *quote = strchr(m_buffer, '"');
+	    if (!quote && !m_eof && m_buffered < BUFSIZE)
+		return;
 	    *quote = '\0';
 	    
-	    std::string value = util::XmlUnEscape(buffer);
-	    m_observer->OnAttribute(attrname.c_str(), value.c_str());
+	    std::string value = util::XmlUnEscape(m_buffer);
+	    m_observer->OnAttribute(m_attrname.c_str(), value.c_str());
 	    
-	    state = IN_TAG;
-	    unsigned int usedup = (unsigned)(quote+1 - buffer);
-	    memmove(buffer, quote+1, bufused - usedup);
-	    bufused -= usedup;
+	    m_state = IN_TAG;
+	    unsigned int usedup = (unsigned)(quote+1 - m_buffer);
+	    memmove(m_buffer, quote+1, m_buffered - usedup + 1);
+	    m_buffered -= usedup;
 	    break;
 	}
 
@@ -260,32 +318,410 @@ unsigned int SaxParser::Parse(util::StreamPtr s)
 	//             ^
 	case IN_VALUE:
 	{
-	    size_t valuelen = strcspn(buffer, " \t\r\n/>");
-	    if (valuelen == bufused && !eof && bufused < BUFSIZE)
-		continue;
+	    size_t valuelen = strcspn(m_buffer, " \t\r\n/>");
+	    if (valuelen == m_buffered && !m_eof && m_buffered < BUFSIZE)
+		return;
 
-	    char c = buffer[valuelen];
-	    buffer[valuelen] = '\0';
-	    m_observer->OnAttribute(attrname.c_str(), 
-				    util::XmlUnEscape(buffer).c_str());
-	    buffer[valuelen] = c;
-	    memmove(buffer, buffer+valuelen, bufused - valuelen);
-	    bufused -= valuelen;
-	    state = IN_TAG;
+	    char c = m_buffer[valuelen];
+	    m_buffer[valuelen] = '\0';
+	    m_observer->OnAttribute(m_attrname.c_str(), 
+				    util::XmlUnEscape(m_buffer).c_str());
+	    m_buffer[valuelen] = c;
+	    memmove(m_buffer, m_buffer+valuelen, m_buffered - valuelen + 1);
+	    m_buffered -= valuelen;
+	    m_state = IN_TAG;
 	    break;
 	}
 
 	default:
-	    TRACE << "Bogus state\n";
-	    break;
+	    TRACE << "Bogus state " << (int)m_state << "\n";
+	    return;
 	}
     }
 }
 
-unsigned int BaseParser::Parse(util::StreamPtr, void*, const Data*)
+
+        /* Internals of table-driven parser */
+
+
+namespace internals {
+
+class TableDrivenParser: public SaxParserObserver
 {
-    return 0;
+    void *m_target;
+    const internals::Data *m_current;
+    std::list<const internals::Data*> m_table_stack;
+    std::list<void*> m_target_stack;
+    unsigned int m_ignore;
+    std::string m_content;
+
+public:
+    TableDrivenParser(void *target, const internals::Data *table)
+	: m_target(target),
+	  m_current(table),
+	  m_ignore(0)
+    {
+    }
+
+    ~TableDrivenParser()
+    {
+    }
+
+    unsigned int OnBegin(const char *tag)
+    {
+	m_content.clear();
+
+	if (tag[0] == '?')
+	    return 0;
+
+	if (m_current && !m_ignore)
+	{
+	    for (unsigned int i=0; i < m_current->n; ++i)
+	    {
+		if (!strcasecmp(tag, m_current->children[i]->name)
+		    && !m_current->children[i]->IsAttribute())
+		{
+		    m_table_stack.push_back(m_current);
+		    m_target_stack.push_back(m_target);
+		    m_current = m_current->children[i];
+		    if (m_current->sbegin)
+			m_target = (*m_current->sbegin)(m_target);
+		    return 0;
+		}
+	    }
+	}
+
+	// Either it's not in our list, or we're at a leaf. Either way,
+	// ignore it and all its children
+//	TRACE << "Ignoring start " << tag << "\n";
+	++m_ignore;
+	return 0;
+    }
+
+    unsigned int OnAttribute(const char *name,
+			     const char *value)
+    {
+	if (m_current && !m_ignore)
+	{
+	    for (unsigned int i=0; i < m_current->n; ++i)
+	    {
+		if (!strcasecmp(name, m_current->children[i]->name)
+		    && m_current->children[i]->IsAttribute())
+		{
+		    return (*m_current->children[i]->text)(m_target, value);
+		}
+	    }
+	}
+	return 0;
+    }
+
+    unsigned int OnContent(const char *content)
+    {
+	if (m_current)
+	    m_content += content;
+	return 0;
+    }
+
+    unsigned int OnEnd(const char *)
+    {
+	if (m_ignore)
+	{
+	    --m_ignore;
+	    return 0;
+	}
+
+	if (m_table_stack.empty())
+	    return EINVAL; // Ill-formed XML
+
+	if (m_current)
+	{
+	    if (m_current->text)
+		(*m_current->text)(m_target, m_content);
+	}
+
+	m_target = m_target_stack.back();
+	m_target_stack.pop_back();
+
+	m_current = m_table_stack.back();
+	m_table_stack.pop_back();
+	return 0;
+    }
+};
+
+unsigned int Parse(util::StreamPtr sp, void *target,
+		   const internals::Data *table)
+{
+    TableDrivenParser tdp(target, table);
+    SaxParser saxp(&tdp);
+    return saxp.Parse(sp);
 }
+
+const Data *const Children<NullSelector, NullSelector,
+			   NullSelector, NullSelector,
+			   NullSelector, NullSelector, 
+			   NullSelector, NullSelector>::data[] = {
+    NULL
+};
+
+} // namespace internals
+
+/** @page xml XML parsing in C++
+
+The UPnP A/V standards use XML heavily; the Chorale implementation
+needs parsers for several, mostly small, XML schemas.
+
+Initially these all used a SAX-style parsing scheme implemented in
+xml::SaxParser, requiring a (usually quite wordy) custom parser
+observer for each use. But the problem seemed to be calling out for a
+DSEL ("domain-specific embedded language"); that is, for some
+template-fu that made declaring individual little parsers easy.
+ 
+The solution adopted in Chorale is to use table-based parsers, and to
+simplify declaring such table-based parsers by generating them as
+static data of classes built from nested templates. For instance,
+parsing the "src" attribute out of XML that looks like this:
+
+@verbatim
+<wpl><media src="/home/bob/music/Abba/Fernando.flac">bar</media></wpl>
+@endverbatim
+
+can be done as follows:
+
+@code
+class WPLReader
+{
+public:
+    unsigned int Parse(StreamPtr stm);
+
+    unsigned int OnMediaSrc(const std::string& s)
+    {
+	TRACE << "src=" << s << "\n";
+	return 0;
+    }
+};
+
+extern const char WPL[] = "wpl";
+extern const char MEDIA[] = "media";
+extern const char SRC[] = "src";
+
+typedef xml::Parser<xml::Tag<WPL,
+			     xml::Tag<MEDIA,
+				      xml::Attribute<SRC, WPLReader,
+						     &WPLReader::OnMediaSrc>
+> > > WPLParser;
+
+unsigned int WPLReader::Parse(StreamPtr stm)
+{
+    WPLParser parser;
+    return parser.Parse(stm, this);
+}
+
+@endcode
+
+...where the nesting of the "xml::" templates, mirrors the nesting of
+the tags in the XML we're trying to parse. The typedef declares a
+class type WPLParser, with the single method Parse, which takes a
+StreamPtr (the usual abstraction for a byte stream in Chorale) and a
+pointer to the <i>target object</i>: the object which receives
+callbacks and data from the parser. The <tt>unsigned int</tt> returned
+from these functions is the usual Chorale way of indicating an error:
+0 means successful completion, values from \c <errno.h> mean otherwise.
+
+(As is often the case with DSELs in C++, some technicalities leak out
+into the user-experience: in this case, string literals are not
+allowed as template parameters, and nor are objects with internal
+linkage, so we must declare \c extern objects corresponding to each of
+the strings we want to look for. Also, in the invocation of
+xml::Attribute, C++ isn't able to deduce the type "WPLReader" from the
+method pointer "&WPLReader::OnMediaSrc", or vice versa, so "WPLReader"
+must be specified twice.)
+
+The relevant templates are:
+
+@li xml::Parser should be the outermost template. It does no processing itself,
+    but ensures that templates nested inside it, only match top-level elements.
+
+@li xml::Tag does no processing, but ensures that templates nested inside it,
+    only match tags nested inside its tag. For instance, with the above parser,
+    only \c media tags that are direct children of a \c wpl tag are matched.
+
+@li xml::Attribute matches attributes of the current tag, and reports them
+    to a callback function, specified as a method on the current target object.
+
+@li xml::TagCallback ensures nesting like Tag does, but also collects up the
+    textual contents of the tag (like the "bar" in the above XML) and reports
+    them to a callback function, again specified as a method on the current
+    target object.
+
+@li xml::TagMember again ensures nesting, and again collects contents, but
+    instead of calling a method pointer, it stores the string directly into
+    a string member of the current target object.
+
+@li xml::Structure ensures nesting like xml::Tag does, and also specifies a new
+    target object, which should be a member (sub-object) of its parent's
+    target object.
+
+@li xml::List is the most powerful template. It ensures nesting, and specifies
+    a new target object which is the element type of a std::list member of its
+    parent's target object.
+
+Here is a more complex example demonstrating the use of xml::Structure
+and xml::List. It's based on the parser for UPnP device description documents
+in libupnp/description.cpp.
+
+@code
+struct Service
+{
+    std::string type;
+    std::string id;
+    std::string control;
+    std::string event;
+    std::string scpd;
+};
+
+struct Device
+{
+    std::string type;
+    std::string friendly_name;
+    std::string udn;
+    std::string presentation_url;
+    std::list<Service> services;
+};
+
+struct Description
+{
+    std::string url_base;
+    Device root_device;
+};
+
+typedef xml::Parser<
+    xml::Tag<ROOT,
+	     xml::TagMember<URLBASE, Description,
+			    &Description::url_base>,
+	     xml::Structure<DEVICE, Device,
+			    Description, &Description::root_device,
+			    xml::TagMember<DEVICETYPE, Device,
+					   &Device::type>,
+			    xml::TagMember<FRIENDLYNAME, Device,
+					   &Device::friendly_name>,
+			    xml::TagMember<UDN, Device,
+					   &Device::udn>,
+			    xml::TagMember<PRESENTATIONURL, Device,
+					   &Device::presentation_url>,
+			    xml::Tag<SERVICELIST,
+				     xml::List<SERVICE, Service,
+					       Device, &Device::services,
+					       xml::TagMember<SERVICETYPE, Service,
+							      &Service::type>,
+					       xml::TagMember<SERVICEID, Service,
+							      &Service::id>,
+					       xml::TagMember<CONTROLURL, Service,
+							      &Service::control>,
+					       xml::TagMember<EVENTSUBURL, Service,
+							      &Service::event>,
+					       xml::TagMember<SCPDURL, Service,
+							      &Service::scpd>
+> > > > > DescriptionParser;
+@endcode
+
+As always, the nested form of the parser corresponds to the nested form of the XML:
+
+@verbatim
+<root xmlns="urn:schemas-upnp-org:device-1-0">
+  <URLBase>http://192.168.168.1:49152/</URLBase>
+  <device>
+    <deviceType>urn:schemas-upnp-org:device:MediaServer:1</deviceType>
+    <friendlyName>/media/mp3audio on jalfrezi</friendlyName>
+    <UDN>uuid:726f6863-2065-6c61-00de-df6268fff5a0</UDN>
+    <presentationURL>http://192.168.168.1:12078/</presentationURL>
+    <serviceList>
+      <service>
+        <serviceType>urn:schemas-upnp-org:service:ContentDirectory:1</serviceType>
+        <serviceId>urn:upnp-org:serviceId:ContentDirectory</serviceId>
+        <SCPDURL>http://192.168.168.1:12078/upnp/ContentDirectory.xml</SCPDURL>
+        <controlURL>/upnpcontrol0</controlURL>
+        <eventSubURL>/upnpevent0</eventSubURL>
+      </service>
+      <service>
+        <serviceType>urn:schemas-upnp-org:service:HornSwoggler:1</serviceType>
+        <serviceId>urn:upnp-org:serviceId:HornSwoggler</serviceId>
+        <SCPDURL>http://192.168.168.1:12078/upnp/HornSwoggler.xml</SCPDURL>
+        <controlURL>/upnpcontrol1</controlURL>
+        <eventSubURL>/upnpevent1</eventSubURL>
+      </service>
+    </serviceList>
+  </device>
+</root>
+@endverbatim
+
+Calling DescriptionParser::Parse, passing the above XML and a Description
+object as the target, would end up filling-in the \c url_base member, the
+\c root_device structure, and a two-element list in \c root_device.services.
+
+In the above example, the <i>order</i> of the elements in the XML
+happens to correspond to the ordering in the parser declaration,
+too. In general, this won't be the case: xml::List preserves ordering of its child elements, but
+the other templates don't. Parsers built using these classes can't be used where preserving the order of heterogenous tags is required: for instance, in XHTML.
+
+In each case, the target object of all sibling templates must be the
+same. All child templates of an xml::Structure must use the structure
+type as the type of their target object; all child templates of an
+xml::List must use the list-element type; and all other child
+templates must use their parent template's type. (The root template,
+xml::Parser, must use the type of the target object passed to
+xml::Parser::Parse.) These requirements are enforced with compile-time
+    assertions -- although, as seems unavoidable with C++ DSELs, it's hard to see the wood for the trees in the resulting error messages
+if you get it wrong. Errors involving "AssertSame" or
+"AssertCorrectTargetType" usually mean that target types have been
+muddled somewhere.
+
+
+@section impl Implementation
+
+The generated XML parsers are extremely compact, both in static and
+dynamic memory usage. The actual parsing is done by the xml::SaxParser
+class, via an adaptor (xml::internals::TableDrivenParser) which follows tables
+(xml::internals::Data) telling it what to do on encountering the various tags.
+
+Each template invocation corresponds to one table entry, which on
+	   i686-linux is 20 bytes (plus the \c char* storage for the tag name). Tables are const, and so end up in the \c rodata segment. The size of an xml::Parser is also very small
+(1 byte), as all the other templates only have their static data
+referenced -- they aren't actually instantiated anywhere.
+
+    This diagram depicts some of the tables created for the device-description
+    example parser above:
+
+@dot
+digraph parser
+{
+node [shape=record, fontname=Helvetica, fontsize=10];
+
+parser [label="{NULL | NULL | 1 | <p0>}"];
+
+root [label="{\"root\" | NULL | 2 | <p1>}"];
+
+parser:p0 -> root:nw;
+
+urlbase [label="{ \"URLBase\" | &Description::url_base | 0 | NULL }|{ \"Device\" | &Description::root_device | 5 | <p3> }"];
+
+root:p1 -> urlbase:nw;
+
+device [label="{ \"deviceType\" | &Device::type | 0 | NULL}|{ \"friendlyName\" | &Device::friendly_name | 0 | NULL }|{ \"UDN\" | &Device::udn | 0 | NULL}|{ \"presentationURL\" | &Device::presentation_url | 0 | NULL }|{ \"serviceList\" | NULL | 1 | <p2>}"];
+
+urlbase:p3       -> device:nw;
+
+}
+@enddot
+
+The diagram is a slight simplification: to achieve type erasure, the tables
+don't actually contain the pointers-to-members shown above, but instead
+pointers to functions (such as TagMember::OnText) that do the upcast
+from \c void* and reference the correct member.
+
+Tables up to eight entries wide are supported; due to the lack of array or ellipsis ("...") support in template parameters, the tables are sized explicitly, using the dummy class NullSelector to signify absent entries, and then specialising the table type (xml::internals::Data)
+on the number of non-NullSelector entries present.
+
+ */
 
 } // namespace xml
 
@@ -303,14 +739,15 @@ public:
     }
 };
 
+extern const char WPL[] = "wpl";
 extern const char MEDIA[] = "media";
 extern const char SRC[] = "src";
 
-/* Children=1 */
-typedef xml::Parser<xml::Tag<MEDIA,
-			     xml::Attribute<SRC, WPLObserver,
-					    &WPLObserver::OnMediaSrc>
-> > WPLParser;
+typedef xml::Parser<xml::Tag<WPL,
+			     xml::Tag<MEDIA,
+				      xml::Attribute<SRC, WPLObserver,
+						     &WPLObserver::OnMediaSrc>
+> > > WPLParser;
 
 
 struct Service
@@ -320,22 +757,29 @@ struct Service
     std::string control;
     std::string event;
     std::string scpd;
+    std::string ptang;
+    std::string frink;
 };
 
-class DescObserver
+struct Device
 {
-public:
-    unsigned int OnUDN(const std::string&) { return 0; }
-    unsigned int OnFriendlyName(const std::string&) { return 0; }
-    unsigned int OnDescription(const std::string&) { return 0; }
-    unsigned int OnService(const Service&)
-    {
-	return 0;
-    }
+    std::string type;
+    std::string friendly_name;
+    std::string udn;
+    std::string presentation_url;
+    std::list<Service> services;
+    std::list<Device> devices;
 };
 
+struct DescObserver
+{
+    std::string url_base;
+    Device root_device;
+};
+
+extern const char SERVICELIST[] = "serviceList";
 extern const char SERVICE[] = "service";
-extern const char SERVICETYPE[] = "serviceType";
+extern const char SERVICE_TYPE[] = "serviceType"; // clashes with winsock2.h
 extern const char SERVICEID[] = "serviceId";
 extern const char CONTROLURL[] = "controlURL";
 extern const char EVENTSUBURL[] = "eventSubURL";
@@ -346,77 +790,166 @@ extern const char PRESENTATIONURL[] = "presentationURL";
 extern const char FRINK[] = "frink";
 extern const char PTANG[] = "ptang";
 
-/* Children = 6,7 */
-typedef xml::Parser<xml::Structure<SERVICE, Service,
-				   DescObserver, &DescObserver::OnService,
-				   xml::StructureContent<SERVICETYPE, Service,
-							 &Service::type>,
-				   xml::StructureContent<SERVICEID, Service,
-							 &Service::id>,
-				   xml::StructureContent<CONTROLURL, Service,
-							 &Service::control>,
-				   xml::StructureContent<EVENTSUBURL, Service,
-							 &Service::event>,
-				   xml::StructureContent<SCPDURL, Service,
-							 &Service::scpd>,
-				   xml::StructureContent<PTANG, Service,
-							 &Service::event>,
-				   xml::StructureContent<FRINK, Service,
-							 &Service::scpd> >,
-		    xml::Tag<UDN,
-			     xml::Attribute<SRC, DescObserver,
-					    &DescObserver::OnUDN> >,
-		    xml::Tag<FRIENDLYNAME,
-			     xml::Attribute<SRC, DescObserver,
-					    &DescObserver::OnFriendlyName> >,
-		    xml::Tag<PRESENTATIONURL,
-			     xml::Attribute<SRC, DescObserver,
-					    &DescObserver::OnDescription> >,
-		    xml::Tag<PTANG,
-			     xml::Attribute<SRC, DescObserver,
-					    &DescObserver::OnFriendlyName> >,
-		    xml::Tag<FRINK,
-			     xml::Attribute<SRC, DescObserver,
-					    &DescObserver::OnDescription> >
-		    > DescParser67;
+extern const char ROOT[] = "root";
+extern const char URLBASE[] = "URLBase";
+extern const char DEVICE[] = "device";
+extern const char DEVICETYPE[] = "deviceType";
 
-/* Children = 4,5 */
-typedef xml::Parser<xml::Structure<SERVICE, Service,
-				   DescObserver, &DescObserver::OnService,
-				   xml::StructureContent<SERVICETYPE, Service,
-							 &Service::type>,
-				   xml::StructureContent<SERVICEID, Service,
-							 &Service::id>,
-				   xml::StructureContent<CONTROLURL, Service,
-							 &Service::control>,
-				   xml::StructureContent<EVENTSUBURL, Service,
-							 &Service::event>,
-				   xml::StructureContent<SCPDURL, Service,
-							 &Service::scpd> >,
-		    xml::Tag<UDN,
-			     xml::Attribute<SRC, DescObserver,
-					    &DescObserver::OnUDN> >,
-		    xml::Tag<FRIENDLYNAME,
-			     xml::Attribute<SRC, DescObserver,
-					    &DescObserver::OnFriendlyName> >,
-		    xml::Tag<PRESENTATIONURL,
-			     xml::Attribute<SRC, DescObserver,
-					    &DescObserver::OnDescription> >
-		    > DescParser;
+typedef xml::Parser<
+    xml::Tag<ROOT,
+	     xml::TagMember<URLBASE, DescObserver,
+			    &DescObserver::url_base>,
+	     xml::Structure<DEVICE, Device,
+			    DescObserver, &DescObserver::root_device,
+			    xml::TagMember<DEVICETYPE, Device,
+					   &Device::type>,
+			    xml::TagMember<FRIENDLYNAME, Device,
+					   &Device::friendly_name>,
+			    xml::TagMember<UDN, Device,
+					   &Device::udn>,
+			    xml::TagMember<PRESENTATIONURL, Device,
+					   &Device::presentation_url>,
+			    xml::Tag<SERVICELIST,
+				     xml::List<SERVICE, Service,
+					       Device, &Device::services,
+					       xml::TagMember<SERVICE_TYPE, Service,
+							      &Service::type>,
+					       xml::TagMember<SERVICEID, Service,
+							      &Service::id>,
+					       xml::TagMember<CONTROLURL, Service,
+							      &Service::control>,
+					       xml::TagMember<EVENTSUBURL, Service,
+							      &Service::event>,
+					       xml::TagMember<SCPDURL, Service,
+							      &Service::scpd>
+> > > > > DescriptionParser;
 
-/* Children = 2,3 */
-typedef xml::Parser<xml::Structure<SERVICE, Service,
-				   DescObserver, &DescObserver::OnService,
-				   xml::StructureContent<CONTROLURL, Service,
-							 &Service::control>,
-				   xml::StructureContent<EVENTSUBURL, Service,
-							 &Service::event>,
-				   xml::StructureContent<SCPDURL, Service,
-							 &Service::scpd> >,
-		    xml::Tag<PRESENTATIONURL,
-			     xml::Attribute<SRC, DescObserver,
-					    &DescObserver::OnDescription> >
-		    > DescParser23;
+void TestTableDriven()
+{
+    WPLParser parser;
+
+    util::StringStreamPtr ss
+	= util::StringStream::Create("<wpl><media src=\"foo\">bar</media></wpl>");
+
+    WPLObserver obs;
+    parser.Parse(ss, &obs);
+
+    ss->str() = 
+"<?xml version=\"1.0\"?>"
+"<root xmlns=\"urn:schemas-upnp-org:device-1-0\">"
+"<specVersion>"
+"<major>1</major>"
+"<minor>0</minor>"
+"</specVersion>"
+"<device>"
+"<deviceType>urn:schemas-upnp-org:device:MediaServer:1</deviceType>"
+"<friendlyName>/media/mp3audio on jalfrezi</friendlyName>"
+"<manufacturer>Chorale contributors</manufacturer>"
+"<manufacturerURL>http://chorale.sf.net</manufacturerURL>"
+"<modelDescription>0.12</modelDescription>"
+"<modelName>chorale</modelName>"
+"<modelNumber>0.12</modelNumber>"
+"<UDN>uuid:726f6863-2065-6c61-00de-df6268fff5a0</UDN>"
+"<presentationURL>http://192.168.168.1:12078/</presentationURL>"
+"<iconList>"
+"<icon>"
+"<mimetype>image/png</mimetype>"
+"<width>32</width>"
+"<height>32</height>"
+"<depth>24</depth>"
+"<url>http://192.168.168.1:12078/layout/icon.png</url>"
+"</icon>"
+"<icon>"
+"<mimetype>image/vnd.microsoft.icon</mimetype>"
+"<width>32</width>"
+"<height>32</height>"
+"<depth>24</depth>"
+"<url>http://192.168.168.1:12078/layout/icon.ico</url>"
+"</icon>"
+"<icon>"
+"<mimetype>image/x-icon</mimetype>"
+"<width>32</width>"
+"<height>32</height>"
+"<depth>24</depth>"
+"<url>http://192.168.168.1:12078/layout/icon.ico</url>"
+"</icon>"
+"</iconList>"
+"<serviceList>"
+"<service>"
+"<serviceType>urn:schemas-upnp-org:service:ContentDirectory:1</serviceType>"
+"<serviceId>urn:upnp-org:serviceId:ContentDirectory</serviceId>"
+"<SCPDURL>http://192.168.168.1:12078//upnp/ContentDirectory.xml</SCPDURL>"
+"<controlURL>/upnpcontrol0</controlURL>"
+"<eventSubURL>/upnpevent0</eventSubURL>"
+"</service>"
+"<service>"
+"<serviceType>urn:schemas-upnp-org:service:HornSwoggler:1</serviceType>"
+"<serviceId>urn:upnp-org:serviceId:HornSwoggler</serviceId>"
+"<SCPDURL>http://192.168.168.1:12078//upnp/HornSwoggler.xml</SCPDURL>"
+"<controlURL>/upnpcontrol1</controlURL>"
+"<eventSubURL>/upnpevent1</eventSubURL>"
+"</service>"
+"</serviceList>"
+"<deviceList>"
+"<device>"
+"<deviceType>urn:chorale-sf-net:dev:OpticalDrive:1</deviceType>"
+"<friendlyName>/dev/hdc on jalfrezi</friendlyName>"
+"<manufacturer>Chorale contributors</manufacturer>"
+"<manufacturerURL>http://chorale.sf.net</manufacturerURL>"
+"<modelDescription>0.12</modelDescription>"
+"<modelName>chorale</modelName>"
+"<modelNumber>0.12</modelNumber>"
+"<UDN>uuid:726f6863-2065-6c61-00de-df62f9029835</UDN>"
+"<presentationURL>http://192.168.168.1:12078/</presentationURL>"
+"<iconList>"
+"<icon>"
+"<mimetype>image/png</mimetype>"
+"<width>32</width>"
+"<height>32</height>"
+"<depth>24</depth>"
+"<url>http://192.168.168.1:12078/layout/icon.png</url>"
+"</icon>"
+"<icon>"
+"<mimetype>image/vnd.microsoft.icon</mimetype>"
+"<width>32</width>"
+"<height>32</height>"
+"<depth>24</depth>"
+"<url>http://192.168.168.1:12078/layout/icon.ico</url>"
+"</icon>"
+"<icon>"
+"<mimetype>image/x-icon</mimetype>"
+"<width>32</width>"
+"<height>32</height>"
+"<depth>24</depth>"
+"<url>http://192.168.168.1:12078/layout/icon.ico</url>"
+"</icon>"
+"</iconList>"
+"<serviceList>"
+"<service>"
+"<serviceType>urn:chorale-sf-net:service:OpticalDrive:1</serviceType>"
+"<serviceId>urn:chorale-sf-net:serviceId:OpticalDrive</serviceId>"
+"<SCPDURL>http://192.168.168.1:12078//upnp/OpticalDrive.xml</SCPDURL>"
+"<controlURL>/upnpcontrol2</controlURL>"
+"<eventSubURL>/upnpevent2</eventSubURL>"
+"</service>"
+"</serviceList>"
+"</device>"
+"</deviceList>"
+"</device>"
+"<URLBase>http://192.168.168.1:49152/</URLBase>"
+	"</root>";
+
+    ss->Seek(0);
+
+    DescObserver dobs;
+    DescriptionParser dp;
+    unsigned int rc = dp.Parse(ss, &dobs);
+    assert(rc == 0);
+    assert(dobs.url_base == "http://192.168.168.1:49152/");
+    assert(dobs.root_device.type == "urn:schemas-upnp-org:device:MediaServer:1");
+    assert(dobs.root_device.services.size() == 2);
+    TRACE << "sizeof(dp)=" << sizeof(dp) << "\n";
+}
 
 struct SaxEvent {
     char event;
@@ -506,6 +1039,13 @@ const SaxEvent events7[] = {
     { 'e', "wpl", NULL },
     { 'f', NULL, NULL }
 };
+
+const SaxEvent events8[] = {
+    { 'b', "wpl", NULL },
+    { 'c', "X&Y", NULL },
+    { 'e', "wpl", NULL },
+    { 'f', NULL, NULL },
+};
     
 const struct {
     const char *xml;
@@ -521,6 +1061,7 @@ const struct {
     { "<wpl><foo wurdle><bar name/></foo></wpl>", events6 },
     { "<wpl><foo \t wurdle \t \t ><bar \t name \t /></foo \t ></wpl>", events6 },
     { "<wpl><foo name wurdle><bar name=\"X&amp;Y\" frink/></foo></wpl>", events7 },
+    { "<wpl>X&amp;Y</wpl>", events8 },
 };
 
 enum { TESTS = sizeof(saxtests)/sizeof(saxtests[0]) };
@@ -591,27 +1132,8 @@ public:
     }
 };
 
-int main()
+void TestSax()
 {
-    WPLParser parser;
-
-    util::StringStreamPtr ss = util::StringStream::Create();
-
-    ss->str() += "<wpl><media src=\"foo\">bar</media></wpl>";
-
-//    util::StreamPtr ss = 42;
-
-    WPLObserver obs;
-    parser.Parse(ss, &obs);
-
-    DescParser dp;
-    DescParser23 dp23;
-    DescParser67 dp67;
-    DescObserver dobs;
-    dp.Parse(ss, &dobs);
-    dp23.Parse(ss, &dobs);
-    dp67.Parse(ss, &dobs);
-
     for (unsigned int i=0; i<TESTS; ++i)
     {
 	util::StringStreamPtr ssp = util::StringStream::Create();
@@ -630,7 +1152,12 @@ int main()
 	    assert(rc == 0);
 	}
     }
+}
 
+int main()
+{
+    TestSax();
+    TestTableDriven();
     return 0;
 }
 

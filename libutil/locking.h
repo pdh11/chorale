@@ -13,10 +13,11 @@ class PerObjectLocking
     boost::mutex m_mutex;
 
 public:
-    class Lock: public boost::mutex::scoped_lock
+    class Lock
     {
+	boost::mutex::scoped_lock m_lock;
     public:
-	Lock(PerObjectLocking *l): boost::mutex::scoped_lock(l->m_mutex) {}
+	Lock(PerObjectLocking *l) : m_lock(l->m_mutex) {}
     };
 };
     
@@ -27,12 +28,12 @@ class PerObjectRecursiveLocking
     boost::recursive_mutex m_mutex;
 
 public:
-    class Lock: public boost::recursive_mutex::scoped_lock
+    class Lock
     {
+	boost::recursive_mutex::scoped_lock m_lock;
+
     public:
-	Lock(PerObjectRecursiveLocking *l)
-	    : boost::recursive_mutex::scoped_lock(l->m_mutex)
-	{}
+	Lock(PerObjectRecursiveLocking *l) : m_lock(l->m_mutex) {}
     };
 };
 
@@ -43,10 +44,12 @@ class PerClassLocking
     static boost::mutex sm_mutex;
 
 public:
-    class Lock: public boost::mutex::scoped_lock
+    class Lock
     {
+	boost::mutex::scoped_lock m_lock;
+
     public:
-	Lock(PerClassLocking *l): boost::mutex::scoped_lock(l->sm_mutex) {}
+	Lock(PerClassLocking *l) : m_lock(l->sm_mutex) {}
     };
 };
 

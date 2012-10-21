@@ -60,10 +60,7 @@ uint32_t Recordset::GetInteger(field_t which)
 std::string Recordset::GetString(field_t which)
 {
     if (m_eof)
-    {
-	TRACE << "GetString(" << which << ") while EOF\n";
 	return "";
-    }
 
     boost::recursive_mutex::scoped_lock lock(m_db->m_mutex);
 
@@ -133,8 +130,23 @@ unsigned int Recordset::SetString(field_t which, const std::string& s)
 	    break;
 	}
     }
+    else
+	v.ivalid = 0;
 
-    v.s = s;
+    if ((flags & FIELD_TYPEMASK) == FIELD_INT)
+    {
+	// We must throw away things that aren't parseable as ints
+	if (!v.ivalid)
+	{
+	    v.i = (uint32_t)strtoul(s.c_str(), NULL, 10);
+	    v.ivalid = 1;
+	}
+	v.s = (boost::format("%u") % v.i).str();
+    }
+    else
+    {
+	v.s = s;
+    }
     v.svalid = 1;
     return 0;
 }
@@ -181,6 +193,8 @@ unsigned int Recordset::SetInteger(field_t which, uint32_t n)
 	    break;
 	}
     }
+    else
+	v.svalid = 0;
 
     v.i = n;
     v.ivalid = 1;
@@ -317,6 +331,7 @@ IndexedRecordset::IndexedRecordset(Database *db, field_t field,
       m_field(field),
       m_is_int(false),
       m_stringval(stringval),
+      m_intval(0),
       m_subrecno(0)
 {
     boost::recursive_mutex::scoped_lock lock(db->m_mutex);
@@ -390,7 +405,10 @@ void IndexedRecordset::MoveNext()
 
 OrderedRecordset::OrderedRecordset(Database *db, field_t field)
     : Recordset(db),
-      m_field(field)
+      m_field(field),
+      m_is_int(false),
+      m_intval(0),
+      m_subrecno(0)
 {
     boost::recursive_mutex::scoped_lock lock(db->m_mutex);
     m_is_int = ((db->m_fields[field].flags & FIELD_TYPEMASK)
@@ -505,7 +523,13 @@ void OrderedRecordset::MoveNext()
 
 
 CollateRecordset::CollateRecordset(Database *db, field_t field, Query *query)
-    : m_parent(db), m_field(field), m_eof(false), m_query(query), m_rs(db)
+    : m_parent(db),
+      m_field(field), 
+      m_is_int(false),
+      m_intvalue(0),
+      m_eof(false), 
+      m_query(query), 
+      m_rs(db)
 {
     boost::recursive_mutex::scoped_lock lock(m_parent->m_mutex);
     m_is_int = ((m_parent->m_fields[field].flags & FIELD_TYPEMASK)

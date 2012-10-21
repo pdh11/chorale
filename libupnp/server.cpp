@@ -2,79 +2,106 @@
 #include "server.h"
 #include "device.h"
 #include "soap.h"
+#include "ssdp.h"
 #include "libutil/trace.h"
-#include "libutil/upnp.h"
 #include "libutil/string_stream.h"
 #include "libutil/xmlescape.h"
+#include "libutil/partial_url.h"
+#include "libutil/http_client.h"
+#include "libutil/http_server.h"
+#include "libutil/xml.h"
 #include <sstream>
 #include <errno.h>
 #include <boost/format.hpp>
+#include <boost/thread/tss.hpp>
 
-#if defined(HAVE_UPNP)
-
-#include <upnp/upnp.h>
-#include <upnp/upnptools.h>
+static const char s_description_path[] = "/upnp/description.xml";
 
 namespace upnp {
 
-class Server::Impl: public util::LibUPnPUser
+class Server::Impl: public util::http::ContentFactory
 {
     Server *m_parent;
-    UpnpDevice_Handle m_handle;
+    util::PollerInterface *m_poller;
+    util::http::Client *m_client;
+    util::http::Server *m_server;
+    ssdp::Responder *m_ssdp;
 
-    static int StaticCallback(Upnp_EventType, void*, void*);
+    typedef std::vector<Device*> devices_t;
+    devices_t m_devices;
+
+    struct Subscription
+    {
+	Service *service;
+	std::string delivery_url;
+	unsigned int event_key;
+    };
+
+    typedef std::vector<Subscription> subscriptions_t;
+    subscriptions_t m_subscriptions;
+
+    boost::thread_specific_ptr<util::IPEndPoint> m_endpoints;
 
     Service *FindService(const char *udn, const char *service);
+    Service *FindService(const char *usn);
     static std::string MakeUUID(const std::string& resource);
 
-    unsigned int m_device_index;
-    std::string m_presentation_url;
-
 public:
-    Impl(Server*);
+    Impl(Server*, util::PollerInterface *poller, util::http::Client *client,
+	 util::http::Server *server, ssdp::Responder *ssdp);
     ~Impl();
 
-    Device *m_device;
-    unsigned int Init(unsigned short port);
+    unsigned int Init();
 
-    std::string Description(Device*);
-    void FireEvent(const std::string& udn, const char *service_id,
+    std::string RegisterDevice(Device *d, const std::string& resource);
+
+    std::string DeviceDescription(Device*);
+    std::string Description(util::IPAddress);
+
+    void FireEvent(Service *service,
 		   const char *variable, const std::string& value);
 
-    // Being a LibUPnPUser
-    int OnUPnPEvent(int, void *event);
+    util::IPEndPoint GetCurrentEndPoint();
+
+    // Being a ContentFactory
+    bool StreamForPath(const util::http::Request*, util::http::Response*);
 };
 
-Server::Impl::Impl(Server *parent)
+Server::Impl::Impl(Server *parent, util::PollerInterface *poller,
+		   util::http::Client *client, util::http::Server *server, 
+		   ssdp::Responder *ssdp)
     : m_parent(parent),
-      m_handle(0),
-      m_device_index(0)
+      m_poller(poller),
+      m_client(client),
+      m_server(server),
+      m_ssdp(ssdp)
 {
 }
 
 Server::Impl::~Impl()
 {
-    if (m_handle)
-	UpnpUnRegisterRootDevice(m_handle);
+    /// @todo Unadvertise
 }
 
-int Server::Impl::StaticCallback(Upnp_EventType et, void *ev,
-					void *cookie)
+Service *Server::Impl::FindService(const char *udn, const char *service_id)
 {
-    Server::Impl *impl = (Server::Impl*)cookie;
-    return impl->OnUPnPEvent((int)et, ev);
+    for (devices_t::const_iterator i = m_devices.begin();
+	 i != m_devices.end();
+	 ++i)
+    {
+	if ((*i)->GetUDN() == udn)
+	    return (*i)->FindServiceByID(service_id);
+    }
+    return NULL;
 }
 
-Service *Server::Impl::FindService(const char *udn, const char *service)
+Service *Server::Impl::FindService(const char *usn)
 {
-    Device *d = m_device->FindByUDN(udn);
-    if (!d)
+    const char *colons = strstr(usn, "::");
+    if (!colons)
 	return NULL;
-
-    Device::services_t::const_iterator i = d->m_services.find(service);
-    if (i == d->m_services.end())
-	return NULL;
-    return i->second;
+    std::string udn(usn, colons);
+    return FindService(udn.c_str(), colons+2);
 }
 
 static uint32_t SimpleHash(const char *key)
@@ -105,269 +132,381 @@ std::string Server::Impl::MakeUUID(const std::string& resource)
     } u;
 
     strcpy((char*)u.ch, "chorale ");
-    u.ui[2] = SimpleHash(UpnpGetServerIpAddress());
+    u.ui[2] = 0; //SimpleHash(UpnpGetServerIpAddress());
     u.ui[3] = SimpleHash(resource.c_str());
 
-    char buf[40];
-    sprintf(buf, "%08x-%04x-%04x-%04x-%04x%08x",
+    char buf[48];
+    sprintf(buf, "uuid:%08x-%04x-%04x-%04x-%04x%08x",
 	    u.ui[0], u.ui[1] >> 16, u.ui[1] & 0xFFFF, u.ui[2] >> 16, 
 	    u.ui[2] & 0xFFFF, u.ui[3]);
 
     return std::string(buf);
 }
 
-static const char *safe(const char *s)
+std::string Server::Impl::RegisterDevice(Device *d, 
+					 const std::string& resource)
 {
-    return s ? s : "NULL";
+    m_devices.push_back(d);
+    return MakeUUID(resource);
 }
 
-int Server::Impl::OnUPnPEvent(int et, void *event)
+std::string Server::Impl::DeviceDescription(Device *d)
 {
-    switch (et)
-    {
-    case UPNP_EVENT_SUBSCRIPTION_REQUEST:
-    {
-//	TRACE << "I'm being subscribed at\n";
-	Upnp_Subscription_Request *usr = (Upnp_Subscription_Request*)event;
-	Service *service = FindService(usr->UDN, usr->ServiceId);
-	if (!service)
-	{
-	    TRACE << "Don't like udn '" << usr->UDN << "' svc '"
-		  << usr->ServiceId << "'\n";
-	    return UPNP_E_BAD_REQUEST;
-	}
-	soap::Outbound vars;
-	service->GetEventedVariables(&vars);
-	IXML_Document *propset = NULL;
-	if (vars.begin() == vars.end())
-	{
-	    // The API requires at least one variable here
-	    UpnpAddToPropertySet(&propset, "x-foo", "");
-	}
-	else
-	{
-	    for (soap::Outbound::const_iterator i = vars.begin();
-		 i != vars.end();
-		 ++i)
-	    {
-		UpnpAddToPropertySet(&propset, i->first,
-				     i->second.c_str());
-	    }
-	}
-	UpnpAcceptSubscriptionExt(m_handle, usr->UDN, usr->ServiceId,
-				  propset, usr->Sid);
-	ixmlDocument_free(propset);
-	return UPNP_E_SUCCESS;
-    }
-    case UPNP_CONTROL_ACTION_REQUEST:
-    {
-	/* Stand by... for action */
-	Upnp_Action_Request *uar = (Upnp_Action_Request*)event;
-	Service *service = FindService(uar->DevUDN, uar->ServiceID);
-	if (!service)
-	{
-	    TRACE << "Don't like udn '" << uar->DevUDN << "' svc '"
-		  << uar->ServiceID << "'\n";
-	    uar->ErrCode = UPNP_E_INVALID_ACTION;
-	    return UPNP_E_INVALID_ACTION;
-	}
-
-//	TRACE << "Action " << uar->ActionName << "\n";
-
-//	DOMString ds = ixmlPrintDocument(uar->ActionRequest);
-//	TRACE << "Action doc:\n" << ds << "\n";
-//	ixmlFreeDOMString(ds);
-
-	/* Assemble arguments */
-	soap::Inbound params;
-
-	IXML_Node *node = uar->ActionRequest->n.firstChild;
-	if (node)
-	    node = node->firstChild;
-	while (node)
-	{
-	    IXML_Node *childnode = node->firstChild;
-//	    TRACE << node->nodeName << ", "
-//		  << node->nodeValue << ", "
-//		  << (childnode ? childnode->nodeName : "CHNULL") << ", "
-//		  << (childnode ? childnode->nodeValue : "CHNULL") << "\n";
-	    
-	    if (node->nodeName && childnode)
-		params.Set(node->nodeName, safe(childnode->nodeValue));
-
-	    node = node->nextSibling;
-	}
-
-	/* Make the call */
-
-	soap::Outbound out;
-	unsigned int rc = service->OnAction(uar->ActionName, params, &out);
-
-	/* Assemble the response */
-
-	if (rc == 0)
-	{
-	    std::ostringstream ss;
-	    ss << "<u:" << uar->ActionName << "Response xmlns:u=\""
-	       << service->GetType() << "\">";
-	    for (soap::Outbound::const_iterator i = out.begin();
-		 i != out.end();
-		 ++i)
-	    {
-		ss << "<" << i->first << ">" << util::XmlEscape(i->second)
-		   << "</" << i->first << ">";
-	    }
-	    ss << "</u:" << uar->ActionName << "Response>";
-
-	    std::string s = ss.str();
-//	TRACE << "Reply doc:\n" << s << "\n";
-	    uar->ActionResult = ixmlParseBuffer(const_cast<char *>(s.c_str()));
-	    uar->ErrCode = UPNP_E_SUCCESS;
-	}
-	else
-	{
-	    uar->ErrCode = UPNP_SOAP_E_INVALID_ARGS;
-	    return UPNP_SOAP_E_INVALID_ARGS;
-	}
-	break;
-    }
-
-    default:
-//	TRACE << "unhandled device event " << et << "\n";
-	break;
-    }
-
-    return UPNP_E_SUCCESS;
-}
-
-std::string Server::Impl::Description(Device *d)
-{
-    if (d->m_uuid.empty())
-	d->m_uuid = MakeUUID(d->m_resource);
-
-    d->m_server = m_parent;
-
     std::ostringstream ss;
 
     /* Note that all these are case-sensitive */
 
-    ss << "<device>"
-        "<deviceType>" << d->m_type << "</deviceType>"
-        "<friendlyName>" << d->m_friendly_name << "</friendlyName>"
-        "<manufacturer>" << "Chorale contributors" << "</manufacturer>"
+    ss <<
+        "<deviceType>" << d->GetDeviceType() << "</deviceType>"
+        "<friendlyName>" << d->GetFriendlyName() << "</friendlyName>"
+        "<manufacturer>Chorale contributors</manufacturer>"
 	"<manufacturerURL>http://chorale.sf.net</manufacturerURL>"
         "<modelDescription>" PACKAGE_VERSION "</modelDescription>"
         "<modelName>" PACKAGE_NAME "</modelName>"
         "<modelNumber>" PACKAGE_VERSION "</modelNumber>"
-        "<UDN>uuid:" << d->m_uuid << "</UDN>"
-        "<presentationURL>" << m_presentation_url << "</presentationURL>"
+        "<UDN>" << d->GetUDN() << "</UDN>"
+        "<presentationURL>/</presentationURL>"
         "<iconList>"
 	"<icon><mimetype>image/png</mimetype>"
         " <width>32</width><height>32</height><depth>24</depth>"
-        " <url>" << m_presentation_url << "layout/icon.png</url>"
+        " <url>/layout/icon.png</url>"
         "</icon>"
 	"<icon><mimetype>image/vnd.microsoft.icon</mimetype>"
         " <width>32</width><height>32</height><depth>24</depth>"
-        " <url>" << m_presentation_url << "layout/icon.ico</url>"
+        " <url>/layout/icon.ico</url>"
         "</icon>"
 	"<icon><mimetype>image/x-icon</mimetype>"
         " <width>32</width><height>32</height><depth>24</depth>"
-        " <url>" << m_presentation_url << "layout/icon.ico</url>"
+        " <url>/layout/icon.ico</url>"
         "</icon>"
 	"</iconList>"
         "<serviceList>";
 
-    for (Device::services_t::const_iterator i = d->m_services.begin();
-	 i != d->m_services.end();
+    for (Device::const_iterator i = d->begin();
+	 i != d->end();
 	 ++i)
     {
 	ss << "<service>"
-	   << "<serviceType>" << i->second->GetType() << "</serviceType>"
-	   << "<serviceId>" << i->first << "</serviceId>"
-	   << "<SCPDURL>" << m_presentation_url << i->second->GetSCPDUrl() << "</SCPDURL>"
-	   << "<controlURL>/upnpcontrol" << m_device_index << "</controlURL>"
-	   << "<eventSubURL>/upnpevent" << m_device_index << "</eventSubURL>"
+	   << "<serviceType>" << (*i)->GetServiceType() << "</serviceType>"
+	   << "<serviceId>" << (*i)->GetServiceID() << "</serviceId>"
+	   << "<SCPDURL>" << (*i)->GetSCPDUrl() << "</SCPDURL>"
+	   << "<controlURL>/upnp/control/" << d->GetUDN() << "::"
+	   << (*i)->GetServiceID() << "</controlURL>"
+	   << "<eventSubURL>/upnp/event/" << d->GetUDN() << "::"
+	   << (*i)->GetServiceID() << "</eventSubURL>"
 	   << "</service>"
 	    ;
     }
     ss << "</serviceList>";
 
-    ++m_device_index;
-
-    if (!d->m_devices.empty())
-    {
-	ss << "<deviceList>\n";
-
-	for (Device::devices_t::const_iterator i = d->m_devices.begin();
-	     i != d->m_devices.end();
-	     ++i)
-	    ss << Description(*i);
-
-	ss << "</deviceList>";
-    }
-
-    ss << "</device>\n";
-
     return ss.str();
 }
 
-unsigned int Server::Impl::Init(unsigned short port)
+std::string Server::Impl::Description(util::IPAddress ip)
 {
-    m_presentation_url = (boost::format("http://%s:%u/")
-			  % UpnpGetServerIpAddress()
-			  % port).str();
+    devices_t::const_iterator i = m_devices.begin();
+    if (i == m_devices.end())
+	return "";
+
+    util::IPEndPoint ipe;
+    ipe.addr = ip;
+    ipe.port = m_server->GetPort();
 
     std::string s =
 	"<?xml version=\"1.0\"?><root xmlns=\"urn:schemas-upnp-org:device-1-0\"><specVersion><major>1</major><minor>0</minor></specVersion>"
-	+ Description(m_device)
-	     + "</root>";
+	"<URLBase>http://" + ipe.ToString() + "/</URLBase>"
+	"<device>"
+	+ DeviceDescription(*i);
 
-//    TRACE << "My device description is:\n" << s << "\n";
-
-    int rc = UpnpRegisterRootDevice2(UPNPREG_BUF_DESC,
-				     s.c_str(),
-				     s.length(),
-				     1,
-				     &StaticCallback,
-				     this,
-				     &m_handle);
-    if (rc != UPNP_E_SUCCESS)
+    ++i;
+    if (i != m_devices.end())
     {
-	TRACE << "urrd2 failed " << rc << "\n";
-	return ENOSYS;
+	s += "<deviceList>";
+	do {
+	    s += "<device>";
+	    s += DeviceDescription(*i);
+	    s += "</device>";
+	    ++i;
+	} while (i != m_devices.end());
+	s += "</deviceList>";
     }
-    rc = UpnpSendAdvertisement(m_handle, 100);
-    if (rc != UPNP_E_SUCCESS)
+	
+    s += "</device>"
+	"</root>";
+    return s;
+}
+
+unsigned int Server::Impl::Init()
+{
+    util::PartialURL description_url(s_description_path, m_server->GetPort());
+
+    for (devices_t::const_iterator i = m_devices.begin();
+	 i != m_devices.end();
+	 ++i)
     {
-	TRACE << "usa failed " << rc << "\n";
-	return ENOSYS;
+	const Device *device = *i;
+	if (i == m_devices.begin())
+	    m_ssdp->Advertise("upnp::rootdevice",
+			      device->GetUDN() + "::upnp:rootdevice",
+			      &description_url);
+
+	m_ssdp->Advertise(device->GetUDN(),
+			  device->GetUDN(), &description_url);
+
+	m_ssdp->Advertise(device->GetDeviceType(), 
+			  device->GetUDN() + "::" + device->GetDeviceType(), 
+			  &description_url);
+
+	for (Device::const_iterator j = device->begin();
+	     j != device->end();
+	     ++j)
+	{
+	    const Service *service = *j;
+	    m_ssdp->Advertise(service->GetServiceType(),
+			      device->GetUDN() + "::"
+			      + service->GetServiceType(), &description_url);
+	}
     }
 
-//    TRACE << "UPnP device started\n";
-
+    m_server->AddContentFactory("/", this);
     return 0;
 }
 
-void Server::Impl::FireEvent(const std::string& udn, const char *service_id,
-		       const char *variable, const std::string& value)
+class Notify: public util::http::Connection::Observer
 {
-    IXML_Document *propset = NULL;
+    util::http::ConnectionPtr m_ptr;
+
+public:
+    Notify() {}
+    ~Notify() { TRACE << "~Notify\n"; }
+
+    void SetPtr(util::http::ConnectionPtr ptr) { m_ptr = ptr; }
     
-    UpnpAddToPropertySet(&propset, variable, value.c_str());
-    int rc = UpnpNotifyExt(m_handle, udn.c_str(), service_id, propset);
+    unsigned OnHttpHeader(const std::string&, const std::string&) { return 0; }
+    unsigned OnHttpData() { return 0; }
+    void OnHttpDone(unsigned int) { delete this; }
+};
 
-    if (rc)
-	TRACE << "UNE returned " << rc << "\n";
+void Server::Impl::FireEvent(Service *service,
+			     const char *variable, const std::string& value)
+{
+//    TRACE << "Attempting to fire event for " << udn << "::" << service_id
+//	  << "\n";
 
-    ixmlDocument_free(propset);
+    std::string body = "<?xml version=\"1.0\"?>"
+	"<e:propertyset xmlns:e=\"urn:schemas-upnp-org:event-1-0\">"
+	"<e:property><" + std::string(variable) + ">" + value + "</" + variable + ">"
+	"</e:property>"
+	"</e:propertyset>";
+
+    for (subscriptions_t::const_iterator i = m_subscriptions.begin();
+	 i != m_subscriptions.end();
+	 ++i)
+    {
+	if (service == i->service)
+	{
+	    TRACE << "Notifying " << i->delivery_url << "\n";
+	    std::string extra_headers =
+		"NT: upnp:event\r\n"
+		"NTS: upnp:propchange\r\n"
+		"SID: " + i->delivery_url + "\r\n";
+	    /** @bug SEQ
+	     *
+	     * @todo If this were a PollableTask we could just cut it loose
+	     */
+
+	    Notify *n = new Notify;
+
+	    n->SetPtr(m_client->Connect(m_poller, n, i->delivery_url,
+					extra_headers, body, "NOTIFY"));
+	}
+    }
+}
+
+static bool prefixcmp(const char *haystack, const char *needle, 
+		      const char **leftovers)
+{
+    size_t len = strlen(needle);
+    if (!strncmp(haystack, needle, len))
+    {
+	*leftovers = haystack + len;
+	return true;
+    }
+    return false;
+}
+
+class SoapReplier: public xml::SaxParserObserver,
+		   public util::BufferSink
+{
+    Service *m_service;
+    util::http::Response *m_response;
+    util::IPEndPoint m_ipe;
+    boost::thread_specific_ptr<util::IPEndPoint> *m_endpoints;
+    xml::SaxParser m_parser;
+    std::string m_action_name;
+    soap::Inbound m_args;
+    std::string m_key, m_value;
+
+public:
+    SoapReplier(Service *service, util::http::Response *response,
+		util::IPEndPoint ipe,
+		boost::thread_specific_ptr<util::IPEndPoint> *endpoints)
+	: m_service(service),
+	  m_response(response),
+	  m_ipe(ipe),
+	  m_endpoints(endpoints),
+	  m_parser(this)
+    {
+    }
+
+    unsigned int OnBegin(const char *tag)
+    {
+//	TRACE << "Event: <" << tag << ">\n";
+	if (!strchr(tag, ':'))
+	{
+	    m_key = tag;
+	    m_value.clear();
+	}
+	else
+	{
+	    m_key.clear();
+	    if (*tag == 'u')
+		m_action_name = tag+2;
+	}
+	return 0;
+    }
+
+    unsigned int OnContent(const char *content)
+    {
+	if (!m_key.empty())
+	    m_value += content;
+	return 0;
+    }
+
+    unsigned int OnEnd(const char*)
+    {
+	if (!m_key.empty())
+	{
+//	    TRACE << "Event '" << m_key << "' = '" << m_value << "'\n";
+	    m_args.Set(m_key, m_value);
+	    m_key.clear();
+	    m_value.clear();
+	}
+	return 0;
+    }
+
+    // Being a BufferSink
+    unsigned int OnBuffer(util::BufferPtr p)
+    {
+//	TRACE << "I think I've got a buffer, size " << (p ? p->actual_len : 0)
+//	      << " used " << p.start << "--" << (p.start+p.len) << "\n";
+
+	if (p)
+	    return m_parser.OnBuffer(p);
+
+	// Otherwise, end of body -- assemble reply
+
+	util::IPEndPoint *ipeptr = new util::IPEndPoint;
+	*ipeptr = m_ipe;
+	m_endpoints->reset(ipeptr);
+
+	soap::Outbound result;
+	unsigned int rc = m_service->OnAction(m_action_name.c_str(), m_args,
+					      &result);
+	if (rc)
+	    return rc;
+
+	std::string body = result.CreateBody(m_action_name + "Response",
+					     m_service->GetServiceType());
+	
+//	TRACE << "Soap response is " << body << "\n";
+	
+	m_response->ssp = util::StringStream::Create(body);
+	return 0;
+    }
+};
+
+bool Server::Impl::StreamForPath(const util::http::Request *rq, 
+				 util::http::Response *rs)
+{
+//    TRACE << "Got " << rq->verb << " request for " << rq->path << "\n";
+
+    const char *path = rq->path.c_str();
+    const char *usn;
+
+    if (rq->path == s_description_path)
+    {
+	rs->ssp = util::StringStream::Create(Description(rq->local_ep.addr));
+	return true;
+    }
+    else if (prefixcmp(path, "/upnp/event/", &usn))
+    {
+	if (rq->verb == "SUBSCRIBE")
+	{
+//	    TRACE << "I'm being subscribed at\n" << rq->headers;
+
+	    Service *service = FindService(usn);
+	    if (service)
+	    {
+		std::string delivery = rq->GetHeader("callback");
+		if (delivery.size() > 2)
+		{
+		    delivery.erase(0,1);
+		    delivery.erase(delivery.size()-1);
+
+		    Subscription s;
+		    s.service = service;
+		    s.delivery_url = delivery;
+		    s.event_key = 0;
+
+		    m_subscriptions.push_back(s);
+
+		    rs->headers["SID"] = delivery; // why not?
+		    rs->ssp = util::StringStream::Create("");
+		}
+	    }
+	    else
+		TRACE << "Can't find service " << usn << "\n";
+	    return true;
+	}
+    }
+    else if (prefixcmp(path, "/upnp/control/", &usn))
+    {
+	if (rq->verb == "POST")
+	{
+//	    TRACE << "I'm being soaped at\n" << rq->headers;
+	    Service *svc = FindService(usn);
+	    if (svc)
+	    {
+		rs->body_sink.reset(new SoapReplier(svc, rs, rq->local_ep,
+						    &m_endpoints));
+		return true;
+	    }
+	}
+    }
+
+    return false;
+}
+
+util::IPEndPoint Server::Impl::GetCurrentEndPoint()
+{
+    util::IPEndPoint *ptr = m_endpoints.get();
+    if (ptr)
+	return *ptr;
+    util::IPEndPoint nil;
+    nil.addr.addr = 0;
+    nil.port = 0;
+    return nil;
 }
 
 
         /* Server */
 
 
-Server::Server()
-    : m_impl(new Impl(this))
+Server::Server(util::PollerInterface *poller, 
+	       util::http::Client* hc, util::http::Server *hs, 
+	       ssdp::Responder *ssdp)
+    : m_impl(new Impl(this, poller, hc, hs, ssdp))
 {
 }
 
@@ -376,18 +515,26 @@ Server::~Server()
     delete m_impl;
 }
 
-unsigned int Server::Init(Device *device, unsigned short port)
+unsigned int Server::Init()
 {
-    m_impl->m_device = device;
-    return m_impl->Init(port);
+    return m_impl->Init();
 }
 
-void Server::FireEvent(const std::string& udn, const char *service_id,
+void Server::FireEvent(Service *service,
 		       const char *variable, const std::string& value)
 {
-    m_impl->FireEvent(udn, service_id, variable, value);
+    m_impl->FireEvent(service, variable, value);
+}
+
+std::string Server::RegisterDevice(Device *device,
+				   const std::string& resource)
+{
+    return m_impl->RegisterDevice(device, resource);
+}
+
+util::IPEndPoint Server::GetCurrentEndPoint()
+{
+    return m_impl->GetCurrentEndPoint();
 }
 
 } // namespace upnp
-
-#endif // HAVE_UPNP

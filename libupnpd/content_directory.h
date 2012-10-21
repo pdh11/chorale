@@ -4,6 +4,7 @@
 #include "libupnp/ContentDirectory2.h"
 
 namespace mediadb { class Database; }
+namespace upnp { namespace soap { class InfoSource; } }
 
 namespace upnpd {
 
@@ -13,10 +14,10 @@ namespace upnpd {
 class ContentDirectoryImpl: public upnp::ContentDirectory2
 {
     mediadb::Database *m_db;
-    unsigned short m_port;
+    upnp::soap::InfoSource *m_info_source;
 
 public:
-    ContentDirectoryImpl(mediadb::Database *db, unsigned short port);
+    ContentDirectoryImpl(mediadb::Database*, upnp::soap::InfoSource*);
     
     // Being a ContentDirectory2
     unsigned int Browse(const std::string& object_id,

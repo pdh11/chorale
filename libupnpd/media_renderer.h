@@ -25,7 +25,7 @@ class MediaRenderer: public upnp::Device
     upnp::RenderingControl2Server m_rcserver;
 
 public:
-    MediaRenderer(output::URLPlayer*, const std::string& resource);
+    explicit MediaRenderer(output::URLPlayer*);
 };
 
 } // namespace upnpd

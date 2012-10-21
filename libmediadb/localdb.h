@@ -33,6 +33,9 @@ class LocalDatabase: public Database
     typedef std::map<unsigned int, StreamFactory*> factories_t;
     factories_t m_factories;
 
+    class Recordset;
+    class Query;
+
 public:
     explicit LocalDatabase(db::Database *thedb) : m_db(thedb) {}
     ~LocalDatabase() {}

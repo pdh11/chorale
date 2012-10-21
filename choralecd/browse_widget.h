@@ -23,9 +23,12 @@ class BrowseWidget: public QListWidget
 
     unsigned int m_dbid;
     mediatree::NodePtr m_node;
+    QPixmap *m_dir_pixmap;
+    QPixmap *m_file_pixmap;
 
 public:
-    BrowseWidget(QWidget *parent, unsigned int dbid);
+    BrowseWidget(QWidget *parent, unsigned int dbid,
+		 QPixmap *dir_pixmap = NULL, QPixmap *file_pixmap = NULL);
     
     void SetNode(mediatree::NodePtr);
 

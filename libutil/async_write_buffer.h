@@ -14,11 +14,11 @@ class AsyncWriteBuffer: public Stream
     class Impl;
     Impl *m_impl;
 
-    explicit AsyncWriteBuffer(StreamPtr, TaskQueue *queue);
+    explicit AsyncWriteBuffer(SeekableStreamPtr, TaskQueue *queue);
     ~AsyncWriteBuffer();
 
 public:
-    static unsigned Create(StreamPtr backingstream,
+    static unsigned Create(SeekableStreamPtr backingstream,
 			   TaskQueue *queue,
 			   StreamPtr *result)
 	ATTRIBUTE_WARNUNUSED;

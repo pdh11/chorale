@@ -39,8 +39,8 @@ PlaylistPtr Playlist::Create(const std::string& filename)
 }
 
 Playlist::Playlist()
+    : m_impl(new Impl)
 {
-    m_impl = new Impl;
 }
 
 Playlist::~Playlist()
@@ -59,6 +59,11 @@ void Playlist::SetEntry(size_t index, const std::string& path)
     if (index >= m_impl->entries.size())
 	m_impl->entries.resize(index+1);
     m_impl->entries[index] = path;
+}
+
+void Playlist::AppendEntry(const std::string& path)
+{
+    m_impl->entries.push_back(path);
 }
 
 std::string Playlist::GetEntry(size_t index) const

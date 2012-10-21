@@ -6,12 +6,12 @@
 
 namespace util {
 
-LineReader::LineReader(StreamPtr stream)
+GreedyLineReader::GreedyLineReader(StreamPtr stream)
     : m_stream(stream), m_buffered(0)
 {
 }
 
-unsigned LineReader::GetLine(std::string *line)
+unsigned GreedyLineReader::GetLine(std::string *line)
 {
     for (;;)
     {
@@ -52,7 +52,7 @@ unsigned LineReader::GetLine(std::string *line)
     }
 }
 
-const char *LineReader::GetLeftovers(size_t *nbytes)
+const char *GreedyLineReader::GetLeftovers(size_t *nbytes)
 {
     *nbytes = m_buffered;
     m_buffered = 0;
@@ -86,7 +86,7 @@ void DoTest(const Test *t)
     util::StringStreamPtr ss = util::StringStream::Create();
     ss->str() = t->input;
 
-    util::LineReader lr(ss);
+    util::GreedyLineReader lr(ss);
     const char *const *ptr = &t->lines[0];
 
     while (*ptr)

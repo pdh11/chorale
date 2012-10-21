@@ -6,9 +6,9 @@
 #include <list>
 #include "libdb/db.h"
 
-namespace mediadb { class Database; }
+namespace mediadb {
 
-namespace upnp {
+class Database;
 
 /** Classes implementing DIDL, a metadata standard used in UPnP.
  */
@@ -73,6 +73,6 @@ extern const char s_header[];
 extern const char s_footer[];
 
 } // namespace didl
-} // namespace upnp
+} // namespace mediadb
 
 #endif

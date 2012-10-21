@@ -39,7 +39,7 @@ RippingTask::~RippingTask()
 //    TRACE << "~RippingTask\n";
 }
 
-void RippingTask::Run()
+unsigned int RippingTask::Run()
 {
     int start = (m_cd->begin()+m_track)->first_sector;
     int end   = (m_cd->begin()+m_track)->last_sector;
@@ -48,6 +48,7 @@ void RippingTask::Run()
 //	  << start << ".." << end << "\n";
 
     unsigned int pcmsize = (unsigned)(end-start+1) * 2352;
+    unsigned int rc;
 
     // If there's CPU to spare, back to RAM, else back to disk
     util::SeekableStreamPtr backingstream;
@@ -61,10 +62,11 @@ void RippingTask::Run()
     else
     {
 	util::SeekableStreamPtr fsp;
-	if (util::OpenFileStream(m_filename.c_str(), util::TEMP, &fsp) != 0)
+	rc = util::OpenFileStream(m_filename.c_str(), util::TEMP, &fsp);
+	if (rc != 0)
 	{
 	    TRACE << "Can't create temporary\n";
-	    return;
+	    return rc;
 	}
 
 //	StreamPtr awb;
@@ -73,11 +75,11 @@ void RippingTask::Run()
 //	TRACE << "Chosen to rip via disk\n";
     }
     util::MultiStreamPtr ms;
-    unsigned int rc = util::MultiStream::Create(backingstream, pcmsize, &ms);
+    rc = util::MultiStream::Create(backingstream, pcmsize, &ms);
     if (rc != 0)
     {
 	FireError(rc);
-	return;
+	return rc;
     }
 
     util::StreamPtr pcmforflac;
@@ -97,7 +99,7 @@ void RippingTask::Run()
     {
 	TRACE << "Can't make CD stream\n";
 	FireError(ENOENT);
-	return;
+	return ENOENT;
     }
 
     char buf[2352*10];
@@ -117,14 +119,14 @@ void RippingTask::Run()
 	{
 	    FireError(rc);
 	    TRACE << "Read error " << rc << "\n";
-	    return;
+	    return rc;
 	}
 	rc = ms->WriteAll(buf, nread);
 	if (rc != 0)
 	{
 	    TRACE << "Write error " << rc << "\n";
 	    FireError(rc);
-	    return;
+	    return rc;
 	}
 
 //	TRACE << "Got " << nread << " bytes\n";
@@ -139,6 +141,7 @@ void RippingTask::Run()
     double x = ((end-start+1)/75.0)/(double)t;
 
     TRACE << "Rip track " << (m_track+1) << " done " << x << "x\n";
+    return 0;
 }
 
 } // namespace import

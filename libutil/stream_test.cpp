@@ -48,6 +48,7 @@ void TestSeekableStream(SeekableStreamPtr msp)
     rc = msp->Read(&buf, 4, &nread);
     assert(rc == 0);
     assert(nread == 0);
+
     size_t nwrote;
     rc = msp->Write(NULL, 0, &nwrote);
     assert(rc == 0);

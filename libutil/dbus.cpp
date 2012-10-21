@@ -1,6 +1,7 @@
-#include "config.h"
 #include "dbus.h"
+#include "config.h"
 #include "trace.h"
+#include "bind.h"
 #include "poll.h"
 #include <map>
 #include <list>
@@ -17,16 +18,29 @@ namespace util {
 
 namespace dbus {
 
+class WatchPollable: public util::Pollable
+{
+    DBusWatch *m_watch;
+
+public:
+    WatchPollable(DBusWatch *watch) : m_watch(watch) {}
+
+    // Being a Pollable
+    PollHandle GetReadHandle()  { return dbus_watch_get_unix_fd(m_watch); }
+    PollHandle GetWriteHandle() { return dbus_watch_get_unix_fd(m_watch); }
+};
+
+static void DeleteWatchPollable(void *p) { delete (WatchPollable*)p; }
+
 
         /* Connection::Impl */
 
 
-class Connection::Impl: public util::Pollable
+class Connection::Impl
 {
     util::PollerInterface *m_poller;
     DBusError m_err;
     DBusConnection *m_conn;
-    util::PollWaker m_waker;
 
     typedef std::map<std::string, SignalObserver*> map_t;
     map_t m_map;
@@ -65,8 +79,7 @@ public:
 
 Connection::Impl::Impl(util::PollerInterface *poller)
     : m_poller(poller),
-      m_conn(NULL),
-      m_waker(poller, this)
+      m_conn(NULL)
 {
     dbus_error_init(&m_err);
 }
@@ -136,13 +149,20 @@ dbus_bool_t Connection::Impl::OnAddWatch(DBusWatch *watch)
     m_watches.push_back(watch);
     if (dbus_watch_get_enabled(watch))
     {
+	WatchPollable *wp = (WatchPollable*)dbus_watch_get_data(watch);
+	if (!wp)
+	{
+	    wp = new WatchPollable(watch);
+	    dbus_watch_set_data(watch, wp, DeleteWatchPollable);
+	}
 	unsigned int direction = 0;
 	unsigned int watchflags = dbus_watch_get_flags(watch);
 	if (watchflags & DBUS_WATCH_READABLE)
 	    direction |= util::PollerInterface::IN;
 	if (watchflags & DBUS_WATCH_WRITABLE)
 	    direction |= util::PollerInterface::OUT;
-	m_poller->AddHandle(dbus_watch_get_unix_fd(watch), this, direction);
+	m_poller->Add(wp, util::Bind<Impl, &Impl::OnActivity>(this), 
+		      direction);
     }
     return true;
 }
@@ -151,25 +171,41 @@ void Connection::Impl::OnRemoveWatch(DBusWatch *watch)
 {
     TRACE << "removewatch\n";
     m_watches.remove(watch);
-    m_poller->RemoveHandle(dbus_watch_get_unix_fd(watch));
+
+    WatchPollable *wp = (WatchPollable*)dbus_watch_get_data(watch);
+    if (wp)
+    {
+	delete wp;
+	dbus_watch_set_data(watch, NULL, DeleteWatchPollable);
+	m_poller->Remove(wp);
+    }
 }
 
 void Connection::Impl::OnWatchToggled(DBusWatch *watch)
 {
     TRACE << "togglewatch\n";
+
+    WatchPollable *wp = (WatchPollable*)dbus_watch_get_data(watch);
     if (dbus_watch_get_enabled(watch))
     {
+	if (!wp)
+	{
+	    wp = new WatchPollable(watch);
+	    dbus_watch_set_data(watch, wp, DeleteWatchPollable);
+	}
 	unsigned int direction = 0;
 	unsigned int watchflags = dbus_watch_get_flags(watch);
 	if (watchflags & DBUS_WATCH_READABLE)
 	    direction |= util::PollerInterface::IN;
 	if (watchflags & DBUS_WATCH_WRITABLE)
 	    direction |= util::PollerInterface::OUT;
-	m_poller->AddHandle(dbus_watch_get_unix_fd(watch), this, direction);
+	m_poller->Add(wp, util::Bind<Impl, &Impl::OnActivity>(this),
+			    direction);
     }
     else
     {
-	m_poller->RemoveHandle(dbus_watch_get_unix_fd(watch));
+	if (wp)
+	    m_poller->Remove(wp);
     }
 }
 
@@ -209,7 +245,7 @@ DBusHandlerResult Connection::Impl::OnHandleMessage(DBusConnection*,
 void Connection::Impl::OnWakeupMain()
 {
 //    TRACE << "wakeup\n";
-    m_waker.Wake();
+    m_poller->Wake();
 }
 
 unsigned int Connection::Impl::OnActivity()

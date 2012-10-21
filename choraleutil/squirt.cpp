@@ -291,12 +291,12 @@ int main(int argc, char *argv[])
 
     TRACE << "scanning\n";
 
-    util::WorkerThreadPool wtp(nthreads);
+    util::WorkerThreadPool wtp(util::WorkerThreadPool::NORMAL, nthreads);
 
     mediadb::LocalDatabase ldb(&sdb);
 
 #ifdef HAVE_TAGLIB
-    import::FileScanner ifs(mediaroot, flacroot, &ldb, wtp.GetTaskQueue());
+    import::FileScanner ifs(mediaroot, flacroot, &ldb, &wtp);
 
     ifs.Scan();
 

@@ -5,25 +5,12 @@
 
 namespace util {
 
-class PartialStream: public SeekableStream
-{
-    SeekableStreamPtr m_stream;
-    pos64 m_begin;
-    pos64 m_end;
+SeekableStreamPtr CreatePartialStream(SeekableStreamPtr underlying,
+				      unsigned long long begin,
+				      unsigned long long end);
 
-    PartialStream(SeekableStreamPtr, pos64, pos64);
-
-public:
-    static SeekableStreamPtr Create(SeekableStreamPtr underlying,
-				    pos64 begin, pos64 end);
-
-    // Being a SeekableStream
-    unsigned ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread);
-    unsigned WriteAt(const void *buffer, pos64 pos, size_t len, 
-		     size_t *pwrote);
-    pos64 GetLength();
-    unsigned SetLength(pos64);
-};
+StreamPtr CreatePartialStream(StreamPtr underlying,
+			      unsigned long long length);
 
 } // namespace util
 

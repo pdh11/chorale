@@ -16,9 +16,10 @@
 #define PROXYENABLE "proxy/enable"
 #define PROXYHOST "proxy/host"
 #define PROXYPORT "proxy/port"
+#define DEFAULT_DATABASE "startup/db"
 
 Settings::Settings()
-    : m_qs(QSettings::UserScope, "pdh.utter.chaos.org.uk", "choralecd")
+    : m_qs(QSettings::UserScope, "chorale.sf.net", "choralecd")
 {
     m_qs.beginGroup("/choralecd");
 }
@@ -93,4 +94,14 @@ unsigned short Settings::GetHttpProxyPort() const
 void Settings::SetHttpProxyPort(unsigned short s)
 {
     m_qs.writeEntry(PROXYPORT, s);
+}
+
+std::string Settings::GetDefaultDatabase() const
+{
+    return m_qs.readEntry(DEFAULT_DATABASE).toUtf8().data();
+}
+
+void Settings::SetDefaultDatabase(const std::string& s)
+{
+    m_qs.writeEntry(DEFAULT_DATABASE, QString::fromUtf8(s.c_str()));
 }

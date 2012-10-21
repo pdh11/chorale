@@ -35,7 +35,8 @@ unsigned int AllocateID::Allocate()
 //		      << ", " << m_gap_begin << ".." << m_gap_end-1 << " free\n";
 		break;
 	    }
-	    ++expected;
+
+	    expected = found+1;
 	    rs->MoveNext();
 	}
 	if (rs->IsEOF())

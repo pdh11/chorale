@@ -4,6 +4,7 @@
 #include "libutil/trace.h"
 #include "libutil/endian.h"
 #include "libutil/poll.h"
+#include "libutil/bind.h"
 
 #undef IN
 
@@ -21,8 +22,9 @@ RPCServer::RPCServer(uint32_t program_number, uint32_t version,
     util::IPEndPoint ipe = { util::IPAddress::ANY, 0 };
     m_socket.Bind(ipe);
 
-    poller->AddHandle(m_socket.GetPollHandle(util::PollerInterface::IN),
-		      this, util::PollerInterface::IN);
+    poller->Add(&m_socket, 
+		util::Bind<RPCServer, &RPCServer::OnActivity>(this), 
+		util::PollerInterface::IN);
 }
 
 unsigned short RPCServer::GetPort()

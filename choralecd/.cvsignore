@@ -1,4 +1,5 @@
 choralecd
+cloud
 *.moc.cpp
 .libs
 db.xml

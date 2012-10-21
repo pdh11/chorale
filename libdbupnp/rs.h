@@ -3,7 +3,7 @@
 
 #include "libdb/db.h"
 #include "libdb/readonly_rs.h"
-#include "libupnp/didl.h"
+#include "libmediadb/didl.h"
 #include <string>
 
 namespace db {
@@ -82,7 +82,7 @@ class SearchRecordset: public Recordset
     unsigned int m_index;
     unsigned int m_total;
 
-    upnp::didl::MetadataList m_items;
+    mediadb::didl::MetadataList m_items;
 
     unsigned int GetSome();
     void SelectThisItem();

@@ -21,7 +21,7 @@ EncodingTaskPtr EncodingTaskFlac::Create(const std::string& filename)
 /** @todo Encode to a (vast) memory buffer and write in one go (less
  * fragmentation on >1 CPU boxes)
  */
-void EncodingTaskFlac::Run()
+unsigned int EncodingTaskFlac::Run()
 {
     FLAC__StreamEncoder *enc = FLAC__stream_encoder_new();
 
@@ -107,7 +107,7 @@ void EncodingTaskFlac::Run()
     if (state != 0)
     {
 	TRACE << "Encode failed on '" << m_output_filename << "'\n";
-	return;
+	return EINVAL;
     }
 
     const int LUMP = 128*1024; // bytes
@@ -174,6 +174,7 @@ void EncodingTaskFlac::Run()
     }
 
 //    TRACE << "FLAC encoding finished\n";
+    return 0;
 }
 
 } // namespace import

@@ -1,20 +1,21 @@
 #include "remote_cd_drive.h"
 #include "libupnp/description.h"
-#include "libutil/ssdp.h"
+#include "libupnp/ssdp.h"
 #include "libutil/http_stream.h"
 #include "libutil/trace.h"
 
 namespace import {
 
-RemoteCDDrive::RemoteCDDrive()
-    : m_disc_present(true),
-      m_thread(&m_queue)
+RemoteCDDrive::RemoteCDDrive(util::http::Client *client,
+			     util::http::Server *server)
+    : m_upnp(client, server),
+      m_disc_present(true),
+      m_threads(util::WorkerThreadPool::NORMAL, 1)
 {
 }
 
 RemoteCDDrive::~RemoteCDDrive()
 {
-    m_queue.PushTask(util::TaskPtr());
 }
 
 unsigned RemoteCDDrive::Init(const std::string& url, const std::string& udn)
@@ -25,7 +26,7 @@ unsigned RemoteCDDrive::Init(const std::string& url, const std::string& udn)
 
     m_friendly_name = m_upnp.GetDescription().GetFriendlyName();
 
-    rc = m_optical_drive.Init(&m_upnp, util::ssdp::s_uuid_opticaldrive);
+    rc = m_optical_drive.Init(&m_upnp, upnp::s_service_type_optical_drive);
     if (rc != 0)
 	return rc;
 
@@ -55,7 +56,7 @@ unsigned int RemoteCDDrive::Eject()
 
 util::TaskQueue *RemoteCDDrive::GetTaskQueue()
 {
-    return &m_queue;
+    return &m_threads;
 }
 
 void RemoteCDDrive::OnDiscPresent(bool whether)
@@ -105,8 +106,8 @@ util::SeekableStreamPtr RemoteAudioCD::GetTrackStream(unsigned int track)
 {
     if (track >= m_urls.size())
 	return util::SeekableStreamPtr();
-    util::HTTPStreamPtr ptr;
-    unsigned int rc = util::HTTPStream::Create(&ptr, m_urls[track].c_str());
+    util::http::StreamPtr ptr;
+    unsigned int rc = util::http::Stream::Create(&ptr, m_urls[track].c_str());
     if (rc != 0)
     {
 	TRACE << "Can't create HTTP stream: " << rc << "\n";

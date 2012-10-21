@@ -28,7 +28,7 @@ class URLPlayer: public output::URLPlayer, public upnp::AVTransport2Observer,
     std::string m_friendly_name; 
 
 public:
-    URLPlayer();
+    URLPlayer(util::http::Client*, util::http::Server*);
     ~URLPlayer();
 
     unsigned Init(const std::string& url, const std::string& udn,
@@ -46,6 +46,10 @@ public:
     
     // Being an AVTransport2Observer
     void OnLastChange(const std::string& value);
+
+    // XML callbacks
+    unsigned int OnTransportState(const std::string&);
+    unsigned int OnAVTransportURI(const std::string&);
 
     // Being a util::Timed
     unsigned int OnTimer();

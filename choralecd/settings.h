@@ -20,6 +20,7 @@ public:
     std::string GetHttpProxyHost() const;
     unsigned short GetHttpProxyPort() const;
 
+    std::string GetDefaultDatabase() const;
 
     void SetMP3Root(const std::string&);
     void SetFlacRoot(const std::string&);
@@ -29,6 +30,8 @@ public:
     void SetUseHttpProxy(bool);
     void SetHttpProxyHost(const std::string&);
     void SetHttpProxyPort(unsigned short);
+
+    void SetDefaultDatabase(const std::string&);
 };
 
 #endif

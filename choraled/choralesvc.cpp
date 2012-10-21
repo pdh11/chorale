@@ -16,12 +16,14 @@
 #include "web.h"
 #include "libutil/worker_thread_pool.h"
 #include "libutil/poll.h"
-#include "libutil/web_server.h"
+#include "libutil/http_client.h"
+#include "libutil/http_server.h"
 #include "libutil/trace.h"
 #include "libutil/utf8.h"
 #include "libreceiver/ssdp.h"
 #include "libreceiverd/content_factory.h"
 #include "libupnp/server.h"
+#include "libupnp/ssdp.h"
 #include "libupnpd/media_server.h"
 #include "libupnpd/optical_drive.h"
 
@@ -66,9 +68,9 @@ class ChoraleService::Impl
     volatile bool m_exiting;
 
     util::Poller m_poller;
-    util::PollWaker m_waker;
 
-    util::WorkerThreadPool m_wtp;
+    util::WorkerThreadPool m_wtp_low;
+    util::WorkerThreadPool m_wtp_normal;
     Database m_db;
 
 public:
@@ -80,15 +82,15 @@ public:
 
 ChoraleService::Impl::Impl()
     : m_exiting(false),
-      m_waker(&m_poller),
-      m_wtp(2)
+      m_wtp_low(util::WorkerThreadPool::LOW),
+      m_wtp_normal(util::WorkerThreadPool::NORMAL)
 {    
 }
 
 ChoraleService::Impl::~Impl()
 {
     m_exiting = true;
-    m_waker.Wake();
+    m_poller.Wake();
 }
 
 static std::string GetRegistryEntry(const char *key, const char *value)
@@ -183,8 +185,7 @@ void ChoraleService::Impl::Run()
     PathAppend(common_app_data, "chorale.db");
     std::string dbfile(common_app_data);
 
-    m_db.Init(mp3root.c_str(), flacroot.c_str(), m_wtp.GetTaskQueue(), 
-	      dbfile);
+    m_db.Init(mp3root.c_str(), flacroot.c_str(), &m_wtp_low, dbfile);
 
     std::string layout = GetRegistryEntry(RIO_REG_ROOT "\\HTTP", "LAYOUT");
 
@@ -212,11 +213,11 @@ void ChoraleService::Impl::Run()
 	}
     }
 
-    util::WebServer ws;
-
+    util::http::Server ws(&m_poller, &m_wtp_normal);
+    
     receiverd::ContentFactory rcf(m_db.Get());
-    util::FileContentFactory fcf(webroot+"/upnp", "/upnp");
-    util::FileContentFactory fcf2(webroot+"/layout", "/layout");
+    util::http::FileContentFactory fcf(webroot+"/upnp", "/upnp");
+    util::http::FileContentFactory fcf2(webroot+"/layout", "/layout");
 
     if (1)
     {
@@ -232,18 +233,19 @@ void ChoraleService::Impl::Run()
     RootContentFactory rootcf(m_db.Get());
 
     ws.AddContentFactory("/", &rootcf);
-    ws.Init(&m_poller, webroot.c_str(), 12078);
+    ws.Init(12078);
     TRACE << "Webserver got port " << ws.GetPort() << "\n";
 
-    receiver::ssdp::Server ssdp;
+    receiver::ssdp::Server pseudo_ssdp;
 
     if (1)
     {
-	ssdp.Init(&m_poller);
-	ssdp.RegisterService(receiver::ssdp::s_uuid_musicserver, ws.GetPort());
+	pseudo_ssdp.Init(&m_poller);
+	pseudo_ssdp.RegisterService(receiver::ssdp::s_uuid_musicserver, 
+				    ws.GetPort());
 	if (!arf.empty())
-	    ssdp.RegisterService(receiver::ssdp::s_uuid_softwareserver,
-				 nfsd.GetPort());
+	    pseudo_ssdp.RegisterService(receiver::ssdp::s_uuid_softwareserver,
+					nfsd.GetPort());
 	TRACE << "Receiver service started\n";
     }
 
@@ -255,40 +257,29 @@ void ChoraleService::Impl::Run()
     if (dot && dot > hostname)
 	*dot = '\0';
 
-#ifdef HAVE_UPNP
-    upnpd::MediaServer *mediaserver = NULL;
-    upnp::Device *root_device = NULL;
+    upnp::ssdp::Responder ssdp(&m_poller);
+    util::http::Client wc;
+    upnp::Server upnpserver(&m_poller, &wc, &ws, &ssdp);
+    upnpd::MediaServer mediaserver(m_db.Get(), &upnpserver);
 
     if (0)
     {
-	mediaserver = new upnpd::MediaServer(m_db.Get(), ws.GetPort(), 
-					     mediaroot);
-	mediaserver->SetFriendlyName(std::string(mediaroot)
-				     + " on " + hostname);
-	root_device = mediaserver;
+	mediaserver.SetFriendlyName(std::string(mediaroot)
+				    + " on " + hostname);
     }
 
 # ifdef HAVE_CD
     CDService cds(NULL);
     if (1)
-	cds.Init(&ws, hostname, &root_device);
+	cds.Init(&ws, hostname, &upnpserver);
 # endif
 
-    upnp::Server svr;
-    if (root_device)
-    {
-	svr.Init(root_device, ws.GetPort());
-    }
-#endif
+    upnpserver.Init();
 
     TRACE << "Polling\n";
 
     while (!m_exiting)
 	m_poller.Poll(util::Poller::INFINITE_MS);
-
-#ifdef HAVE_UPNP
-    delete mediaserver;
-#endif
 
     pthread_win32_process_detach_np();
 }

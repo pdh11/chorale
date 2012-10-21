@@ -80,16 +80,18 @@ void CDWidgetFactory::CreateWidgets(QWidget *parent)
         /* UpnpCDWidgetFactory */
 
 
-#ifdef HAVE_UPNP
-
 UpnpCDWidgetFactory::UpnpCDWidgetFactory(QPixmap *pixmap,
 					 Settings *settings,
 					 util::TaskQueue *cpu_queue,
-					 util::TaskQueue *disk_queue)
+					 util::TaskQueue *disk_queue,
+					 util::http::Client *client,
+					 util::http::Server *server)
     : m_pixmap(pixmap),
       m_settings(settings),
       m_cpu_queue(cpu_queue),
-      m_disk_queue(disk_queue)
+      m_disk_queue(disk_queue),
+      m_client(client),
+      m_server(server)
 {
 }
 
@@ -101,7 +103,7 @@ void UpnpCDWidgetFactory::CreateWidgets(QWidget *parent)
 void UpnpCDWidgetFactory::OnService(const std::string& url,
 				    const std::string& udn)
 {
-    import::RemoteCDDrive *cd = new import::RemoteCDDrive;
+    import::RemoteCDDrive *cd = new import::RemoteCDDrive(m_client, m_server);
     unsigned rc = cd->Init(url, udn);
     if (rc != 0)
     {
@@ -112,7 +114,5 @@ void UpnpCDWidgetFactory::OnService(const std::string& url,
     (void) new CDWidget(m_parent, cdp, *m_pixmap, m_settings, m_cpu_queue,
 			m_disk_queue);
 }
-
-#endif // HAVE_UPNP
 
 } // namespace choraleqt

@@ -21,6 +21,7 @@ public:
     std::string GetFilename() const;
     
     void SetEntry(size_t index, const std::string& fullpath); // 0-based
+    void AppendEntry(const std::string& fullpath);
 
     virtual unsigned int Load() = 0;
     virtual unsigned int Save() = 0;

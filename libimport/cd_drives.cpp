@@ -1,16 +1,20 @@
-#include "libutil/trace.h"
 #include "cd_drives.h"
+#include "config.h"
+#include "libutil/trace.h"
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <iostream>
 #include <fstream>
 #include <sstream>
-//#include <linux/cdrom.h>
-//#include <sys/ioctl.h>
+#ifdef HAVE_LIBCDIOP
 #include <cdio/cdio.h>
+#else
+#include <linux/cdrom.h>
+#include <sys/ioctl.h>
+#endif
 #include "libutil/task.h"
-#include "libutil/worker_thread.h"
+#include "libutil/worker_thread_pool.h"
 
 namespace import {
 
@@ -108,8 +112,7 @@ class LocalCDDrive::Impl: public util::hal::Observer,
     LocalCDDrive *m_parent;
     std::string m_device;
     util::hal::Context *m_hal;
-    util::TaskQueue m_queue;
-    util::WorkerThread m_thread; // One per CD drive
+    util::WorkerThreadPool m_threads; // One per CD drive
     std::string m_volume_udi;
 
 public:
@@ -118,7 +121,7 @@ public:
 	: m_parent(parent),
 	  m_device(device), 
 	  m_hal(hal), 
-	  m_thread(&m_queue)
+	  m_threads(util::WorkerThreadPool::NORMAL, 1)
     {
 #ifndef WIN32
 	if (m_hal)
@@ -135,11 +138,10 @@ public:
 	if (m_hal)
 	    m_hal->RemoveObserver(this);
 #endif
-	m_queue.PushTask(util::TaskPtr());
     }
 
     std::string GetDevice() const { return m_device; }
-    util::TaskQueue *GetTaskQueue() { return &m_queue; }
+    util::TaskQueue *GetTaskQueue() { return &m_threads; }
 
     bool SupportsDiscPresent() const { return m_hal != NULL; }
     bool DiscPresent() const { return !m_volume_udi.empty(); }
@@ -231,7 +233,7 @@ unsigned int LocalCDDrive::Eject()
 {
     TRACE << "Ejecting " << GetDevice() << "\n";
 
-#if 1
+#ifdef HAVE_LIBCDIOP
     cdio_eject_media_drive(GetDevice().c_str());
     return 0;
 #else

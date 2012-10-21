@@ -1,5 +1,6 @@
 #include "ssdp.h"
 #include "libutil/poll.h"
+#include "libutil/bind.h"
 #include "libutil/socket.h"
 #include "libutil/trace.h"
 #include <boost/thread/mutex.hpp>
@@ -31,7 +32,7 @@ enum { PORT = 21075 };
         /* Server */
 
 
-class Server::Impl: public util::Pollable
+class Server::Impl
 {
     util::DatagramSocket m_socket;
 
@@ -68,8 +69,8 @@ unsigned Server::Impl::Init(util::PollerInterface *poller)
     if (rc == 0)
 	m_socket.SetNonBlocking(true);
     if (rc == 0)
-	poller->AddHandle(m_socket.GetPollHandle(util::Poller::IN), this,
-			  util::Poller::IN);
+	poller->Add(&m_socket, util::Bind<Impl, &Impl::OnActivity>(this),
+		    util::Poller::IN);
 
     TRACE << "Server init returned " << rc << "\n";
 
@@ -157,12 +158,14 @@ void Server::RegisterService(const char *uuid, unsigned short service_port,
         /* Client */
 
 
-class Client::Impl: public util::Pollable
+class Client::Impl
 {
     util::DatagramSocket m_socket;
     Client::Callback *m_callback;
 
 public:
+    Impl() : m_callback(NULL) {}
+
     unsigned Init(util::PollerInterface*, const char *uuid, Callback*);
 
     // being a Pollable
@@ -176,8 +179,8 @@ unsigned Client::Impl::Init(util::PollerInterface *poller,
     if (rc == 0)
 	m_socket.SetNonBlocking(true);
     if (rc == 0)
-	poller->AddHandle(m_socket.GetPollHandle(util::Poller::IN), this,
-			  util::Poller::IN);
+	poller->Add(&m_socket, util::Bind<Impl, &Impl::OnActivity>(this),
+		    util::Poller::IN);
 
     m_callback = cb;
 
@@ -244,3 +247,26 @@ unsigned Client::Init(util::PollerInterface *p, const char *uuid,
 } // namespace ssdp
 
 } // namespace receiver
+
+#ifdef TEST
+
+int main()
+{
+    util::DatagramSocket tx;
+    util::DatagramSocket rx;
+    util::IPEndPoint ep = { util::IPAddress::ANY, 0 };
+    rx.Bind(ep);
+    ep = rx.GetLocalEndPoint();
+    TRACE << "Got port " << ep.port << "\n";
+    tx.EnableBroadcast(true);
+    ep.addr = util::IPAddress::ALL;
+    tx.Write("foo", ep);
+    std::string s;
+    util::IPEndPoint wasfrom;
+    util::IPAddress wasto;
+    rx.Read(&s, &wasfrom, &wasto);
+    TRACE << s << " from " << wasfrom.ToString() << " to " << wasto.ToString() << "\n";
+    return 0;
+}
+
+#endif

@@ -22,11 +22,23 @@ class Description
     std::string m_udn;
     std::string m_friendly_name;
     std::string m_presentation_url;
+
+    /** The services in this device, indexed by service type.
+     */
     Services m_services;
 
 public:
     Description() {}
-    unsigned Fetch(const std::string& url, const std::string& udn);
+
+    /** Parse an XML device description looking for a particular device.
+     *
+     * @param description_xml The (possibly nested) device description XML
+     * @param url             URL of description (for resolving relative URLs)
+     * @param udn             Device being searched-for
+     */
+    unsigned Parse(const std::string& description_xml,
+		   const std::string& url,
+		   const std::string& udn);
 
     std::string GetUDN() const { return m_udn; }
     const std::string& GetFriendlyName() const { return m_friendly_name; }

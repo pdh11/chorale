@@ -26,7 +26,7 @@ libupnpd:=$(TOP)$(DIR)$(TARGETDIR)libupnpd.la
 all-libupnpd: $(libupnpd)
 
 $(TOP)$(DIR)% : CXXFLAGS += $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) \
-	$(LIBCDIOP_CXXFLAGS) $(UPNP_CXXFLAGS)
+	$(LIBCDIOP_CXXFLAGS)
 
 ifeq ($(libutil),)
 include $(TOP)libutil/Makefile
@@ -47,7 +47,7 @@ ifeq ($(libdbsteam),)
 include $(TOP)libdbsteam/Makefile
 endif
 
-$(LIBUPNPD_TESTS) : TEST_LIBS += $(BOOST_LIBS) $(UPNP_LIBS) $(CURL_LIBS)
+$(LIBUPNPD_TESTS) : TEST_LIBS += $(BOOST_LIBS) $(LIBS)
 
 $(LIBUPNPD_TESTS) : $(libupnpd) $(libdbupnp) $(libdbsteam) \
 		$(libmediadb) $(libupnp) $(libdb) $(libutil)

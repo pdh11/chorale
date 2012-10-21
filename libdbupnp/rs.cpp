@@ -1,7 +1,7 @@
 #include "config.h"
 #include "rs.h"
 #include "db.h"
-#include "libupnp/didl.h"
+#include "libmediadb/didl.h"
 #include "libupnp/ContentDirectory2.h"
 #include "libmediadb/schema.h"
 #include "libdb/free_rs.h"
@@ -82,10 +82,10 @@ void Recordset::GetTags()
 					    "*",
 					    0, 0, "", &result,
 					    NULL, NULL, NULL);
-    upnp::didl::MetadataList ml = upnp::didl::Parse(result);
+    mediadb::didl::MetadataList ml = mediadb::didl::Parse(result);
 
     if (!ml.empty())
-	upnp::didl::ToRecord(ml.front(), m_freers);
+	mediadb::didl::ToRecord(ml.front(), m_freers);
 
     m_got_what |= GOT_TAGS|GOT_BASIC;
 }
@@ -134,15 +134,15 @@ void Recordset::GetChildren()
 		     &result, &nret, &total, NULL);
 	if (rc == 0)
 	{
-	    upnp::didl::MetadataList ml = upnp::didl::Parse(result);
+	    mediadb::didl::MetadataList ml = mediadb::didl::Parse(result);
 
-	    for (upnp::didl::MetadataList::iterator i = ml.begin();
+	    for (mediadb::didl::MetadataList::iterator i = ml.begin();
 		 i != ml.end();
 		 ++i)
 	    {
 		Database::BasicInfo bi;
 		unsigned int id = 0;
-		for (upnp::didl::Metadata::iterator j = i->begin();
+		for (mediadb::didl::Metadata::iterator j = i->begin();
 		     j != i->end();
 		     ++j)
 		{
@@ -159,7 +159,7 @@ void Recordset::GetChildren()
 		if (id)
 		{
 		    db::RecordsetPtr child_rs = db::FreeRecordset::Create();
-		    upnp::didl::ToRecord(*i, child_rs);
+		    mediadb::didl::ToRecord(*i, child_rs);
 		    bi.type = child_rs->GetInteger(mediadb::TYPE);
 		    bi.title = child_rs->GetString(mediadb::TITLE);
 		    m_parent->m_infomap[id] = bi;
@@ -275,13 +275,13 @@ unsigned int CollateRecordset::GetSome()
 	    m_total = m_start + n + 1;
     }
 
-    upnp::didl::MetadataList ml = upnp::didl::Parse(result);
-    for (upnp::didl::MetadataList::const_iterator i = ml.begin();
+    mediadb::didl::MetadataList ml = mediadb::didl::Parse(result);
+    for (mediadb::didl::MetadataList::const_iterator i = ml.begin();
 	 i != ml.end();
 	 ++i)
     {
-	const upnp::didl::Metadata& md = *i;
-	for (upnp::didl::Metadata::const_iterator j = md.begin();
+	const mediadb::didl::Metadata& md = *i;
+	for (mediadb::didl::Metadata::const_iterator j = md.begin();
 	     j != md.end();
 	     ++j)
 	{
@@ -374,7 +374,7 @@ unsigned int SearchRecordset::GetSome()
 	    m_total = m_start + n + 1;
     }
 
-    m_items = upnp::didl::Parse(result);
+    m_items = mediadb::didl::Parse(result);
 
 //    TRACE << "Got " << m_items.size() << " items, expected " << n << "\n";
     
@@ -393,13 +393,13 @@ void SearchRecordset::SelectThisItem()
     if (IsEOF())
 	return;
 
-    upnp::didl::MetadataList::const_iterator ci = m_items.begin();
+    mediadb::didl::MetadataList::const_iterator ci = m_items.begin();
 
     for (unsigned int i=0; i<m_index; ++i)
 	++ci;
 
     std::string objectid;
-    for (upnp::didl::Metadata::const_iterator i = ci->begin();
+    for (mediadb::didl::Metadata::const_iterator i = ci->begin();
 	 i != ci->end();
 	 ++i)
 	if (i->tag == "id")
@@ -409,7 +409,7 @@ void SearchRecordset::SelectThisItem()
 	}
 
     m_freers = db::FreeRecordset::Create();
-    upnp::didl::ToRecord(*ci, m_freers);
+    mediadb::didl::ToRecord(*ci, m_freers);
     m_id = m_parent->IdForObjectId(objectid);
     m_got_what = GOT_BASIC;
 }

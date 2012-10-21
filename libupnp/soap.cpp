@@ -1,18 +1,12 @@
 #include "config.h"
 #include "soap.h"
 #include "libutil/trace.h"
-#include "libutil/upnp.h"
 #include "libutil/xmlescape.h"
 #include <sstream>
 #include <iomanip>
 #include <string.h>
 #include <errno.h>
 #include <boost/format.hpp>
-
-#ifdef HAVE_UPNP
-
-#include <upnp/upnp.h>
-#include <upnp/ixml.h>
 
 namespace upnp {
 namespace soap {
@@ -50,6 +44,26 @@ void Outbound::Add(const char *tag, uint32_t value)
 {
     m_params.push_back(std::make_pair(tag, 
 				      (boost::format("%u") % value).str()));
+}
+
+std::string Outbound::CreateBody(const std::string& action_name,
+				 const std::string& service_type) const
+{
+    std::ostringstream os;
+    os << "<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\""
+	" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">"
+	"<s:Body>"
+	"<u:" << action_name << " xmlns:u=\"" << service_type
+       << "\">";
+
+    for (soap::Outbound::const_iterator i = begin(); i != end(); ++i)
+	os << "<" << i->first << ">" << util::XmlEscape(i->second)
+	   << "</" << i->first << ">";
+
+    os << "</u:" << action_name << ">"
+       << "</s:Body></s:Envelope>\n";
+
+    return os.str();
 }
 
 Inbound::Inbound() {}
@@ -119,5 +133,3 @@ uint32_t Inbound::GetEnum(const char *tag, const char *const *alternatives,
 
 } // namespace soap
 } // namespace upnp
-
-#endif // HAVE_UPNP

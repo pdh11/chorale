@@ -203,7 +203,7 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
 		      + toplayout->sizeHint().height()
 		      + m_table->horizontalHeader()->sizeHint().height()
 		      + m_table->horizontalScrollBar()->sizeHint().height()
-		      + m_table->contentsHeight() + 4 + 2*6 );
+		      + m_table->contentsHeight() + 4 + 2*6 + 8 );
 
     size_t newheight = maximumHeight();
     size_t screenheight = QApplication::desktop()->height();
@@ -224,7 +224,7 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
 	m_entries[i].et1_percent = 0;
 	etp1->SetObserver(this);
 
-	m_settings->GetMP3Root() + "/" + leaf;
+	filename = m_settings->GetMP3Root() + "/" + leaf;
 
 	import::EncodingTaskPtr etp2
 	    = import::EncodingTaskMP3::Create(filename + ".mp3");

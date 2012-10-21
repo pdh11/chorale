@@ -22,19 +22,20 @@ used, distributed and modified without limitation".
 Binaries compiled from the "choralecd" directory link against Qt, and
 must thus be distributed under the licence under which you obtained
 Qt: typically, this will be the GNU General Public Licence version 3,
-found in the file COPYING.GPL. If detected at configure time, libcdio
-(also under the GPLv3) will also be linked. Get proper legal advice if
-unsure.
+found in the file COPYING.GPL. If, at configure time, cdparanoia is
+not detected but libcdio is, libcdio (also under the GPLv3) will also
+be linked. Get proper legal advice if unsure.
 
 Other binaries compiled from this source code, including the daemon
-"choraled", also link with libcdio if present, and thus must also be
-distributed under GPLv3. Even if libcdio is not used, they typically
-also link with libraries (including, at least, Taglib) which are
-licensed under the GNU Library General Public Licence, found in the
-file COPYING.LGPL. Such binaries are therefore "works that use the
-Library" as per Section 5 of the LGPL, and you must not redistribute
-them without complying with the requirements of Section 6. Get proper
-legal advice if unsure.
+"choraled", also link with libcdio if present (and if cdparanoia isn't
+found), and thus in that case must also be distributed under
+GPLv3. Even if libcdio is not used, they typically also link with
+libraries (including, at least, Taglib) which are licensed under the
+GNU Library General Public Licence, found in the file
+COPYING.LGPL. Such binaries are therefore "works that use the Library"
+as per Section 5 of the LGPL, and you must not redistribute them
+without complying with the requirements of Section 6. Get proper legal
+advice if unsure.
 
 You can use the configure options --without-gpl or --without-lgpl to
 ignore GPL and GPL/LGPL libraries respectively, but this is no

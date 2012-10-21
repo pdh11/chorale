@@ -3,15 +3,18 @@
 
 #include "attributes.h"
 #include "counted_object.h"
+#include "pollable.h"
 
 namespace util {
 
 /** Abstract base class for anything which can be streamed.
  */
-class Stream: public CountedObject<>
+class Stream: public CountedObject<>, public Pollable
 {
 public:
     /** Returns 0 for success or an errno for failure. EOF is not a failure.
+     *
+     * If result is 0, *pread is 0 iff (len == 0 or EOF).
      */
     virtual unsigned Read(void *buffer, size_t len, size_t *pread) 
 	ATTRIBUTE_WARNUNUSED = 0;
@@ -70,6 +73,12 @@ public:
      */
     virtual unsigned WriteAt(const void *buffer, pos64 pos, size_t len,
 			     size_t *pwrote) ATTRIBUTE_WARNUNUSED = 0;
+
+    /** Returns 0 for success or an errno if all bytes not written. Premature
+     * EOF is a failure, returning EIO.
+     */
+    unsigned WriteAllAt(const void *buffer, pos64 pos, 
+			size_t len) ATTRIBUTE_WARNUNUSED;
 };
 
 typedef boost::intrusive_ptr<SeekableStream> SeekableStreamPtr;
@@ -84,6 +93,10 @@ unsigned int CopyStream(StreamPtr from, StreamPtr to);
  * stream.
  */
 unsigned int CopyStream(SeekableStreamPtr from, StreamPtr to);
+
+/** Repeatedly Read()s stream, discarding data, until EOF or error.
+ */
+unsigned int DiscardStream(StreamPtr);
 
 } // namespace util
 

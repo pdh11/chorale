@@ -14,11 +14,32 @@
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
+/* Define to 1 if you have the error-code EALREADY */
+#undef HAVE_EALREADY
+
+/* Define to 1 if you have the error-code EINPROGRESS */
+#undef HAVE_EINPROGRESS
+
+/* Define to 1 if you have the error-code EISCONN */
+#undef HAVE_EISCONN
+
+/* Define to 1 if you have the error-code EOPNOTSUPP */
+#undef HAVE_EOPNOTSUPP
+
+/* Define to 1 if you have the <errno.h> header file. */
+#undef HAVE_ERRNO_H
+
+/* Define to 1 if you have the error-code EWOULDBLOCK */
+#undef HAVE_EWOULDBLOCK
+
 /* Define to 1 if you have the `getaddrinfo' function. */
 #undef HAVE_GETADDRINFO
 
 /* Define to 1 if you have the `gethostbyname_r' function. */
 #undef HAVE_GETHOSTBYNAME_R
+
+/* Define to 1 if you have the `gettimeofday' function. */
+#undef HAVE_GETTIMEOFDAY
 
 /* Define to 1 if you have gstreamer-0.10 >= 0.10.13 */
 #undef HAVE_GSTREAMER
@@ -53,6 +74,9 @@
 /* Define to 1 if you have flac >= 1.1.3 */
 #undef HAVE_LIBFLAC
 
+/* Define to 1 if you have the `pthread' library (-lpthread). */
+#undef HAVE_LIBPTHREAD
+
 /* Define to 1 if you have the `shlwapi' library (-lshlwapi). */
 #undef HAVE_LIBSHLWAPI
 
@@ -71,6 +95,9 @@
 /* Define to 1 if you have the <linux/unistd.h> header file. */
 #undef HAVE_LINUX_UNISTD_H
 
+/* Define to 1 if you have the `localtime_r' function. */
+#undef HAVE_LOCALTIME_R
+
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 
@@ -86,14 +113,26 @@
 /* Define to 1 if you have the <netinet/tcp.h> header file. */
 #undef HAVE_NETINET_TCP_H
 
+/* Define to 1 if you have the <net/if.h> header file. */
+#undef HAVE_NET_IF_H
+
 /* Define if you have __NR_inotify_init */
 #undef HAVE_NR_INOTIFY_INIT
+
+/* Define to 1 if you have `real' cdparanoia (not libcdio) */
+#undef HAVE_PARANOIA
 
 /* Define to 1 if you have the <poll.h> header file. */
 #undef HAVE_POLL_H
 
 /* Define to 1 if you have the <pthread.h> header file. */
 #undef HAVE_PTHREAD_H
+
+/* Define to 1 if you have the <sched.h> header file. */
+#undef HAVE_SCHED_H
+
+/* Define to 1 if you have the `sched_setscheduler' function. */
+#undef HAVE_SCHED_SETSCHEDULER
 
 /* Define to 1 if you have the `setpriority' function. */
 #undef HAVE_SETPRIORITY
@@ -128,6 +167,9 @@
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
 
+/* Define to 1 if you have the <sys/time.h> header file. */
+#undef HAVE_SYS_TIME_H
+
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
 
@@ -146,8 +188,8 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
-/* Define to 1 if you have libupnp >= 1.2.1 */
-#undef HAVE_UPNP
+/* Define to 1 if you have the <ws2tcpip.h> header file. */
+#undef HAVE_WS2TCPIP_H
 
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */

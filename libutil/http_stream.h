@@ -7,23 +7,32 @@
 
 namespace util {
 
-class HTTPStream: public SeekableStream
+namespace http {
+
+class Stream: public util::SeekableStream
 {
     IPEndPoint m_ipe;
+    std::string m_host;
     std::string m_path;
-    StreamSocket m_socket;
+    const char *m_extra_headers;
+    const char *m_body;
+    StreamSocketPtr m_socket;
     pos64 m_len;
     bool m_need_fetch;
-    StreamPtr m_stm;
+    pos64 m_last_pos;
 
-    HTTPStream(const IPEndPoint&, const std::string& path);
+    Stream(const IPEndPoint& ipe, const std::string& host,
+	   const std::string& path,
+	   const char *extra_headers, const char *body);
 
 public:
-    ~HTTPStream();
+    ~Stream();
 
-    typedef boost::intrusive_ptr<HTTPStream> HTTPStreamPtr;
+    typedef boost::intrusive_ptr< ::util::http::Stream> StreamPtr;
 
-    static unsigned Create(HTTPStreamPtr*, const char *url);
+    static unsigned Create(StreamPtr*, const char *url,
+			   const char *extra_headers = NULL,
+			   const char *body = NULL);
 
     // Being a SeekableStream
     unsigned ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread);
@@ -33,7 +42,9 @@ public:
     unsigned SetLength(pos64);
 };
 
-typedef boost::intrusive_ptr<HTTPStream> HTTPStreamPtr;
+typedef boost::intrusive_ptr<Stream> StreamPtr;
+
+} // namespace http
 
 } // namespace util
 

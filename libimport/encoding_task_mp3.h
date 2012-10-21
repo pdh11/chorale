@@ -7,7 +7,7 @@ namespace import {
 
 class EncodingTaskMP3: public EncodingTask
 {
-    void Run();
+    unsigned int Run();
 
     explicit EncodingTaskMP3(const std::string& output_filename)
 	: EncodingTask(output_filename) {}

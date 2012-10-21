@@ -9,6 +9,7 @@
  */
 #include "poller.h"
 #include "libutil/trace.h"
+#include "libutil/bind.h"
 #include <qsocketnotifier.h>
 #include <QApplication>
 #include <sys/time.h>
@@ -16,9 +17,10 @@
 
 namespace choraleqt {
 
-Notifier::Notifier(int fd, util::Pollable* p, unsigned int direction)
-    : QSocketNotifier(fd, (direction==util::PollerInterface::IN) ? Read : Write),
-      m_pollable(p)
+Notifier::Notifier(int fd, const util::Callback& callback,
+		   QSocketNotifier::Type direction)
+    : QSocketNotifier(fd, direction),
+      m_callback(callback)
 {
     connect(this, SIGNAL(activated(int)), this, SLOT(OnActivity(int)));
 }
@@ -26,7 +28,7 @@ Notifier::Notifier(int fd, util::Pollable* p, unsigned int direction)
 void Notifier::OnActivity(int fd)
 {
 //    TRACE << "Notifier(" << fd << ")::OnActivity\n";
-    m_pollable->OnActivity();
+    m_callback();
 }
 
 Timer::Timer(unsigned int repeatms, util::Timed *timed)
@@ -57,26 +59,33 @@ Poller::Poller()
 
 Poller::~Poller()
 {
-    // @todo Delete everything
+    /// @todo Delete everything
 }
 
-void Poller::AddHandle(int fd, util::Pollable *callback, 
-		       unsigned int direction)
+void Poller::Add(util::Pollable *p, const util::Callback& callback, 
+		 unsigned int direction)
 {
+    /* Unlike timers, Qt (4.4) doesn't support QSocketNotifiers
+     * constructed on the wrong thread.
+     */
     CheckThread();
+
 //    TRACE << "Creating notifier on " << pthread_self() << "\n";
-    m_map[fd] = new Notifier(fd, callback, direction);
+
+    Notifier *n = (direction == IN)
+	? new Notifier(p->GetReadHandle(), callback, QSocketNotifier::Read)
+	: new Notifier(p->GetWriteHandle(), callback, QSocketNotifier::Write);
+    m_map[p] = n;
 }
 
-void Poller::RemoveHandle(int poll_handle)
+void Poller::Remove(util::Pollable *p)
 {
     CheckThread();
-    delete m_map[poll_handle];
-    m_map.erase(poll_handle);
+    delete m_map[p];
+    m_map.erase(p);
 }
 
-void Poller::AddTimer(time_t first, unsigned int repeatms, 
-		      util::Timed *callback)
+void Poller::Add(time_t first, unsigned int repeatms, util::Timed *callback)
 {
     timeval now;
     ::gettimeofday(&now, NULL);
@@ -91,11 +100,18 @@ void Poller::AddTimer(time_t first, unsigned int repeatms,
     t->start((firstms > nowms) ? (int)(firstms - nowms) : 0);
 }
 
-void Poller::RemoveTimer(util::Timed *callback)
+void Poller::Remove(util::Timed *callback)
 {
     delete m_timermap[callback];
     boost::mutex::scoped_lock lock(m_mutex);
     m_timermap.erase(callback);
+}
+
+void Poller::Wake()
+{
+    /* Probably needn't do anything, as won't be used seriously from other
+     * threads anyway.
+     */
 }
 
 } // namespace choraleqt

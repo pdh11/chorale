@@ -5,31 +5,31 @@
 #include "libutil/xmlescape.h"
 #include "libutil/xml.h"
 #include <errno.h>
+#include <string.h>
 
 namespace import {
 
-class PlaylistWPLParser: public xml::SaxParserObserver
+extern const char SMIL[] = "smil";
+extern const char BODY[] = "body";
+extern const char SEQ[] = "seq";
+extern const char MEDIA[] = "media";
+extern const char SRC[] = "src";
+
+typedef xml::Parser<
+    xml::Tag<SMIL,
+	     xml::Tag<BODY,
+		      xml::Tag<SEQ,
+			       xml::Tag<MEDIA,
+					xml::Attribute<SRC,
+						       PlaylistWPL,
+						       &PlaylistWPL::OnSrc
+						       > > > > > > WPLParser;
+
+unsigned int PlaylistWPL::OnSrc(const std::string& value)
 {
-    Playlist *m_playlist;
-    size_t m_index;
-
-public:
-    explicit PlaylistWPLParser(Playlist *playlist)
-	: m_playlist(playlist),
-	  m_index(0)
-	{}
-
-    // Being an xml::SaxParserObserver
-    unsigned int OnAttribute(const char *name, const char *value)
-    {
-	if (!strcasecmp(name, "src"))
-	    m_playlist->SetEntry(m_index++,
-				 util::MakeAbsolutePath(
-				     m_playlist->GetFilename(),
-				     value));
-	return 0;
-    }
-};
+    AppendEntry(util::MakeAbsolutePath(GetFilename(), value));
+    return 0;
+}
 
 unsigned int PlaylistWPL::Load()
 {
@@ -39,9 +39,8 @@ unsigned int PlaylistWPL::Load()
     if (rc != 0)
 	return rc;
 
-    PlaylistWPLParser obs(this);
-    xml::SaxParser parser(&obs);
-    return parser.Parse(ss);
+    WPLParser parser;
+    return parser.Parse(ss, this);
 }
 
 unsigned int PlaylistWPL::Save()

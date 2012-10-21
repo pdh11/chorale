@@ -80,7 +80,7 @@ enum { NCODECS = sizeof(codecmap)/sizeof(codecmap[0]) };
 
 BOOST_STATIC_ASSERT((int)NCODECS == (int)mediadb::CODEC_COUNT);
 
-bool WriteXML(db::Database *db, unsigned int schema, ::FILE *f)
+unsigned int WriteXML(db::Database *db, unsigned int schema, ::FILE *f)
 {
     fprintf(f, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
     fprintf(f, "<db schema=\"%u\">\n", schema);
@@ -145,7 +145,9 @@ bool WriteXML(db::Database *db, unsigned int schema, ::FILE *f)
     }
 
     fprintf(f, "</db>\n");
-    return !ferror(f);
+    if (ferror(f))
+	return (unsigned)errno;
+    return 0;
 }
 
 class MediaDBParser: public xml::SaxParserObserver
@@ -263,22 +265,21 @@ public:
     unsigned int OnAttribute(const char*, const char*) { return 0; }
 };
 
-bool ReadXML(db::Database *db, const char *filename)
+unsigned int ReadXML(db::Database *db, const char *filename)
 {
-    MediaDBParser parser(db);
-    
-    xml::SaxParser saxp(&parser);
     util::SeekableStreamPtr ssp;
-    
     unsigned int rc = util::OpenFileStream(filename, util::READ, &ssp);
     if (rc != 0)
-	return false;
+	return rc;
 
-    rc = saxp.Parse(ssp);
-    if (rc != 0)
-	return false;
+    return ReadXML(db, ssp);
+}
 
-    return true;
+unsigned int ReadXML(db::Database *db, util::StreamPtr sp)
+{
+    MediaDBParser parser(db);
+    xml::SaxParser saxp(&parser);
+    return saxp.Parse(sp);
 }
 
 } // namespace mediadb
