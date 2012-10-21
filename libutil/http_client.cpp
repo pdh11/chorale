@@ -3,6 +3,7 @@
 #include "trace.h"
 #include "file.h"
 #include <string.h>
+#include <stdlib.h>
 
 #ifdef HAVE_CURL
 
@@ -60,9 +61,9 @@ unsigned int HttpClient::FetchToString(std::string *presult)
     return 0;
 }
 
-static void ParseURL(const std::string& url,
-		     std::string *hostpart,
-		     std::string *pathpart)
+void ParseURL(const std::string& url,
+	      std::string *hostpart,
+	      std::string *pathpart)
 {
     const char *ptr = url.c_str();
     const char *colon = strchr(ptr, ':');
@@ -84,6 +85,28 @@ static void ParseURL(const std::string& url,
     }
     *hostpart = std::string();
     *pathpart = url;
+}
+
+void ParseHost(const std::string& hostpart, unsigned short default_port,
+	       std::string *hostname, unsigned short *port)
+{
+    const char *ptr = hostpart.c_str();
+    const char *colon = strchr(ptr, ':');
+    const char *slash = strchr(ptr, '/');
+    if (colon && slash && slash > colon && slash[1] == '/')
+    {
+	ptr = slash+2;
+	colon = strchr(ptr, ':');
+	if (colon)
+	{
+	    *hostname = std::string(ptr, colon);
+	    *port = (unsigned short)atoi(colon+1);
+	    return;
+	}
+    }
+
+    *hostname = ptr;
+    *port = default_port;
 }
 
 std::string ResolveURL(const std::string& base,
@@ -133,6 +156,17 @@ int main()
 	    return 1;
 	}
     }
+    
+    std::string url = "http://foo.bar:2888/wurdle";
+    std::string hostpart, host, path;
+    unsigned short port;
+
+    util::ParseURL(url, &hostpart, &path);
+    TRACE << "hp=" << hostpart << ", path=" << path << "\n";
+    
+    util::ParseHost(hostpart, 80, &host, &port);
+    TRACE << "host=" << host << ", port=" << port << "\n";
+
     return 0;
 }
 

@@ -44,7 +44,8 @@ CLEANS += $(choralecd) $(TOP)$(DIR)*.moc.cpp
 
 CHORALECD_OBJS:=$(LOBJS)
 
-$(TOP)$(DIR)% : CXXFLAGS += $(BOOST_CXXFLAGS) $(QT_CXXFLAGS) $(TAGLIB_CXXFLAGS) -Wno-shadow
+$(TOP)$(DIR)% : CXXFLAGS += $(BOOST_CXXFLAGS) $(QT_CXXFLAGS) \
+		$(TAGLIB_CXXFLAGS) -Wno-shadow
 
 ifeq ($(libdb),)
 include $(TOP)libdb/Makefile
@@ -88,13 +89,13 @@ $(choralecd): $(CHORALECD_OBJS) $(libutil) $(libimport) $(libreceiver) \
 		$(liboutput)
 	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(CHORALECD_OBJS) \
-		$(libmediatree) $(libdbupnp) \
+		$(libmediatree) $(libdbupnp) $(libimport) \
 		$(libdbreceiver) $(liboutput) $(libupnp) $(libmediadb) \
-		$(libdb) $(libimport) $(libreceiver) \
+		$(libdb) $(libreceiver) \
 		$(libutil) -Wl,--as-needed $(LIBCDIOP_LIBS) $(LIBCDDB_LIBS) \
 		$(LIBFLAC_LIBS) $(TAGLIB_LIBS) $(BOOST_LIBS) $(QT_LIBS) \
 		$(LAME_LIBS) $(LIBXMLPP_LIBS) $(CURL_LIBS) $(UPNP_LIBS) \
-		$(GSTREAMER_LIBS) -Wl,-Map,$@.map.txt
+		$(GSTREAMER_LIBS) $(HAL_LIBS) -Wl,-Map,$@.map.txt
 	@echo $@: `ldd $@ | wc -l` shared libraries | fmt
 
 else

@@ -19,29 +19,30 @@ public:
     ContentDirectoryImpl(mediadb::Database *db, unsigned short port);
     
     // Being a ContentDirectory2
-    unsigned int Browse(const std::string& ObjectID,
-			const std::string& BrowseFlag,
-			const std::string& Filter,
-			uint32_t StartingIndex,
-			uint32_t RequestedCount,
-			const std::string& SortCriteria,
-			std::string *Result,
-			uint32_t *NumberReturned,
-			uint32_t *TotalMatches,
-			uint32_t *UpdateID);
-    unsigned int Search(const std::string& ContainerID,
-			const std::string& SearchCriteria,
-			const std::string& Filter,
-			uint32_t StartingIndex,
-			uint32_t RequestedCount,
-			const std::string& SortCriteria,
-			std::string *Result,
-			uint32_t *NumberReturned,
-			uint32_t *TotalMatches,
-			uint32_t *UpdateID);
-    unsigned int GetSearchCapabilities(std::string *SearchCaps);
-    unsigned int GetSortCapabilities(std::string *SortCaps);
+    unsigned int Browse(const std::string& object_id,
+			BrowseFlag browse_flag,
+			const std::string& filter,
+			uint32_t starting_index,
+			uint32_t requested_count,
+			const std::string& sort_criteria,
+			std::string *result,
+			uint32_t *number_returned,
+			uint32_t *total_matches,
+			uint32_t *update_id);
+    unsigned int Search(const std::string& container_id,
+			const std::string& search_criteria,
+			const std::string& filter,
+			uint32_t starting_index,
+			uint32_t requested_count,
+			const std::string& sort_criteria,
+			std::string *result,
+			uint32_t *number_returned,
+			uint32_t *total_matches,
+			uint32_t *update_id);
+    unsigned int GetSearchCapabilities(std::string *search_caps);
+    unsigned int GetSortCapabilities(std::string *sort_caps);
     unsigned int GetFeatureList(std::string *feature_list);
+    unsigned int GetSystemUpdateID(uint32_t*);
 };
 
 } // namespace upnpd

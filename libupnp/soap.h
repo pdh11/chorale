@@ -35,12 +35,17 @@ public:
     void Get(int32_t*,     const char*);
     void Get(uint16_t*,    const char*);
     void Get(int16_t*,     const char*);
+    void Get(uint8_t*,     const char*);
+    void Get(int8_t*,      const char*);
     void Get(bool*,        const char*);
 
     std::string GetString(const char*) const;
     uint32_t GetUInt(const char*) const;
     int32_t GetInt(const char*) const;
     bool GetBool(const char*) const;
+
+    uint32_t GetEnum(const char*, const char *const *alternatives,
+		     uint32_t n) const;
 };
 
 /** Outbound SOAP parameters (requests if we're a client, responses if
@@ -59,6 +64,7 @@ public:
     Outbound();
     ~Outbound();
 
+    void Add(const char*, const char *s);
     void Add(const char*, const std::string& s);
     void Add(const char*, int32_t i);
     void Add(const char*, uint32_t i);
@@ -81,6 +87,8 @@ public:
 				  const Inbound& params,
 				  Outbound *result) = 0;
 };
+
+bool ParseBool(const std::string& s);
 
 } // namespace soap
 } // namespace upnp

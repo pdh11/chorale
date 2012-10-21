@@ -8,7 +8,7 @@ MediaServer::MediaServer(mediadb::Database *db,
     : upnp::Device("urn:schemas-upnp-org:device:MediaServer:1", resource),
       m_contentdirectory(db, port),
       m_contentdirectoryserver("urn:schemas-upnp-org:service:ContentDirectory:1",
-			       "/upnp/ContentDirectory2.xml",
+			       "/upnp/ContentDirectory.xml",
 			       &m_contentdirectory)
 {
     AddService("urn:upnp-org:serviceId:ContentDirectory", 

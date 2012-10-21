@@ -1,6 +1,8 @@
 #include "file_scanner_thread.h"
 #include <stdlib.h>
 #include <errno.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 #include <boost/thread/thread.hpp>
 #include <boost/function.hpp>
 #include <boost/bind.hpp>
@@ -65,11 +67,22 @@ FileScannerThread::Impl::~Impl()
 
 void FileScannerThread::Impl::ScanAndRewrite()
 {
+    struct timeval begin, end;
+
     TRACE << "scanning\n";
 
+    gettimeofday(&begin, NULL);
     m_scanner.Scan();
+    gettimeofday(&end, NULL);
 
-    TRACE << "writing\n";
+    int64_t beginus = (begin.tv_sec * 1000000LL) + begin.tv_usec;
+    int64_t endus = (end.tv_sec * 1000000LL) + end.tv_usec;
+    int64_t elapsed = endus-beginus;
+
+    char buf[80];
+    sprintf(buf, "%llu.%06llu", elapsed/1000000ULL, elapsed%1000000ULL);
+
+    TRACE << "Scan took " << buf << "s, writing\n";
 
     char *buffer = new char[m_dbfilename.size() + 8];
     sprintf(buffer, "%s.XXXXXX", m_dbfilename.c_str());
@@ -95,6 +108,8 @@ void FileScannerThread::Impl::Run()
 {
     m_notifier.SetObserver(this);
     m_notifier.Init(&m_poller);
+
+    setpriority(PRIO_PROCESS, 0, 15);
 
     ScanAndRewrite();
 

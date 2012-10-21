@@ -61,7 +61,8 @@ $(choraled): $(CHORALED_OBJS) $(libtv) \
 		 $(libimport) $(libdbsteam) $(libmediadb) $(libdb) $(libutil) \
 		 -Wl,--as-needed $(MPG123_LIBS) \
 		 $(TAGLIB_LIBS) $(BOOST_LIBS) $(UPNP_LIBS) $(LIBXMLPP_LIBS) \
-		 $(GSTREAMER_LIBS) $(LIBUUID_LIBS) $(OPENSSL_LIBS)
+		 $(GSTREAMER_LIBS) $(LIBUUID_LIBS) $(OPENSSL_LIBS) \
+		 $(HAL_LIBS) $(LIBCDIOP_LIBS)
 	@echo $@: `ldd $@ | wc -l` shared libraries | fmt
 
 CLEANS += $(choraled)

@@ -9,27 +9,23 @@ class TaskQueue;
 
 /** Buffers writes into big lumps and does them on a background thread
  */
-class AsyncWriteBuffer: public SeekableStream
+class AsyncWriteBuffer: public Stream
 {
     class Impl;
     Impl *m_impl;
 
-    explicit AsyncWriteBuffer(SeekableStreamPtr, TaskQueue *queue);
+    explicit AsyncWriteBuffer(StreamPtr, TaskQueue *queue);
     ~AsyncWriteBuffer();
 
 public:
-    static unsigned Create(SeekableStreamPtr backingstream,
+    static unsigned Create(StreamPtr backingstream,
 			   TaskQueue *queue,
-			   SeekableStreamPtr *result)
+			   StreamPtr *result)
 	ATTRIBUTE_WARNUNUSED;
     
-    // Being a SeekableStream
+    // Being a Stream
     unsigned Read(void *buffer, size_t len, size_t *pread);
     unsigned Write(const void *buffer, size_t len, size_t *pwrote);
-    void Seek(pos64 pos);
-    pos64 Tell();
-    pos64 GetLength();
-    unsigned SetLength(pos64);
 };
 
 } // namespace util

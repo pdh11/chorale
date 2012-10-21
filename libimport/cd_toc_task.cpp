@@ -14,7 +14,7 @@ void CDTocTask::Run()
     if (m_cddb)
     {
 	FireProgress(1,3);
-	AudioCD::Create(m_drive, &m_cd);
+	m_drive->GetCD(&m_cd);
 	FireProgress(2,3);
 	if (m_cd)
 	    m_lookup = m_cddb->Lookup(m_cd);
@@ -23,7 +23,7 @@ void CDTocTask::Run()
     else
     {
 	FireProgress(1,2);
-	AudioCD::Create(m_drive, &m_cd);
+	m_drive->GetCD(&m_cd);
 	FireProgress(2,2);
     }
 }

@@ -87,7 +87,7 @@ void FileNotifier::Watch(const char *directory)
 #ifdef HAVE_NOTIFY
     inotify_add_watch(m_fd, directory,
 		      IN_ATTRIB | IN_CLOSE_WRITE | IN_CREATE | IN_DELETE |
-		      IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO);
+		      IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO);
 #endif
 }
 

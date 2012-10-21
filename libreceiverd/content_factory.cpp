@@ -79,10 +79,10 @@ void StreamAddChildren(util::StringStreamPtr s, int receiver_tag,
     {
 	unsigned int id = playlist[i];
 
-	playlist.push_back(id & 0xFF);
-	playlist.push_back((id>>8) & 0xFF);
-	playlist.push_back((id>>16) & 0xFF);
-	playlist.push_back((id>>24) & 0xFF);
+	playlist.push_back((char)id);
+	playlist.push_back((char)(id>>8));
+	playlist.push_back((char)(id>>16));
+	playlist.push_back((char)(id>>24));
 
 	playlist.push_back(0);
 	playlist.push_back(0);
@@ -311,16 +311,16 @@ util::SeekableStreamPtr ResultsStream(mediadb::Database *db,
 	{
 	    std::string binary;
 	    unsigned int childid = rs->GetInteger(mediadb::ID);
-	    binary.push_back(childid & 0xFF);
-	    binary.push_back((childid>>8) & 0xFF);
-	    binary.push_back((childid>>16) & 0xFF);
-	    binary.push_back((childid>>24) & 0xFF);
+	    binary.push_back((char)childid);
+	    binary.push_back((char)(childid>>8));
+	    binary.push_back((char)(childid>>16));
+	    binary.push_back((char)(childid>>24));
 
 	    unsigned int size = rs->GetInteger(mediadb::SIZEBYTES);
-	    binary.push_back(size & 0xFF);
-	    binary.push_back((size>>8) & 0xFF);
-	    binary.push_back((size>>16) & 0xFF);
-	    binary.push_back((size>>24) & 0xFF);
+	    binary.push_back((char)size);
+	    binary.push_back((char)(size>>8));
+	    binary.push_back((char)(size>>16));
+	    binary.push_back((char)(size>>24));
 	    
 	    binary.push_back(0);
 	    binary.push_back(0);
@@ -345,8 +345,8 @@ util::SeekableStreamPtr ResultsStream(mediadb::Database *db,
     return ss;
 }
 
-util::SeekableStreamPtr ContentStream(mediadb::Database *db,
-				      unsigned int id, const char *path)
+void GetContentStream(mediadb::Database *db, unsigned int id, 
+		      const char *path, util::WebResponse *rsp)
 {
     db::QueryPtr qp = db->CreateQuery();
     qp->Where(qp->Restrict(mediadb::ID, db::EQ, id));
@@ -354,7 +354,7 @@ util::SeekableStreamPtr ContentStream(mediadb::Database *db,
     if (!rs || rs->IsEOF())
     {
 	TRACE << "Can't find FID " << id << "\n";
-	return util::SeekableStreamPtr();
+	return;
     }
     
     unsigned int type = rs->GetInteger(mediadb::TYPE);
@@ -434,10 +434,10 @@ util::SeekableStreamPtr ContentStream(mediadb::Database *db,
 	    else
 	    {
 		playlist.clear();
-		playlist.push_back(childid & 0xFF);
-		playlist.push_back((childid>>8) & 0xFF);
-		playlist.push_back((childid>>16) & 0xFF);
-		playlist.push_back((childid>>24) & 0xFF);
+		playlist.push_back((char)childid);
+		playlist.push_back((char)(childid>>8));
+		playlist.push_back((char)(childid>>16));
+		playlist.push_back((char)(childid>>24));
 
 		playlist.push_back(0);
 		playlist.push_back(0);
@@ -448,11 +448,20 @@ util::SeekableStreamPtr ContentStream(mediadb::Database *db,
 	}
 
 	ss->Seek(0);
-	return ss;
+	rsp->ssp = ss;
+	return;
     }
 
     // Must be a file then
-    return db->OpenRead(id);
+    rsp->ssp = db->OpenRead(id);
+    switch (rs->GetInteger(mediadb::CODEC))
+    {
+    case mediadb::MP2: rsp->content_type = "audio/x-mp2"; break;
+    case mediadb::MP3: rsp->content_type = "audio/mpeg"; break;
+    case mediadb::FLAC: rsp->content_type = "audio/x-flac"; break;
+    case mediadb::OGGVORBIS: rsp->content_type = "application/ogg"; break;
+    case mediadb::PCM: rsp->content_type = "audio/L16"; break;
+    }
 }
 
 class Flattener
@@ -555,7 +564,7 @@ util::SeekableStreamPtr ListStream(mediadb::Database *db,
 	if (shuffle)
 	    std::random_shuffle(vec.begin(), vec.end());
 
-	unsigned int size = vec.size();
+	size_t size = vec.size();
 	if (size > 999)
 	    size = 999;
 
@@ -566,45 +575,56 @@ util::SeekableStreamPtr ListStream(mediadb::Database *db,
     return ms;
 }
 
-util::SeekableStreamPtr ContentFactory::StreamForPath(const char *path)
+bool ContentFactory::StreamForPath(const util::WebRequest *rq, 
+				   util::WebResponse *rs)
 {
     unsigned int id = 0;
 
-//    TRACE << path << "\n";
+//    TRACE << rq->path << "\n";
 
-    if (!strcmp(path, "/tags"))
+    const char *path = rq->path.c_str();
+
+    if (rq->path == "/tags")
     {
+//	TRACE << rq->path << "\n";
+
 	util::StringStreamPtr ss = util::StringStream::Create();
 	ss->str() += tagstring;
 	ss->Seek(0);
-	return ss;
+	rs->ssp = ss;
+	return true;
     }
     else if (sscanf(path, "/tags/%x", &id) == 1)
     {
-//	TRACE << "tags for " << id << "\n";
-	return TagsStream(m_db, id);
+	TRACE << "tags for " << id << "\n";
+	rs->ssp = TagsStream(m_db, id);
+	return true;
     }
     else if (!strncmp(path, "/query?", 7))
     {
-	return QueryStream(m_db, path);
+	rs->ssp = QueryStream(m_db, path);
+	return true;
     }
     else if (!strncmp(path, "/results?", 9))
     {
-	return ResultsStream(m_db, path);
+	rs->ssp = ResultsStream(m_db, path);
+	return true;
     }
-    else if (sscanf(path, "/content/%x", &id))
+    else if (sscanf(path, "/content/%x", &id) == 1)
     {
-	return ContentStream(m_db, id, path);
+	GetContentStream(m_db, id, path, rs);
+	return true;
     }
-    else if (sscanf(path, "/list/%x", &id))
+    else if (sscanf(path, "/list/%x", &id) == 1)
     {
-	return ListStream(m_db, id, path);
+	rs->ssp = ListStream(m_db, id, path);
+	return true;
     }
     else
     {
 //	TRACE << "** receiverd doesn't like URL " << path << "\n";
     }
-    return util::SeekableStreamPtr();
+    return false;
 }
 
 } // namespace receiverd
@@ -833,12 +853,15 @@ int main()
 
     for (unsigned int i=0; i<NTESTS; ++i)
     {
-	util::SeekableStreamPtr s = rcf.StreamForPath(tests[i].url);
+	util::WebRequest rq;
+	rq.path = tests[i].url;
+	util::WebResponse rs;
+	bool found = rcf.StreamForPath(&rq, &rs);
 
-	assert(s);
+	assert(found);
 	
 	util::StringStreamPtr ss = util::StringStream::Create();
-	ss->Copy(s);
+	util::CopyStream(rs.ssp, ss);
 
 	if (ss->str() != tests[i].result)
 	{
@@ -853,12 +876,15 @@ int main()
 
     for (unsigned int i=0; i<NTESTS2; ++i)
     {
-	util::SeekableStreamPtr s = rcf.StreamForPath(tests2[i].url);
+	util::WebRequest rq;
+	rq.path = tests2[i].url;
+	util::WebResponse rs;
+	bool found = rcf.StreamForPath(&rq,&rs);
 
-	assert(s);
+	assert(found);
 	
 	util::StringStreamPtr ss = util::StringStream::Create();
-	ss->Copy(s);
+	util::CopyStream(rs.ssp, ss);
 
 	std::string expected(tests2[i].result, tests2[i].resultsize);
 

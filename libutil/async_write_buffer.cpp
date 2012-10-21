@@ -19,7 +19,7 @@ class AsyncWriteBuffer::Impl
 
     enum { BUFSIZE = 128*1024 };
 
-    SeekableStreamPtr m_stream;
+    StreamPtr m_stream;
     TaskQueue *m_queue;
 
     boost::mutex m_mutex;
@@ -32,13 +32,18 @@ class AsyncWriteBuffer::Impl
 
     /** Serialises writes, which (as we don't have pwrite) is essential to
      * avoid interleaving.
+     *
+     * @todo Theoretically this is still not safe, as the two tasks could
+     *       get queued on different CPUs simultaneously, then run in the
+     *       wrong order. Look into boost::asio::io_service::strand.
      */
     boost::mutex m_write_mutex;
+    unsigned int m_error;
 
     void SynchronousFlush();
 
 public:
-    Impl(SeekableStreamPtr stream, TaskQueue *queue);
+    Impl(StreamPtr stream, TaskQueue *queue);
     ~Impl();
 
     unsigned Write(const void *buffer, size_t len, size_t *pwrote);
@@ -72,12 +77,19 @@ void AsyncWriteBuffer::Impl::Task::Run()
 {
     {
 	boost::mutex::scoped_lock lock(m_parent->m_write_mutex);
+
+	if (m_parent->m_error)
+	    return;
+
 	unsigned int rc = m_parent->m_stream->WriteAll(m_parent->m_buf[m_which],
 						   AsyncWriteBuffer::Impl::BUFSIZE);
 	if (rc)
 	{
 	    TRACE << "warning, async write failed (" << rc << ")\n";
+	    m_parent->m_error = rc;
 	}
+//	else
+//	    TRACE << "Async Wrote\n";
     }
 
     boost::mutex::scoped_lock lock(m_parent->m_mutex);
@@ -85,11 +97,12 @@ void AsyncWriteBuffer::Impl::Task::Run()
     m_parent->m_buffree.notify_one();
 }
 
-AsyncWriteBuffer::Impl::Impl(SeekableStreamPtr stream, TaskQueue *queue)
+AsyncWriteBuffer::Impl::Impl(StreamPtr stream, TaskQueue *queue)
     : m_stream(stream),
       m_queue(queue),
       m_whichbuffer(0),
-      m_bufpos(0)
+      m_bufpos(0),
+      m_error(0)
 {
     m_busy[0] = false;
     m_busy[1] = false;
@@ -128,7 +141,7 @@ AsyncWriteBuffer::Impl::~Impl()
     delete[] m_buf[1];
 }
 
-AsyncWriteBuffer::AsyncWriteBuffer(SeekableStreamPtr ptr, TaskQueue *queue)
+AsyncWriteBuffer::AsyncWriteBuffer(StreamPtr ptr, TaskQueue *queue)
 {
     m_impl = new Impl(ptr, queue);
 }
@@ -138,17 +151,20 @@ AsyncWriteBuffer::~AsyncWriteBuffer()
     delete m_impl;
 }
 
-unsigned AsyncWriteBuffer::Create(SeekableStreamPtr backingstream,
+unsigned AsyncWriteBuffer::Create(StreamPtr backingstream,
 				  TaskQueue *queue,
-				  SeekableStreamPtr *result)
+				  StreamPtr *result)
 {
-    *result = SeekableStreamPtr(new AsyncWriteBuffer(backingstream, queue));
+    *result = StreamPtr(new AsyncWriteBuffer(backingstream, queue));
     return 0;
 }
 
 unsigned AsyncWriteBuffer::Write(const void *buffer, size_t len, 
 				 size_t *pwrote)
 {
+    if (m_impl->m_error)
+	return m_impl->m_error;
+
     return m_impl->Write(buffer, len, pwrote);
 }
 
@@ -193,30 +209,6 @@ unsigned AsyncWriteBuffer::Read(void *buffer, size_t len, size_t *pread)
     return m_impl->m_stream->Read(buffer, len, pread);
 }
 
-void AsyncWriteBuffer::Seek(pos64 pos)
-{
-    m_impl->SynchronousFlush();
-    return m_impl->m_stream->Seek(pos);
-}
-
-SeekableStream::pos64 AsyncWriteBuffer::Tell()
-{
-    m_impl->SynchronousFlush();
-    return m_impl->m_stream->Tell();
-}
-
-SeekableStream::pos64 AsyncWriteBuffer::GetLength()
-{
-    m_impl->SynchronousFlush();
-    return m_impl->m_stream->GetLength();
-}
-
-unsigned AsyncWriteBuffer::SetLength(pos64 pos)
-{
-    m_impl->SynchronousFlush();
-    return m_impl->m_stream->SetLength(pos);
-}
-
 } // namespace util
 
 #ifdef TEST
@@ -236,20 +228,20 @@ int main()
 
     util::WorkerThreadPool wtp(1);
 
-    util::SeekableStreamPtr asp;
+    util::StreamPtr asp;
     rc = util::AsyncWriteBuffer::Create(msp, wtp.GetTaskQueue(), &asp);
 
-    TestSeekableStream(asp);
+//    TestSeekableStream(asp);
 
     util::FileStreamPtr fsp;
 
     rc = util::FileStream::CreateTemporary("test2.tmp", &fsp);
     assert(rc == 0);
 
-    util::SeekableStreamPtr asp2;
+    util::StreamPtr asp2;
     rc = util::AsyncWriteBuffer::Create(fsp, wtp.GetTaskQueue(), &asp2);
 
-    TestSeekableStream(asp2);
+//  TestSeekableStream(asp2);
 
     return 0;
 }

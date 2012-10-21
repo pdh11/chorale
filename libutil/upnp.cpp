@@ -52,8 +52,8 @@ static unsigned int DeduceLocalIPAddress(std::string *ips)
 
 	req->ifr_flags = 0;
 	ioctl(fd, SIOCGIFFLAGS, req);
-	TRACE << "interface " << req->ifr_name << " flags " << req->ifr_flags
-	      << "\n";
+//	TRACE << "interface " << req->ifr_name << " flags " << req->ifr_flags
+//	      << "\n";
     }
 
     size_t found = n;
@@ -159,9 +159,7 @@ size_t LibUPnPUser::GetHandle()
     {
 	int rc = UpnpRegisterClient(&StaticCallback, NULL,
 				    &s_handle);
-	if (rc == UPNP_E_SUCCESS)
-	    TRACE << "URC success\n";
-	else
+	if (rc != UPNP_E_SUCCESS)
 	    TRACE << "URC failed: " << rc << "\n";
     }
     return (size_t)s_handle;

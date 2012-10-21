@@ -13,6 +13,7 @@ LIBUPNP_XML:= \
 	AVTransport2.xml \
 	ConnectionManager2.xml \
 	ContentDirectory2.xml \
+	OpticalDrive.xml \
 	RenderingControl2.xml \
 	ScheduledRecording1.xml
 

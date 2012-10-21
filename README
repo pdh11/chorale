@@ -1,8 +1,8 @@
-	Chorale 0.08 (Technology Preview 8)
+	Chorale 0.09 (Technology Preview 9)
 	-----------------------------------
 
 How to build it:
-    ./configure
+    ./configure --prefix=/usr
     make
     sudo make install
 
@@ -10,10 +10,11 @@ What you get:
     choraled (background daemon)
       - Rio Receiver server
       - UPnP MediaRenderer server (experimental)
-      - UPnP MediaServer server (experimental)
-      - Freeview PVR with EPG
+      - UPnP MediaServer server
+      - Freeview PVR with EPG (very experimental)
+      - CD server for network ripping
     choralecd (desktop application)
-      - CD ripping
+      - CD ripping (both locally and over the network)
       - Rio Receiver client
       - Media playback
       - UPnP MediaRenderer client
@@ -70,6 +71,16 @@ latest, at time of writing) has broken MP3 support, and you may
 require a CVS snapshot of it instead. Or you could use the Fluendo MP3
 support.
 
+The audio outputs it shares are the ones Hal finds (unless you don't
+have Hal installed at all, in which case you only get "hw:0,0"). On
+some systems with two audio outputs "hw:0,0" and "hw:0,1", they are
+separate physical audio outputs, and it makes sense to queue tracks on
+each independently; on some, they are mixed together, so having two
+queues doesn't make sense. It's not clear to me how to tell the
+difference programmatically, so choraled always offers both audio
+outputs. Similar considerations apply to choralecd's list of local
+(non-UPnP) audio outputs.
+
 
 CD ripping
 ----------
@@ -85,6 +96,23 @@ and tagging window is still open for the old one.
 Once you click Done in a CD ripping window, you need to watch the
 status bar of the main choralecd window to see when all the background
 encoding tasks have finished and choralecd can be safely quit.
+
+Because of problems in libcdio, choralecd DOES NOT WORK on (real) SCSI
+CD-ROM drives. (IDE and SATA drives work fine even if they appear as
+/dev/sr0 or /dev/scd0; it's only ones with actual SCSI connectors
+which fail.)
+
+
+Networked CD ripping
+--------------------
+
+The choralecd desktop application, offers CD ripping from CD drives in
+other computers on the same network (if those computers are running
+the choraled daemon, that is). This is, of course, slower than using
+CD drives in the computer running choralecd -- but by less than you
+might think. If you're thinking of doing this on a large scale, bear
+in mind that saturating 10Mbit Ethernet corresponds to about 7x
+ripping, 100Mbit about 70x.
 
 
 Rio Receiver client
@@ -130,11 +158,11 @@ can only tell it to play one file at a time.
 UPnP MediaServer server
 -----------------------
 
-This is very incomplete, but there's enough of it there to use a Roku
-Soundbridge with it in both Browse and Search mode, except for the
-"Browse Artists" and similar menus. It offers both FLAC and MP3 <res>
-elements where both formats exist on the server; Soundbridge, which
-can't play FLAC, of course picks the MP3 one.
+This is still incomplete, but there's enough of it there to use a Roku
+Soundbridge with it in both Browse and Search mode, and to pass the
+Intel UPnP A/V test suite. It offers both FLAC and MP3 <res> elements
+where both formats exist on the server; Soundbridge, which can't play
+FLAC, of course picks the MP3 one.
 
 Like the Receiver server, the MediaServer server exposes available
 Freeview radio stations to its clients. Again, the stations are
@@ -143,6 +171,10 @@ client and server to negotiate supported formats, but, sadly, only by
 MIME type. RFC3003 assigns the same MIME type to MP2 and MP3, so
 there's no way the server could tell that the client can't play MP2,
 nor any way the client could tell that the station wasn't MP3.
+
+The Freeview radio stations are exposed using the MediaServer v2
+"TUNER" extension; if you know of any clients that take advantage of
+this, let me know.
 
 
 UPnP MediaServer client
@@ -162,3 +194,10 @@ services -- currently, only through its web interface. The way to
 access the web interface, is as the presentation page of the UPnP
 device. Note that recordings are not currently transcoded, so radio
 recordings will not play back on devices which can't play MP2.
+
+Also note that, although it's capable of recording multiple channels
+at once provided they're all on the same multiplex, there is NO
+WARNING given if you attempt clashing recordings. And the list of
+recordings to be made is currently NOT preserved over a daemon
+restart. This probably makes DVB-T a curiosity/preview ONLY in this
+version.

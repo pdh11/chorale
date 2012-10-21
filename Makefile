@@ -92,6 +92,9 @@ distclean: clean
 install: $(choraled)
 	$(INSTALL) -d $(datadir)/chorale/upnp
 	$(INSTALL) libupnp/AVTransport2.xml $(datadir)/chorale/upnp/AVTransport.xml
+	$(INSTALL) libupnp/RenderingControl2.xml $(datadir)/chorale/upnp/RenderingControl.xml
+	$(INSTALL) libupnp/ContentDirectory2.xml $(datadir)/chorale/upnp/ContentDirectory.xml
+	$(INSTALL) libupnp/OpticalDrive.xml $(datadir)/chorale/upnp/OpticalDrive.xml
 	$(INSTALL) -d $(datadir)/chorale/layout
 	$(INSTALL) -m644 imagery/default.css $(datadir)/chorale/layout/default.css
 	$(INSTALL) -m644 imagery/icon32.png  $(datadir)/chorale/layout/icon.png
@@ -103,6 +106,12 @@ install: $(choraled)
 	$(INSTALL) -m644 imagery/icon32.png $(datadir)/icons/hicolor/32x32/apps/choralecd.png
 	$(INSTALL) -d $(datadir)/icons/hicolor/32x32/apps
 	$(INSTALL) -m644 imagery/icon48.png $(datadir)/icons/hicolor/48x48/apps/choralecd.png
+	$(INSTALL) -m644 imagery/noart32.png $(datadir)/chorale/layout/
+	$(INSTALL) -m644 imagery/noart48.png $(datadir)/chorale/layout/
+	$(INSTALL) -m644 imagery/search-amazon.png $(datadir)/chorale/layout/
+	$(INSTALL) -m644 imagery/search-imdb.png $(datadir)/chorale/layout/
+	$(INSTALL) -m644 imagery/search-google.png $(datadir)/chorale/layout/
+	$(INSTALL) -m644 imagery/search-wikipedia.png $(datadir)/chorale/layout/
 	$(INSTALL) -d $(localstatedir)/chorale
 	$(INSTALL) -d $(bindir)
 	$(INSTALL) -s $(choraled) $(bindir)

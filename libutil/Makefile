@@ -8,11 +8,13 @@ SRCS:=	async_write_buffer.cpp \
 	file_stream.cpp \
 	hal.cpp \
 	http_client.cpp \
+	http_stream.cpp \
 	line_reader.cpp \
 	memory_stream.cpp \
 	multi_stream.cpp \
 	partial_stream.cpp \
 	poll.cpp \
+	quote_escape.cpp \
 	socket.cpp \
 	ssdp.cpp \
 	stream.cpp \
@@ -35,18 +37,20 @@ TEST_SRCS:= \
 	file_stream.cpp \
 	hal.cpp \
 	http_client.cpp \
+	http_stream.cpp \
 	line_reader.cpp \
 	memory_stream.cpp \
 	partial_stream.cpp \
 	poll.cpp \
+	quote_escape.cpp \
 	ssdp.cpp \
 	stream.cpp \
 	string_stream.cpp \
 	urlescape.cpp \
+	walker.cpp \
 	web_server.cpp \
 	xml.cpp \
 	xmlescape.cpp
-
 
 all-util:
 

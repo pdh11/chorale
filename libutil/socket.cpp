@@ -4,6 +4,7 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <string.h>
+#include <netdb.h>
 #include <errno.h>
 #include <sstream>
 #include <sys/ioctl.h>
@@ -66,6 +67,9 @@ void Socket::operator=(const Socket& other)
 
 unsigned Socket::Bind(const IPEndPoint& ep)
 {
+    int i = 1;
+    ::setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, &i, sizeof(i));
+
     union {
 	sockaddr_in sin;
 	sockaddr sa;
@@ -74,6 +78,21 @@ unsigned Socket::Bind(const IPEndPoint& ep)
     SetUpSockaddr(ep, &u.sin);
 
     int rc = ::bind(m_fd, &u.sa, sizeof(u.sin));
+    if (rc < 0)
+	return (unsigned int)errno;
+    return 0;
+}
+
+unsigned Socket::Connect(const IPEndPoint& ep)
+{
+    union {
+	sockaddr_in sin;
+	sockaddr sa;
+    } u;
+
+    SetUpSockaddr(ep, &u.sin);
+
+    int rc = ::connect(m_fd, &u.sa, sizeof(u.sin));
     if (rc < 0)
 	return (unsigned int)errno;
     return 0;
@@ -138,12 +157,28 @@ unsigned Socket::WaitForRead(unsigned int ms)
     return 0;
 }
 
+unsigned Socket::WaitForWrite(unsigned int ms)
+{
+    struct pollfd pfd;
+    pfd.fd = m_fd;
+    pfd.events = POLLOUT;
+    
+    int rc = ::poll(&pfd, 1, (int)ms);
+    if (rc < 0)
+	return (unsigned int)errno;
+    if (rc == 0)
+	return EWOULDBLOCK;
+    return 0;
+}
+
 class Socket::Stream: public util::Stream
 {
     Socket *m_socket;
+    unsigned int m_timeout_ms;
 
 public:
-    Stream(Socket *socket) : m_socket(socket) {}
+    Stream(Socket *socket, unsigned int timeout_ms) 
+	: m_socket(socket), m_timeout_ms(timeout_ms) {}
 
     unsigned Read(void *buffer, size_t len, size_t *pread);
     unsigned Write(const void *buffer, size_t len, size_t *pwrote);
@@ -151,10 +186,16 @@ public:
 
 unsigned Socket::Stream::Read(void *buffer, size_t len, size_t *pread)
 {
-//    TRACE << "Calling recv\n";
-//    errno = 0;
     ssize_t rc = ::recv(m_socket->m_fd, buffer, len, MSG_NOSIGNAL);
-//    TRACE << "Recv returned " << rc << " errno " << errno << "\n";
+
+    if (rc < 0 && errno == EWOULDBLOCK)
+    {
+	unsigned rc2 = m_socket->WaitForRead(m_timeout_ms);
+	if (rc2 != 0)
+	    return rc2;
+	rc = ::recv(m_socket->m_fd, buffer, len, MSG_NOSIGNAL);
+    }
+
     if (rc < 0)
 	return (unsigned int)errno;
     *pread = (size_t)rc;
@@ -164,15 +205,24 @@ unsigned Socket::Stream::Read(void *buffer, size_t len, size_t *pread)
 unsigned Socket::Stream::Write(const void *buffer, size_t len, size_t *pwrote)
 {
     ssize_t rc = ::send(m_socket->m_fd, buffer, len, MSG_NOSIGNAL);
+
+    if (rc < 0 && errno == EWOULDBLOCK)
+    {
+	unsigned rc2 = m_socket->WaitForWrite(m_timeout_ms);
+	if (rc2 != 0)
+	    return rc2;
+	rc = ::send(m_socket->m_fd, buffer, len, MSG_NOSIGNAL);
+    }
+
     if (rc < 0)
 	return (unsigned int)errno;
     *pwrote = (size_t)rc;
     return 0;
 }
 
-StreamPtr Socket::CreateStream()
+StreamPtr Socket::CreateStream(unsigned int timeout_ms)
 {
-    return StreamPtr(new Socket::Stream(this));
+    return StreamPtr(new Socket::Stream(this, timeout_ms));
 }
 
 
@@ -208,6 +258,29 @@ IPAddress IPAddress::FromNetworkOrder(uint32_t netorder)
     IPAddress ip;
     ip.addr = netorder;
     return ip;
+}
+
+IPAddress IPAddress::Resolve(const char *host)
+{
+    struct hostent ho;
+    char buffer[1024];
+    
+    struct hostent *result = NULL;
+    int herrno;
+    int rc = ::gethostbyname_r(host, &ho, buffer, sizeof(buffer),
+			       &result, &herrno);
+    if (rc < 0)
+	return IPAddress::ANY;
+    if (!result)
+	return IPAddress::ANY;
+    
+    union {
+	char buffer[4];
+	uint32_t netorder;
+    } u;
+
+    memcpy(u.buffer, result->h_addr, 4);
+    return FromNetworkOrder(u.netorder);
 }
 
 
@@ -356,14 +429,20 @@ unsigned DatagramSocket::Write(const void *buffer, size_t buflen,
 StreamSocket::StreamSocket()
     : Socket()
 {
-    m_fd = ::socket(PF_INET, SOCK_STREAM, 0);
-    int i = 1;
-    ::setsockopt(m_fd, IPPROTO_TCP, TCP_NODELAY, &i, sizeof(i));
+    Open();
 }
 
 StreamSocket::StreamSocket(int fd)
     : Socket(fd)
 {
+}
+
+unsigned StreamSocket::Open()
+{
+    m_fd = ::socket(PF_INET, SOCK_STREAM, 0);
+    int i = 1;
+    ::setsockopt(m_fd, IPPROTO_TCP, TCP_NODELAY, &i, sizeof(i));
+    return 0;
 }
 
 unsigned StreamSocket::Listen(unsigned int queue)

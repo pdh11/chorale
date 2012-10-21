@@ -17,7 +17,7 @@
 namespace upnp {
 namespace soap {
 
-static bool ParseBool(const std::string& s)
+bool ParseBool(const std::string& s)
 {
     if (s == "1") return true;
     if (s == "0") return false;
@@ -29,6 +29,11 @@ static bool ParseBool(const std::string& s)
 
 Outbound::Outbound() {}
 Outbound::~Outbound() {}
+
+void Outbound::Add(const char *tag, const char *value)
+{
+    m_params.push_back(std::make_pair(tag,value));
+}
 
 void Outbound::Add(const char *tag, const std::string& value)
 {
@@ -68,6 +73,12 @@ void Inbound::Get(int32_t *ps, const char *tag)
 	*ps = (int32_t)strtol(m_params[tag].c_str(), NULL, 10);
 }
 
+void Inbound::Get(uint8_t *ps, const char *tag)
+{
+    if (ps)
+	*ps = (uint8_t)strtol(m_params[tag].c_str(), NULL, 10);
+}
+
 std::string Inbound::GetString(const char *tag) const
 {
     params_t::const_iterator ci = m_params.find(tag);
@@ -90,6 +101,20 @@ bool Inbound::GetBool(const char *tag) const
 {
     params_t::const_iterator ci = m_params.find(tag);
     return ci == m_params.end() ? false : ParseBool(ci->second);
+}
+
+uint32_t Inbound::GetEnum(const char *tag, const char *const *alternatives,
+			  uint32_t n) const
+{
+    params_t::const_iterator ci = m_params.find(tag);
+    if (ci == m_params.end())
+	return n;
+    for (uint32_t i=0; i<n; ++i)
+    {
+	if (!strcmp(ci->second.c_str(), alternatives[i]))
+	    return i;
+    }
+    return n;
 }
 
 } // namespace soap

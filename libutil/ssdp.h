@@ -40,6 +40,7 @@ public:
 extern const char *const s_uuid_contentdirectory;
 extern const char *const s_uuid_avtransport;
 extern const char *const s_uuid_connectionmanager;
+extern const char *const s_uuid_opticaldrive;
 
 } // namespace ssdp
 

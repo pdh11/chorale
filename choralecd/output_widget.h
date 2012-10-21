@@ -7,8 +7,10 @@
 #include "resource_widget.h"
 #include "widget_factory.h"
 #include "libutil/ssdp.h"
+#include "libutil/hal.h"
 
 namespace mediadb { class Registry; }
+namespace output { class URLPlayer; }
 namespace output { class Queue; }
 namespace util { class PollerInterface; }
 
@@ -27,8 +29,9 @@ class OutputWidget: public ResourceWidget
     SetlistWindow *m_setlist;
 
 public:
-    OutputWidget(QWidget *parent, const std::string& host, QPixmap,
-		 output::Queue*, mediadb::Registry*);
+    OutputWidget(QWidget *parent, const std::string& name, QPixmap,
+		 output::Queue*, mediadb::Registry*, 
+		 const std::string& tooltip);
     ~OutputWidget();
     
     // Being a ResourceWidget
@@ -39,17 +42,24 @@ public:
 /** A WidgetFactory which creates OutputWidget items for local ALSA
  * outputs.
  */
-class OutputWidgetFactory: public WidgetFactory
+class OutputWidgetFactory: public WidgetFactory,
+			   public util::hal::DeviceObserver
 {
     QPixmap *m_pixmap;
-    output::Queue *m_queue;
+    QWidget *m_parent;
+    util::hal::Context *m_hal;
     mediadb::Registry *m_registry;
+    std::list<output::URLPlayer*> m_players;
 
 public:
-    OutputWidgetFactory(QPixmap*, output::Queue*, mediadb::Registry*);
+    OutputWidgetFactory(QPixmap*, util::hal::Context*, mediadb::Registry*);
+    ~OutputWidgetFactory();
     
     // Being a WidgetFactory
     void CreateWidgets(QWidget *parent);
+
+    // Being a util::hal::DeviceObserver
+    void OnDevice(util::hal::DevicePtr dev);
 };
 
 /** A WidgetFactory which creates OutputWidget items for UPnP media

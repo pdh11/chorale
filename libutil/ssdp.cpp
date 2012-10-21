@@ -164,13 +164,16 @@ unsigned Client::Init(const char *uuid,
 }
 
 const char *const s_uuid_contentdirectory =
-    "urn:schemas-upnp-org:service:ContentDirectory:1";
+	     "urn:schemas-upnp-org:service:ContentDirectory:1";
 
 const char *const s_uuid_avtransport =
-    "urn:schemas-upnp-org:service:AVTransport:1";
+	     "urn:schemas-upnp-org:service:AVTransport:1";
 
 const char *const s_uuid_connectionmanager =
-    "urn:schemas-upnp-org:service:ConnectionManager:1";
+	     "urn:schemas-upnp-org:service:ConnectionManager:1";
+
+const char *const s_uuid_opticaldrive =
+	     "urn:chorale-sf-net:service:OpticalDrive:1";
 
 } // namespace ssdp
 

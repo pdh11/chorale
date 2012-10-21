@@ -17,6 +17,12 @@ public:
 
 std::string ResolveURL(const std::string& base, const std::string& link);
 
+void ParseURL(const std::string& url, std::string *host,
+	      std::string *path);
+
+void ParseHost(const std::string& hostpart, unsigned short default_port,
+	       std::string *hostname, unsigned short *port);
+
 } // namespace util
 
 #endif

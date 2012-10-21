@@ -7,10 +7,9 @@ choralecd: Finish setlist window (delete)
 choralecd: Finish coloured slots (CDWindow)
 choralecd: Source renaming
 choralecd: track vs folder icons in browse window
-libmediatree: attempt queries before displaying (e.g.) genres top-level item
-libdbupnp: work out whether (e.g.) genre search is supported, fail query if not
-libutil: give content-factories more info (IP) and control (Content-Type)
+choralecd: check settings window
 DBus/Hal
+Shut down web server in mid-copy (polling copy?)
 
   1.0
   ---
@@ -24,9 +23,11 @@ asynchronous db (for dbreceiver)
 man pages (!)
 more doxy comments
 type=spoken (cf new Vibez implementation)
-UPnP server
-CDDA via UPnP
 album art
+DVB-T RT recording thread
+DVB-T recording conflicts
+gateway Receiver server to UPnP clients
+gateway UPnP server to Receiver clients
 
   2.0
   ---
@@ -38,12 +39,12 @@ empeg sync
 MSC sync
 DAAP
 internet radio (UPnP CDS v2)
-DVB-T radio with EPG
 i18n (gettext)
 
   Perhaps never
   -------------
-libdbsqlite: sort out dbsqlite field defs properly
 libreceiverd: split RCF into separate content-factories
-libutil: SeekableStream::WriteAt to let AsyncWriteBuffer work properly
+libutil: boost::asio instead of class Socket?
+How much Boost do we lose out on if we insist on -fno-rtti -fno-exceptions?
 new empeg receiver distribution (freetype, ...)
+Turn Stream/SeekableStream into BufferPtr factories?

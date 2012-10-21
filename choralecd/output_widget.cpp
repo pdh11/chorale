@@ -15,16 +15,22 @@
 #include <qlabel.h>
 #include "setlist_window.h"
 #include "tagtable.h"
+#include "libutil/hal.h"
 #include "libutil/ssdp.h"
 #include "libutil/trace.h"
+#include "liboutput/gstreamer.h"
 #include "liboutput/upnpav.h"
+#include <boost/lambda/lambda.hpp>
+#include <boost/lambda/construct.hpp>
+#include <algorithm>
 
 namespace choraleqt {
 
 OutputWidget::OutputWidget(QWidget *parent, const std::string &host,
 			   QPixmap pm, output::Queue *queue,
-			   mediadb::Registry *registry)
-    : ResourceWidget(parent, host, pm, "Set-list", "Player"),
+			   mediadb::Registry *registry, 
+			   const std::string& tooltip)
+    : ResourceWidget(parent, host, pm, "Set-list", "Player", tooltip),
       m_queue(queue),
       m_registry(registry),
       m_setlist(NULL)
@@ -53,18 +59,60 @@ void OutputWidget::OnBottomButton()
         /* OutputWidgetFactory */
 
 
-OutputWidgetFactory::OutputWidgetFactory(QPixmap *pixmap, output::Queue *queue,
+OutputWidgetFactory::OutputWidgetFactory(QPixmap *pixmap, 
+					 util::hal::Context *halp,
 					 mediadb::Registry *registry)
     : m_pixmap(pixmap),
-      m_queue(queue),
+      m_hal(halp),
       m_registry(registry)
 {
 }
 
+OutputWidgetFactory::~OutputWidgetFactory()
+{
+    std::for_each(m_players.begin(), m_players.end(), 
+		  boost::lambda::delete_ptr());
+}
+
 void OutputWidgetFactory::CreateWidgets(QWidget *parent)
 {
-    (void) new OutputWidget(parent, "localhost", *m_pixmap, m_queue, 
-			    m_registry);
+    if (m_hal)
+    {
+	m_parent = parent;
+	m_hal->GetMatchingDevices("alsa.type", "playback", this);
+    }
+    else
+    {
+	output::URLPlayer *player = new output::gstreamer::URLPlayer;
+	m_players.push_back(player);
+	output::Queue *queue = new output::Queue(player);
+	queue->SetName("output");
+	(void) new OutputWidget(parent, "localhost", *m_pixmap, queue, 
+				m_registry, std::string());
+    }
+}
+
+void OutputWidgetFactory::OnDevice(util::hal::DevicePtr dev)
+{
+    unsigned card = dev->GetInt("alsa.card");
+    unsigned device = dev->GetInt("alsa.device");
+    std::string devnode = dev->GetString("alsa.device_file");
+    std::string card_id = dev->GetString("alsa.card_id");
+    std::string device_id = dev->GetString("alsa.device_id");
+    if (!device_id.empty())
+    {
+	if (card_id.empty())
+	    card_id = device_id;
+	else
+	    card_id = device_id + " on " + card_id;
+    }
+
+    output::URLPlayer *player = new output::gstreamer::URLPlayer(card, device);
+    m_players.push_back(player);
+    output::Queue *queue = new output::Queue(player);
+    queue->SetName(devnode);
+    (void) new OutputWidget(m_parent, devnode.c_str(), *m_pixmap, queue, 
+			    m_registry, card_id);
 }
 
 
@@ -98,7 +146,8 @@ void UpnpOutputWidgetFactory::OnService(const std::string& url,
     output::Queue *queue = new output::Queue(player);
     queue->SetName(fn);
 
-    (void) new OutputWidget(m_parent, fn, *m_pixmap, queue, m_registry);
+    (void) new OutputWidget(m_parent, fn, *m_pixmap, queue, m_registry,
+			    std::string());
 }
 #endif
 

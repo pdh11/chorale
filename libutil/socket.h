@@ -16,6 +16,9 @@ struct IPAddress
     static IPAddress FromDottedQuad(unsigned char a, unsigned char b,
 				    unsigned char c, unsigned char d);
 
+    /** Blocking call, could take some time */
+    static IPAddress Resolve(const char *hostname);
+
     static IPAddress FromHostOrder(uint32_t);
     static IPAddress FromNetworkOrder(uint32_t);
     static IPAddress ANY;
@@ -62,15 +65,25 @@ public:
      */
     unsigned WaitForRead(unsigned int ms);
 
+    /** Wait, up to the given length of time, for the socket to become
+     * writable.
+     *
+     * Return code: 0 for writable, EWOULDBLOCK for not-writable, other errors
+     * probably serious.
+     */
+    unsigned WaitForWrite(unsigned int ms);
+
     unsigned Bind(const IPEndPoint&);
     IPEndPoint GetLocalEndPoint();
+
+    unsigned Connect(const IPEndPoint&);
 
     int GetPollHandle() const;
 
     bool IsOpen() const;
     unsigned Close();
 
-    StreamPtr CreateStream();
+    StreamPtr CreateStream(unsigned int timeout_ms = 5000);
 };
 
 /** UDP socket */
@@ -100,6 +113,8 @@ public:
     
     unsigned Listen(unsigned int queue = 64);
     unsigned Accept(StreamSocket *accepted);
+   
+    unsigned Open();
 
     unsigned SetCork(bool corked);
 };

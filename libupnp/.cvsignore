@@ -18,3 +18,5 @@ ConnectionManager2.cpp
 ContentDirectory2.cpp
 RenderingControl2.cpp
 ScheduledRecording1.cpp
+OpticalDrive.h
+OpticalDrive.cpp

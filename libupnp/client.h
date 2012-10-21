@@ -49,7 +49,9 @@ public:
 
     unsigned int SoapAction(const char *action_name,
 			    const soap::Outbound& params,
-			    soap::Inbound *result);
+			    soap::Inbound *result = NULL);
+    unsigned int SoapAction(const char *action_name,
+			    soap::Inbound *result = NULL);
 
     virtual void OnEvent(const char *var, const std::string& value) = 0;
 };

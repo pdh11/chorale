@@ -16,7 +16,8 @@ namespace choraleqt {
 
 ResourceWidget::ResourceWidget(QWidget *parent, const std::string& label,
 			       QPixmap pm,
-			       const char *topbutton, const char *bottombutton)
+			       const char *topbutton, const char *bottombutton,
+			       const std::string& tooltip)
     : QFrame(parent),
       m_label(label)
 {
@@ -36,6 +37,8 @@ ResourceWidget::ResourceWidget(QWidget *parent, const std::string& label,
     QLabel *cdlabel = new QLabel(this);
     cdlabel->setPixmap(pm);
     left->addWidget(cdlabel, 1, Qt::AlignCenter);
+    if (!tooltip.empty())
+	cdlabel->setToolTip(QString::fromUtf8(tooltip.c_str()));
 
     QLabel *cdlabel2 = new QLabel(this);
     cdlabel2->setText(QString::fromUtf8(label.c_str()));

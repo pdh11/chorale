@@ -40,9 +40,10 @@ FileStream::~FileStream()
     close(m_fd);
 }
 
-unsigned FileStream::Read(void *buffer, size_t len, size_t *pread)
+unsigned FileStream::ReadAt(void *buffer, size_t pos, size_t len, 
+			    size_t *pread)
 {
-    ssize_t rc = ::read(m_fd, buffer, len);
+    ssize_t rc = ::pread(m_fd, buffer, len, pos);
     if (rc < 0)
     {
 	TRACE << "FS::Read failed len=" << len << "\n";
@@ -53,9 +54,10 @@ unsigned FileStream::Read(void *buffer, size_t len, size_t *pread)
     return 0;
 }
 
-unsigned FileStream::Write(const void *buffer, size_t len, size_t *pwrote)
+unsigned FileStream::WriteAt(const void *buffer, size_t pos, size_t len, 
+			     size_t *pwrote)
 {
-    ssize_t rc = ::write(m_fd, buffer, len);
+    ssize_t rc = ::pwrite(m_fd, buffer, len, pos);
     if (rc < 0)
     {
 	*pwrote = 0;
@@ -64,16 +66,6 @@ unsigned FileStream::Write(const void *buffer, size_t len, size_t *pwrote)
 //    TRACE << "fs wrote " << rc << "/" << len << "\n";
     *pwrote = (size_t)rc;
     return 0;
-}
-
-void FileStream::Seek(pos64 pos)
-{
-    lseek(m_fd, (off_t)pos, SEEK_SET);
-}
-
-SeekableStream::pos64 FileStream::Tell()
-{
-    return (pos64)lseek(m_fd, 0, SEEK_CUR);
 }
 
 SeekableStream::pos64 FileStream::GetLength()

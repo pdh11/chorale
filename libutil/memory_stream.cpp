@@ -22,12 +22,12 @@ public:
 
     size_t m_capacity;
     size_t m_size;
-    size_t m_pos;
 
     explicit Impl(size_t hint);
     ~Impl();
-    unsigned Read(void *buffer, size_t len, size_t *pread);
-    unsigned Write(const void *buffer, size_t len, size_t *pwrote);
+    unsigned ReadAt(void *buffer, size_t pos, size_t len, size_t *pread);
+    unsigned WriteAt(const void *buffer, size_t pos, size_t len, 
+		     size_t *pwrote);
     void Ensure(size_t size);
 };
 
@@ -43,7 +43,7 @@ MemoryStream::Impl::Chunk::~Chunk()
 }
 
 MemoryStream::Impl::Impl(size_t hint)
-    : m_capacity(0), m_size(0), m_pos(0)
+    : m_capacity(0), m_size(0)
 {
     if (hint)
 	Ensure(hint);
@@ -71,9 +71,10 @@ void MemoryStream::Impl::Ensure(size_t sz)
     }
 }
 
-unsigned MemoryStream::Impl::Write(const void *buf, size_t len, size_t *pwrote)
+unsigned MemoryStream::Impl::WriteAt(const void *buf, size_t pos, size_t len,
+				     size_t *pwrote)
 {
-    Ensure(m_pos+len);
+    Ensure(pos+len);
 
     if (!len)
     {
@@ -81,7 +82,7 @@ unsigned MemoryStream::Impl::Write(const void *buf, size_t len, size_t *pwrote)
 	return 0;
     }
     
-    chunks_t::iterator i = m_chunks.lower_bound(m_pos);
+    chunks_t::iterator i = m_chunks.lower_bound(pos);
 
     if (i == m_chunks.end())
     {
@@ -96,36 +97,36 @@ unsigned MemoryStream::Impl::Write(const void *buf, size_t len, size_t *pwrote)
     }
 //    TRACE << "i->first = " << i->first << " m_pos = " << m_pos << "\n";
 
-    if (i->first > m_pos)
+    if (i->first > pos)
 	--i;
-    size_t chunkpos = m_pos - i->first;
+    size_t chunkpos = pos - i->first;
     size_t nwrite = std::min(len, i->second->len - chunkpos);
     memcpy(((char*)i->second->data) + chunkpos, buf, nwrite);
-    m_pos += nwrite;
-    if (m_pos > m_size)
-	m_size = m_pos;
+    pos += nwrite;
+    if (pos > m_size)
+	m_size = pos;
     *pwrote = nwrite;
 //    TRACE << "ms wrote " << nwrite << "/" << len << "\n";
     return 0;
 }
 
-unsigned MemoryStream::Impl::Read(void *buf, size_t len, size_t *pread)
+unsigned MemoryStream::Impl::ReadAt(void *buf, size_t pos, size_t len,
+				    size_t *pread)
 {
-    if (!len || m_pos >= m_size)
+    if (!len || pos >= m_size)
     {
 	*pread = 0;
 	return 0;
     }
 
-    len = std::min(len, m_size-m_pos);
-    chunks_t::iterator i = m_chunks.lower_bound(m_pos);
-    if (i == m_chunks.end() || i->first > m_pos)
+    len = std::min(len, m_size - pos);
+    chunks_t::iterator i = m_chunks.lower_bound(pos);
+    if (i == m_chunks.end() || i->first > pos)
 	--i;
 //    TRACE << "Read: i->first = " << i->first << " m_pos = " << m_pos << "\n";
-    size_t chunkpos = m_pos - i->first;
+    size_t chunkpos = pos - i->first;
     size_t nread = std::min(len, i->second->len - chunkpos);
     memcpy(buf, ((const char*)i->second->data) + chunkpos, nread);
-    m_pos += nread;
     *pread = nread;
     return 0;
 }
@@ -142,28 +143,15 @@ unsigned MemoryStream::Create(MemoryStreamPtr *pp, size_t sizeHint)
     return 0;
 }
 
-unsigned MemoryStream::Write(const void *buf, size_t len, size_t *pwrote)
+unsigned MemoryStream::WriteAt(const void *buf, size_t pos, size_t len, 
+			       size_t *pwrote)
 {
-    return m_impl->Write(buf, len, pwrote);
+    return m_impl->WriteAt(buf, pos, len, pwrote);
 }
 
-unsigned MemoryStream::Read(void *buf, size_t len, size_t *pread)
+unsigned MemoryStream::ReadAt(void *buf, size_t pos, size_t len, size_t *pread)
 {
-    return m_impl->Read(buf, len, pread);
-}
-
-void MemoryStream::Seek(pos64 pos)
-{
-    if (pos > m_impl->m_size)
-    {
-	m_impl->m_pos = m_impl->m_size;
-    }
-    m_impl->m_pos = pos;
-}
-
-SeekableStream::pos64 MemoryStream::Tell()
-{
-    return m_impl->m_pos;
+    return m_impl->ReadAt(buf, pos, len, pread);
 }
 
 SeekableStream::pos64 MemoryStream::GetLength()
@@ -175,8 +163,8 @@ unsigned MemoryStream::SetLength(pos64 pos)
 {
     m_impl->Ensure(pos);
     m_impl->m_size = pos;
-    if (m_impl->m_pos > pos)
-	m_impl->m_pos = pos;
+    if (Tell() > pos)
+	Seek(pos);
     return 0;
 }
 

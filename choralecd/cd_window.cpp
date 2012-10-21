@@ -84,7 +84,7 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
     unsigned total_sectors = cd->GetTotalSectors();
 
     std::ostringstream caption;
-    caption << "CD " << this_index << ": " << drive->GetDevice()
+    caption << "CD " << this_index << ": " << drive->GetName()
 	    << " (" << (total_sectors / (75*60)) << ":"
 	    << std::setw(2) << std::setfill('0')
 	    << ((total_sectors/75) % 60) << ")";
@@ -134,7 +134,7 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
 
     vlayout->addLayout(toplayout);
 
-    m_ntracks = cd->GetTrackCount();
+    m_ntracks = (unsigned int)cd->GetTrackCount();
     m_entries = new Entry[m_ntracks];
 
     m_table = new TagTable(m_ntracks, (sizeof(columns)/sizeof(*columns)),
@@ -158,8 +158,8 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
 
     for (unsigned int i=0; i<m_ntracks; ++i)
     {
-	unsigned start = (cd->begin()+i)->firstsector;
-	unsigned end   = (cd->begin()+i)->lastsector;
+	unsigned start = (cd->begin()+i)->first_sector;
+	unsigned end   = (cd->begin()+i)->last_sector;
 	unsigned sectors = end-start+1;
 	std::ostringstream os;
 	os << (sectors / (75*60)) << ":"
@@ -210,7 +210,7 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
 
     if (newheight > (screenheight*7/8))
 	newheight = screenheight *7/8;
-    resize(newheight, width());
+    resize((int)newheight, width());
      
     for (unsigned int i=0; i<m_ntracks; ++i)
     {
@@ -240,8 +240,10 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
 	m_entries[i].rt_percent = 0;
 	rtp->SetObserver(this);
 	drive->GetTaskQueue()->PushTask(rtp);
+	TRACE << "Pushed task for track " << i << "/" << m_ntracks << "\n";
     }
     drive->GetTaskQueue()->PushTask(import::EjectTask::Create(drive));
+    TRACE << "Pushed eject task\n";
 }
 
 CDWindow::~CDWindow()
@@ -467,7 +469,8 @@ void CDWindow::customEvent(QEvent *ce)
     {
 	ProgressEvent *pe = (ProgressEvent*)ce;
 	const util::Task *task = pe->GetTask();
-	unsigned percent = ((long long)pe->GetNum()) * 100 / pe->GetDenom();
+	unsigned percent
+	    = (unsigned)(((long long)pe->GetNum()) * 100 / pe->GetDenom());
 	if (percent == 100 && pe->GetNum() != pe->GetDenom())
 	    percent = 99;
 

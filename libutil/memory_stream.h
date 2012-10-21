@@ -23,10 +23,9 @@ public:
     static unsigned Create(MemoryStreamPtr*, size_t sizeHint = 0);
 
     // Being a SeekableStream
-    unsigned Read(void *buffer, size_t len, size_t *pread);
-    unsigned Write(const void *buffer, size_t len, size_t *pwrote);
-    void Seek(pos64 pos);
-    pos64 Tell();
+    unsigned ReadAt(void *buffer, size_t pos, size_t len, size_t *pread);
+    unsigned WriteAt(const void *buffer, size_t pos, size_t len, 
+		     size_t *pwrote);
     pos64 GetLength();
     unsigned SetLength(pos64);
 };

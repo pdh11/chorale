@@ -11,15 +11,14 @@ namespace util {
 
         /* DirectoryWalker::Task */
 
-
 class DirectoryWalker::Task: public util::Task
 {
 protected:
     DirectoryWalker *m_parent;
-    TaskPtr m_parent_task;
+    DirectoryTaskPtr m_parent_task;
 
 public:
-    explicit Task(DirectoryWalker *parent, TaskPtr parent_task)
+    Task(DirectoryWalker *parent, DirectoryTaskPtr parent_task)
 	: m_parent(parent), m_parent_task(parent_task)
     {
 	boost::mutex::scoped_lock lock(m_parent->m_mutex);
@@ -56,7 +55,7 @@ class DirectoryWalker::FileTask: public DirectoryWalker::Task
     struct stat m_st;
 
 public:
-    FileTask(DirectoryWalker *parent, TaskPtr parent_task,
+    FileTask(DirectoryWalker *parent, DirectoryTaskPtr parent_task,
 	     Observer::dircookie cookie,
 	     unsigned int index,
 	     const std::string& path,
@@ -151,7 +150,7 @@ class DirectoryWalker::DirectoryTask: public DirectoryWalker::Task
     Observer::dircookie m_cookie;
 
 public:
-    DirectoryTask(DirectoryWalker *parent, TaskPtr parent_task,
+    DirectoryTask(DirectoryWalker *parent, DirectoryTaskPtr parent_task,
 		  Observer::dircookie parent_cookie,
 		  unsigned int parent_index,
 		  const std::string& path,
@@ -178,6 +177,17 @@ void DirectoryWalker::DirectoryTask::Run()
     if (m_parent->m_stop)
 	return;
 
+    for (DirectoryTaskPtr dtp = m_parent_task;
+	 dtp;
+	 dtp = dtp->m_parent_task)
+    {
+	if (dtp->m_path == m_path)
+	{
+	    TRACE << "Avoided loop through " << m_path << "\n";
+	    return;
+	}
+    }
+
     m_parent->m_obs->OnEnterDirectory(m_parent_cookie, m_parent_index, m_path,
 				      m_leaf, &m_st, &m_cookie);
 
@@ -202,7 +212,7 @@ void DirectoryWalker::DirectoryTask::Run()
      * The assignment from 'this' only works because we're a
      * boost::intrusive_ptr not a boost::shared_ptr.
      */
-    TaskPtr me = TaskPtr(this);
+    DirectoryTaskPtr me = DirectoryTaskPtr(this);
 
     unsigned index = 0;
 
@@ -303,7 +313,8 @@ void DirectoryWalker::Start()
 {
     struct stat st;
     ::stat(m_root.c_str(), &st);
-    m_queue->PushTask(TaskPtr(new DirectoryTask(this, TaskPtr(), 0, 0, m_root,
+    m_queue->PushTask(TaskPtr(new DirectoryTask(this, DirectoryTaskPtr(), 
+						0, 0, m_root,
 						util::GetLeafName(m_root.c_str()),
 						&st)));
 }
@@ -319,3 +330,122 @@ void DirectoryWalker::WaitForCompletion()
 }
 
 } // namespace util
+
+#ifdef TEST
+
+# include "worker_thread_pool.h"
+# include "locking.h"
+
+/* Really we're just testing the loop avoidance */
+
+class TestObserver: public util::DirectoryWalker::Observer,
+		    public util::PerObjectLocking
+{
+    size_t m_dircount;
+    size_t m_filecount;
+
+    typedef util::PerObjectLocking LockingPolicy;
+
+public:
+    TestObserver() : m_dircount(0), m_filecount(0) {}
+
+    unsigned int OnEnterDirectory(dircookie parent_cookie,
+				  unsigned int index,
+				  const std::string& path,
+				  const std::string& leaf,
+				  const struct stat *st,
+				  dircookie *cookie_out);
+
+    unsigned int OnLeaveDirectory(dircookie cookie,
+				  const std::string& path,
+				  const std::string& leaf);
+    
+    unsigned int OnFile(dircookie parent_cookie,
+			unsigned int index,
+			const std::string& path, 
+			const std::string& leaf,
+			const struct stat *st);
+
+    void OnFinished(unsigned int error);
+
+    size_t GetDirCount() const { return m_dircount; }
+    size_t GetFileCount() const { return m_filecount; }
+};
+
+unsigned int TestObserver::OnEnterDirectory(dircookie, unsigned int,
+					    const std::string&, 
+					    const std::string&,
+					    const struct stat*,
+					    dircookie *cookie_out)
+{
+    LockingPolicy::Lock(this);
+
+    ++m_dircount;
+    if (m_dircount > 100)
+	return ERANGE;
+
+    *cookie_out = 0;
+    return 0;
+}
+
+unsigned int TestObserver::OnLeaveDirectory(dircookie, const std::string&,
+					    const std::string&)
+{
+    return 0;
+}
+    
+unsigned int TestObserver::OnFile(dircookie, unsigned int, const std::string&, 
+				  const std::string&, const struct stat*)
+{
+    LockingPolicy::Lock(this);
+
+    ++m_filecount;
+    if (m_filecount > 100)
+	return ERANGE;
+    return 0;
+}
+
+void TestObserver::OnFinished(unsigned int error)
+{
+    assert(error == 0);
+}
+
+int main()
+{
+    util::WorkerThreadPool wtp(2);
+
+    char root[] = "file_scanner.test.XXXXXX";
+
+    if (!mkdtemp(root))
+    {
+	fprintf(stderr, "Can't create temporary dir\n");
+	return 1;
+    }
+
+    std::string fullname = util::Canonicalise(root);
+
+    mkdir((fullname + "/a").c_str(), 0755);
+    mkdir((fullname + "/b").c_str(), 0755);
+    FILE *f = fopen((fullname + "/a/x").c_str(), "w+"); fclose(f);
+    f = fopen((fullname + "/b/y").c_str(), "w+"); fclose(f);
+
+    util::MakeRelativeLink(fullname + "/a/1", fullname + "/b");
+    util::MakeRelativeLink(fullname + "/b/2", fullname + "/a");
+
+    TestObserver obs;
+    util::DirectoryWalker dw(fullname, &obs, wtp.GetTaskQueue());
+    dw.Start();
+    dw.WaitForCompletion();
+
+    assert(obs.GetDirCount() == 5);
+    assert(obs.GetFileCount() == 4);
+
+    /* Tidy up */
+
+    std::string rmrf = "rm -r " + fullname;
+    system(rmrf.c_str());
+
+    return 0;
+}
+
+#endif

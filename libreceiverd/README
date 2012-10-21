@@ -1,39 +1,99 @@
-HTTP Headers
+        Rio Receiver and Chorale
+        ------------------------
+
+Chorale includes a server for the networking protocol used by the Rio
+Receiver[1] music player.
+
+For use with Empeg Car, Receiver Edition[2], that is all you need; the
+Receiver Edition boots from its own hard drives. Likewise for
+Chorale's own Receiver-protocol client.
+
+For use with real Rio Receiver devices (and/or Dell Digital Audio
+Receivers, which are the same thing rebranded), you will additionally
+need a network-boot setup and a set of layout files (see below).
+
+
+Network-boot setup, Windows
+---------------------------
+
+The Windows application which comes on the Rio Receiver CD, "Audio
+Receiver Manager", contains a suitable network-boot server. If you
+don't still have your CD, a copy of ARMgr can be downloaded from:
+
+http://www.digitalnetworksna.com/support/rio/product.asp?prodID=99&locSup=USA
+
+(At time of writing, April 2008, it still can! which is frankly
+admirable on D&M's part for a product discontinued in 2003.)
+
+If you use the Windows network-boot server with choraled, you should
+start choraled with the "-n" or "--no-nfs" option. You should also
+disable the music server in Audio Receiver Manager: Rio Receivers have
+no UI for choosing between music servers, so they always pick the
+first one they find, which in practice means you can only have one on
+the network.
+
+
+Network-boot setup, Linux or similar
+------------------------------------
+
+Rio/Sonicblue/Empeg never officially supported this, but, as various
+third-parties figured out, it can be made to work. Rio Receivers run
+ARM Linux, and the network-boot process is much like that of a Linux
+or other Unix diskless workstation. (But simplified -- the Receiver's
+kernel is kept in Flash memory inside the device, so no TFTP stage is
+needed.)
+
+You need to set up an NFS server and a DHCP server, and you also need
+to obtain the root filesystem image, "mercury.arf". The only legal way
+to obtain the file "mercury.arf" is to find a Windows PC and install
+the original Windows server software on it, see above.
+
+A good guide to the process is here:
+http://jreceiver.sourceforge.net/rio/jrec-install-rio.html
+
+That guide is aimed at setting up an alternative server, J-Receiver,
+but most of the information is generic. Follow the steps down to, and
+including, "NFS Server Test".
+
+Another, much terser, guide is here:
+http://www.mock.com/receiver/server/
+
+If you set up network booting on the same server which runs choraled,
+choraled's defaults will be correct. If for some reason the boot
+server is a different PC, you should start choraled with the option
+"--nfs=<ip-address-of-boot-server>".
+
+
+Network-boot setup, Rio Central
+-------------------------------
+
+Srsly? I mean, I think fewer than 300 Rio Centrals were ever made. But
+in the unlikely even that you have one, you can use it as your
+network-boot server in the same way described above for Windows
+servers. Turn off its music server.
+
+
+Layout files
 ------------
 
-All released versions of the Rio Receiver, and of the Empeg car-player
-Receiver Edition, have a bug whereby HTTP headers (such as
-CONTENT-LENGTH) are tested-for in a case-sensitive manner. As the
-software rejects HTTP replies without a content length, this is a
-genuine problem. Libupnp 1.4.x uses "CONTENT-LENGTH", so, unless you hack
-your copy to use "Content-Length" instead, it won't work.
+For some reason, Rio Receivers store their screen layouts as files on
+the music server, and don't have any built-in fallback. So you need to
+find the "layouts" directory in a Windows installation of Audio
+Receiver Manager, and copy it to $(PREFIX)/share/chorale/layout on
+your music server. So, if you install Chorale with prefix /usr, you
+should have files such as /usr/share/chorale/layout/en_UK/big_title.
 
-You will also need to increase MIN_THREADS in upnp/src/inc/config.h to
-at least 4, recommended 6. (The webserver doesn't cope well with anti-
-social clients such as the Receiver, which asks for large objects but
-then, if you hit track skip, decides it doesn't want them after all.)
+The symptom of getting this wrong, is that the menus all work on the
+Receiver, but nothing appears on the display once playback starts.
 
-Here is a patch against libupnp 1.4.4:
--------
---- libupnp-1.4.4/upnp/src/genlib/net/http/httpreadwrite.c~	2007-04-17 04:33:52.000000000 +0100
-+++ libupnp-1.4.4/upnp/src/genlib/net/http/httpreadwrite.c	2007-04-28 15:22:22.000000000 +0100
-@@ -1965,7 +1965,7 @@ http_MakeMessage( INOUT membuffer * buf,
-             if (http_MakeMessage(
-                 buf, http_major_version, http_minor_version,
-                 "shc",
--                "CONTENT-LENGTH: ", bignum ) != 0 ) {
-+                "Content-Length: ", bignum ) != 0 ) {
-                 goto error_handler;
-             }
-         }
---- libupnp-1.4.4/upnp/src/inc/config.h~	2007-01-06 14:25:38.000000000 +0000
-+++ libupnp-1.4.4/upnp/src/inc/config.h	2007-04-29 15:43:21.000000000 +0100
-@@ -77,7 +77,7 @@
-  */
- 
- //@{
--#define MIN_THREADS 2 
-+#define MIN_THREADS 6
- //@}
- 
- /** @name MAX_THREADS
+
+[1] http://en.wikipedia.org/wiki/Rio_Receiver
+    They can be had very cheaply from Ebay and the like; the screen is
+    really their weak point, as it's quite small and hard-to-read by
+    modern standards, but the audio quality is very good.
+
+[2] http://empeg.com/v3alpha/car-v3-RE-alpha8/car-v3.00re-alpha8-notes.txt
+    Version 3 alpha 8 was the first release of the Receiver Edition, so
+    that's where the explanation is fullest; you shouldn't actually use
+    that version, though, as many bugs were fixed by the time of alpha 11:
+    http://empeg.com/support.html

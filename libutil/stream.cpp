@@ -5,6 +5,10 @@
 
 namespace util {
 
+
+        /* Stream */
+
+
 unsigned Stream::WriteAll(const void *buffer, size_t len)
 {
     while (len)
@@ -39,7 +43,44 @@ unsigned Stream::ReadAll(void *buffer, size_t len)
     return 0;
 }
 
-unsigned Stream::Copy(StreamPtr other)
+
+        /* SeekableStream */
+
+
+SeekableStream::SeekableStream()
+    : m_pos(0)
+{
+}
+
+unsigned SeekableStream::Read(void *buffer, size_t len, size_t *pread)
+{
+    size_t nread;
+    unsigned int rc = ReadAt(buffer, m_pos, len, &nread);
+    if (rc == 0)
+    {
+	m_pos += nread;
+	*pread = nread;
+    }
+    return rc;
+}
+
+unsigned SeekableStream::Write(const void *buffer, size_t len, size_t *pwrote)
+{
+    size_t nwrote;
+    unsigned int rc = WriteAt(buffer, m_pos, len, &nwrote);
+    if (rc == 0)
+    {
+	m_pos += nwrote;
+	*pwrote = nwrote;
+    }
+    return rc;
+}
+
+
+        /* Utility functions */
+
+
+unsigned CopyStream(StreamPtr from, StreamPtr to)
 {
     enum { BUFSIZE = 8192 };
     char buffer[BUFSIZE];
@@ -47,12 +88,33 @@ unsigned Stream::Copy(StreamPtr other)
     size_t nread;
     do {
 	nread = 0;
-	unsigned int rc = other->Read(buffer, BUFSIZE, &nread);
+	unsigned int rc = from->Read(buffer, BUFSIZE, &nread);
 	if (rc)
 	    return rc;
-	rc = WriteAll(buffer, nread);
+	rc = to->WriteAll(buffer, nread);
 	if (rc)
 	    return rc;
+    } while (nread);
+
+    return 0;
+}
+
+unsigned CopyStream(SeekableStreamPtr from, StreamPtr to)
+{
+    SeekableStream::pos64 pos = 0;
+    enum { BUFSIZE = 8192 };
+    char buffer[BUFSIZE];
+
+    size_t nread;
+    do {
+	nread = 0;
+	unsigned int rc = from->ReadAt(buffer, pos, BUFSIZE, &nread);
+	if (rc)
+	    return rc;
+	rc = to->WriteAll(buffer, nread);
+	if (rc)
+	    return rc;
+	pos += nread;
     } while (nread);
 
     return 0;

@@ -17,6 +17,7 @@ namespace db {
 namespace upnpav {
 
 Database::Database()
+    : m_search_caps(0)
 {
 }
 
@@ -32,10 +33,14 @@ unsigned Database::Init(const std::string& url, const std::string& udn)
 
     m_contentdirectory.Init(&m_upnp, util::ssdp::s_uuid_contentdirectory);
 
-    // Set up root item
-    m_idmap[0x100] = "0";
-    m_revidmap["0"] = 0x100;
-    m_nextid = 0x110;
+    {
+	Lock lock(this);
+
+	// Set up root item
+	m_idmap[0x100] = "0";
+	m_revidmap["0"] = 0x100;
+	m_nextid = 0x110;
+    }
 
     std::string sc;
     rc = m_contentdirectory.GetSearchCapabilities(&sc);
@@ -43,6 +48,34 @@ unsigned Database::Init(const std::string& url, const std::string& udn)
 	TRACE << "SearchCaps='" << sc << "'\n";
     else
 	TRACE << "Can't GetSearchCapabilities: " << rc << "\n";
+
+    if (sc == "*" || strstr(sc.c_str(), "upnp:class"))
+    {
+	std::string result;
+	rc = m_contentdirectory.Browse("0",
+				       upnp::ContentDirectory2::BROWSEFLAG_BROWSE_METADATA,
+				       "upnp:searchClass", 0, 0, "",
+				       &result, NULL, NULL, NULL);
+	if (rc == 0)
+	{
+	    TRACE << "searchClasses=" << result << "\n";
+	    
+	    if (strstr(result.c_str(), "object.container.person.musicArtist")
+		&& (sc == "*" || strstr(sc.c_str(), "upnp:artist")))
+		m_search_caps |= (1<<mediadb::ARTIST);
+	    if (strstr(result.c_str(), "object.container.album.musicAlbum")
+		&& (sc == "*" || strstr(sc.c_str(), "upnp:album")))
+		m_search_caps |= (1<<mediadb::ALBUM);
+	    if (strstr(result.c_str(), "object.container.genre.musicGenre")
+		&& (sc == "*" || strstr(sc.c_str(), "upnp:genre")))
+		m_search_caps |= (1<<mediadb::GENRE);
+	}
+	else
+	{
+	    TRACE << "Can't Browse root item: " << rc << "\n";
+	}
+    }
+
     return 0;
 }
 
@@ -79,6 +112,8 @@ util::SeekableStreamPtr Database::OpenWrite(unsigned int)
 
 unsigned int Database::IdForObjectId(const std::string& objectid)
 {
+    Lock lock(this);
+
     revidmap_t::const_iterator it = m_revidmap.find(objectid);
     if (it != m_revidmap.end())
 	return it->second;
@@ -87,6 +122,20 @@ unsigned int Database::IdForObjectId(const std::string& objectid)
     m_idmap[id] = objectid;
     m_revidmap[objectid] = id;
     return id;
+}
+
+std::string Database::ObjectIdForId(unsigned int id)
+{
+    Lock lock(this);
+
+    idmap_t::const_iterator it = m_idmap.find(id);
+    if (it != m_idmap.end())
+	return it->second;
+
+    // This way round should never be the first time we ask the question
+
+    TRACE << "Unknown id " << id << "\n";
+    return std::string();
 }
 
 } // namespace upnpav

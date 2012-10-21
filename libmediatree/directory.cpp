@@ -70,7 +70,7 @@ db::RecordsetPtr Directory::GetInfo()
 {
     if (!m_info)
     {
-	TRACE << "Getting info for id " << m_id << "\n";
+//	TRACE << "Getting info for id " << m_id << "\n";
 	db::QueryPtr qp = m_db->CreateQuery();
 	qp->Where(qp->Restrict(mediadb::ID, db::EQ, m_id));
 	m_info = qp->Execute();

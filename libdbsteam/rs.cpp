@@ -323,7 +323,9 @@ IndexedRecordset::IndexedRecordset(Database *db, field_t field,
     Database::stringindex_t& the_index = db->m_stringindexes[field];
     Database::stringindex_t::const_iterator i = the_index.find(stringval);
     if (i == the_index.end())
+    {
 	m_eof = true;
+    }
     else
     {
 	m_eof = false;

@@ -208,7 +208,8 @@ unsigned int FileScanner::Impl::OnFile(dircookie parent_cookie,
 			abspath = util::Canonicalise(abspath);
 		    
 			// Don't link to dirs or playlists
-			if (util::GetExtension(abspath.c_str()) == "asx")
+			if (util::GetExtension(abspath.c_str()) == "asx"
+			    || util::GetExtension(abspath.c_str()) == "wpl")
 			    continue;
 
 			struct stat childst;
@@ -236,6 +237,7 @@ unsigned int FileScanner::Impl::OnFile(dircookie parent_cookie,
 
 	    rs->SetString(mediadb::PATH, path);
 	    rs->SetInteger(mediadb::SIZEBYTES, (unsigned int)pst->st_size);
+	    rs->SetInteger(mediadb::MTIME, (unsigned int)pst->st_mtime);
 	    rs->SetInteger(mediadb::ID, id);
 	    rs->SetInteger(mediadb::IDPARENT, (unsigned int)parent_cookie);
 	    rs->Commit();
@@ -333,6 +335,7 @@ FileScanner::~FileScanner()
 
 unsigned int FileScanner::Scan()
 {
+    m_impl->m_map.clear();
     util::DirectoryWalker w(m_impl->m_loroot, m_impl, m_impl->m_queue);
     w.Start();
     w.WaitForCompletion();
@@ -350,7 +353,7 @@ unsigned int FileScanner::Scan()
 //	   (long long unsigned)m_impl->HiSize(), 
 //	   (long long unsigned)m_impl->Size());
 
-    TRACE << "Cleaning up deletions\n";
+//    TRACE << "Cleaning up deletions\n";
 
     db::QueryPtr qp = m_impl->m_db->CreateQuery();
     qp->OrderBy(mediadb::PATH);
@@ -371,7 +374,7 @@ unsigned int FileScanner::Scan()
 	else if (discriminant < 0)
 	{
 	    // mappath > dbpath
-	    TRACE << dbpath << " gone away, deleting\n";
+//	    TRACE << dbpath << " gone away, deleting\n";
 	    rs->Delete();
 	}
 	else

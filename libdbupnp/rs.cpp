@@ -7,10 +7,7 @@
 #include "libdb/free_rs.h"
 #include "libutil/trace.h"
 #include <sstream>
-
-#ifdef HAVE_UPNP
-
-#include <upnp/ixml.h>
+#include <errno.h>
 
 namespace db {
 namespace upnpav {
@@ -75,69 +72,20 @@ void Recordset::GetTags()
     if (!m_freers)
 	m_freers = db::FreeRecordset::Create();
 
-    std::string objectid = m_parent->m_idmap[m_id];
+    std::string objectid = m_parent->ObjectIdForId(m_id);
 
-    TRACE << "GetTags(" << m_id << ")\n";
+//    TRACE << "GetTags(" << m_id << ")\n";
 
     std::string result;
     m_parent->GetContentDirectory()->Browse(objectid,
-					    "BrowseMetadata",
+					    upnp::ContentDirectory2::BROWSEFLAG_BROWSE_METADATA,
 					    "*",
 					    0, 0, "", &result,
 					    NULL, NULL, NULL);
     upnp::didl::MetadataList ml = upnp::didl::Parse(result);
 
     if (!ml.empty())
-    {
-	const upnp::didl::Metadata& md = ml.front();
-	for (upnp::didl::Metadata::const_iterator i = md.begin();
-	     i != md.end();
-	     ++i)
-	{
-	    if (i->tag == "dc:title")
-		m_freers->SetString(mediadb::TITLE, i->content);
-	    else if (i->tag == "upnp:artist")
-		m_freers->SetString(mediadb::ARTIST, i->content);
-	    else if (i->tag == "upnp:album")
-		m_freers->SetString(mediadb::ALBUM, i->content);
-	    else if (i->tag == "upnp:genre")
-		m_freers->SetString(mediadb::GENRE, i->content);
-	    else if (i->tag == "upnp:originalTrackNumber")
-		m_freers->SetInteger(mediadb::TRACKNUMBER, 
-				     strtoul(i->content.c_str(), NULL, 10));
-	    else if (i->tag == "upnp:class")
-	    {
-		unsigned int type = mediadb::FILE;
-
-		if (i->content == "object.container.storageFolder"
-		    || i->content == "object.container")
-		    type = mediadb::DIR;
-		else if (i->content == "object.item.audioItem.musicTrack")
-		    type = mediadb::TUNE;
-		else
-		    TRACE << "Unknown class '" << i->content << "'\n";
-		
-		m_freers->SetInteger(mediadb::TYPE, type);
-	    }
-	    else if (i->tag == "res")
-	    {
-		upnp::didl::Attributes::const_iterator ci =
-		    i->attributes.find("protocolInfo");
-		if (ci != i->attributes.end()
-		    && ci->second == "http-get:*:audio/mpeg:*")
-		{
-		    m_freers->SetInteger(mediadb::CODEC, mediadb::MP3);
-		    m_freers->SetString(mediadb::PATH, i->content);
-		}
-		else
-		{
-		    TRACE << "Can't find URL:\n" << i->attributes;
-		}
-	    }
-	    else
-		TRACE << "Unknown tag '" << i->tag << "'\n";
-	}
-    }
+	upnp::didl::ToRecord(ml.front(), m_freers);
 
     m_got_what |= GOT_TAGS|GOT_BASIC;
 }
@@ -150,52 +98,85 @@ void Recordset::GetChildren()
     if ((m_got_what & GOT_BASIC) == 0)
 	GetTags();
 
-    if (m_freers->GetInteger(mediadb::TYPE) != mediadb::DIR)
+    unsigned int type = m_freers->GetInteger(mediadb::TYPE);
+    if (type != mediadb::DIR && type != mediadb::PLAYLIST)
     {
 	m_got_what |= GOT_CHILDREN;
 	return;
     }
 
-    std::string objectid = m_parent->m_idmap[m_id];
+    Database::Lock lock(m_parent);
 
-    TRACE << "GetChildren(" << m_id << "[=" << objectid << "])\n";
+    m_parent->m_infomap.clear();
 
-    std::string result;
-    unsigned int rc = m_parent->GetContentDirectory()->Browse(objectid,
-							      "BrowseDirectChildren",
-							      "*", 0, 0, "",
-							      &result, NULL,
-							      NULL, NULL);
-    if (rc == 0)
+    std::string objectid = m_parent->ObjectIdForId(m_id);
+
+//    TRACE << "GetChildren(" << m_id << "[=" << objectid << "])\n";
+
+    /* We only want objectids, which are obligatory, so we pass filter "".
+     *
+     * Intel libupnp only allows a certain maximum size of a SOAP response, so
+     * in case the list is very long we ask for it in clumps.
+     */
+    enum { LUMP = 32 };
+
+    std::vector<unsigned int> childvec;
+
+    for (unsigned int start=0; ; start += LUMP)
     {
-	upnp::didl::MetadataList ml = upnp::didl::Parse(result);
-
-	std::vector<unsigned int> childvec;
-
-	for (upnp::didl::MetadataList::iterator i = ml.begin();
-	     i != ml.end();
-	     ++i)
+	std::string result;
+	uint32_t nret = 0;
+	uint32_t total = 0;
+	unsigned int rc = m_parent->GetContentDirectory()
+	    ->Browse(objectid,
+		     upnp::ContentDirectory2::BROWSEFLAG_BROWSE_DIRECT_CHILDREN,
+		     "", start, LUMP, "",
+		     &result, &nret, &total, NULL);
+	if (rc == 0)
 	{
-	    for (upnp::didl::Metadata::iterator j = i->begin();
-		 j != i->end();
-		 ++j)
+	    upnp::didl::MetadataList ml = upnp::didl::Parse(result);
+
+	    for (upnp::didl::MetadataList::iterator i = ml.begin();
+		 i != ml.end();
+		 ++i)
 	    {
-		if (j->tag == "id")
+		Database::BasicInfo bi;
+		unsigned int id = 0;
+		for (upnp::didl::Metadata::iterator j = i->begin();
+		     j != i->end();
+		     ++j)
 		{
-		    std::string childid = j->content;
-		    unsigned int id = m_parent->IdForObjectId(childid);
-		    TRACE << "child '" << childid << "' = " << id << "\n";
-		    childvec.push_back(id);
-		    break;
+		    if (j->tag == "id")
+		    {
+			std::string childid = j->content;
+			id = m_parent->IdForObjectId(childid);
+//			TRACE << "child '" << childid << "' = " << id << "\n";
+			childvec.push_back(id);
+			break;
+		    }
+		}
+		
+		if (id)
+		{
+		    db::RecordsetPtr child_rs = db::FreeRecordset::Create();
+		    upnp::didl::ToRecord(*i, child_rs);
+		    bi.type = child_rs->GetInteger(mediadb::TYPE);
+		    bi.title = child_rs->GetString(mediadb::TITLE);
+		    m_parent->m_infomap[id] = bi;
 		}
 	    }
 	}
+	else
+	    break;
 
-	m_freers->SetString(mediadb::CHILDREN,
-			    mediadb::VectorToChildren(childvec));
-
-	m_got_what |= GOT_CHILDREN;
+	if (start + nret == total)
+	    break;
     }
+
+    m_freers->SetString(mediadb::CHILDREN,
+			mediadb::VectorToChildren(childvec));
+    
+    m_got_what |= GOT_CHILDREN;
 }
 
 
@@ -206,6 +187,19 @@ RecordsetOne::RecordsetOne(Database *parent, unsigned int id)
     : Recordset(parent)
 {
     m_id = id;
+
+    Database::Lock lock(m_parent);
+
+    Database::infomap_t::const_iterator ci = parent->m_infomap.find(id);
+    if (ci != parent->m_infomap.end())
+    {
+	if (!m_freers)
+	    m_freers = db::FreeRecordset::Create();
+
+	m_freers->SetInteger(mediadb::TYPE, ci->second.type);
+	m_freers->SetString(mediadb::TITLE, ci->second.title);
+	m_got_what |= GOT_BASIC;
+    }
 }
 
 void RecordsetOne::MoveNext()
@@ -221,7 +215,220 @@ bool RecordsetOne::IsEOF()
     return m_id == 0;
 }
 
+
+        /* CollateRecordset */
+
+
+CollateRecordset::CollateRecordset(Database *db, field_t field)
+    : m_parent(db),
+      m_field(field),
+      m_start(0),
+      m_index(0),
+      m_total(0)
+{
+    GetSome();
+}
+
+unsigned int CollateRecordset::GetSome()
+{
+    m_start += m_index;
+    m_index = 0;
+    m_items.clear();
+    m_items.reserve(LUMP);
+
+    std::string query = "upnp:class = \"";
+    switch (m_field)
+    {
+    case mediadb::ARTIST:
+	query += "object.container.person.musicArtist";
+	break;
+    case mediadb::ALBUM:
+	query += "object.container.album.musicAlbum";
+	break;
+    case mediadb::GENRE:
+	query += "object.container.genre.musicGenre";
+	break;
+    default:
+	TRACE << "Can't do collate query on #" << m_field << "\n";
+	return EINVAL;
+    }
+    query += "\"";
+
+    std::string result;
+    uint32_t n;
+    uint32_t total;
+
+    unsigned int rc = m_parent->m_contentdirectory.Search("0", query, "*",
+							  m_start, LUMP, "",
+							  &result, &n,
+							  &total, NULL);
+    if (rc != 0)
+	return rc;
+
+    if (total)
+	m_total = total;
+    else
+    {
+	if (!n)
+	    m_total = m_start; // EOF
+	else // There are more, but the server can't tell us how many
+	    m_total = m_start + n + 1;
+    }
+
+    upnp::didl::MetadataList ml = upnp::didl::Parse(result);
+    for (upnp::didl::MetadataList::const_iterator i = ml.begin();
+	 i != ml.end();
+	 ++i)
+    {
+	const upnp::didl::Metadata& md = *i;
+	for (upnp::didl::Metadata::const_iterator j = md.begin();
+	     j != md.end();
+	     ++j)
+	{
+	    if (j->tag == "dc:title")
+	    {
+		m_items.push_back(j->content);
+		break;
+	    }
+	}
+    }
+
+//    TRACE << "Got " << m_items.size() << " items, expected " << n << "\n";
+    
+    if (m_items.size() != n)
+    {
+	TRACE << "Didn't find " << n << " titles in " << result << "\n";
+    }
+    if (m_items.empty())
+	m_total = m_start;
+    return 0;
+}
+
+bool CollateRecordset::IsEOF()
+{
+    return m_start + m_index == m_total;
+}
+
+void CollateRecordset::MoveNext()
+{
+    if (!IsEOF())
+    {
+	++m_index;
+	if (m_index == m_items.size() && !IsEOF())
+	    GetSome();
+    }
+}
+
+std::string CollateRecordset::GetString(field_t)
+{
+    if (IsEOF())
+	return std::string();
+    return m_items[m_index];
+}
+
+uint32_t CollateRecordset::GetInteger(field_t)
+{
+    TRACE << "Warning, GetInteger on collation not implemented\n";
+    return 0;
+}
+
+
+        /* SearchRecordset */
+
+
+SearchRecordset::SearchRecordset(Database *db, const std::string& query)
+    : Recordset(db),
+      m_query(query),
+      m_start(0),
+      m_index(0),
+      m_total(0)
+{
+    GetSome();
+    SelectThisItem();
+}
+
+unsigned int SearchRecordset::GetSome()
+{
+    m_start += m_index;
+    m_index = 0;
+    m_items.clear();
+
+    std::string result;
+    uint32_t n;
+    uint32_t total;
+
+    unsigned int rc = m_parent->m_contentdirectory.Search("0", m_query, "", 
+							  m_start, LUMP, "",
+							  &result, &n,
+							  &total, NULL);
+    if (rc != 0)
+	return rc;
+
+    if (total)
+	m_total = total;
+    else
+    {
+	if (!n)
+	    m_total = m_start; // EOF
+	else // There are more, but the server can't tell us how many
+	    m_total = m_start + n + 1;
+    }
+
+    m_items = upnp::didl::Parse(result);
+
+//    TRACE << "Got " << m_items.size() << " items, expected " << n << "\n";
+    
+    if (m_items.size() != n)
+    {
+	TRACE << "Didn't find " << n << " items in " << result << "\n";
+    }
+    if (m_items.empty())
+	m_total = m_start;
+
+    return 0;
+}
+
+void SearchRecordset::SelectThisItem()
+{
+    if (IsEOF())
+	return;
+
+    upnp::didl::MetadataList::const_iterator ci = m_items.begin();
+
+    for (unsigned int i=0; i<m_index; ++i)
+	++ci;
+
+    std::string objectid;
+    for (upnp::didl::Metadata::const_iterator i = ci->begin();
+	 i != ci->end();
+	 ++i)
+	if (i->tag == "id")
+	{
+	    objectid = i->content;
+	    break;
+	}
+
+    m_freers = db::FreeRecordset::Create();
+    upnp::didl::ToRecord(*ci, m_freers);
+    m_id = m_parent->IdForObjectId(objectid);
+    m_got_what = GOT_BASIC;
+}
+
+bool SearchRecordset::IsEOF()
+{
+    return m_start + m_index == m_total;
+}
+
+void SearchRecordset::MoveNext()
+{
+    if (!IsEOF())
+    {
+	++m_index;
+	if (m_index == m_items.size() && !IsEOF())
+	    GetSome();
+	SelectThisItem();
+    }
+}
+
 } // namespace upnpav
 } // namespace db
-
-#endif // HAVE_UPNP

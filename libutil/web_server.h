@@ -12,6 +12,27 @@
 
 namespace util {
 
+/** Passed to the ContentFactory, filled-in by the WebServer.
+ */
+struct WebRequest
+{
+    std::string path;
+    bool refresh;
+    IPEndPoint local_ep; // The IP/port on which the client found us
+
+    WebRequest() : refresh(false) {}
+};
+
+/** Filled-in by the ContentFactory, passed back to the WebServer.
+ */
+struct WebResponse
+{
+    SeekableStreamPtr ssp;
+    const char *content_type;   // Default is text/html
+
+    WebResponse() : content_type(NULL) {}
+};
+
 /** A WebServer plug-in, responsible for all the content under a certain root.
  */
 class ContentFactory
@@ -19,9 +40,9 @@ class ContentFactory
 public:
     virtual ~ContentFactory() {}
 
-    /** Return SeekableStreamPtr() if you don't recognise path.
+    /** Return true if you recognise path, false if you don't.
      */
-    virtual SeekableStreamPtr StreamForPath(const char *path) = 0;
+    virtual bool StreamForPath(const WebRequest*, WebResponse*) = 0;
 };
 
 /** A ContentFactory which exposes a directory on the server's filesystem.
@@ -36,7 +57,7 @@ public:
 	: m_file_root(file_root), m_page_root(page_root) {}
 
     // Being a ContentFactory
-    SeekableStreamPtr StreamForPath(const char *path);
+    bool StreamForPath(const WebRequest*, WebResponse*);
 };
 
 /** An HTTP/1.1 web server.
@@ -47,12 +68,16 @@ class WebServer: public Pollable
     list_t m_content;
     SeekableStreamPtr m_cache;
     std::string m_cached_url;
+    const char *m_cached_type;
     StreamSocket m_server_socket;
     unsigned short m_port;
     WorkerThreadPool m_threads;
+    WorkerThreadPool m_async_threads;
 
     class Task;
     friend class Task;
+
+    TaskQueue *GetAsyncQueue();
 
 public:
     WebServer();
@@ -71,9 +96,9 @@ public:
      * it may be handed requests for other pages. This also lets you mount
      * the same ContentFactory at several mount-points.
      */
-    void AddContentFactory(const char *page_root, ContentFactory *cf);
+    void AddContentFactory(const std::string& page_root, ContentFactory *cf);
 
-    SeekableStreamPtr StreamForPath(const char *path, bool refresh);
+    void StreamForPath(const WebRequest*, WebResponse*);
 
     // Being a Pollable
     unsigned OnActivity();

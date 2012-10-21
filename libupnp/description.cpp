@@ -54,15 +54,17 @@ static std::string GetChildNode(IXML_Node *node, const char *searchFor)
 unsigned Description::Fetch(const std::string& url, const std::string& udn)
 {
     IXML_Document *xmldoc = NULL;
-    TRACE << "downloading " << url << "\n";
+//    TRACE << "downloading " << url << "\n";
     int rc = UpnpDownloadXmlDoc(url.c_str(), &xmldoc);
-    TRACE << "UDXD " << rc << "\n";
+
+    if (rc)
+	TRACE << "UDXD " << rc << "\n";
 
     if (rc == 0 && xmldoc)
     {
-	DOMString ds = ixmlPrintDocument(xmldoc);
-	TRACE << ds << "\n";
-	ixmlFreeDOMString(ds);
+//	DOMString ds = ixmlPrintDocument(xmldoc);
+//	TRACE << ds << "\n";
+//	ixmlFreeDOMString(ds);
 
 	IXML_Node *device_root = NULL;
 
@@ -71,16 +73,16 @@ unsigned Description::Fetch(const std::string& url, const std::string& udn)
 	if (udns)
 	{
 	    size_t devicecount = ixmlNodeList_length(udns);
-	    TRACE << devicecount << " devices\n";
+//	    TRACE << devicecount << " devices\n";
 	    for (unsigned int i=0; i<devicecount; ++i)
 	    {
 		IXML_Node *node = ixmlNodeList_item(udns, i);
 		if (node)
 		{
-		    TRACE << "udn=" << node->firstChild->nodeValue << "\n";
+//		    TRACE << "udn=" << node->firstChild->nodeValue << "\n";
 		    IXML_Node *dev = node->parentNode;
-		    TRACE << "dev->name=" << dev->nodeName << " value="
-			  << dev->nodeValue << "\n";
+//		    TRACE << "dev->name=" << dev->nodeName << " value="
+//			  << dev->nodeValue << "\n";
 		    if (node 
 			&& node->firstChild 
 			&& node->firstChild->nodeValue 
@@ -124,7 +126,7 @@ unsigned Description::Fetch(const std::string& url, const std::string& udn)
 	    if (base_url.empty())
 		base_url = url;
 	    
-	    TRACE << "fn '" << m_friendly_name << "'\n";
+//	    TRACE << "fn '" << m_friendly_name << "'\n";
 	    
 	    if (!m_presentation_url.empty())
 		m_presentation_url = util::ResolveURL(base_url,
@@ -153,7 +155,7 @@ unsigned Description::Fetch(const std::string& url, const std::string& udn)
 			svc.scpd_url
 			    = util::ResolveURL(base_url, 
 					   GetChildNode(service, "SCPDURL"));
-			TRACE << "service " << svc.type << "\n";
+//			TRACE << "service " << svc.type << "\n";
 			m_services[svc.type] = svc;
 		    }
 		}

@@ -194,11 +194,16 @@ unsigned Client::Impl::OnActivity()
 
 //    TRACE << "ssdp received " <<  buffer << "\n";
 
-    int a,b,c,d,e;
-    if (sscanf(buffer, "http://%d.%d.%d.%d:%d/", &a, &b, &c, &d, &e) == 5)
+    unsigned int a,b,c,d;
+    unsigned short e;
+    if (sscanf(buffer, "http://%u.%u.%u.%u:%hu/",
+	       &a, &b, &c, &d, &e) == 5)
     {
 	util::IPEndPoint ep;
-	ep.addr = util::IPAddress::FromDottedQuad(a,b,c,d);
+	ep.addr = util::IPAddress::FromDottedQuad((unsigned char)a,
+						  (unsigned char)b,
+						  (unsigned char)c,
+						  (unsigned char)d);
 	ep.port = e;
 	m_callback->OnService(ep);
     }

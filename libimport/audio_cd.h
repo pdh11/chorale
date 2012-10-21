@@ -3,53 +3,64 @@
 
 #include "libutil/counted_object.h"
 #include <vector>
-#include "cd_drives.h"
+#include "libutil/stream.h"
 
 namespace import {
 
 class AudioCD: public CountedObject
 {
+protected:
     /** No, they shouldn't be unsigned -- sector numbers are allowed to be -ve.
      */
     struct TocEntry
     {
-	int firstsector;
-	int lastsector; // inclusive!
+	int first_sector;
+	int last_sector; // inclusive!
     };
 
     typedef std::vector<TocEntry> toc_t;
     toc_t m_toc;
 
     unsigned int m_total_sectors;
-    void *m_cdt;
-    std::string m_device_name;
-
-    ~AudioCD();
 
 public:
-    typedef boost::intrusive_ptr<AudioCD> AudioCDPtr;
-
-    /** Attempt to create an AudioCDPtr. Can take several seconds (CD spinup).
-     * Fails if no CD, or if no audio tracks.
-     */
-    static unsigned Create(CDDrivePtr drive, AudioCDPtr *pcd);
-
     /** Iterator over the TOC. Returns audio tracks only.
      */
-    typedef toc_t::const_iterator iterator;
+    typedef toc_t::const_iterator const_iterator;
 
-    iterator begin() { return m_toc.begin(); }
-    iterator end() { return m_toc.end(); }
+    const_iterator begin() { return m_toc.begin(); }
+    const_iterator end() { return m_toc.end(); }
 
+    /** Counts audio tracks only.
+     */
     size_t GetTrackCount() { return m_toc.size(); }
+
+    /** Counts audio tracks only.
+     */
     unsigned int GetTotalSectors() { return m_total_sectors; }
 
-    /** For handing to libcdio.
+    /** Returns a SeekableStream of the raw PCM data for a particular track
      */
-    void *GetHandle() { return m_cdt; }
+    virtual util::SeekableStreamPtr GetTrackStream(unsigned int track) = 0;
 };
 
 typedef boost::intrusive_ptr<AudioCD> AudioCDPtr;
+
+class LocalAudioCD: public AudioCD
+{
+    friend class LocalCDDrive;
+
+    void *m_cdt;
+    std::string m_device_name;
+
+public:
+    ~LocalAudioCD();
+
+    static unsigned int Create(const std::string& device, AudioCDPtr *result);
+
+    // Being an AudioCD
+    util::SeekableStreamPtr GetTrackStream(unsigned int track);
+};
 
 } // namespace import
 

@@ -6,6 +6,8 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <linux/cdrom.h>
+#include <sys/ioctl.h>
 #include "libutil/task.h"
 #include "libutil/worker_thread.h"
 
@@ -15,44 +17,57 @@ namespace import {
         /* CDDrives */
 
 
-CDDrives::CDDrives()
+CDDrives::CDDrives(util::hal::Context *hal)
+    : m_hal(hal)
 {
 }
 
 void CDDrives::Refresh()
 {
-    /* libcdio gets this wrong if /dev/cdrom is a symlink */
-    
-    std::ifstream f("/proc/sys/dev/cdrom/info");
-
-    while (!f.eof())
+    if (m_hal)
     {
-	std::string line;
-	std::getline(f, line);
+	m_hal->GetMatchingDevices("storage.drive_type", "cdrom", this);
+    }
+    else
+    {
+	/* libcdio gets this wrong if /dev/cdrom is a symlink */
+    
+	std::ifstream f("/proc/sys/dev/cdrom/info");
 
-	if (std::string(line, 0, 11) == "drive name:")
+	while (!f.eof())
 	{
-	    std::istringstream is(line);
-	    std::string token;
-	    is >> token;
-	    is >> token;
+	    std::string line;
+	    std::getline(f, line);
 
-	    while (!is.eof())
+	    if (std::string(line, 0, 11) == "drive name:")
 	    {
-		token.clear();
+		std::istringstream is(line);
+		std::string token;
 		is >> token;
-		if (!token.empty())
+		is >> token;
+
+		while (!is.eof())
 		{
-		    token = "/dev/" + token;
-		    if (!m_map.count(token))
-			m_map[token] = CDDrivePtr(new CDDrive(token));
+		    token.clear();
+		    is >> token;
+		    if (!token.empty())
+		    {
+			token = "/dev/" + token;
+			if (!m_map.count(token))
+			    m_map[token] = CDDrivePtr(new LocalCDDrive(token));
+		    }
 		}
+		break;
 	    }
-	    break;
 	}
     }
+}
 
-//    m_map["/dev/fcd0"] = CDDrivePtr(new CDDrive("/dev/fcd0"));
+void CDDrives::OnDevice(util::hal::DevicePtr dev)
+{
+    std::string device = dev->GetString("block.device");
+    if (!m_map.count(device))
+	m_map[device] = CDDrivePtr(new LocalCDDrive(device, m_hal));
 }
 
 CDDrivePtr CDDrives::GetDriveForDevice(const std::string& device)
@@ -63,46 +78,144 @@ CDDrivePtr CDDrives::GetDriveForDevice(const std::string& device)
 }
 
 
-        /* CDDrive */
+        /* LocalCDDrive::Impl */
 
 
-class CDDrive::CDDriveImpl
+class LocalCDDrive::Impl: public util::hal::Observer,
+			  public util::hal::DeviceObserver
 {
+    LocalCDDrive *m_parent;
     std::string m_device;
+    util::hal::Context *m_hal;
     util::TaskQueue m_queue;
     util::WorkerThread m_thread; // One per CD drive
+    std::string m_volume_udi;
 
 public:
-    explicit CDDriveImpl(const std::string& device)
-	: m_device(device), m_thread(&m_queue)
-    {}
-    ~CDDriveImpl()
+    Impl(LocalCDDrive *parent, const std::string& device,
+	 util::hal::Context *hal)
+	: m_parent(parent),
+	  m_device(device), 
+	  m_hal(hal), 
+	  m_thread(&m_queue)
     {
+	if (m_hal)
+	{
+	    m_hal->AddObserver(this);
+	    m_hal->GetMatchingDevices("volume.disc.type", "cd_rom", this);
+	}
+    }
+
+    ~Impl()
+    {
+	if (m_hal)
+	    m_hal->RemoveObserver(this);
 	m_queue.PushTask(util::TaskPtr());
     }
 
     std::string GetDevice() const { return m_device; }
     util::TaskQueue *GetTaskQueue() { return &m_queue; }
+
+    bool SupportsDiscPresent() const { return m_hal != NULL; }
+    bool DiscPresent() const { return !m_volume_udi.empty(); }
+
+    // Being a util::hal::Observer
+    void OnDeviceAdded(util::hal::DevicePtr);
+    void OnDeviceRemoved(util::hal::DevicePtr);
+
+    // Being a util::hal::DeviceObserver
+    void OnDevice(util::hal::DevicePtr);
 };
 
-CDDrive::CDDrive(const std::string& device)
-    : m_impl(new CDDriveImpl(device))
+void LocalCDDrive::Impl::OnDeviceAdded(util::hal::DevicePtr dev)
+{
+    if (dev->GetString("block.device") == m_device
+	&& dev->GetString("volume.disc.type") == "cd_rom")
+    {
+	m_volume_udi = dev->GetUDI();
+//	TRACE << "CD present\n";
+	m_parent->Fire(&CDDriveObserver::OnDiscPresent, true);
+    }
+}
+
+void LocalCDDrive::Impl::OnDeviceRemoved(util::hal::DevicePtr dev)
+{
+    if (dev->GetUDI() == m_volume_udi)
+    {
+//	TRACE << "CD no longer present\n";
+	m_parent->Fire(&CDDriveObserver::OnDiscPresent, false);
+	m_volume_udi.clear();
+    }
+}
+
+void LocalCDDrive::Impl::OnDevice(util::hal::DevicePtr dev)
+{
+    /* This is called with all CD-ROM volumes, we need only check if the block
+     * device is us.
+     */
+    if (dev->GetString("block.device") == m_device)
+	m_volume_udi = dev->GetUDI();
+}
+
+
+        /* LocalCDDrive itself */
+
+
+LocalCDDrive::LocalCDDrive(const std::string& device, util::hal::Context *hal)
+    : m_impl(new Impl(this, device, hal))
 {
 }
 
-CDDrive::~CDDrive()
+LocalCDDrive::~LocalCDDrive()
 {
     delete m_impl;
 }
 
-std::string CDDrive::GetDevice() const
+bool LocalCDDrive::SupportsDiscPresent() const
+{
+    return m_impl->SupportsDiscPresent();
+}
+
+bool LocalCDDrive::DiscPresent() const
+{
+    return m_impl->DiscPresent();
+}
+
+std::string LocalCDDrive::GetName() const
 {
     return m_impl->GetDevice();
 }
 
-util::TaskQueue *CDDrive::GetTaskQueue()
+std::string LocalCDDrive::GetDevice() const
+{
+    return m_impl->GetDevice();
+}
+
+util::TaskQueue *LocalCDDrive::GetTaskQueue()
 {
     return m_impl->GetTaskQueue();
+}
+
+unsigned int LocalCDDrive::Eject()
+{
+    TRACE << "Ejecting " << GetDevice() << "\n";
+    
+    int fd = ::open(GetDevice().c_str(), O_RDONLY|O_NONBLOCK);
+    if (fd < 0)
+    {
+	TRACE << "Can't open device: " << errno << "\n";
+	return (unsigned int)errno;
+    }
+
+    int rc = ::ioctl(fd, CDROMEJECT);
+    ::close(fd);
+
+    return (rc < 0) ? (unsigned int)errno : 0;
+}
+
+unsigned int LocalCDDrive::GetCD(AudioCDPtr *result)
+{
+    return LocalAudioCD::Create(GetDevice(), result);
 }
 
 } // namespace import

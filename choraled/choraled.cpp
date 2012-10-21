@@ -1,24 +1,29 @@
 #include "config.h"
-#include "libdbsteam/db.h"
-#include "libimport/file_scanner_thread.h"
-#include "libmediadb/schema.h"
-#include "libmediadb/localdb.h"
 #include "libutil/worker_thread_pool.h"
 #include "libutil/cpus.h"
 #include "libutil/web_server.h"
 #include "libutil/trace.h"
 #include "libutil/poll.h"
+#include "libutil/hal.h"
+#include "libutil/dbus.h"
+#include "libdbsteam/db.h"
+#include "libimport/file_scanner_thread.h"
+#include "libimport/cd_content_factory.h"
+#include "libmediadb/schema.h"
+#include "libmediadb/localdb.h"
 #include "libreceiver/ssdp.h"
 #include "libreceiverd/content_factory.h"
 #include "libupnp/server.h"
 #include "liboutput/gstreamer.h"
 #include "libupnpd/media_renderer.h"
 #include "libupnpd/media_server.h"
+#include "libupnpd/optical_drive.h"
 #include "libtv/stream_factory.h"
 #include "libtv/epg.h"
 #include "libtv/web_epg.h"
 #include "libtv/recording.h"
 #include "web.h"
+#include <boost/lambda/construct.hpp>
 #include <getopt.h>
 #include <signal.h>
 #include <unistd.h>
@@ -29,14 +34,18 @@
 #define HAVE_DVB 1
 #endif
 
+#if defined(HAVE_HAL) && defined(HAVE_LIBCDIOP) && defined(HAVE_UPNP)
+#define HAVE_CD 1
+#endif
+
 #define DEFAULT_DB_FILE LOCALSTATEDIR "/chorale/db.xml"
 #define DEFAULT_WEB_DIR DATADIR "/chorale"
 
 static void Usage(FILE *f)
 {
     fprintf(f,
-	 "Usage: choraled [options] <root-directory> [<flac-root-directory>]\n"
-"Serve media from given directory, to network clients\n"
+	 "Usage: choraled [options] [<root-directory> [<flac-root-directory>]]\n"
+"Serve local media resources (files, inputs, outputs), to network clients.\n"
 "\n"
 "The options are:\n"
 " -d, --no-daemon    Don't daemonise\n"
@@ -47,17 +56,25 @@ static void Usage(FILE *f)
 " -n, --no-nfs         Don't announce Receiver software on standard NFS\n"
 "     --nfs=SERVER     Announce an alternative Receiver software server\n"
 " -w, --web=DIR      Web server root dir (default=" DEFAULT_WEB_DIR ")\n"
+" -p, --port=PORT      Web server port (default=arbitrary unused port)\n"
 //" -i, --interface=IF Network interface to listen on (default=first found)\n"
 #ifdef HAVE_UPNP
 #ifdef HAVE_GSTREAMER
 " -a, --no-audio     Don't become a UPnP MediaRenderer server\n"
 #endif
 " -m, --no-mserver   Don't become a UPnP MediaServer server\n"
+#ifdef HAVE_CD
+" -o, --no-optical   Don't serve optical (CD) drives for network ripping\n"
+#endif
+//"     --upnp2receiver Gateway existing UPnP server to Receiver clients\n"
+//"     --receiver2upnp Gateway existing Receiver server to UPnP clients\n"
 #endif
 #ifdef HAVE_DVB
 " -b, --no-broadcast Don't serve DVB channels\n"
 " -c, --channels=FILE  Use FILE as DVB channel list (default=/etc/channels.conf)\n"
 #endif
+	    "\n"
+	    "Omitting <root-directory> implies -r, -m, -b and ignores -f, -t.\n"
 	    "\n"
 	    "Send SIGHUP to force a media re-scan (not needed on systems with 'inotify'\n"
 	    "support).\n"
@@ -118,26 +135,84 @@ static void daemonise()
 	close(fd);
 }
 
+class CDServer
+{
+    import::CDDrives m_drives;
+    std::list<import::CDContentFactory*> m_factories;
+    std::list<upnpd::OpticalDriveDevice*> m_devices;
+
+public:
+    explicit CDServer(util::hal::Context *hal);
+    ~CDServer();
+
+    unsigned int Init(util::WebServer*, const char *hostname, upnp::Device**);
+};
+
+CDServer::CDServer(util::hal::Context *hal)
+    : m_drives(hal)
+{
+}
+
+CDServer::~CDServer()
+{
+    std::for_each(m_factories.begin(), m_factories.end(), 
+		  boost::lambda::delete_ptr());
+    std::for_each(m_devices.begin(), m_devices.end(),
+		  boost::lambda::delete_ptr());
+}
+
+unsigned int CDServer::Init(util::WebServer *ws, const char *hostname,
+			     upnp::Device **ppdev)
+{
+    m_drives.Refresh();
+
+    unsigned int cdrom_index = 0;
+    for (import::CDDrives::const_iterator i = m_drives.begin();
+	 i != m_drives.end();
+	 ++i)
+    {
+	import::CDDrivePtr cdp = i->second;
+	import::CDContentFactory *fac
+	    = new import::CDContentFactory(cdrom_index++);
+	m_factories.push_back(fac);
+
+	ws->AddContentFactory(fac->GetPrefix(), fac);
+	upnpd::OpticalDriveDevice *cdromdevice
+	    = new upnpd::OpticalDriveDevice(cdp, fac, ws->GetPort());
+	m_devices.push_back(cdromdevice);
+
+	cdromdevice->SetFriendlyName(cdp->GetName()
+				     + " on " + std::string(hostname));
+	    
+	if (*ppdev)
+	    (*ppdev)->AddEmbeddedDevice(cdromdevice);
+	else
+	    *ppdev = cdromdevice;
+    }
+    return 0;
+}
+
 int main(int argc, char *argv[])
 {
     static const struct option options[] =
     {
 	{ "help",  no_argument, NULL, 'h' },
 	{ "no-nfs",   no_argument, NULL, 'n' },
-	{ "threads", required_argument, NULL, 't' },
-	{ "dbfile", required_argument, NULL, 'f' },
-	{ "web", required_argument, NULL, 'w' },
-	{ "no-daemon", no_argument, NULL, 'd' },
-	{ "nfs", required_argument, NULL, 1 },
-	{ "no-receiver", no_argument, NULL, 'r' },
 	{ "no-audio", no_argument, NULL, 'a' },
+	{ "no-daemon", no_argument, NULL, 'd' },
 	{ "no-mserver", no_argument, NULL, 'm' },
+	{ "no-optical", no_argument, NULL, 'o' },
+	{ "no-receiver", no_argument, NULL, 'r' },
 	{ "no-broadcast", no_argument, NULL, 'b' },
+	{ "web", required_argument, NULL, 'w' },
+	{ "nfs", required_argument, NULL, 1 },
+	{ "dbfile", required_argument, NULL, 'f' },
+	{ "threads", required_argument, NULL, 't' },
 	{ "channels", required_argument, NULL, 'c' },
 	{ NULL, 0, NULL, 0 }
     };
 
-    int nthreads = 0;
+    unsigned int nthreads = 0;
     bool do_nfs = true;
     bool do_daemon = true;
 #ifdef HAVE_UPNP
@@ -157,14 +232,17 @@ int main(int argc, char *argv[])
 #else
     bool do_dvb = false;
 #endif
+    bool do_cd = true;
+    bool do_db = true;
     const char *dbfile = DEFAULT_DB_FILE;
     const char *webroot = DEFAULT_WEB_DIR;
     const char *software_server = NULL; // Null string means this host
     const char *channelsconf = "/etc/channels.conf";
+    unsigned short port = 0; // Zero means pick an arbitrary one
 
     int option_index;
     int option;
-    while ((option = getopt_long(argc, argv, "abrdhmnt:f:l:c:", options,
+    while ((option = getopt_long(argc, argv, "abrdhmnot:f:l:c:p:", options,
 				 &option_index))
 	   != -1)
     {
@@ -180,7 +258,10 @@ int main(int argc, char *argv[])
 	    do_daemon = false;
 	    break;
 	case 't':
-	    nthreads = strtoul(optarg, NULL, 10);
+	    nthreads = (unsigned int)strtoul(optarg, NULL, 10);
+	    break;
+	case 'p':
+	    port = (unsigned short)strtoul(optarg, NULL, 10);
 	    break;
 	case 'f':
 	    dbfile = optarg;
@@ -197,6 +278,9 @@ int main(int argc, char *argv[])
 	case 'm':
 	    do_mserver = false;
 	    break;
+	case 'o':
+	    do_cd = false;
+	    break;
 	case 'r':
 	    do_receiver = false;
 	    break;
@@ -212,13 +296,22 @@ int main(int argc, char *argv[])
 	}
     }
 
-    if (argc <= optind || argc > optind+2 || nthreads < 0)
+    if (argc > optind+2)
     {
 	Usage(stderr);
 	return 1;
     }
 
-    if (!do_audio && !do_receiver && !do_mserver)
+    if (argc <= optind)
+    {
+	// No music directory given -- disable all file ops
+	do_db = false;
+	do_receiver = false;
+	do_dvb = false;
+	do_mserver = false;
+    }
+
+    if (!do_audio && !do_receiver && !do_mserver && !do_cd)
     {
 	printf("No protocols to serve; exiting\n");
 	return 0;
@@ -237,10 +330,15 @@ int main(int argc, char *argv[])
     if (!nthreads)
 	nthreads = util::CountCPUs() * 2;
 
-    const char *mediaroot = argv[optind];
-    const char *flacroot  = argv[optind+1];
-    if (!flacroot)
-	flacroot = "";
+    const char *mediaroot = NULL;
+    const char *flacroot  = NULL;
+    if (do_db)
+    {
+	mediaroot = argv[optind];
+	flacroot  = argv[optind+1];
+	if (!flacroot)
+	    flacroot = "";
+    }
 
     db::steam::Database sdb(mediadb::FIELD_COUNT);
     sdb.SetFieldInfo(mediadb::ID, 
@@ -255,6 +353,12 @@ int main(int argc, char *argv[])
 		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
     sdb.SetFieldInfo(mediadb::TITLE,
 		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
+    sdb.SetFieldInfo(mediadb::REMIXED,
+		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
+    sdb.SetFieldInfo(mediadb::ORIGINALARTIST,
+		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
+    sdb.SetFieldInfo(mediadb::MOOD,
+		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
 
     util::WorkerThreadPool wtp(nthreads);
 
@@ -262,13 +366,12 @@ int main(int argc, char *argv[])
 
     mediadb::LocalDatabase ldb(&sdb);
 
-    ifs.Init(mediaroot, flacroot, &ldb, wtp.GetTaskQueue(), dbfile);
+    if (do_db)
+	ifs.Init(mediaroot, flacroot, &ldb, wtp.GetTaskQueue(), dbfile);
 
     TRACE << "serving\n";
 
     util::Poller poller;
-
-    receiver::ssdp::Server ssdp;
 
     tv::dvb::Frontend dvbf;
     if (do_dvb)
@@ -336,7 +439,9 @@ int main(int argc, char *argv[])
     util::WebServer ws;
 
     receiverd::ContentFactory rcf(&ldb);
-    util::FileContentFactory fcf(std::string(webroot)+"/layout",
+    util::FileContentFactory fcf(std::string(webroot)+"/upnp",
+				 "/upnp");
+    util::FileContentFactory fcf2(std::string(webroot)+"/layout",
 				 "/layout");
 
     if (do_receiver || do_mserver)
@@ -346,20 +451,22 @@ int main(int argc, char *argv[])
 	ws.AddContentFactory("/content", &rcf);
 	ws.AddContentFactory("/results", &rcf);
 	ws.AddContentFactory("/list", &rcf);
-	ws.AddContentFactory("/layout", &fcf);
+	ws.AddContentFactory("/layout", &fcf2);
     }
+    ws.AddContentFactory("/upnp", &fcf);
 
     tv::WebEPG wepg;
     tv::RecordingThread rt;
     if (do_dvb)
 	wepg.Init(&ws, epg.GetDatabase(), &dvbc, &dvbf, &rt, mediaroot);
 
-    RootContentFactory rootcf;
+    RootContentFactory rootcf(&ldb);
 
     ws.AddContentFactory("/", &rootcf);
-    ws.Init(&poller, webroot, 0);
+    ws.Init(&poller, webroot, port);
     TRACE << "Webserver got port " << ws.GetPort() << "\n";
 
+    receiver::ssdp::Server ssdp;
     if (do_receiver)
     {
 	ssdp.Init(&poller);
@@ -367,7 +474,30 @@ int main(int argc, char *argv[])
 	if (do_nfs)
 	    ssdp.RegisterService(receiver::ssdp::s_uuid_softwareserver, 111,
 				 software_server);
+	TRACE << "Receiver service started\n";
     }
+
+    util::hal::Context *halp = NULL;
+
+#ifdef HAVE_HAL
+    util::dbus::Connection dbusc(&poller);
+    unsigned int rc = dbusc.Connect(util::dbus::Connection::SYSTEM);
+    if (rc)
+    {
+	TRACE << "Can't connect to D-Bus\n";
+    }
+    util::hal::Context halc(&dbusc);
+
+    if (!rc)
+    {
+	rc = halc.Init();
+	if (rc == 0)
+	{
+	    TRACE << "Hal initialised OK\n";
+	    halp = &halc;
+	}
+    }
+#endif
 
     char hostname[256];
     hostname[0] = '\0';
@@ -380,12 +510,12 @@ int main(int argc, char *argv[])
     upnpd::MediaRenderer *mediarenderer = NULL;
     upnpd::MediaServer *mediaserver = NULL;
     upnp::Device *root_device = NULL;
-    upnp::Server *svr = NULL;
 
     if (do_mserver)
     {
 	mediaserver = new upnpd::MediaServer(&ldb, ws.GetPort(), mediaroot);
-	mediaserver->SetFriendlyName(std::string(hostname) + ":" + mediaroot);
+	mediaserver->SetFriendlyName(std::string(mediaroot)
+				     + " on " + hostname);
 	root_device = mediaserver;
     }
 
@@ -401,11 +531,15 @@ int main(int argc, char *argv[])
     }
 # endif
 
+# ifdef HAVE_CD
+    CDServer cds(halp);
+    if (do_cd)
+	cds.Init(&ws, hostname, &root_device);
+# endif
+
+    upnp::Server svr;
     if (root_device)
-    {
-	svr = new upnp::Server;
-	svr->Init(root_device, ws.GetPort());
-    }
+	svr.Init(root_device, ws.GetPort());
 #endif
 
     s_waker = new util::PollWaker(&poller, NULL);
@@ -424,7 +558,6 @@ int main(int argc, char *argv[])
     }
 
 #ifdef HAVE_UPNP
-    delete svr;
     delete mediaserver;
     delete mediarenderer;
     delete player;

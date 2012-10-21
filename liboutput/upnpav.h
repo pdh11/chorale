@@ -6,7 +6,8 @@
 #include "libutil/poll.h"
 #include "libupnp/AVTransport2_client.h"
 #include "libupnp/ConnectionManager2_client.h"
-#include "libupnp/description.h"
+
+namespace util { class PollerInterface; }
 
 namespace output {
 

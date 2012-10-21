@@ -5,6 +5,7 @@ SRCS:=\
 	content_directory.cpp \
 	media_renderer.cpp \
 	media_server.cpp \
+	optical_drive.cpp \
 	search.cpp
 
 TEST_SRCS:= \

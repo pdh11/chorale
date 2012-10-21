@@ -7,7 +7,7 @@
 #include <errno.h>
 #include <string.h>
 
-//#define BOOST_SPIRIT_DEBUG 1
+// #define BOOST_SPIRIT_DEBUG 1
 
 #include <boost/spirit.hpp>
 #include <boost/spirit/core.hpp>
@@ -32,15 +32,6 @@ struct SearchGrammar: public grammar<SearchGrammar>
     template <typename Scanner>
     struct definition
     {
-	/** See http://spirit.sourceforge.net/distrib/spirit_1_8_5/libs/spirit/doc/techniques.html
-	 * for how to make these atrocious typedefs.
-	 */
-	typedef node_parser<contiguous<alternative<alternative<sequence<sequence<chlit<char>, kleene_star<alternative<strlit<const char*>, difference<anychar_parser, chlit<char> > > > >, chlit<char> >, strlit<const char*> >, strlit<const char*> > >, leaf_node_op> literal_t;
-
-	typedef node_parser<contiguous<sequence<alternative<alternative<alpha_parser, chlit<char> >, chlit<char> >, kleene_star<alternative<alternative<alnum_parser, chlit<char> >, chlit<char> > > > >, leaf_node_op> identifier_t;
-
-	typedef sequence<sequence<node_parser<contiguous<sequence<alternative<alternative<alpha_parser, chlit<char> >, chlit<char> >, kleene_star<alternative<alternative<alnum_parser, chlit<char> >, chlit<char> > > > >, leaf_node_op>, node_parser<alternative<alternative<alternative<alternative<alternative<alternative<alternative<alternative<alternative<strlit<const char*>, strlit<const char*> >, strlit<const char*> >, strlit<const char*> >, strlit<const char*> >, strlit<const char*> >, strlit<const char*> >, chlit<char> >, chlit<char> >, chlit<char> >, root_node_op> >, node_parser<contiguous<alternative<alternative<sequence<sequence<chlit<char>, kleene_star<alternative<strlit<const char*>, difference<anychar_parser, chlit<char> > > > >, chlit<char> >, strlit<const char*> >, strlit<const char*> > >, leaf_node_op> > simplestatement_t;
-
 	definition(const SearchGrammar&)
 	    : literal( leaf_node_d[lexeme_d[
 				       ( chlit<>('\"') >>
@@ -89,9 +80,9 @@ struct SearchGrammar: public grammar<SearchGrammar>
 #endif
 	}
 
-	literal_t literal;
-	identifier_t identifier;
-	simplestatement_t simplestatement;
+	rule <Scanner, parser_context<>, parser_tag<LITERAL> > literal;
+	rule <Scanner, parser_context<>, parser_tag<IDENTIFIER> > identifier;
+	rule <Scanner, parser_context<>, parser_tag<SSTATEMENT> > simplestatement;
 	rule <Scanner, parser_context<>, parser_tag<STATEMENT> > statement;
 	rule <Scanner, parser_context<>, parser_tag<CONJUNCTION> > conjunction;
 	rule <Scanner, parser_context<>, parser_tag<DISJUNCTION> > disjunction;
@@ -131,7 +122,7 @@ static const db::Query::Rep* Translate(db::QueryPtr qp, const iter_t& i,
 //    TRACE << "In Translate value=\"" <<
 //        std::string(i->value.begin(), i->value.end()) <<
 //	"\" id=" << i->value.id().to_long() << 
-//        " children.size()=" << i->children.size() << "\n";
+//       " children.size()=" << i->children.size() << "\n";
 
     switch (i->value.id().to_long())
     {
@@ -147,14 +138,23 @@ static const db::Query::Rep* Translate(db::QueryPtr qp, const iter_t& i,
     {
 	const db::Query::Rep *lhs = Translate(qp, i->children.begin(), collate);
 	const db::Query::Rep *rhs = Translate(qp, i->children.begin()+1, collate);
+//	TRACE << "Anding, lhs=" << lhs << " rhs=" << rhs << "\n";
 	if (!lhs || !rhs)
 	    return lhs ? lhs : rhs;
 	return qp->And(lhs, rhs);
     }
     case SearchGrammar::STATEMENT:
+    case SearchGrammar::SSTATEMENT:
     {
 	std::string field(i->children.begin()->value.begin(),
 			  i->children.begin()->value.end());
+
+	/* This ws-stripping shouldn't be necessary, but space_p as a
+	 * skip parser doesn't seem to work in boost 1.35.0
+	 */
+	field = std::string(field, field.find_first_not_of(" \t"));
+	field = std::string(field, 0, field.find_last_not_of(" \t")+1);
+
 	unsigned int which = mediadb::FIELD_COUNT;
 	if (field == "upnp:class")
 	    which = mediadb::TYPE;
@@ -178,12 +178,18 @@ static const db::Query::Rep* Translate(db::QueryPtr qp, const iter_t& i,
 	    which = mediadb::COMPOSER; // Placeholder for later
 	else
 	{
-	    TRACE << "Can't do search field '" << field << "'\n";
+//	    TRACE << "Can't do search field '" << field << "'\n";
 	    return NULL;
 	}
 
 	std::string literal((i->children.begin()+1)->value.begin(),
 			    (i->children.begin()+1)->value.end());
+
+	/* This ws-stripping shouldn't be necessary, but space_p as a
+	 * skip parser doesn't seem to work in boost 1.35.0
+	 */
+	literal = std::string(literal, literal.find_first_not_of(" \t"));
+	literal = std::string(literal, 0, literal.find_last_not_of(" \t")+1);
 
 	db::RestrictionType rt = db::EQ;
 	std::string op(i->value.begin(), i->value.end());
@@ -219,6 +225,8 @@ static const db::Query::Rep* Translate(db::QueryPtr qp, const iter_t& i,
 	    TRACE << "Can't do search operator '" << op << "'\n";
 	    return NULL;
 	}
+
+//	TRACE << "field=" << field << " op=" << op << " lit=" << literal << "\n";
 
 	literal = UnparseQuotes(literal);
 
@@ -286,7 +294,7 @@ unsigned int ApplySearchCriteria(db::QueryPtr qp, const std::string& s,
 {
     upnpd::SearchGrammar sg;
 
-    tree_parse_info<> info = ast_parse(s.c_str(), sg, space_p);
+    tree_parse_info<> info = ast_parse(s.c_str(), sg >> end_p, space_p);
 
     if (!info.full)
     {
@@ -305,7 +313,7 @@ unsigned int ApplySearchCriteria(db::QueryPtr qp, const std::string& s,
 	}
     }
 
-    TRACE << "Query is " << qp->ToString() << "\n";
+//    TRACE << "Query is " << qp->ToString() << "\n";
  
     return 0;
 }
@@ -320,7 +328,7 @@ static void Test(db::Database *db, const char *s)
 {
     upnpd::SearchGrammar sg;
 
-    tree_parse_info<> info = ast_parse(s, sg, space_p);
+    tree_parse_info<> info = ast_parse(s, sg >> end_p, space_p);
 
     if (!info.full)
     {

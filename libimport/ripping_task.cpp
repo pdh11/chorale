@@ -1,16 +1,11 @@
 #include "config.h"
 #include "ripping_task.h"
-
-#ifdef HAVE_LIBCDIOP
 #include "libutil/file_stream.h"
 #include "libutil/memory_stream.h"
 #include "libutil/multi_stream.h"
 #include "libutil/trace.h"
 #include "libutil/async_write_buffer.h"
-#include "cd_drives.h"
-#include <cdio/cdio.h>
-#include <cdio/cd_types.h>
-#include <cdio/paranoia.h>
+#include "audio_cd.h"
 
 namespace import {
 
@@ -46,15 +41,13 @@ RippingTask::~RippingTask()
 
 void RippingTask::Run()
 {
-    cdrom_drive_t *cdt = (cdrom_drive_t*)m_cd->GetHandle();
-    
-    lsn_t start = (m_cd->begin()+m_track)->firstsector;
-    lsn_t end   = (m_cd->begin()+m_track)->lastsector;
+    int start = (m_cd->begin()+m_track)->first_sector;
+    int end   = (m_cd->begin()+m_track)->last_sector;
 
 //    TRACE << "Ripping track " << m_track+1 << " sectors "
 //	  << start << ".." << end << "\n";
 
-    size_t pcmsize = (unsigned)(end-start+1) * CDIO_CD_FRAMESIZE_RAW;
+    unsigned int pcmsize = (unsigned)(end-start+1) * 2352;
 
     // If there's CPU to spare, back to RAM, else back to disk
     util::SeekableStreamPtr backingstream;
@@ -99,29 +92,47 @@ void RippingTask::Run()
     m_etp2->SetInputStream(pcmformp3, pcmsize);
     m_encode_queue->PushTask(m_etp2);
 
-    cdrom_paranoia_t *p = paranoia_init(cdt);
+    util::StreamPtr cdstream = m_cd->GetTrackStream(m_track);
+    if (!cdstream)
+    {
+	TRACE << "Can't make CD stream\n";
+	FireError(ENOENT);
+	return;
+    }
 
-    paranoia_modeset(p, PARANOIA_MODE_FULL^PARANOIA_MODE_NEVERSKIP);
-    paranoia_seek(p, start, SEEK_SET);
+    char buf[2352*10];
 
     time_t t = time(NULL);
 
-    for (lsn_t i = start; i<= end; ++i)
+    unsigned int done = 0;
+    while (done < pcmsize)
     {
-	int16_t *buf = paranoia_read(p, NULL);
-	rc = ms->WriteAll(buf, CDIO_CD_FRAMESIZE_RAW);
+	unsigned int lump = pcmsize - done;
+	if (lump > sizeof(buf))
+	    lump = sizeof(buf);
+
+	size_t nread;
+	rc = cdstream->Read(buf, lump, &nread);
 	if (rc != 0)
 	{
+	    FireError(rc);
+	    TRACE << "Read error " << rc << "\n";
+	    return;
+	}
+	rc = ms->WriteAll(buf, nread);
+	if (rc != 0)
+	{
+	    TRACE << "Write error " << rc << "\n";
 	    FireError(rc);
 	    return;
 	}
 
-	FireProgress((unsigned)(i-start+1), (unsigned)(end-start+1));
+	done += nread;
+
+	FireProgress(done, pcmsize);
     }
     
     t = time(NULL) - t;
-
-    paranoia_free(p);
 
     double x = ((end-start+1)/75.0)/(double)t;
 
@@ -129,5 +140,3 @@ void RippingTask::Run()
 }
 
 } // namespace import
-
-#endif // HAVE_LIBCDIOP

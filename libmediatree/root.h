@@ -13,7 +13,11 @@ class Root: public Node
 {
     db::Database *m_db;
 
-    explicit Root(db::Database*);
+    /** Construct a root item.
+     *
+     * flags is a bitfield of which query-node children to create.
+     */
+    Root(db::Database*, uint32_t flags);
 
     std::vector<NodePtr> m_children;
     

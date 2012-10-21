@@ -1,13 +1,13 @@
 #include "partial_stream.h"
 #include "string_stream.h"
+#include "trace.h"
 #include <errno.h>
 
 namespace util {
 
 PartialStream::PartialStream(SeekableStreamPtr s, pos64 begin, pos64 end)
-    : m_stream(s), m_begin(begin), m_end(end), m_pos(begin)
+    : m_stream(s), m_begin(begin), m_end(end)
 {
-    s->Seek(begin);
 }
 
 SeekableStreamPtr PartialStream::Create(SeekableStreamPtr s, 
@@ -16,37 +16,23 @@ SeekableStreamPtr PartialStream::Create(SeekableStreamPtr s,
     return SeekableStreamPtr(new PartialStream(s,begin,end));
 }
 
-unsigned PartialStream::Read(void *buffer, size_t len, size_t *pread)
+unsigned PartialStream::ReadAt(void *buffer, size_t pos, size_t len, 
+			       size_t *pread)
 {
-    if (m_pos + len > m_end)
-	len = m_end - m_pos;
-    unsigned rc = m_stream->Read(buffer, len, pread);
-    if (rc == 0)
-	m_pos += *pread;
+//    TRACE << "PSRA pos=" << pos << " len=" << len << " m_end=" << m_end << "\n";
+    if (pos + len + m_begin > m_end)
+	len = m_end - pos - m_begin;
+    unsigned rc = m_stream->ReadAt(buffer, pos+m_begin, len, pread);
     return rc;
 }
 
-unsigned PartialStream::Write(const void *buffer, size_t len, size_t *pwrote)
+unsigned PartialStream::WriteAt(const void *buffer, size_t pos, size_t len,
+				size_t *pwrote)
 {
-    if (m_pos + len > m_end)
-	len = m_end - m_pos;
-    unsigned rc = m_stream->Write(buffer, len, pwrote);
-    if (rc == 0)
-	m_pos += *pwrote;
+    if (pos + len + m_begin > m_end)
+	len = m_end - pos - m_begin;
+    unsigned rc = m_stream->WriteAt(buffer, pos+m_begin, len, pwrote);
     return rc;
-}
-
-void PartialStream::Seek(pos64 pos)
-{
-    m_pos = m_begin + pos;
-    if (m_pos > m_end)
-	m_pos = m_end;
-    m_stream->Seek(m_pos);
-}
-
-SeekableStream::pos64 PartialStream::Tell()
-{
-    return m_pos - m_begin;
 }
 
 SeekableStream::pos64 PartialStream::GetLength()
@@ -72,7 +58,9 @@ int main(int, char*[])
 
     util::StringStreamPtr ss2 = util::StringStream::Create();
 
-    unsigned int rc = ss2->Copy(ps);
+    unsigned int rc = CopyStream(ps, ss2);
+
+//    TRACE << "Expect 'EFGH', got '" << ss2->str() << "'\n";
 
     assert(rc == 0);
     assert(ss2->str() == "EFGH");

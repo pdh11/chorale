@@ -55,10 +55,10 @@ CDDBLookupPtr CDDBService::Lookup(AudioCDPtr cd)
 
     cddb_disc_set_length(disc, cd->GetTotalSectors() / 75);
 
-    for (AudioCD::iterator i = cd->begin(); i != cd->end(); ++i)
+    for (AudioCD::const_iterator i = cd->begin(); i != cd->end(); ++i)
     {
 	cddb_track_t *track = cddb_track_new();
-	cddb_track_set_frame_offset(track, i->firstsector);
+	cddb_track_set_frame_offset(track, i->first_sector);
 	cddb_disc_add_track(disc, track);
     }
 

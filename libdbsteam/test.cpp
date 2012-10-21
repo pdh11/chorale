@@ -82,6 +82,24 @@ void Test()
     rs->MoveNext();
     assert(rs->IsEOF());
 
+    qp = sdb.CreateQuery();
+    qp->Where(qp->Restrict(1, db::EQ, "foo"));
+    rs = qp->Execute();
+    assert(!rs->IsEOF());
+    assert(rs->GetInteger(0) == 42);
+    assert(rs->GetString(1) == "foo");
+    rs->MoveNext();
+    assert(rs->IsEOF());
+
+    qp = sdb.CreateQuery();
+    qp->Where(qp->Restrict(1, db::EQ, "beyonc\xC3\xA9"));
+    rs = qp->Execute();
+    assert(!rs->IsEOF());
+    assert(rs->GetInteger(0) == 222222);
+    assert(rs->GetString(1) == "beyonc\xC3\xA9");
+    rs->MoveNext();
+    assert(rs->IsEOF());
+
     /* Query by int */
 
     qp = sdb.CreateQuery();

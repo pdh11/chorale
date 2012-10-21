@@ -3,6 +3,7 @@
 
 #include <qdialog.h>
 #include "libimport/audio_cd.h"
+#include "libimport/cd_drives.h"
 #include "libimport/cddb_service.h"
 #include "libutil/task.h"
 

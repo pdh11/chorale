@@ -3,6 +3,7 @@ DIR:=libimport/
 SRCS:=\
 	audio_cd.cpp \
 	cddb_service.cpp \
+	cd_content_factory.cpp \
 	cd_drives.cpp \
 	cd_toc_task.cpp \
 	eject_task.cpp \
@@ -15,6 +16,7 @@ SRCS:=\
 	playlist.cpp \
 	playlist_asx.cpp \
 	playlist_wpl.cpp \
+	remote_cd_drive.cpp \
 	ripping_task.cpp \
 	tag_rename_task.cpp \
 	tags.cpp \
@@ -57,7 +59,8 @@ ifeq ($(libmediadb),)
 include $(TOP)libmediadb/Makefile
 endif
 
-$(LIBIMPORT_TESTS) : TEST_LIBS += $(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBXMLPP_LIBS)
+$(LIBIMPORT_TESTS) : TEST_LIBS += $(BOOST_LIBS) $(TAGLIB_LIBS) \
+	$(LIBXMLPP_LIBS) $(HAL_LIBS) $(LIBCDIOP_LIBS)
 
 $(LIBIMPORT_TESTS) : $(libimport) $(libmediadb) $(libdbsteam) \
 	$(libdb) $(libutil)

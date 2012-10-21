@@ -7,15 +7,48 @@
 #include "libutil/trace.h"
 #include "libutil/observable.h"
 #include <boost/thread/thread.hpp>
+#include <boost/thread/condition.hpp>
 #include <boost/function.hpp>
+#include <boost/format.hpp>
 #include <boost/bind.hpp>
 
 namespace output {
 
 namespace gstreamer {
 
+class GSTInitHelper
+{
+    static unsigned int sm_count;
+public:
+    GSTInitHelper()
+    {
+	GError *gerror = NULL;
+	if (!sm_count)
+	{
+	    TRACE << "Calling gst_init\n";
+	    gst_init_check(NULL, NULL, &gerror);
+	}
+	++sm_count;
+    }
+    ~GSTInitHelper()
+    {
+	--sm_count;
+	if (!sm_count)
+	{
+	    TRACE << "No more users, calling gst_deinit\n";
+	    gst_deinit();
+	}
+    }
+};
+
+unsigned int GSTInitHelper::sm_count = 0;
+
 class URLPlayer::Impl: public util::Observable<URLObserver>
 {
+    int m_card;
+    int m_device;
+
+    GSTInitHelper m_init;
     GMainLoop *m_loop;
     GstElement *m_play;
     GstBus *m_bus;
@@ -42,7 +75,7 @@ class URLPlayer::Impl: public util::Observable<URLObserver>
     gboolean OnAlarm();
 
 public:
-    Impl();
+    Impl(int card, int device);
     ~Impl();
 
     unsigned int SetURL(const std::string&);
@@ -50,8 +83,10 @@ public:
     unsigned int SetPlayState(output::PlayState);
 };
 
-URLPlayer::Impl::Impl()
-    : m_loop(NULL),
+URLPlayer::Impl::Impl(int card, int device)
+    : m_card(card),
+      m_device(device),
+      m_loop(NULL),
       m_play(NULL),
       m_bus(NULL),
       m_last_state(GST_STATE_NULL),
@@ -79,13 +114,11 @@ void URLPlayer::Impl::Run()
 {
     TRACE << "starting\n";
 
-    gst_init(NULL, NULL);
-
     GMainContext *context = g_main_context_new();
     GSource *timersource = g_timeout_source_new(500);
     g_source_set_callback(timersource, &StaticAlarmCallback, this, NULL);
-    g_source_attach(timersource, context);
 
+    g_source_attach(timersource, context);
     m_loop = g_main_loop_new(context, false);
 
     /* For some reason, gstreamer deadlocks loading the gnomevfs
@@ -97,14 +130,36 @@ void URLPlayer::Impl::Run()
      */    
     GstElement *gnomevfs = gst_element_factory_make("gnomevfssrc", "temp");
     gst_object_unref(GST_OBJECT(gnomevfs));
-    
-    m_play = gst_element_factory_make("playbin", "play");
-    if (!m_play)
+
+    /* GStreamer crashes if we call gst_element_factory_make from two threads
+     * simultaneously.
+     */
+    static boost::mutex gstreamer_unnecessarily_not_re_entrant;
+
     {
-	TRACE << "Oh-oh, no playbin\n";
+	boost::mutex::scoped_lock lock(gstreamer_unnecessarily_not_re_entrant);
+    
+	m_play = gst_element_factory_make("playbin", "play");
+	if (!m_play)
+	{
+	    TRACE << "Oh-oh, no playbin\n";
+	}
     }
 
-    gst_element_set_state(m_play, GST_STATE_READY);
+    GstElement *alsasink = NULL;
+    std::string alsadevice;
+
+    if (m_card >= 0 && m_device >= 0)
+    {
+	alsadevice = (boost::format("plughw:%d,%d") % m_card % m_device).str();
+
+	alsasink = gst_element_factory_make("alsasink", "audio-sink");
+	g_object_set(m_play, "audio-sink", alsasink, NULL);
+	g_object_set(alsasink, "device", alsadevice.c_str(), NULL);
+    }
+    // Otherwise it uses the "default" ALSA output
+
+    gst_element_set_state(m_play, GST_STATE_NULL);
 
     m_bus = gst_pipeline_get_bus(GST_PIPELINE(m_play));
 //    TRACE << "Apparently bus=" << m_bus << " (this=" << this << ")\n";
@@ -128,15 +183,21 @@ void URLPlayer::Impl::Run()
     TRACE << "ran, exiting\n";
     
     /* also clean up */
+    {
+	boost::mutex::scoped_lock lock(gstreamer_unnecessarily_not_re_entrant);
+    
     gst_element_set_state(m_play, GST_STATE_NULL);
     gst_object_unref(GST_OBJECT(m_bus));
     gst_object_unref(GST_OBJECT(m_play));
+//    if (alsasink)
+//	gst_object_unref(GST_OBJECT(alsasink));
     g_main_loop_unref(m_loop);
     m_loop = NULL;
     g_source_destroy(timersource);
     g_source_destroy(src);
     g_main_context_unref(context);
-    gst_deinit();
+
+    }
 
     TRACE << "now falling off thread\n";
 }
@@ -184,8 +245,10 @@ unsigned int URLPlayer::Impl::SetPlayState(output::PlayState state)
     case PLAY:
     {
 //	TRACE << "Calling set_state\n";
-	GstStateChangeReturn sr = gst_element_set_state(m_play, 
-							GST_STATE_PLAYING);
+//	GstStateChangeReturn sr = 
+
+	gst_element_set_state(m_play, GST_STATE_PLAYING);
+
 //	TRACE << "set_state returned " << sr << "\n";
 	break;
     }
@@ -348,7 +411,7 @@ gboolean URLPlayer::Impl::OnAlarm()
 
     if (gst_element_query_position(m_play, &fmt, &ns))
     {
-	unsigned int timecode = ns / 1000000000; // ns to s
+	unsigned int timecode = (unsigned int)(ns / 1000000000); // ns to s
 	if (timecode != m_last_timecode_sec)
 	{
 //	    TRACE << "tc " << timecode << "s (" << ns << "ns)\n";
@@ -364,7 +427,7 @@ gboolean URLPlayer::Impl::OnAlarm()
 /* URLPlayer */
 
 
-URLPlayer::URLPlayer()
+URLPlayer::URLPlayer(int card, int device)
 {
     if (!g_thread_supported())
     {
@@ -374,7 +437,7 @@ URLPlayer::URLPlayer()
     else
 	TRACE << "no need\n";
 
-    m_impl = new Impl;
+    m_impl = new Impl(card, device);
 }
 
 URLPlayer::~URLPlayer()

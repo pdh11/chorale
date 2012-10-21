@@ -29,6 +29,8 @@ TagsPtr Tags::Create(const std::string& filename)
 
 unsigned Tags::Read(db::RecordsetPtr rs)
 {
+    boost::mutex::scoped_lock lock(s_taglib_mutex);
+
     TagLib::FileRef fr(m_filename.c_str());
 
     if (!fr.tag() || !fr.audioProperties())
@@ -49,8 +51,6 @@ unsigned Tags::Read(db::RecordsetPtr rs)
 	rs->SetInteger(mediadb::SIZEBYTES, st.st_size);
     }
 
-    boost::mutex::scoped_lock lock(s_taglib_mutex);
-
     const TagLib::Tag *tag = fr.tag();    
     rs->SetString(mediadb::TITLE, tag->title().to8Bit(true));
     rs->SetString(mediadb::ARTIST, tag->artist().to8Bit(true));
@@ -65,6 +65,12 @@ unsigned Tags::Read(db::RecordsetPtr rs)
     rs->SetInteger(mediadb::CHANNELS, ap->channels());
     rs->SetInteger(mediadb::BITSPERSEC, ap->bitrate()*1000);
     rs->SetInteger(mediadb::SAMPLERATE, ap->sampleRate());
+
+    if (rs->GetString(mediadb::TITLE).empty())
+	rs->SetString(mediadb::TITLE,
+		      util::StripExtension(
+			  util::GetLeafName(m_filename.c_str()).c_str()
+			  ));
 
     return 0;
 }

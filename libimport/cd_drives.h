@@ -7,42 +7,81 @@
 #include <map>
 #include <string>
 #include "libutil/counted_object.h"
+#include "libutil/observable.h"
+#include "libutil/hal.h"
+#include "audio_cd.h"
 
 namespace util { class TaskQueue; }
+
+namespace util { namespace hal { class Context; } }
 
 namespace import {
 
 class CDDrives;
 
-class CDDrive: public CountedObject
+class CDDriveObserver
 {
-    class CDDriveImpl;
-    CDDriveImpl *m_impl;
-
-    explicit CDDrive(const std::string& device);
-
-    friend class CDDrives;
-
 public:
-    ~CDDrive();
+    virtual ~CDDriveObserver() {}
+    virtual void OnDiscPresent(bool) = 0;
+};
 
-    std::string GetDevice() const;
-    bool IsBusy() const;
-    void SetBusy(bool busy);
+class CDDrive: public CountedObject, public util::Observable<CDDriveObserver>
+{
+public:
+    virtual ~CDDrive() {}
 
-    util::TaskQueue *GetTaskQueue();
+    virtual std::string GetName() const = 0;
+
+    virtual bool SupportsDiscPresent() const = 0;
+    virtual bool DiscPresent() const = 0;
+    virtual unsigned int Eject() = 0;
+    virtual util::TaskQueue *GetTaskQueue() = 0;
+
+    /** Attempt to create an AudioCDPtr. Can take several seconds (CD spinup).
+     * Fails if no CD, or if no audio tracks.
+     */
+    virtual unsigned int GetCD(AudioCDPtr *result) = 0;
 };
 
 typedef boost::intrusive_ptr<CDDrive> CDDrivePtr;
 
-class CDDrives
+class LocalCDDrive: public CDDrive
 {
-    typedef std::map<std::string, CDDrivePtr> map_t;
+    class Impl;
+    Impl *m_impl;
 
-    map_t m_map;
+    friend class Impl;
+
+    LocalCDDrive(const std::string& device, util::hal::Context *hal = NULL);
+
+    friend class CDDrives;
 
 public:
-    CDDrives();
+    ~LocalCDDrive();
+    std::string GetDevice() const;
+
+    // Being a CDDrive
+    std::string GetName() const;
+    bool SupportsDiscPresent() const;
+    bool DiscPresent() const;
+    unsigned int Eject();
+    util::TaskQueue *GetTaskQueue();
+    unsigned int GetCD(AudioCDPtr *result);
+};
+
+class CDDrives: public util::hal::DeviceObserver
+{
+    typedef std::map<std::string, CDDrivePtr> map_t;
+    map_t m_map;
+
+    util::hal::Context *m_hal;
+
+public:
+    /** Pass in a util::hal::Context to use HAL-based autodetection, or NULL
+     * to use static information.
+     */
+    explicit CDDrives(util::hal::Context *hal = NULL);
 
     void Refresh();
 
@@ -51,6 +90,9 @@ public:
     const_iterator end() { return m_map.end(); }
 
     CDDrivePtr GetDriveForDevice(const std::string& device);
+
+    // Being a util::hal::DeviceObserver
+    void OnDevice(util::hal::DevicePtr);
 };
 
 } // namespace import

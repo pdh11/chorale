@@ -4,7 +4,6 @@
 namespace util {
 
 StringStream::StringStream()
-    : m_pos(0)
 {
 }
 
@@ -17,32 +16,22 @@ StringStreamPtr StringStream::Create()
     return StringStreamPtr(new StringStream);
 }
 
-unsigned StringStream::Read(void *buffer, size_t len, size_t *pread)
+unsigned StringStream::ReadAt(void *buffer, size_t pos, size_t len,
+			      size_t *pread)
 {
-    size_t remain = m_string.length() - m_pos;
+    size_t remain = m_string.length() - pos;
     size_t nread = std::min(len, remain);
-    memcpy(buffer, m_string.c_str() + m_pos, nread);
+    memcpy(buffer, m_string.c_str() + pos, nread);
     *pread = nread;
-    m_pos += nread;
     return 0;
 }
 
-unsigned StringStream::Write(const void *buffer, size_t len, size_t *pwrote)
+unsigned StringStream::WriteAt(const void *buffer, size_t pos, size_t len, 
+			       size_t *pwrote)
 {
-    m_string.replace(m_pos, len, (const char*)buffer, len);
+    m_string.replace(pos, len, (const char*)buffer, len);
     *pwrote = len;
-    m_pos += len;
     return 0;
-}
-
-void StringStream::Seek(pos64 pos)
-{
-    m_pos = std::min((std::string::size_type)pos, m_string.length());
-}
-
-SeekableStream::pos64 StringStream::Tell()
-{
-    return m_pos;
 }
 
 SeekableStream::pos64 StringStream::GetLength()
@@ -57,8 +46,8 @@ unsigned StringStream::SetLength(pos64 len)
     else
     {
 	m_string.erase(len);
-	if (m_pos > len)
-	    m_pos = len;
+	if (Tell() > len)
+	    Seek(len);
     }
     return 0;
 }

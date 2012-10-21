@@ -2,6 +2,7 @@
 #define LIBUTIL_HAL_H
 
 #include <string>
+#include "counted_object.h"
 
 namespace util {
 
@@ -12,26 +13,15 @@ namespace dbus { class Connection; }
  */
 namespace hal {
 
-class Observer
-{
-public:
-    virtual ~Observer() {}
-    virtual void OnDeviceAdded(const char*) {}
-    virtual void OnDeviceRemoved(const char*) {}
-};
-
-class DeviceObserver
-{
-public:
-    virtual ~DeviceObserver() {}
-
-    virtual void OnDevice(const std::string& udi) = 0;
-};
+class Observer;
+class DeviceObserver;
 
 class Context
 {
     class Impl;
     Impl *m_impl;
+
+    friend class Device;
 
 public:
     explicit Context(dbus::Connection*);
@@ -45,11 +35,39 @@ public:
     void GetAllDevices(DeviceObserver*);
     void GetMatchingDevices(const char *key, const char *value,
 			    DeviceObserver*);
+};
 
-    std::string DeviceGetPropertyString(const char *udi,
-					const char *key);
-    unsigned int DeviceGetPropertyInt(const char *udi,
-				      const char *property);
+class Device: public CountedObject
+{
+    std::string m_udi;
+    Context::Impl *m_ctx;
+
+public:
+    Device(Context::Impl*, const char *udi);
+    ~Device();
+
+    std::string GetString(const char *key);
+    unsigned int GetInt(const char *key);
+
+    const std::string& GetUDI() { return m_udi; }
+};
+
+typedef boost::intrusive_ptr<Device> DevicePtr;
+
+class Observer
+{
+public:
+    virtual ~Observer() {}
+    virtual void OnDeviceAdded(DevicePtr) {}
+    virtual void OnDeviceRemoved(DevicePtr) {}
+};
+
+class DeviceObserver
+{
+public:
+    virtual ~DeviceObserver() {}
+
+    virtual void OnDevice(DevicePtr) = 0;
 };
 
 } // namespace hal

@@ -113,7 +113,7 @@ xmlns=&amp;quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&amp;quot;&amp;gt;
 			if (node2)
 			{
 			    const DOMString value = ixmlNode_getNodeValue(node2);
-			    TRACE << "var '" << name << "' val '" << value << "'\n";
+//			    TRACE << "var '" << name << "' val '" << value << "'\n";
 			    conn->OnEvent(name, value);
 			}
 		    }
@@ -193,7 +193,7 @@ static int SubscriptionCallback(Upnp_EventType et, void *event, void *cookie)
 	if (ues->ErrCode == UPNP_E_SUCCESS)
 	{
 	    std::string sid = ues->Sid;
-	    TRACE << "Got sid '" << sid << "'\n";
+//	    TRACE << "Got sid '" << sid << "'\n";
 	    conn->SetSid(sid);
 	}
 	else
@@ -228,8 +228,12 @@ unsigned int ClientConnection::Init(Client *parent, const char *service_id)
     int rc = UpnpSubscribeAsync((UpnpClient_Handle)parent->m_impl->GetHandle(),
 				it->second.event_url.c_str(), 7200u,
 				SubscriptionCallback, this);
-    
-    TRACE << "USA returned " << rc << "\n";
+
+    if (rc)
+    {
+	TRACE << "USA returned " << rc << "\n";
+	return EINVAL;
+    }
 
     return 0;
 }
@@ -239,11 +243,23 @@ unsigned int ClientConnection::GenaUInt(const std::string& s)
     return (unsigned int)strtoul(s.c_str(), NULL, 10);
 }
 
+bool ClientConnection::GenaBool(const std::string& s)
+{
+    return soap::ParseBool(s);
+}
+
 void ClientConnection::SetSid(const std::string& sid)
 {
     assert(m_impl);
     assert(m_impl->parent);
     m_impl->parent->AddListener(this, sid);
+}
+
+unsigned int ClientConnection::SoapAction(const char *action_name,
+					  soap::Inbound *result)
+{
+    soap::Outbound no_params;
+    return SoapAction(action_name, no_params, result);
 }
 
 unsigned int ClientConnection::SoapAction(const char *action_name,
@@ -290,48 +306,51 @@ unsigned int ClientConnection::SoapAction(const char *action_name,
 //    }
     ixmlDocument_free(request);
 
-    IXML_Node *child = ixmlNode_getFirstChild(&response->n);
-    if (child)
+    if (result)
     {
-	IXML_NodeList *nl = ixmlNode_getChildNodes(child);
-	
-	size_t resultcount = ixmlNodeList_length(nl);
+	IXML_Node *child = ixmlNode_getFirstChild(&response->n);
+	if (child)
+	{
+	    IXML_NodeList *nl = ixmlNode_getChildNodes(child);
+	    
+	    size_t resultcount = ixmlNodeList_length(nl);
 //	TRACE << resultcount << " result(s)\n";
 
-	for (unsigned int i=0; i<resultcount; ++i)
-	{
-	    IXML_Node *node2 = ixmlNodeList_item(nl, i);
-	    if (node2)
+	    for (unsigned int i=0; i<resultcount; ++i)
 	    {
-		const DOMString ds = ixmlNode_getNodeName(node2);
-		if (ds)
+		IXML_Node *node2 = ixmlNodeList_item(nl, i);
+		if (node2)
 		{
-		    IXML_Node *textnode = ixmlNode_getFirstChild(node2);
-		    if (textnode)
+		    const DOMString ds = ixmlNode_getNodeName(node2);
+		    if (ds)
 		    {
-			const DOMString ds2 = ixmlNode_getNodeValue(textnode);
-			if (ds2)
+			IXML_Node *textnode = ixmlNode_getFirstChild(node2);
+			if (textnode)
 			{
-			    //TRACE << ds << "=" << ds2 << "\n";
-			    result->Set(ds, ds2);
+			    const DOMString ds2 = ixmlNode_getNodeValue(textnode);
+			    if (ds2)
+			    {
+				//TRACE << ds << "=" << ds2 << "\n";
+				result->Set(ds, ds2);
+			    }
+			    else
+				TRACE << "no value\n";
 			}
-			else
-			    TRACE << "no value\n";
+			//else
+			//TRACE << "no textnode\n";
 		    }
-		    //else
-		    //TRACE << "no textnode\n";
+		    else
+			TRACE << "no name\n";
 		}
 		else
-		    TRACE << "no name\n";
+		    TRACE << "no node\n";
 	    }
-	    else
-		TRACE << "no node\n";
+	    
+	    ixmlNodeList_free(nl);
 	}
-
-	ixmlNodeList_free(nl);
+	else
+	    TRACE << "no child\n";
     }
-    else
-	TRACE << "no child\n";
 
     ixmlDocument_free(response);
 

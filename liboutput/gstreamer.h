@@ -17,7 +17,10 @@ class URLPlayer: public output::URLPlayer
     Impl *m_impl;
 
 public:
-    URLPlayer();
+    /** Pass in card==-1 to use the default output, or an ALSA
+     * card/device pair.
+     */
+    URLPlayer(int card = -1, int device = -1);
     ~URLPlayer();
 
     unsigned int SetURL(const std::string&, const std::string&);

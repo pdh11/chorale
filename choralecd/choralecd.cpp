@@ -12,19 +12,19 @@
 #include <qpixmap.h>
 #include "main_window.h"
 #include "settings.h"
-#include "libimport/cd_drives.h"
-#include "libutil/worker_thread_pool.h"
-#include "poller.h"
+#include "libutil/cpus.h"
+#include "libutil/dbus.h"
+#include "libutil/hal.h"
 #include "libutil/trace.h"
+#include "libutil/worker_thread_pool.h"
+#include "libimport/cd_drives.h"
+#include "libreceiver/ssdp.h"
+#include "libdbreceiver/db.h"
+#include "libmediadb/registry.h"
+#include "poller.h"
 #include "cd_widget.h"
 #include "db_widget.h"
 #include "output_widget.h"
-#include "libdbreceiver/db.h"
-#include "libreceiver/ssdp.h"
-#include "libutil/cpus.h"
-#include "liboutput/queue.h"
-#include "liboutput/gstreamer.h"
-#include "libmediadb/registry.h"
 #include <memory>
 
 #include "imagery/cd.xpm"
@@ -36,16 +36,31 @@ int main(int argc, char *argv[])
 {
     QApplication app( argc, argv );
 
-#ifdef HAVE_GSTREAMER
-    // Start this off really early, as it fork()s internally
-    output::gstreamer::URLPlayer player;
-#endif
-
     Settings settings;
-    util::WorkerThreadPool cpu_pool;
+    util::WorkerThreadPool cpu_pool(util::CountCPUs()*2);
     util::WorkerThreadPool disk_pool(util::CountCPUs()*2);
     util::TaskQueue *cpu_queue = cpu_pool.GetTaskQueue();
     util::TaskQueue *disk_queue = disk_pool.GetTaskQueue();
+
+    choraleqt::Poller poller;
+
+    util::hal::Context *halp = NULL;
+#ifdef HAVE_HAL
+    util::dbus::Connection dbusc(&poller);
+    unsigned int res = dbusc.Connect(util::dbus::Connection::SYSTEM);
+    if (res)
+    {
+	TRACE << "Can't connect to D-Bus\n";
+    }
+    util::hal::Context halc(&dbusc);
+    res = halc.Init();
+    if (res == 0)
+	halp = &halc;
+#endif
+
+#ifdef HAVE_CD
+    import::CDDrives cds(halp);
+#endif
 
     std::auto_ptr<choraleqt::MainWindow> mainwin(
 	new choraleqt::MainWindow(&settings, cpu_queue, disk_queue) );
@@ -57,7 +72,6 @@ int main(int argc, char *argv[])
 //    mainwin->AddWidgetFactory(&ldbwf);
 
 #ifdef HAVE_CD
-    import::CDDrives cds;
     QPixmap cd_pixmap((const char**)cd_xpm);
     choraleqt::CDWidgetFactory cwf(&cd_pixmap, &cds, &settings, cpu_queue,
 				   disk_queue);
@@ -68,13 +82,9 @@ int main(int argc, char *argv[])
 
     QPixmap output_pixmap((const char**)output_xpm);
 #ifdef HAVE_LIBOUTPUT
-    output::Queue queue(&player);
-    queue.SetName("/dev/pcmC0D0p");
-    choraleqt::OutputWidgetFactory owf(&output_pixmap, &queue, &registry);
+    choraleqt::OutputWidgetFactory owf(&output_pixmap, halp, &registry);
     mainwin->AddWidgetFactory(&owf);
 #endif
-
-    choraleqt::Poller poller;
 
 #ifdef HAVE_LIBOUTPUT_UPNP
     util::ssdp::Client uclient(&poller);
@@ -99,6 +109,13 @@ int main(int argc, char *argv[])
     choraleqt::UpnpDBWidgetFactory udbwf(&network_pixmap, &registry);
     mainwin->AddWidgetFactory(&udbwf);
     uclient.Init(util::ssdp::s_uuid_contentdirectory, &udbwf);
+#endif
+
+#ifdef HAVE_UPNP
+    choraleqt::UpnpCDWidgetFactory ucdwf(&cd_pixmap, &settings, cpu_queue,
+					 disk_queue);
+    mainwin->AddWidgetFactory(&ucdwf);
+    uclient.Init(util::ssdp::s_uuid_opticaldrive, &ucdwf);
 #endif
 
     mainwin->show();

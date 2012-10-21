@@ -18,7 +18,7 @@ public:
     explicit ContentFactory(mediadb::Database *db) : m_db(db) {}
 
     // Being a ContentFactory
-    util::SeekableStreamPtr StreamForPath(const char *path);
+    bool StreamForPath(const util::WebRequest *rq, util::WebResponse *rs);
 };
 
 } // namespace receiverd

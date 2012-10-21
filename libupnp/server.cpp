@@ -100,7 +100,7 @@ std::string Server::Impl::MakeUUID(const std::string& resource)
     char buf[40];
     uuid_unparse(u.uuid, buf);
 
-    TRACE << "key='" << key << "' uuid=" << buf << "\n";
+//    TRACE << "key='" << key << "' uuid=" << buf << "\n";
 
     return std::string(buf);
 }
@@ -116,7 +116,7 @@ int Server::Impl::OnUPnPEvent(int et, void *event)
     {
     case UPNP_EVENT_SUBSCRIPTION_REQUEST:
     {
-	TRACE << "I'm being subscribed at\n";
+//	TRACE << "I'm being subscribed at\n";
 	Upnp_Subscription_Request *usr = (Upnp_Subscription_Request*)event;
 	Service *service = FindService(usr->UDN, usr->ServiceId);
 	if (!service)
@@ -125,8 +125,24 @@ int Server::Impl::OnUPnPEvent(int et, void *event)
 		  << usr->ServiceId << "'\n";
 	    return UPNP_E_BAD_REQUEST;
 	}
+	soap::Outbound vars;
+	service->GetEventedVariables(&vars);
 	IXML_Document *propset = NULL;
-	UpnpAddToPropertySet(&propset, "foo", "bar");
+	if (vars.begin() == vars.end())
+	{
+	    // The API requires at least one variable here
+	    UpnpAddToPropertySet(&propset, "x-foo", "");
+	}
+	else
+	{
+	    for (soap::Outbound::const_iterator i = vars.begin();
+		 i != vars.end();
+		 ++i)
+	    {
+		UpnpAddToPropertySet(&propset, i->first,
+				     i->second.c_str());
+	    }
+	}
 	UpnpAcceptSubscriptionExt(m_handle, usr->UDN, usr->ServiceId,
 				  propset, usr->Sid);
 	ixmlDocument_free(propset);
@@ -206,7 +222,7 @@ int Server::Impl::OnUPnPEvent(int et, void *event)
     }
 
     default:
-	TRACE << "unhandled device event " << et << "\n";
+//	TRACE << "unhandled device event " << et << "\n";
 	break;
     }
 
@@ -257,7 +273,7 @@ std::string Server::Impl::Description(Device *d)
 	ss << "<service>"
 	   << "<serviceType>" << i->second->GetType() << "</serviceType>"
 	   << "<serviceId>" << i->first << "</serviceId>"
-	   << "<SCPDURL>" << i->second->GetSCPDUrl() << "</SCPDURL>"
+	   << "<SCPDURL>" << m_presentation_url << i->second->GetSCPDUrl() << "</SCPDURL>"
 	   << "<controlURL>/upnpcontrol" << m_device_index << "</controlURL>"
 	   << "<eventSubURL>/upnpevent" << m_device_index << "</eventSubURL>"
 	   << "</service>"
@@ -269,7 +285,7 @@ std::string Server::Impl::Description(Device *d)
 
     if (!d->m_devices.empty())
     {
-	ss << "<deviceList>";
+	ss << "<deviceList>\n";
 
 	for (Device::devices_t::const_iterator i = d->m_devices.begin();
 	     i != d->m_devices.end();
@@ -295,7 +311,7 @@ unsigned int Server::Impl::Init(unsigned short port)
 	+ Description(m_device)
 	     + "</root>";
 
-    TRACE << "My device description is:\n" << s << "\n";
+//    TRACE << "My device description is:\n" << s << "\n";
 
     int rc = UpnpRegisterRootDevice2(UPNPREG_BUF_DESC,
 				     s.c_str(),
@@ -328,7 +344,9 @@ void Server::Impl::FireEvent(const std::string& udn, const char *service_id,
     
     UpnpAddToPropertySet(&propset, variable, value.c_str());
     int rc = UpnpNotifyExt(m_handle, udn.c_str(), service_id, propset);
-    TRACE << "UNE returned " << rc << "\n";
+
+    if (rc)
+	TRACE << "UNE returned " << rc << "\n";
 
     ixmlDocument_free(propset);
 }

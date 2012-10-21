@@ -3,6 +3,7 @@
 #include "dbus.h"
 #include "trace.h"
 #include "poll.h"
+#include "observable.h"
 #include <errno.h>
 
 #ifdef HAVE_HAL
@@ -14,17 +15,17 @@ namespace util {
 
 namespace hal {
 
-class Context::Impl
+class Context::Impl: public util::Observable<Observer>
 {
     LibHalContext *m_ctx;
 
-    typedef std::list<Observer*> obs_t;
-    obs_t m_obs;
-
     /* Static C callback / C++ callback pairs */
 
-    void StaticDeviceAdded(LibHalContext *ctx, const char *udi);
+    static void StaticDeviceAdded(LibHalContext *ctx, const char *udi);
     void OnDeviceAdded(const char *udi);
+
+    static void StaticDeviceRemoved(LibHalContext *ctx, const char *udi);
+    void OnDeviceRemoved(const char *udi);
 
 public:
     Impl(dbus::Connection*);
@@ -33,9 +34,9 @@ public:
     unsigned int Init();
     void GetMatchingDevices(const char *key, const char *value, 
 			    DeviceObserver *obs);
-    std::string DeviceGetPropertyString(const char *udi,
-					const char *property);
-    unsigned int DeviceGetPropertyInt(const char *udi,
+    std::string DeviceGetString(const char *udi,
+					const char *key);
+    unsigned int DeviceGetInt(const char *udi,
 				      const char *property);
 };
 
@@ -54,6 +55,8 @@ Context::Impl::Impl(dbus::Connection *conn)
     }
 
     libhal_ctx_set_user_data(m_ctx, this);
+    libhal_ctx_set_device_added(m_ctx, &StaticDeviceAdded);
+    libhal_ctx_set_device_removed(m_ctx, &StaticDeviceRemoved);
 }
 
 Context::Impl::~Impl()
@@ -85,8 +88,22 @@ void Context::Impl::StaticDeviceAdded(LibHalContext *ctx, const char *udi)
 
 void Context::Impl::OnDeviceAdded(const char *udi)
 {
-    for (obs_t::const_iterator i = m_obs.begin(); i != m_obs.end(); ++i)
-	(*i)->OnDeviceAdded(udi);
+    DevicePtr dp(new Device(this, udi));
+//    TRACE << "New HAL device " << udi << "\n";
+    Fire(&Observer::OnDeviceAdded, dp);
+}
+
+void Context::Impl::StaticDeviceRemoved(LibHalContext *ctx, const char *udi)
+{
+    Impl *self = (Impl*)libhal_ctx_get_user_data(ctx);
+    self->OnDeviceRemoved(udi);
+}
+
+void Context::Impl::OnDeviceRemoved(const char *udi)
+{
+    DevicePtr dp(new Device(this, udi));
+//    TRACE << "Removing HAL device " << udi << "\n";
+    Fire(&Observer::OnDeviceRemoved, dp);
 }
 
 void Context::Impl::GetMatchingDevices(const char *key, const char *value,
@@ -101,12 +118,15 @@ void Context::Impl::GetMatchingDevices(const char *key, const char *value,
 	return;
 
     for (int i=0; i<num; ++i)
-	obs->OnDevice(result[i]);
+    {
+	DevicePtr dp(new Device(this, result[i]));
+	obs->OnDevice(dp);
+    }
 
     libhal_free_string_array(result);
 }
 
-std::string Context::Impl::DeviceGetPropertyString(const char *udi,
+std::string Context::Impl::DeviceGetString(const char *udi,
 						   const char *property)
 {
     char *cstr = libhal_device_get_property_string(m_ctx, udi, 
@@ -116,7 +136,7 @@ std::string Context::Impl::DeviceGetPropertyString(const char *udi,
     return result;
 }
 
-unsigned int Context::Impl::DeviceGetPropertyInt(const char *udi,
+unsigned int Context::Impl::DeviceGetInt(const char *udi,
 						 const char *property)
 {
     return (unsigned)libhal_device_get_property_int(m_ctx, udi, property,
@@ -149,16 +169,38 @@ void Context::GetMatchingDevices(const char *property,
     m_impl->GetMatchingDevices(property, value, obs);
 }
 
-std::string Context::DeviceGetPropertyString(const char *udi,
-					     const char *property)
+void Context::AddObserver(Observer *obs)
 {
-    return m_impl->DeviceGetPropertyString(udi, property);
+    m_impl->AddObserver(obs);
 }
 
-unsigned int Context::DeviceGetPropertyInt(const char *udi,
-					   const char *property)
+void Context::RemoveObserver(Observer *obs)
 {
-    return m_impl->DeviceGetPropertyInt(udi, property);
+    m_impl->RemoveObserver(obs);
+}
+
+
+        /* Device */
+
+
+Device::Device(Context::Impl *parent, const char *udi)
+    : m_udi(udi),
+      m_ctx(parent)
+{
+}
+
+Device::~Device()
+{
+}
+
+std::string Device::GetString(const char *key)
+{
+    return m_ctx->DeviceGetString(m_udi.c_str(), key);
+}
+
+unsigned int Device::GetInt(const char *key)
+{
+    return m_ctx->DeviceGetInt(m_udi.c_str(), key);
 }
 
 } // namespace hal
@@ -177,37 +219,29 @@ unsigned int Context::DeviceGetPropertyInt(const char *udi,
 
 class CDObserver: public util::hal::DeviceObserver
 {
-    util::hal::Context *m_hal;
-
 public:
-    explicit CDObserver(util::hal::Context *hal) : m_hal(hal) {}
-
-    void OnDevice(const std::string& udi);
+    void OnDevice(util::hal::DevicePtr dev);
 };
 
-void CDObserver::OnDevice(const std::string& udi)
+void CDObserver::OnDevice(util::hal::DevicePtr dev)
 {
-    std::string product = m_hal->DeviceGetPropertyString(udi.c_str(), "info.product");
-    std::string device = m_hal->DeviceGetPropertyString(udi.c_str(), "block.device");
+    std::string product = dev->GetString("info.product");
+    std::string device = dev->GetString("block.device");
 
     TRACE << "Found CD '" << product << "' at '" << device << "'\n";
 }
 
 class SoundObserver: public util::hal::DeviceObserver
 {
-    util::hal::Context *m_hal;
-
 public:
-    explicit SoundObserver(util::hal::Context *hal) : m_hal(hal) {}
-
-    void OnDevice(const std::string& udi);
+    void OnDevice(util::hal::DevicePtr dev);
 };
 
-void SoundObserver::OnDevice(const std::string& udi)
+void SoundObserver::OnDevice(util::hal::DevicePtr dev)
 {
-    std::string product = m_hal->DeviceGetPropertyString(udi.c_str(), "info.product");
-    unsigned card = m_hal->DeviceGetPropertyInt(udi.c_str(), "alsa.card");
-    unsigned device = m_hal->DeviceGetPropertyInt(udi.c_str(), "alsa.device");
+    std::string product = dev->GetString("info.product");
+    unsigned card = dev->GetInt("alsa.card");
+    unsigned device = dev->GetInt("alsa.device");
 
     TRACE << "Found ALSA output '" << product << "' at 'hw"
 	  << card << "," << device << "'\n";
@@ -215,18 +249,14 @@ void SoundObserver::OnDevice(const std::string& udi)
 
 class DVBObserver: public util::hal::DeviceObserver
 {
-    util::hal::Context *m_hal;
-
 public:
-    explicit DVBObserver(util::hal::Context *hal) : m_hal(hal) {}
-
-    void OnDevice(const std::string& udi);
+    void OnDevice(util::hal::DevicePtr dev);
 };
 
-void DVBObserver::OnDevice(const std::string& udi)
+void DVBObserver::OnDevice(util::hal::DevicePtr dev)
 {
-    std::string product = m_hal->DeviceGetPropertyString(udi.c_str(), "info.product");
-    std::string device = m_hal->DeviceGetPropertyString(udi.c_str(), "dvb.device");
+    std::string product = dev->GetString("info.product");
+    std::string device = dev->GetString("dvb.device");
 
     if (device.find("frontend") != std::string::npos)
 	TRACE << "Found DVB '" << product << "' at '" << device << "'\n";
@@ -251,17 +281,15 @@ int main()
 
     rc = ctx.Init();
 
-    CDObserver cdobs(&ctx);
-
+    CDObserver cdobs;
     ctx.GetMatchingDevices("storage.drive_type", "cdrom", &cdobs);
 
-    SoundObserver sobs(&ctx);
-
+    SoundObserver sobs;
     ctx.GetMatchingDevices("alsa.type", "playback", &sobs);
- 
-    DVBObserver dobs(&ctx);
 
+    DVBObserver dobs;
     ctx.GetMatchingDevices("info.category", "dvb", &dobs);
+
 #endif // HAVE_HAL
 
     return 0;

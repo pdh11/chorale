@@ -44,9 +44,6 @@ endif
 ifeq ($(libmediadb),)
 include $(TOP)libmediadb/Makefile
 endif
-ifeq ($(libdbsqlite),)
-include $(TOP)libdbsqlite/Makefile
-endif
 ifeq ($(libdbsteam),)
 include $(TOP)libdbsteam/Makefile
 endif
@@ -57,13 +54,13 @@ ifeq ($(liboutput),)
 include $(TOP)liboutput/Makefile
 endif
 
-$(play): $(PLAY_OBJS) $(liboutput) $(libdbsqlite) $(libdb) $(libutil) \
+$(play): $(PLAY_OBJS) $(liboutput) $(libdb) $(libutil) \
 		Makefile $(libdbsteam) $(libmediadb) $(libimport)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(PLAY_OBJS) \
-		$(liboutput) $(libdbsqlite) $(libdbsteam) $(libmediadb) \
+		$(liboutput) $(libdbsteam) $(libmediadb) \
 		$(libdb) $(libimport) $(libutil) $(LIBFLAC_LIBS) \
-		$(BOOST_LIBS) $(TAGLIB_LIBS) $(SQLITE_LIBS) $(LIBXMLPP_LIBS) \
+		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBXMLPP_LIBS) \
 		$(GSTREAMER_LIBS)
 
 $(pparse): $(PPARSE_OBJS) $(libimport) $(libutil) Makefile
@@ -76,29 +73,29 @@ $(playlist2dir): $(PLAYLIST2DIR_OBJS) $(libimport) $(libutil) Makefile
 		 $(CC) -o $@ $(PLAYLIST2DIR_OBJS) $(libimport) $(libutil) \
 		 $(LIBXMLPP_LIBS) $(BOOST_LIBS)
 
-$(readtags): $(READTAGS_OBJS) $(libimport) $(libdbsqlite) $(libdb) $(libutil) \
+$(readtags): $(READTAGS_OBJS) $(libimport) $(libdb) $(libutil) \
 		Makefile $(libdbsteam) $(libmediadb)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(READTAGS_OBJS) \
-		$(libimport) $(libdbsqlite) $(libdbsteam) $(libmediadb) \
+		$(libimport) $(libdbsteam) $(libmediadb) \
 		$(libdb) $(libutil) \
-		$(BOOST_LIBS) $(TAGLIB_LIBS) $(SQLITE_LIBS) $(LIBXMLPP_LIBS)
+		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBXMLPP_LIBS)
 
-$(squirt): $(SQUIRT_OBJS) $(libimport) $(libdbsqlite) $(libdb) $(libutil) \
+$(squirt): $(SQUIRT_OBJS) $(libimport) $(libdb) $(libutil) \
 		Makefile $(libdbsteam) $(libmediadb)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(SQUIRT_OBJS) \
-		$(libimport) $(libdbsqlite) $(libdbsteam) $(libmediadb) \
+		$(libimport) $(libdbsteam) $(libmediadb) \
 		$(libdb) $(libutil) \
-		$(BOOST_LIBS) $(TAGLIB_LIBS) $(SQLITE_LIBS) $(LIBXMLPP_LIBS)
+		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBXMLPP_LIBS)
 
-$(timedb): $(TIMEDB_OBJS) $(libimport) $(libdbsqlite) $(libdb) $(libutil) \
+$(timedb): $(TIMEDB_OBJS) $(libimport) $(libdb) $(libutil) \
 		Makefile $(libdbsteam) $(libmediadb)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CC) -o $@ $(CXXFLAGS) $(TIMEDB_OBJS) \
-		$(libimport) $(libdbsqlite) $(libdbsteam) $(libmediadb) \
+		$(libimport) $(libdbsteam) $(libmediadb) \
 		$(libdb) $(libutil) \
-		$(BOOST_LIBS) $(TAGLIB_LIBS) $(SQLITE_LIBS) $(LIBXMLPP_LIBS)
+		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBXMLPP_LIBS)
 
 CLEANS += $(pparse) $(playlist2dir) $(PPARSE_OBJS) \
 	$(PLAYLIST2DIR_OBJS) $(readtags) $(play) $(squirt) $(timedb)

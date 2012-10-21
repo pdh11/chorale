@@ -5,6 +5,7 @@
 #include <string>
 #include <boost/thread/condition.hpp>
 #include <boost/thread/mutex.hpp>
+#include <boost/intrusive_ptr.hpp>
 
 namespace util
 {
@@ -39,6 +40,8 @@ private:
     friend class FileTask;
     friend class DirectoryTask;
     friend class SymbolicLinkTask;
+
+    typedef boost::intrusive_ptr<DirectoryTask> DirectoryTaskPtr;
 
 public:
 

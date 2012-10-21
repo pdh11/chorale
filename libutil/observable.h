@@ -1,11 +1,11 @@
 #ifndef LIBUTIL_OBSERVABLE_H
 #define LIBUTIL_OBSERVABLE_H 1
 
-#include <boost/thread/mutex.hpp>
 #include <boost/bind.hpp>
 #include <list>
 #include <functional>
 #include <assert.h>
+#include "locking.h"
 
 namespace util {
 
@@ -64,46 +64,6 @@ protected:
 	     ++i)
 	    f(*i);
     }
-};
-
-/** Locking policy: per-object
- */
-class PerObjectLocking
-{
-    boost::mutex m_mutex;
-
-public:
-    class Lock: public boost::mutex::scoped_lock
-    {
-    public:
-	Lock(PerObjectLocking *l): boost::mutex::scoped_lock(l->m_mutex) {}
-    };
-};
-
-/** Locking policy: per-class
- */
-class PerClassLocking
-{
-    static boost::mutex sm_mutex;
-
-public:
-    class Lock: public boost::mutex::scoped_lock
-    {
-    public:
-	Lock(PerClassLocking *l): boost::mutex::scoped_lock(l->sm_mutex) {}
-    };
-};
-
-/** Locking policy: none
- */
-class NoLocking
-{
-public:
-    class Lock
-    {
-    public:
-	Lock(NoLocking*) {}
-    };
 };
 
 /** Base class that encapsulates telling observer classes what's going on.

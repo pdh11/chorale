@@ -32,6 +32,8 @@ public:
 
     void FireEvent(const char *variable, const std::string& value);
     void FireEvent(const char *variable, unsigned int value);
+
+    virtual void GetEventedVariables(soap::Outbound *vars) = 0;
 };
 
 class Server;

@@ -22,7 +22,8 @@ class ResourceWidget: public QFrame
     
 public:
     ResourceWidget(QWidget *parent, const std::string& label, QPixmap,
-		   const char *topbutton, const char *bottombutton);
+		   const char *topbutton, const char *bottombutton,
+		   const std::string& tooltip = std::string());
     void EnableTop(bool enabled);
     void EnableBottom(bool enabled);
 

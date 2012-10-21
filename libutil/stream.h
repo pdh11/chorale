@@ -28,12 +28,6 @@ public:
      * EOF is a failure, returning EIO.
      */
     unsigned WriteAll(const void *buffer, size_t len) ATTRIBUTE_WARNUNUSED;
-
-    typedef boost::intrusive_ptr<Stream> StreamPtr;
-
-    /** Repeatedly Read()s the other stream and Writes() this, until EOF.
-     */
-    unsigned Copy(StreamPtr other);
 };
 
 typedef boost::intrusive_ptr<Stream> StreamPtr;
@@ -47,13 +41,49 @@ class SeekableStream: public Stream
 public:
     typedef unsigned long long pos64;
 
-    virtual void Seek(pos64 pos) = 0;
-    virtual pos64 Tell() = 0;
+private:
+    pos64 m_pos;
+
+protected:
+    SeekableStream();
+
+public:
+    unsigned Read(void *buffer, size_t len, size_t *pread);
+    unsigned Write(const void *buffer, size_t len, size_t *pwrote);
+
+    void Seek(pos64 pos) { m_pos = pos; }
+    pos64 Tell() { return m_pos; }
+
     virtual pos64 GetLength() = 0;
     virtual unsigned SetLength(pos64) = 0;
+
+    /** Atomic seek-and-read.
+     *
+     * May (or may not) change seek position.
+     */
+    virtual unsigned ReadAt(void *buffer, size_t pos, size_t len,
+			    size_t *pread) ATTRIBUTE_WARNUNUSED = 0;
+
+    /** Atomic seek-and-write.
+     *
+     * May (or may not) change seek position.
+     */
+    virtual unsigned WriteAt(const void *buffer, size_t pos, size_t len,
+			     size_t *pwrote) ATTRIBUTE_WARNUNUSED = 0;
 };
 
 typedef boost::intrusive_ptr<SeekableStream> SeekableStreamPtr;
+
+/** Repeatedly Read()s one stream and Writes() the other, until EOF or error.
+ */
+unsigned int CopyStream(StreamPtr from, StreamPtr to);
+
+/** Repeatedly Read()s one stream and Writes() the other, until EOF or error.
+ *
+ * Uses ReadAt() so is safe to use several times independently on the same
+ * stream.
+ */
+unsigned int CopyStream(SeekableStreamPtr from, StreamPtr to);
 
 } // namespace util
 

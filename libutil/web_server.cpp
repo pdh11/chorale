@@ -1,5 +1,6 @@
 #include "config.h"
 #include "web_server.h"
+#include "libutil/async_write_buffer.h"
 #include "libutil/socket.h"
 #include "libutil/poll.h"
 #include "libutil/trace.h"
@@ -73,7 +74,8 @@ void WebServer::Task::Run()
 		break;
 	    if (rc != EWOULDBLOCK)
 	    {
-		TRACE << "GetLine failed " << rc << "\n";
+		if (rc != ENODATA)
+		    TRACE << "GetLine failed " << rc << "\n";
 		return;
 	    }
 	    if (rc == EWOULDBLOCK)
@@ -89,10 +91,14 @@ void WebServer::Task::Run()
 
 	m_socket.SetNonBlocking(false);
 
+//	TRACE << "Line   '" << line << "'\n";
+
 	typedef boost::tokenizer<boost::char_separator<char> > tokenizer;
 	boost::char_separator<char> sep(" \t");
 
-	std::string path;
+	WebRequest rq;
+	rq.local_ep = m_socket.GetLocalEndPoint();
+
 	{
 	    tokenizer bt(line, sep);
 	    tokenizer::iterator bti = bt.begin();
@@ -114,7 +120,7 @@ void WebServer::Task::Run()
 		TRACE << "Don't like request line '" << line << "'\n";
 		return;
 	    }
-	    path = *bti;
+	    rq.path = *bti;
 	    ++bti;
 	    if (bti == end)
 	    {
@@ -127,9 +133,8 @@ void WebServer::Task::Run()
 
 	bool closing = false;
 	bool do_range = false;
-	bool refresh = false;
-	size_t range_min = 0;
-	size_t range_max = 0;
+	unsigned long long range_min = 0;
+	unsigned long long range_max = 0;
 	std::string header;
 	do {
 	    rc = lr.GetLine(&header);
@@ -159,11 +164,18 @@ void WebServer::Task::Run()
 		    ++bti;
 		    if (bti != end)
 		    {
-			if (sscanf(bti->c_str(), "bytes=%lu-%lu", &range_min,
+			if (sscanf(bti->c_str(), "bytes=%llu-%llu", &range_min,
 				   &range_max) == 2)
 			{
 			    do_range = true;
 			    ++range_max; // HTTP is inc/inc; we want inc/exc
+			}
+			else if (sscanf(bti->c_str(), "bytes=%llu-", &range_min)
+				 == 1)
+			{
+			    do_range = true;
+			    range_max = (unsigned long long)-1; 
+			    // Will be clipped against len later
 			}
 			else
 			    TRACE << "Don't like range request '" << *bti
@@ -171,27 +183,37 @@ void WebServer::Task::Run()
 		    }
 		}
 		else if (!strcasecmp(bti->c_str(), "Cache-Control:"))
-		    refresh = true;
+		    rq.refresh = true;
 	    }
 	} while (header != "");
 
-	SeekableStreamPtr ssp = m_parent->StreamForPath(path.c_str(), refresh);
+	WebResponse rs;
+	m_parent->StreamForPath(&rq, &rs);
 
 	std::string headers;
-	if (!ssp)
+	if (!rs.ssp)
 	    headers = "HTTP/1.1 404 Not Found\r\n";
 	else if (do_range)
 	    headers = "HTTP/1.1 206 OK But A Bit Partial\r\n";
 	else
 	    headers = "HTTP/1.1 200 OK\r\n";
 
-	headers += "Server: " PACKAGE_STRING "\r\n";
+	headers += "Server: " PACKAGE_NAME "/" PACKAGE_VERSION "\r\n";
+	headers += "Accept-Ranges: bytes\r\n";
+	headers += "Content-Type: ";
+	    
+	if (rs.content_type)
+	    headers += rs.content_type;
+	else
+	    headers += "text/html";
 
-	headers += "Content-Type: text/html\r\n";
+	headers += "\r\n";
 
-	if (ssp)
+	unsigned long long len;
+
+	if (rs.ssp)
 	{
-	    size_t len = ssp->GetLength();
+	    len = rs.ssp->GetLength();
 
 	    if (do_range)
 	    {
@@ -200,32 +222,60 @@ void WebServer::Task::Run()
 		if (range_max > len)
 		    range_max = len;
 
-		headers += (boost::format("Content-Range: %u-%u/%u\r\n")
+		/* This form of the Content-Range header is completely
+		 * bogus (the '=' should be whitespace), but is what
+		 * Receivers expect.
+		 */
+		headers += (boost::format("Content-Range: bytes=%llu-%llu\r\n")
 			    % range_min
-			    % (range_max-1)
-			    % len).str();
+			    % (range_max-1)).str();
+//		headers += (boost::format("Content-Range: bytes %llu-%llu/%llu\r\n")
+//			    % range_min
+//			    % (range_max-1)
+//			    % len).str();
+
+		if (range_min > 0 || range_max != len)
+		    rs.ssp = util::PartialStream::Create(rs.ssp, range_min,
+						      range_max);
 
 		len = range_max - range_min;
-
-		ssp = util::PartialStream::Create(ssp, range_min, range_max);
 	    }
-	    headers += (boost::format("Content-Length: %u\r\n") % len).str();
+	    headers += (boost::format("Content-Length: %llu\r\n") % len).str();
 	}
+	else
+	    len = 0;
 
 	headers += "\r\n";
 
 	m_socket.SetCork(true);
 
+//	TRACE << "Response headers:\n" << headers;
+
 	rc = stream->WriteAll(headers.c_str(), headers.length());
+
+	m_socket.SetCork(false);
 
 	if (rc != 0)
 	{
 	    TRACE << "Writing headers failed " << rc << "\n";
 	    return;
 	}
-	if (ssp)
+
+	if (rs.ssp)
 	{
-	    rc = stream->Copy(ssp);
+	    if (len > 128*1024)
+	    {
+		StreamPtr awb;
+		rc = AsyncWriteBuffer::Create(stream,
+					      m_parent->GetAsyncQueue(),
+					      &awb);
+		if (rc == 0)
+		    rc = util::CopyStream(rs.ssp, awb);
+		else
+		    rc = util::CopyStream(rs.ssp, stream);
+	    }
+	    else
+		rc = util::CopyStream(rs.ssp, stream);
 
 	    if (rc != 0)
 	    {
@@ -249,7 +299,8 @@ void WebServer::Task::Run()
 
 WebServer::WebServer()
     : m_port(0),
-      m_threads(12)
+      m_threads(32),
+      m_async_threads(8)
 {
 }
 
@@ -287,46 +338,51 @@ unsigned WebServer::OnActivity()
     return 0;
 }
 
+TaskQueue *WebServer::GetAsyncQueue()
+{
+    return m_async_threads.GetTaskQueue();
+}
+
 unsigned short WebServer::GetPort()
 {
     return m_port;
 }
 
-SeekableStreamPtr WebServer::StreamForPath(const char *path, bool refresh)
+void WebServer::StreamForPath(const WebRequest *rq, WebResponse *rs)
 {
-    if (path == m_cached_url)
+    if (rq->path == m_cached_url)
     {
-	if (refresh)
+	if (rq->refresh)
 	{
 	    m_cached_url.clear();
 	    m_cache = NULL;
 	}
 	else
 	{
-	    m_cache->Seek(0);
-	    return m_cache;
+	    if (m_cache)
+		m_cache->Seek(0);
+	    rs->content_type = m_cached_type;
+	    rs->ssp = m_cache;
+	    return;
 	}
     }
-
-    SeekableStreamPtr s;
 
     for (list_t::iterator i = m_content.begin(); 
 	 i != m_content.end();
 	 ++i)
     {
-	s = (*i)->StreamForPath(path);
-	if (s)
+	bool taken = (*i)->StreamForPath(rq, rs);
+	if (taken)
 	{
-	    m_cached_url = path;
-	    m_cache = s;
-	    return s;
+	    m_cached_url = rq->path;
+	    m_cache = rs->ssp;
+	    m_cached_type = rs->content_type;
+	    return;
 	}
     }
-    return s;
 }
 
-void WebServer::AddContentFactory(const char *,
-				  ContentFactory *cf)
+void WebServer::AddContentFactory(const std::string&, ContentFactory *cf)
 {
     m_content.push_back(cf);
 }
@@ -335,18 +391,18 @@ void WebServer::AddContentFactory(const char *,
         /* FileContentFactory */
 
 
-SeekableStreamPtr FileContentFactory::StreamForPath(const char *path)
+bool FileContentFactory::StreamForPath(const WebRequest *rq,
+				       WebResponse *rs)
 {
-    TRACE << "Request for page '" << path << "'\n";
-    if (strncmp(path, m_page_root.c_str(), m_page_root.length()))
+    TRACE << "Request for page '" << rq->path << "'\n";
+    if (strncmp(rq->path.c_str(), m_page_root.c_str(), m_page_root.length()))
     {
 	TRACE << "Not in my root '" << m_page_root << "'\n";
-	return SeekableStreamPtr();
+	return false;
     }
 
-    path += m_page_root.length();
-
-    std::string path2 = m_file_root + path;
+    std::string path2 = m_file_root
+	+ std::string(rq->path, m_page_root.length());
     path2 = util::Canonicalise(path2);
 
     // Make sure it's still under the right root (no "/../" attacks)
@@ -354,20 +410,20 @@ SeekableStreamPtr FileContentFactory::StreamForPath(const char *path)
     {
 	TRACE << "Resolved file '" << path2 << "' not in my root '" 
 	      << m_file_root << "'\n";
-	return SeekableStreamPtr();
+	return true;
     }
 
     struct stat st;
     if (stat(path2.c_str(), &st) < 0)
     {
 	TRACE << "Resolved file '" << path2 << "' not found\n";
-	return SeekableStreamPtr(); // Not found
+	return true;
     }
 
     if (!S_ISREG(st.st_mode))
     {
 	TRACE << "Resolved file '" << path2 << "' not a file\n";
-	return SeekableStreamPtr(); // Not a regular file
+	return true;
     }
 
     FileStreamPtr fsp;
@@ -376,12 +432,13 @@ SeekableStreamPtr FileContentFactory::StreamForPath(const char *path)
     {
 	TRACE << "Resolved file '" << path2 << "' won't open " << errno 
 	      << "\n";
-	return SeekableStreamPtr(); // Won't open
+	return true;
     }
 
-    TRACE << "Path '" << path << "' is file '" << path2 << "'\n";
+    TRACE << "Path '" << rq->path << "' is file '" << path2 << "'\n";
+    rs->ssp = fsp;
 
-    return fsp;
+    return true;
 }
 
 } // namespace util
@@ -417,11 +474,12 @@ public:
 class EchoContentFactory: public util::ContentFactory
 {
 public:
-    util::SeekableStreamPtr StreamForPath(const char *path)
+    bool StreamForPath(const util::WebRequest *rq, util::WebResponse *rs)
     {
 	util::StringStreamPtr ssp = util::StringStream::Create();
-	ssp->str() = path;
-	return ssp;
+	ssp->str() = rq->path;
+	rs->ssp = ssp;
+	return true;
     }
 };
 

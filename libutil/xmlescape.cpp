@@ -38,7 +38,11 @@ std::string XmlUnEscape(const std::string& s)
 	{
 	    const char *p2 = strchr(p, ';');
 	    if (!p2)
-		return result;
+	    {
+		result += '&';
+		++p;
+		continue;
+	    }
 	    if (p2 == p+5 && !strncmp(p+1, "quot", 4))
 		result += '\"';
 	    else if (p2 == p+4 && !strncmp(p+1, "amp", 3))

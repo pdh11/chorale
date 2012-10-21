@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(chorale, [0.08], pdh@utter.chaos.org.uk)
+AC_INIT(chorale, [0.09], pdh@utter.chaos.org.uk)
 
 AC_MSG_NOTICE([Required: Taglib, Boost, xsltproc, and libxml++.])
 AC_MSG_NOTICE([Optional: qt, gstreamer, libcdio, libcddb, lame, flac, curl, libupnp, dbus, hal, libuuid, openssl, libmpg123, inkscape, imagemagick.])
@@ -165,7 +165,6 @@ PDH_PKGCONFIG(LIBCDDB,   libcddb,   1.2.1)
 PDH_PKGCONFIG(CURL,      libcurl,   7.16.1)
 PDH_PKGCONFIG(UPNP,      libupnp,   1.2.1)
 PDH_PKGCONFIG(OPENSSL,   openssl,   0.9.0)
-PDH_PKGCONFIG(SQLITE,    sqlite3,   3.3)
 PDH_PKGCONFIG(MPG123,    libmpg123, 1.2.0)
 PDH_PKGCONFIG(LIBXMLPP,  libxml++-2.6, 2.14.0)
 PDH_PKGCONFIG(GSTREAMER, gstreamer-0.10, 0.10.13)
@@ -256,15 +255,13 @@ PDH_CHECK_SOCKOPT([TCP_NODELAY])
 printf "\n"
 pdh_ok=yes
 pdh_fail=no
-if test "${LIBCDIOP}${LIBCDDB}${QT}${LAME}${LIBFLAC}${CURL}${UPNP}${GSTREAMER}${DBUS}${HAL}${SQLITE}${LIBUUID}${OPENSSL}${MPG123}${TAGLIB}${HAVE_INKSCAPE}${HAVE_CONVERT}" != "yesyesyesyesyesyesyesyesyesyesyesyesyesyesyesyesyes" ; then
+if test "${LIBCDIOP}${LIBCDDB}${QT}${LAME}${LIBFLAC}${CURL}${UPNP}${GSTREAMER}${DBUS}${HAL}${LIBUUID}${OPENSSL}${MPG123}${TAGLIB}${HAVE_CONVERT}" != "yesyesyesyesyesyesyesyesyesyesyesyesyesyesyes" ; then
 test "${QT}" = "yes"        || printf "** Install Qt 4.2.0 or later to build optional choralecd\n   http://www.troll.no\n"
 test "${LIBFLAC}" = "yes"   || printf "** Install flac 1.1.3 or later to build optional CD support\n   http://flac.sourceforge.net\n"
-test "${SQLITE}" = "yes"    || printf "** Install sqlite 3.3 or later to build optional SQL support\n   http://www.sqlite.org\n"
 test "${LAME}" = "yes"      || printf "** Install Lame 3.96.1 or later to build optional CD support\n   http://lame.sourceforge.net\n"
 test "${LIBCDIOP}" = "yes"  || printf "** Install libcdio 0.76 or later to build optional CD support\n   http://www.gnu.org/software/libcdio\n"
 test "${LIBCDDB}" = "yes"   || printf "** Install libcddb 1.2.1 or later to build optional CD support\n   http://libcddb.sourceforge.net\n"
 test "${LIBUUID}" = "yes"   || printf "** Install libuuid 1.00 or later to build optional UPnP support\n   http://e2fsprogs.sourceforge.net\n"
-test "${HAVE_INKSCAPE}" = "yes"  || printf "** Install inkscape 0.44.1 or later to build optional choralecd\n   http://www.inkscape.org\n"
 test "${OPENSSL}" = "yes"   || printf "** Install openssl 0.9.0 or later to build optional UPnP support\n   http://www.openssl.org\n"
 test "${UPNP}" = "yes"      || printf "** Install libupnp-1.4.3 or later to build optional UPnP support\n   http://pupnp.sf.net\n"
 test "${HAL}" = "yes"       || printf "** Install hal 0.5.9.1 or later to build optional auto-configuration\n   http://hal.freedesktop.org\n"
@@ -280,8 +277,9 @@ pdh_ok=no
 fi
 
 # Required libraries
-if test "${BOOST}${HAVE_XSLTPROC}" != "yesyes" ; then
-test "${BOOST}" = "yes"    || printf "** Boost 1.33.1 or later (at least -regex and -thread) is required\n   http://www.boost.org\n"
+if test "${BOOST}${HAVE_XSLTPROC}${HAVE_INKSCAPE}" != "yesyes" ; then
+test "${HAVE_INKSCAPE}" = "yes" || printf "** Inkscape 0.44.1 or later is required\n   http://www.inkscape.org\n"
+test "${BOOST}" = "yes"         || printf "** Boost 1.33.1 or later (at least -regex and -thread) is required\n   http://www.boost.org\n"
 test "${HAVE_XSLTPROC}" = "yes" || printf "** Xsltproc from libxslt 1.0.0 or later is required\n  http://xmlsoft.org/XSLT/index.html\n"
 printf "\n"
 pdh_ok=no
@@ -295,7 +293,7 @@ printf "   sudo apt-get install g++ autoconf automake libflac-dev libflac++-dev\
 printf "        libdbus-1-dev libhal-dev uuid-dev libssl-dev libtag1-dev\n"
 printf "        libboost-thread-dev libboost-regex-dev libxml++2.6-dev liblame-dev\n"
 printf "        libcurl4-openssl-dev libupnp-dev libcdio-paranoia-dev libcddb2-dev\n"
-printf "        libgstreamer0.10-dev libqt4-dev qt4-dev-tools libsqlite3-dev\n"
+printf "        libgstreamer0.10-dev libqt4-dev qt4-dev-tools\n"
 printf "        libmysqlclient15-dev imagemagick inkscape\n"
 printf "\n"
 fi

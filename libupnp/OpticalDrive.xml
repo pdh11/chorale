@@ -1,0 +1,100 @@
+<!--
+ This is an application-specific SCPD, *not* sanctioned by UPnP.org.
+
+ It is based somewhat on the libcdio API.
+-->
+<scpd>
+	<serviceStateTable>
+		<stateVariable>
+			<name>DiscPresent</name>
+			<sendEventsAttribute>yes</sendEventsAttribute>
+			<dataType>boolean</dataType>
+		</stateVariable>
+
+		<stateVariable>
+			<name>A_ARG_TYPE_Track</name>
+			<sendEventsAttribute>no</sendEventsAttribute>
+			<dataType>ui1</dataType>
+		</stateVariable>
+
+		<stateVariable>
+			<name>A_ARG_TYPE_TrackType</name>
+			<sendEventsAttribute>no</sendEventsAttribute>
+			<dataType>string</dataType>
+			<allowedValueList>
+				<allowedValue>DATA</allowedValue>
+				<allowedValue>AUDIO</allowedValue>
+			</allowedValueList>
+		</stateVariable>
+
+		<stateVariable>
+			<name>A_ARG_TYPE_Sector</name>
+			<sendEventsAttribute>no</sendEventsAttribute>
+                        <!-- Not ui4; they're allowed to be negative -->
+			<dataType>i4</dataType>
+		</stateVariable>
+
+		<stateVariable>
+			<Optional/>
+			<name>A_ARG_TYPE_DataURL</name>
+			<sendEventsAttribute>no</sendEventsAttribute>
+			<dataType>uri</dataType>
+		</stateVariable>
+	</serviceStateTable>
+
+	<actionList>
+		<action>
+			<name>Eject</name>
+			<argumentList>
+			</argumentList>
+		</action>
+
+		<action>
+			<name>GetDiscInfo</name>
+			<argumentList>
+				<argument>
+					<name>TrackCount</name>
+					<direction>out</direction>
+					<relatedStateVariable>A_ARG_TYPE_Track</relatedStateVariable>
+				</argument>
+				<argument>
+					<name>TotalSectors</name>
+					<direction>out</direction>
+					<relatedStateVariable>A_ARG_TYPE_Sector</relatedStateVariable>
+				</argument>
+			</argumentList>
+		</action>
+
+		<action>
+			<name>GetTrackInfo</name>
+			<argumentList>
+				<argument>
+					<name>Track</name>
+					<direction>in</direction>
+					<relatedStateVariable>A_ARG_TYPE_Track</relatedStateVariable>
+				</argument>
+				<argument>
+					<name>Type</name>
+					<direction>out</direction>
+					<relatedStateVariable>A_ARG_TYPE_TrackType</relatedStateVariable>
+				</argument>
+				<argument>
+					<name>FirstSector</name>
+					<direction>out</direction>
+					<relatedStateVariable>A_ARG_TYPE_Sector</relatedStateVariable>
+				</argument>
+				<argument>
+					<name>LastSector</name>
+					<direction>out</direction>
+					<relatedStateVariable>A_ARG_TYPE_Sector</relatedStateVariable>
+				</argument>
+				<argument>
+					<name>DataURL</name>
+					<direction>out</direction>
+					<relatedStateVariable>A_ARG_TYPE_DataURL</relatedStateVariable>
+				</argument>
+			</argumentList>
+		</action>
+	</actionList>
+</scpd>
+

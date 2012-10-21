@@ -7,9 +7,11 @@
  * are thus subject to the licence under which you obtained Qt:
  * typically, the GPL.
  */
+#include "config.h"
 #include "cd_widget.h"
 #include "libimport/eject_task.h"
 #include "libimport/cd_drives.h"
+#include "libimport/remote_cd_drive.h"
 #include <qlayout.h>
 #include <qpushbutton.h>
 #include <qlabel.h>
@@ -17,28 +19,33 @@
 
 namespace choraleqt {
 
-CDWidget::CDWidget(QWidget *parent, const std::string &device, QPixmap pm,
-		   import::CDDrives *drives, Settings *settings,
+CDWidget::CDWidget(QWidget *parent, import::CDDrivePtr cd, QPixmap pm,
+		   Settings *settings,
 		   util::TaskQueue *cpu_queue, util::TaskQueue *disk_queue)
-    : ResourceWidget(parent, device, pm, "Rip", "Eject"),
-      m_device(device),
-      m_drives(drives),
+    : ResourceWidget(parent, cd->GetName(), pm, "Rip", "Eject"),
+      m_cd(cd),
       m_settings(settings),
       m_cpu_queue(cpu_queue),
       m_disk_queue(disk_queue)
 {
+    cd->AddObserver(this);
+    if (cd->SupportsDiscPresent())
+	OnDiscPresent(cd->DiscPresent());
 }
 
 void CDWidget::OnTopButton() /* "Rip" */
 {
-    (void) new CDProgress(m_drives->GetDriveForDevice(m_device),
-			  m_settings, m_cpu_queue, m_disk_queue);
+    (void) new CDProgress(m_cd, m_settings, m_cpu_queue, m_disk_queue);
 }
 
 void CDWidget::OnBottomButton() /* "Eject" */
 {
-    import::CDDrivePtr drive = m_drives->GetDriveForDevice(m_device);
-    drive->GetTaskQueue()->PushTask(import::EjectTask::Create(drive));
+    m_cd->GetTaskQueue()->PushTask(import::EjectTask::Create(m_cd));
+}
+
+void CDWidget::OnDiscPresent(bool whether)
+{
+    EnableTop(whether);
 }
 
 
@@ -64,9 +71,48 @@ void CDWidgetFactory::CreateWidgets(QWidget *parent)
 	 i != m_drives->end();
 	 ++i)
     {
-	(void) new CDWidget(parent, i->first, *m_pixmap, m_drives,
+	(void) new CDWidget(parent, i->second, *m_pixmap,
 			    m_settings, m_cpu_queue, m_disk_queue);
     }
 }
+
+
+        /* UpnpCDWidgetFactory */
+
+
+#ifdef HAVE_UPNP
+
+UpnpCDWidgetFactory::UpnpCDWidgetFactory(QPixmap *pixmap,
+					 Settings *settings,
+					 util::TaskQueue *cpu_queue,
+					 util::TaskQueue *disk_queue)
+    : m_pixmap(pixmap),
+      m_settings(settings),
+      m_cpu_queue(cpu_queue),
+      m_disk_queue(disk_queue)
+{
+}
+
+void UpnpCDWidgetFactory::CreateWidgets(QWidget *parent)
+{
+    m_parent = parent;
+}
+
+void UpnpCDWidgetFactory::OnService(const std::string& url,
+				    const std::string& udn)
+{
+    import::RemoteCDDrive *cd = new import::RemoteCDDrive;
+    unsigned rc = cd->Init(url, udn);
+    if (rc != 0)
+    {
+	free(cd);
+	return;
+    }
+    import::CDDrivePtr cdp(cd);
+    (void) new CDWidget(m_parent, cdp, *m_pixmap, m_settings, m_cpu_queue,
+			m_disk_queue);
+}
+
+#endif // HAVE_UPNP
 
 } // namespace choraleqt

@@ -4,6 +4,7 @@
 #include "libutil/upnp.h"
 #include "libutil/ssdp.h"
 #include "libutil/xmlescape.h"
+#include "libutil/poll.h"
 #include "libupnp/description.h"
 #include "libupnp/soap.h"
 #include "libupnp/AVTransport2_client.h"
@@ -150,7 +151,7 @@ unsigned int URLPlayer::SetPlayState(PlayState state)
     {
     case PLAY:
 	TRACE << "Play\n";
-	return m_avtransport.Play(0, "1");
+	return m_avtransport.Play(0, upnp::AVTransport2::TRANSPORTPLAYSPEED_1);
     case STOP:
 	TRACE << "Stop\n";
 	return m_avtransport.Stop(0);

@@ -1,6 +1,7 @@
 #include "config.h"
 #include "tags_mp3.h"
 #include "libutil/trace.h"
+#include "libutil/file.h"
 #include "libmediadb/schema.h"
 
 #ifdef HAVE_TAGLIB
@@ -89,6 +90,8 @@ static std::string safe(const TagLib::String& s)
 
 unsigned Tags::Read(db::RecordsetPtr tags)
 {
+    boost::mutex::scoped_lock lock(s_taglib_mutex);
+
     TagLib::MPEG::File tff(m_filename.c_str());
 
     if (!tff.tag() || !tff.audioProperties())
@@ -102,14 +105,14 @@ unsigned Tags::Read(db::RecordsetPtr tags)
     tags->SetInteger(mediadb::CODEC, mediadb::MP3);
 //    tags->SetInteger(mediadb::OFFSET, tff.firstFrameOffset());
 
+//    TRACE << m_filename << " offset=" << tff.firstFrameOffset() << "\n";
+
     struct stat st;
     if (stat(m_filename.c_str(), &st) == 0)
     {
 	tags->SetInteger(mediadb::MTIME, st.st_mtime);
 	tags->SetInteger(mediadb::CTIME, st.st_ctime);
     }
-    
-    boost::mutex::scoped_lock lock(s_taglib_mutex);
 
     TagLib::Tag *tag = tff.tag();
     tags->SetString(mediadb::TITLE, safe(tag->title()));
@@ -120,8 +123,13 @@ unsigned Tags::Read(db::RecordsetPtr tags)
     int genreindex;
     if (sscanf(genre.c_str(), "(%d)", &genreindex) == 1)
     {
+//	TRACE << "Numeric genre\n";
 	genre = safe(TagLib::ID3v1::genre(genreindex));
     }
+//    else
+//    {
+//	TRACE << "Non-numeric genre '" << genre << "'\n";
+//    }
     tags->SetString(mediadb::GENRE, genre);
     tags->SetInteger(mediadb::YEAR, tag->year());
     tags->SetInteger(mediadb::TRACKNUMBER, tag->track());
@@ -140,11 +148,29 @@ unsigned Tags::Read(db::RecordsetPtr tags)
 	    TagLib::ID3v2::FrameList fl = fm[tagmap[i].id3v2];
 	    if (!fl.isEmpty())
 	    {
-		tags->SetString(tagmap[i].field, 
-				safe(fl.front()->toString()));
+		std::string value = safe(fl.front()->toString());
+		if (tagmap[i].field == mediadb::GENRE)
+		{
+		    if (sscanf(value.c_str(), "(%d)", &genreindex) == 1
+			|| sscanf(value.c_str(), "%d", &genreindex) == 1)
+		    {
+//			TRACE << "Numeric genre\n";
+			value = safe(TagLib::ID3v1::genre(genreindex));
+		    }
+//		    else
+//		    {
+//			TRACE << "Non-numeric genre '" << value << "'\n";
+//		    }
+		}
+
+		tags->SetString(tagmap[i].field, value);
 	    }
 	}
     }
+
+    if (tags->GetString(mediadb::TITLE).empty())
+	tags->SetString(mediadb::TITLE, util::StripExtension(util::GetLeafName(m_filename.c_str()).c_str()));
+
     return 0;
 }
 
