@@ -140,9 +140,9 @@ unsigned int ContentDirectoryImpl::Browse(const std::string& object_id,
 	if (starting_index + requested_count > children.size())
 	    requested_count = (uint32_t)(children.size() - starting_index);
 
-	TRACE << "Returning children " << starting_index << ".."
-	      << (starting_index+requested_count) << "/"
-	      << children.size() << "\n";
+//	TRACE << "Returning children " << starting_index << ".."
+//	      << (starting_index+requested_count) << "/"
+//	      << children.size() << "\n";
 
 	for (unsigned int i = 0; i < requested_count; ++i)
 	{

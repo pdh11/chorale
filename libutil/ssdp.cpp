@@ -63,9 +63,10 @@ unsigned Client::Impl::Init(const char *uuid, Callback *cb)
 {
     boost::recursive_mutex::scoped_lock lock(m_mutex);
     m_map[uuid] = cb;
-    TRACE << "Calling USA\n";
+//    TRACE << "Calling USA\n";
     int rc = UpnpSearchAsync((UpnpClient_Handle)GetHandle(), 100, uuid, this);
-    TRACE << "USA: " << rc << "\n";
+    (void)rc;
+//    TRACE << "USA: " << rc << "\n";
     return 0;
 }
 
@@ -138,7 +139,7 @@ unsigned Client::Impl::OnActivity()
 	 i != newservices.end();
 	 ++i)
     {
-	TRACE << "Communicating " << i->second << " to fg\n";
+//	TRACE << "Communicating " << i->second << " to fg\n";
 	m_map[i->first]->OnService(i->second.first, i->second.second);
     }
     return 0;
@@ -157,9 +158,9 @@ Client::~Client()
 unsigned Client::Init(const char *uuid,
 		      Callback *cb)
 {
-    TRACE << "Calling impl->init\n";
+//    TRACE << "Calling impl->init\n";
     unsigned int rc = m_impl->Init(uuid, cb);
-    TRACE << "init exiting\n";
+//    TRACE << "init exiting\n";
     return rc;
 }
 

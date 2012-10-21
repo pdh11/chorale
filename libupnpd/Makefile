@@ -26,7 +26,7 @@ libupnpd:=$(TOP)$(DIR)$(TARGETDIR)libupnpd.la
 all-libupnpd: $(libupnpd)
 
 $(TOP)$(DIR)% : CXXFLAGS += $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) \
-	$(LIBCDIOP_CXXFLAGS) $(LIBXMLPP_CXXFLAGS)
+	$(LIBCDIOP_CXXFLAGS) $(LIBXMLPP_CXXFLAGS) $(UPNP_CXXFLAGS)
 
 ifeq ($(libutil),)
 include $(TOP)libutil/Makefile

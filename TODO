@@ -28,6 +28,7 @@ DVB-T RT recording thread
 DVB-T recording conflicts
 gateway Receiver server to UPnP clients
 gateway UPnP server to Receiver clients
+investigate optimisation with throw()
 
   2.0
   ---

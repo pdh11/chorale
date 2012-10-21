@@ -1,5 +1,6 @@
 #include "xml.h"
-#include "libutil/trace.h"
+#include "xmlescape.h"
+#include "trace.h"
 #include <string.h>
 
 namespace xml {
@@ -18,8 +19,13 @@ unsigned int SaxParser::Parse(util::StreamPtr s)
     {
 	if (bufused < BUFSIZE && !eof)
 	{
-	    size_t nread;
+	    size_t nread = 0;
 	    rc = s->Read(buffer+bufused, BUFSIZE-bufused, &nread);
+	    if (rc)
+	    {
+		TRACE << "Read gave error " << rc << "\n";
+		return rc;
+	    }
 	    if (nread == 0)
 		eof = true;
 	    bufused += (unsigned)nread;
@@ -30,8 +36,8 @@ unsigned int SaxParser::Parse(util::StreamPtr s)
 
 	buffer[bufused] = '\0';
 
-	TRACE << "state " << (int)state << " buffer " << bufused << " "
-	      << buffer << "\n";
+//	TRACE << "state " << (int)state << " buffer " << bufused << " "
+//	      << buffer << "\n";
 
 	switch (state)
 	{
@@ -41,7 +47,8 @@ unsigned int SaxParser::Parse(util::StreamPtr s)
 	    if (lt == NULL)
 	    {
 		// xmlunescape
-		m_observer->OnContent(buffer);
+		std::string unesc = util::XmlUnEscape(buffer);
+		m_observer->OnContent(unesc.c_str());
 		bufused = 0;
 	    }
 	    else
@@ -50,11 +57,12 @@ unsigned int SaxParser::Parse(util::StreamPtr s)
 		if (lt > buffer)
 		{
 		    // xmlunescape
-		    m_observer->OnContent(buffer);
+		    std::string unesc = util::XmlUnEscape(buffer);
+		    m_observer->OnContent(unesc.c_str());
 		}
 		state = TAG;
 		unsigned int usedup = (unsigned)(lt+1 - buffer);
-		TRACE << "used up " << usedup << "\n";
+//		TRACE << "used up " << usedup << "\n";
 		memmove(buffer, lt+1, bufused-usedup);
 		bufused -= usedup;
 	    }

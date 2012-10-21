@@ -7,7 +7,7 @@
  * are thus subject to the licence under which you obtained Qt:
  * typically, the GPL.
  */
-#include "features.h"
+#include "choralecd/features.h"
 #include <qapplication.h>
 #include <qpixmap.h>
 #include "main_window.h"
@@ -167,8 +167,6 @@ digraph G {
  *
  * @section notable Notable things in the code
  *
- * I'd like to draw your attention to:
- *
  * @li Non-recursive make. There's a famous white-paper, "Recursive @p
  * make Considered Harmful", which did a good job of convincing people
  * that traditional automake-style Makefiles were a bad idea, but was
@@ -200,13 +198,13 @@ digraph G {
  * upnp.org) using XSLT. Client code (or unit tests) accesses the same
  * API whether it's being run against a local "loopback"
  * implementation, or over the wire. For each SCPD, say
- * AVTransport2.xml, we generate: a base class upnp::AVTransport2 (all
- * of whose member functions return ENOSYS); a client class
- * upnp::AVTransport2Client, which packages up the arguments and makes
- * a SOAP call; and a server class upnp::AVTransport2Server, which
- * unpackages a SOAP request and calls the actual implementation of
- * the AVTransport service (which is itself derived from
- * upnp::AVTransport2).
+ * AVTransport2.xml, we generate: a base class upnp::AVTransport2 (and
+ * a stubbed-out implementation, all of whose member functions return
+ * ENOSYS); a client class upnp::AVTransport2Client, which packages up
+ * the arguments and makes a SOAP call; and a server class
+ * upnp::AVTransport2Server, which unpackages a SOAP request and calls
+ * the actual implementation of the AVTransport service (which is
+ * itself derived from upnp::AVTransport2).
  *
  * @li Inter-library dependencies. Coupling between modules is a
  * source of undesirable complexity in software systems. One tool that
@@ -215,4 +213,29 @@ digraph G {
  * libdeps.png</tt> at the top level). It represents the concrete
  * architecture of the system, to be compared with the abstract
  * architecture in the above graph.
+ *
+ * @li Porting and Portability. Portable code can end up being a maze
+ * of <tt>ifdef</tt>'s; the aim in Chorale has been to reduce uses of
+ * <tt>ifdef</tt> to @e either just one or two lines of code, @e or
+ * entire files (so that either way it's easy for the reader to
+ * determine what's going on). For instance, in libutil/file.h, the
+ * APIs with two implementations are kept in two different C++
+ * namespaces, util::posix and util::win32, one of which is
+ * namespace-aliased to util::fileapi, with using-declarations to draw
+ * them from util::fileapi into the common util namespace where
+ * everyone uses them. That way, @e only the one-line namespace-alias
+ * need be inside <tt>ifdef</tt>. (An earlier design had "using
+ * namespace win32", but the present design (a) ensures that there's a
+ * single place with a complete list of all the portable APIs, and (b)
+ * discourages writers of portable code from using the non-portable
+ * APIs in namespaces win32 and posix.)
+ *
+ * @li Unicode is the One True God, and UTF-8 is His prophet. Native
+ * Win32 applications use UTF-16 to interface to the filesystem
+ * (there's an alternative non-Unicode "ANSI" API, but that leaves
+ * some files with Unicode names inaccessible). In order to avoid
+ * having two parallel implementations of large swathes of
+ * functionality, Chorale includes a translation layer that lets all
+ * the rest of the code assume that filenames are always UTF-8
+ * everywhere.
  */

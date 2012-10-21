@@ -89,54 +89,6 @@ void DirectoryWalker::FileTask::Run()
 }
 
 
-        /* DirectoryWalker::SymbolicLinkTask */
-
-
-#if 0
-class DirectoryWalker::SymbolicLinkTask: public DirectoryWalker::Task
-{
-    Observer::dircookie m_cookie;
-    unsigned int m_index;
-    std::string m_path;
-    std::string m_leaf;
-    struct stat m_st;
-
-public:
-    SymbolicLinkTask(DirectoryWalker *parent, TaskPtr parent_task,
-		     Observer::dircookie cookie,
-		     unsigned int index,
-		     const std::string& path,
-		     const std::string& leaf, const struct stat *st)
-	: Task(parent, parent_task),
-	  m_cookie(cookie),
-	  m_index(index),
-	  m_path(path.c_str()),
-	  m_leaf(leaf.c_str()),
-	  m_st(*st)
-    {
-    }
-
-    void Run();
-};
-
-void DirectoryWalker::SymbolicLinkTask::Run()
-{
-    if (m_parent->m_stop)
-	return;
-
-    unsigned int error = m_parent->m_obs->OnSymbolicLink(m_cookie, m_index, m_path, 
-							 m_leaf, &m_st);
-    if (error)
-    {
-	boost::mutex::scoped_lock lock(m_parent->m_mutex);
-	if (!m_parent->m_error)
-	    m_parent->m_error = error;
-	m_parent->m_stop = true;
-    }
-}
-#endif
-
-
         /* DirectoryWalker::DirectoryTask */
 
 
@@ -167,11 +119,6 @@ public:
     void Run();
 };
 
-static int walker_scandir_selector_all(const struct dirent*)
-{
-    return 1;
-}
-
 void DirectoryWalker::DirectoryTask::Run()
 {
     if (m_parent->m_stop)
@@ -195,16 +142,11 @@ void DirectoryWalker::DirectoryTask::Run()
      * overall speed.
      */
 
-    struct dirent **namelist;
-    int rc = scandir(m_path.c_str(), &namelist, walker_scandir_selector_all,
-		     versionsort);
+    std::vector<util::Dirent> entries;
 
-    if (rc <= 0)
-    {
-	TRACE << "scandir doesn't like " << m_path << ": " << rc
-	      << " errno=" << errno << "\n";
+    unsigned int rc = ReadDirectory(m_path, &entries);
+    if (rc != 0)
 	return;
-    }
     
     /** Each child has a reference to its parent, so that the parent isn't
      * destroyed (and the LeaveDirectory called) until all children are done.
@@ -216,23 +158,18 @@ void DirectoryWalker::DirectoryTask::Run()
 
     unsigned index = 0;
 
-    for (unsigned int i=0; i<(unsigned int)rc; ++i)
+    for (std::vector<util::Dirent>::iterator i = entries.begin();
+	 i != entries.end();
+	 ++i)
     {
-	struct dirent *de = namelist[i];
-
-	if (de->d_name[0] == '.')
-	{
-	    free(de);
+	if (i->name[0] == '.')
 	    continue;
-	}
 
-	std::string child = m_path + "/";
-	child += de->d_name;
+	std::string child = m_path + "/" + i->name;
 
+#ifdef S_ISLNK
 	// Canonicalise is expensive, only do it when we have a link
-	struct stat st;
-	::lstat(child.c_str(), &st);
-	if (S_ISLNK(st.st_mode))
+	if (S_ISLNK(i->st.st_mode))
 	{
 	    std::string s = util::Canonicalise(child);
 
@@ -243,50 +180,30 @@ void DirectoryWalker::DirectoryTask::Run()
 	    else
 	    {
 		child = s;
-		::lstat(child.c_str(), &st);
+		::lstat(child.c_str(), &i->st);
 	    }
 	}
-
-	/** @todo Deny links to parent directories of the link or of the root
-	 */
-	if (de->d_type == DT_UNKNOWN || de->d_type == DT_LNK)
-	{
-	    if (S_ISREG(st.st_mode))
-		de->d_type = DT_REG;
-	    else if (S_ISDIR(st.st_mode))
-		de->d_type = DT_DIR;
-	    else if (S_ISLNK(st.st_mode))
-		de->d_type = DT_LNK;
-	}
+#endif
 	
 	TaskPtr t;
 
-	if (de->d_type == DT_REG)
+	if (S_ISREG(i->st.st_mode))
 	{
 	    t = TaskPtr(new FileTask(m_parent, me, m_cookie, index++,
-				     child, de->d_name, &st));
+				     child, i->name, &i->st));
 	}
-	else if (de->d_type == DT_DIR)
+	else if (S_ISDIR(i->st.st_mode))
 	{
 	    t = TaskPtr(new DirectoryTask(m_parent, me, m_cookie, index++,
-					  child, de->d_name, &st));
-	}
-	else if (de->d_type == DT_LNK)
-	{
-//	    t = TaskPtr(new SymbolicLinkTask(m_parent, me, m_cookie, index++,
-//					     child, de->d_name, &st));
+					  child, i->name, &i->st));
 	}
 	else
 	{
-	    TRACE << "Don't like " << child << " (" << de->d_type << ")\n";
+	    TRACE << "Don't like " << child << "\n";
 	}
-
-	free(de);
-
 	if (t)
 	    m_parent->m_queue->PushTask(t);
     }
-    free(namelist);
 }
 
 DirectoryWalker::DirectoryTask::~DirectoryTask()
@@ -429,8 +346,8 @@ int main()
     FILE *f = fopen((fullname + "/a/x").c_str(), "w+"); fclose(f);
     f = fopen((fullname + "/b/y").c_str(), "w+"); fclose(f);
 
-    util::MakeRelativeLink(fullname + "/a/1", fullname + "/b");
-    util::MakeRelativeLink(fullname + "/b/2", fullname + "/a");
+    util::posix::MakeRelativeLink(fullname + "/a/1", fullname + "/b");
+    util::posix::MakeRelativeLink(fullname + "/b/2", fullname + "/a");
 
     TestObserver obs;
     util::DirectoryWalker dw(fullname, &obs, wtp.GetTaskQueue());

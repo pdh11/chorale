@@ -20,3 +20,4 @@ RenderingControl2.cpp
 ScheduledRecording1.cpp
 OpticalDrive.h
 OpticalDrive.cpp
+*.gcov

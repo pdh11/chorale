@@ -2,12 +2,31 @@
 #define LIBUTIL_FILE_H
 
 #include <string>
+#include <sys/stat.h>
+
+#include "file_posix.h"
+#include "file_win32.h"
+
 
 /** Utility classes and routines which didn't fit anywhere else.
  */
 namespace util {
 
-void MkdirParents(const char *leafname);
+namespace posix { }
+namespace win32 { }
+
+#ifdef WIN32
+namespace fileapi = ::util::win32;
+#else
+namespace fileapi = ::util::posix;
+#endif
+
+using fileapi::Mkdir;
+using fileapi::DirExists;
+using fileapi::Canonicalise;
+using fileapi::ReadDirectory;
+
+unsigned int MkdirParents(const char *leafname);
 
 void RenameWithMkdir(const char *oldname, const char *newname);
 
@@ -27,11 +46,6 @@ std::string MakeAbsolutePath(const std::string& start_point,
 std::string MakeRelativePath(const std::string& abspath_from,
 			     const std::string& abspath_to);
 
-unsigned MakeRelativeLink(const std::string& abspath_from,
-			  const std::string& abspath_to);
-
-std::string Canonicalise(const std::string& path);
-
 /** Creates a "file:///" URL
  */
 std::string PathToURL(const std::string& path);
@@ -39,6 +53,12 @@ std::string PathToURL(const std::string& path);
 /** Parses a "file:///" URL
  */
 std::string URLToPath(const std::string& url);
+
+struct Dirent
+{
+    std::string name;
+    struct stat st;
+};
 
 } // namespace util
 

@@ -25,8 +25,9 @@ public:
 
     explicit Impl(size_t hint);
     ~Impl();
-    unsigned ReadAt(void *buffer, size_t pos, size_t len, size_t *pread);
-    unsigned WriteAt(const void *buffer, size_t pos, size_t len, 
+    unsigned ReadAt(void *buffer, SeekableStream::pos64 pos, size_t len,
+		    size_t *pread);
+    unsigned WriteAt(const void *buffer, SeekableStream::pos64 pos, size_t len,
 		     size_t *pwrote);
     void Ensure(size_t size);
 };
@@ -71,10 +72,11 @@ void MemoryStream::Impl::Ensure(size_t sz)
     }
 }
 
-unsigned MemoryStream::Impl::WriteAt(const void *buf, size_t pos, size_t len,
+unsigned MemoryStream::Impl::WriteAt(const void *buf, 
+				     SeekableStream::pos64 pos, size_t len,
 				     size_t *pwrote)
 {
-    Ensure(pos+len);
+    Ensure((size_t)pos+len);
 
     if (!len)
     {
@@ -82,7 +84,7 @@ unsigned MemoryStream::Impl::WriteAt(const void *buf, size_t pos, size_t len,
 	return 0;
     }
     
-    chunks_t::iterator i = m_chunks.lower_bound(pos);
+    chunks_t::iterator i = m_chunks.lower_bound((size_t)pos);
 
     if (i == m_chunks.end())
     {
@@ -110,8 +112,8 @@ unsigned MemoryStream::Impl::WriteAt(const void *buf, size_t pos, size_t len,
     return 0;
 }
 
-unsigned MemoryStream::Impl::ReadAt(void *buf, size_t pos, size_t len,
-				    size_t *pread)
+unsigned MemoryStream::Impl::ReadAt(void *buf, SeekableStream::pos64 pos,
+				    size_t len, size_t *pread)
 {
     if (!len || pos >= m_size)
     {
@@ -119,12 +121,12 @@ unsigned MemoryStream::Impl::ReadAt(void *buf, size_t pos, size_t len,
 	return 0;
     }
 
-    len = std::min(len, m_size - pos);
+    len = std::min((SeekableStream::pos64)len, m_size - pos);
     chunks_t::iterator i = m_chunks.lower_bound(pos);
     if (i == m_chunks.end() || i->first > pos)
 	--i;
 //    TRACE << "Read: i->first = " << i->first << " m_pos = " << m_pos << "\n";
-    size_t chunkpos = pos - i->first;
+    size_t chunkpos = (size_t)pos - i->first;
     size_t nread = std::min(len, i->second->len - chunkpos);
     memcpy(buf, ((const char*)i->second->data) + chunkpos, nread);
     *pread = nread;
@@ -143,13 +145,13 @@ unsigned MemoryStream::Create(MemoryStreamPtr *pp, size_t sizeHint)
     return 0;
 }
 
-unsigned MemoryStream::WriteAt(const void *buf, size_t pos, size_t len, 
+unsigned MemoryStream::WriteAt(const void *buf, pos64 pos, size_t len, 
 			       size_t *pwrote)
 {
     return m_impl->WriteAt(buf, pos, len, pwrote);
 }
 
-unsigned MemoryStream::ReadAt(void *buf, size_t pos, size_t len, size_t *pread)
+unsigned MemoryStream::ReadAt(void *buf, pos64 pos, size_t len, size_t *pread)
 {
     return m_impl->ReadAt(buf, pos, len, pread);
 }
@@ -161,8 +163,8 @@ SeekableStream::pos64 MemoryStream::GetLength()
 
 unsigned MemoryStream::SetLength(pos64 pos)
 {
-    m_impl->Ensure(pos);
-    m_impl->m_size = pos;
+    m_impl->Ensure((size_t)pos);
+    m_impl->m_size = (size_t)pos;
     if (Tell() > pos)
 	Seek(pos);
     return 0;

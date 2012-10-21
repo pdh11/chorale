@@ -12,7 +12,8 @@ DIRSUFFIX:=-release
 endif
 endif
 TARGET:=$(shell $(CC) -dumpmachine)
-TARGETDIR:=obj-$(TARGET)$(DIRSUFFIX)/
+FULLTARGET:=$(TARGET)$(DIRSUFFIX)
+TARGETDIR:=obj-$(FULLTARGET)/
 endif
 
 ifeq ($(ALL_SRCS),)
@@ -45,7 +46,8 @@ clean:
 	@rm -f $(CLEANS)
 	@find . -name '.libs' -print0 | xargs -0 rm -rf
 	@find . -name 'obj-*-*-*' -print0 | xargs -0 rm -rf
-	@find . -name '*~' -o -name '*.i' -print0 | xargs -0 rm -f
+	@find . -name '*.all-*-*-*.[hi]' -print0 | xargs -0 rm -rf
+	@find . -name '*~' -o -name '*.i' -o -name '*.gcov' -print0 | xargs -0 rm -f
 else
 CLEANS+=$(OBJS) $(SOBJS) $(LOBJS) $(DEPS) $(TESTS)
 endif
@@ -55,7 +57,13 @@ tests: all $(TESTS)
 
 -include .force-header-generation
 
--include $(TOP)Make.config.$(TARGET)
+all: .force-header-generation
+
+.force-header-generation:
+
+ifeq ($(CHORALE_VERSION),)
+include $(TOP)Make.config.$(TARGET)
+endif
 
 # If we don't do this, GCC 4.2.3 somehow doesn't figure out they're
 # system headers (i.e. -Wno-system-headers doesn't work) despite <> includes
@@ -64,8 +72,12 @@ BOOST_CXXFLAGS:=$(BOOST_CXXFLAGS:-I%=-isystem %)
 QT_CXXFLAGS:=$(QT_CXXFLAGS:-I%=-isystem %)
 GSTREAMER_CXXFLAGS:=$(GSTREAMER_CXXFLAGS:-I%=-isystem %)
 
-CFLAGS += -DLOCALSTATEDIR=\"$(localstatedir)\" -DDATADIR=\"$(datarootdir)\"
-CXXFLAGS += -DLOCALSTATEDIR=\"$(localstatedir)\" -DDATADIR=\"$(datarootdir)\"
+ifeq ($(DONE_FLAGS),)
+
+DONE_FLAGS:=1
+
+CFLAGS += -DLOCALSTATEDIR=\"$(localstatedir)\" -DCHORALE_DATADIR=\"$(datarootdir)\" -DPTW32_STATIC_LIB
+CXXFLAGS += -DLOCALSTATEDIR=\"$(localstatedir)\" -DCHORALE_DATADIR=\"$(datarootdir)\" -DPTW32_STATIC_LIB
 
 ifneq ($(DEBUG),0)
 WITH_DEBUG:=1
@@ -82,6 +94,8 @@ CFLAGS += -fno-omit-frame-pointer -pg
 CXXFLAGS += -fno-omit-frame-pointer -pg
 endif
 
+endif
+
 # CXXFLAGS += -Werror
 
 ifneq ($(VERBOSE),)
@@ -90,6 +104,7 @@ LD_PRE:=
 AR_PRE:=
 GEN_PRE:=
 RUN_PRE:=
+TEST_PRE:=
 MOCKING_PRE:=
 else
 CC_PRE=@echo Compiling $< ;
@@ -97,6 +112,7 @@ LD_PRE=@echo Linking $@ ;
 AR_PRE=@echo Archiving $@ ;
 GEN_PRE=@echo Generating $@ ;
 RUN_PRE=@echo Running $@ ;
+TEST_PRE=@echo Testing $< ;
 MOCKING_PRE=@echo Mocking $< ;
 endif
 
@@ -171,11 +187,14 @@ $(TOP)$(DIR)$(TARGETDIR)%__test: $(TOP)$(DIR)%.cpp
 		> $@.dd
 	@mv $@.dd $@.dep
 	@rm $@.d
-	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
+	@$(LIBTOOL) --tag=CXX --mode=link --silent \
 		$(CXX) $(CXXFLAGS) -fprofile-arcs -ftest-coverage \
 		$@.lo $(filter %.la,$^) $(TEST_LIBS) -o $@ -Wl,-Map,$@.map
-	$(RUN_PRE)$(TEST_RUN) $@ || ( echo $@ FAILED ; rm $@ ; false )
-	@gcov -n -o $(dir $@).libs/$(notdir $@).cpp $< > $@.gcov.txt
+	$(TEST_PRE)$(TEST_RUN) $@ || ( echo $@ FAILED ; rm $@ ; false )
+	@gcov -o $(dir $@).libs/$(notdir $@).cpp $< > $@.gcov.txt
+	@rm -f *[^c]??.gcov
+	@mv $(notdir $<).gcov  $(notdir $<).gcov0
+	@mv $(notdir $<).gcov0 $(dir $@)/../$(notdir $<).gcov
 	@grep -C1 $< $@.gcov.txt \
 		| grep executed | head -n 1 \
 		| sed -e "s,^,Covered $<: ," -e 's/ted:/ted: /'

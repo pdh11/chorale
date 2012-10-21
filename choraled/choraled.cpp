@@ -1,4 +1,7 @@
 #include "config.h"
+
+#ifndef WIN32
+
 #include "libutil/worker_thread_pool.h"
 #include "libutil/cpus.h"
 #include "libutil/web_server.h"
@@ -6,24 +9,21 @@
 #include "libutil/poll.h"
 #include "libutil/hal.h"
 #include "libutil/dbus.h"
-#include "libdbsteam/db.h"
 #include "libimport/file_scanner_thread.h"
-#include "libimport/cd_content_factory.h"
-#include "libmediadb/schema.h"
-#include "libmediadb/localdb.h"
 #include "libreceiver/ssdp.h"
 #include "libreceiverd/content_factory.h"
 #include "libupnp/server.h"
 #include "liboutput/gstreamer.h"
 #include "libupnpd/media_renderer.h"
 #include "libupnpd/media_server.h"
-#include "libupnpd/optical_drive.h"
 #include "libtv/stream_factory.h"
 #include "libtv/epg.h"
 #include "libtv/web_epg.h"
 #include "libtv/recording.h"
+#include "libmediadb/schema.h"
+#include "cd.h"
+#include "database.h"
 #include "web.h"
-#include <boost/lambda/construct.hpp>
 #include <getopt.h>
 #include <signal.h>
 #include <unistd.h>
@@ -34,12 +34,8 @@
 #define HAVE_DVB 1
 #endif
 
-#if defined(HAVE_HAL) && defined(HAVE_LIBCDIOP) && defined(HAVE_UPNP)
-#define HAVE_CD 1
-#endif
-
 #define DEFAULT_DB_FILE LOCALSTATEDIR "/chorale/db.xml"
-#define DEFAULT_WEB_DIR DATADIR "/chorale"
+#define DEFAULT_WEB_DIR CHORALE_DATADIR "/chorale"
 
 static void Usage(FILE *f)
 {
@@ -79,7 +75,7 @@ static void Usage(FILE *f)
 	    "Send SIGHUP to force a media re-scan (not needed on systems with 'inotify'\n"
 	    "support).\n"
 	    "\n"
-"From chorale " PACKAGE_VERSION " built on " __DATE__ ".\n"
+"From " PACKAGE_STRING " built on " __DATE__ ".\n"
 	);
 }
 
@@ -133,63 +129,6 @@ static void daemonise()
 	dup2(fd,2);
     if (fd > 2)
 	close(fd);
-}
-
-class CDServer
-{
-    import::CDDrives m_drives;
-    std::list<import::CDContentFactory*> m_factories;
-    std::list<upnpd::OpticalDriveDevice*> m_devices;
-
-public:
-    explicit CDServer(util::hal::Context *hal);
-    ~CDServer();
-
-    unsigned int Init(util::WebServer*, const char *hostname, upnp::Device**);
-};
-
-CDServer::CDServer(util::hal::Context *hal)
-    : m_drives(hal)
-{
-}
-
-CDServer::~CDServer()
-{
-    std::for_each(m_factories.begin(), m_factories.end(), 
-		  boost::lambda::delete_ptr());
-    std::for_each(m_devices.begin(), m_devices.end(),
-		  boost::lambda::delete_ptr());
-}
-
-unsigned int CDServer::Init(util::WebServer *ws, const char *hostname,
-			     upnp::Device **ppdev)
-{
-    m_drives.Refresh();
-
-    unsigned int cdrom_index = 0;
-    for (import::CDDrives::const_iterator i = m_drives.begin();
-	 i != m_drives.end();
-	 ++i)
-    {
-	import::CDDrivePtr cdp = i->second;
-	import::CDContentFactory *fac
-	    = new import::CDContentFactory(cdrom_index++);
-	m_factories.push_back(fac);
-
-	ws->AddContentFactory(fac->GetPrefix(), fac);
-	upnpd::OpticalDriveDevice *cdromdevice
-	    = new upnpd::OpticalDriveDevice(cdp, fac, ws->GetPort());
-	m_devices.push_back(cdromdevice);
-
-	cdromdevice->SetFriendlyName(cdp->GetName()
-				     + " on " + std::string(hostname));
-	    
-	if (*ppdev)
-	    (*ppdev)->AddEmbeddedDevice(cdromdevice);
-	else
-	    *ppdev = cdromdevice;
-    }
-    return 0;
 }
 
 int main(int argc, char *argv[])
@@ -340,34 +279,13 @@ int main(int argc, char *argv[])
 	    flacroot = "";
     }
 
-    db::steam::Database sdb(mediadb::FIELD_COUNT);
-    sdb.SetFieldInfo(mediadb::ID, 
-		     db::steam::FIELD_INT|db::steam::FIELD_INDEXED);
-    sdb.SetFieldInfo(mediadb::PATH,
-		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
-    sdb.SetFieldInfo(mediadb::ARTIST,
-		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
-    sdb.SetFieldInfo(mediadb::ALBUM,
-		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
-    sdb.SetFieldInfo(mediadb::GENRE,
-		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
-    sdb.SetFieldInfo(mediadb::TITLE,
-		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
-    sdb.SetFieldInfo(mediadb::REMIXED,
-		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
-    sdb.SetFieldInfo(mediadb::ORIGINALARTIST,
-		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
-    sdb.SetFieldInfo(mediadb::MOOD,
-		     db::steam::FIELD_STRING|db::steam::FIELD_INDEXED);
-
     util::WorkerThreadPool wtp(nthreads);
 
-    import::FileScannerThread ifs;
-
-    mediadb::LocalDatabase ldb(&sdb);
-
+    Database db;
+#ifdef HAVE_DB
     if (do_db)
-	ifs.Init(mediaroot, flacroot, &ldb, wtp.GetTaskQueue(), dbfile);
+	db.Init(mediaroot, flacroot, wtp.GetTaskQueue(), dbfile);
+#endif
 
     TRACE << "serving\n";
 
@@ -431,14 +349,14 @@ int main(int argc, char *argv[])
 
     if (do_dvb)
     {
-	rsf.AddRadioStations(&ldb);
-	ldb.RegisterStreamFactory(mediadb::RADIO, &rsf);
+	rsf.AddRadioStations(db.Get());
+	db.Get()->RegisterStreamFactory(mediadb::RADIO, &rsf);
 	epg.Init(&dvbf, &dvbc);
     }
 
     util::WebServer ws;
 
-    receiverd::ContentFactory rcf(&ldb);
+    receiverd::ContentFactory rcf(db.Get());
     util::FileContentFactory fcf(std::string(webroot)+"/upnp",
 				 "/upnp");
     util::FileContentFactory fcf2(std::string(webroot)+"/layout",
@@ -460,7 +378,7 @@ int main(int argc, char *argv[])
     if (do_dvb)
 	wepg.Init(&ws, epg.GetDatabase(), &dvbc, &dvbf, &rt, mediaroot);
 
-    RootContentFactory rootcf(&ldb);
+    RootContentFactory rootcf(db.Get());
 
     ws.AddContentFactory("/", &rootcf);
     ws.Init(&poller, webroot, port);
@@ -513,7 +431,8 @@ int main(int argc, char *argv[])
 
     if (do_mserver)
     {
-	mediaserver = new upnpd::MediaServer(&ldb, ws.GetPort(), mediaroot);
+	mediaserver = new upnpd::MediaServer(db.Get(), ws.GetPort(), 
+					     mediaroot);
 	mediaserver->SetFriendlyName(std::string(mediaroot)
 				     + " on " + hostname);
 	root_device = mediaserver;
@@ -532,7 +451,7 @@ int main(int argc, char *argv[])
 # endif
 
 # ifdef HAVE_CD
-    CDServer cds(halp);
+    CDService cds(halp);
     if (do_cd)
 	cds.Init(&ws, hostname, &root_device);
 # endif
@@ -553,7 +472,7 @@ int main(int argc, char *argv[])
 	if (s_rescan && !s_exiting)
 	{
 	    s_rescan = false;
-	    ifs.ForceRescan();
+	    db.ForceRescan();
 	}
     }
 
@@ -572,3 +491,5 @@ int main(int argc, char *argv[])
 
     return 0;
 }
+
+#endif // !WIN32

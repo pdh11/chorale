@@ -215,10 +215,12 @@ unsigned int FileScanner::Impl::OnFile(dircookie parent_cookie,
 			struct stat childst;
 			if (::stat(abspath.c_str(), &childst) < 0)
 			    continue;
-			if (S_ISDIR(childst.st_mode)
-			    || S_ISLNK(childst.st_mode))
+			if (S_ISDIR(childst.st_mode))
 			    continue;
-
+#ifdef S_ISLNK
+			if (S_ISLNK(childst.st_mode))
+			    continue;
+#endif
 			OnFile(id, (unsigned int)i, abspath,
 			       util::GetLeafName(abspath.c_str()), &childst);
 		    }

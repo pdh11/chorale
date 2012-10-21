@@ -69,7 +69,7 @@ AC_DEFUN([AX_BOOST],
 			BOOST_LDFLAGS="-L$ac_boost_path/lib"
 			BOOST_CPPFLAGS="-I$ac_boost_path/include"
 		else
-			for ac_boost_path_tmp in /usr /usr/local /opt ; do
+			for ac_boost_path_tmp in /usr/${host_alias} /usr /usr/local /opt ; do
 				if test -d "$ac_boost_path_tmp/include/boost" && test -r "$ac_boost_path_tmp/include/boost"; then
 					BOOST_LDFLAGS="-L$ac_boost_path_tmp/lib"
 					BOOST_CPPFLAGS="-I$ac_boost_path_tmp/include"

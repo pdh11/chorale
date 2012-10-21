@@ -9,26 +9,26 @@
 
 namespace util {
 
-void MkdirParents(const char *leafname)
+unsigned int MkdirParents(const char *leafname)
 {
     const char *rslash = strrchr(leafname, '/');
     if (!rslash)
-	return;
+	return ENOTDIR;
     std::string parent(leafname, rslash);
-    struct stat st;
-    if (stat(parent.c_str(), &st) < 0 && errno == ENOENT)
-    {
-	MkdirParents(parent.c_str());
-//	TRACE << "mkdir " << parent << "\n";
-	mkdir(parent.c_str(), 0775);
-    }
+    if (DirExists(parent.c_str()))
+	return 0;
+
+    unsigned int rc = MkdirParents(parent.c_str());
+    if (rc)
+	return rc;
+    return Mkdir(parent.c_str());
 }
 
 void RenameWithMkdir(const char *oldname, const char *newname)
 {
     MkdirParents(newname);
 //    TRACE << "Rename " << oldname << " to " << newname << "\n";
-    rename(oldname, newname);
+    ::rename(oldname, newname);
 }
 
 std::string ProtectLeafname(const std::string& s)
@@ -138,21 +138,6 @@ std::string MakeRelativePath(const std::string& from, const std::string& to)
     return thelink;
 }
 
-unsigned MakeRelativeLink(const std::string& from, const std::string& to)
-{
-    if (from.empty() || to.empty() || from[0] != '/' || to[0] != '/')
-	return EINVAL;
-
-    std::string thelink = MakeRelativePath(from, to);
-
-//    TRACE << "from=" << from << " to=" << to << " link=" << thelink << "\n";
-
-    int rc = symlink(thelink.c_str(), from.c_str());
-    if (rc < 0)
-	return (unsigned)errno;
-    return 0;
-}
-
 std::string MakeAbsolutePath(const std::string& from, const std::string& rel)
 {
     if (rel.empty() || rel[0] == '/')
@@ -176,17 +161,6 @@ std::string MakeAbsolutePath(const std::string& from, const std::string& rel)
 
 //    TRACE << "map(" << from << "," << rel << ")=" << result << "\n";
     return result;
-}
-
-std::string Canonicalise(const std::string& path)
-{
-    char *cpath = canonicalize_file_name(path.c_str());
-    if (!cpath)
-	return path;
-
-    std::string s(cpath);
-    free(cpath);
-    return s;
 }
 
 std::string PathToURL(const std::string& path)

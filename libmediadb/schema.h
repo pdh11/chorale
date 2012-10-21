@@ -8,6 +8,8 @@
 #include <vector>
 #include <string>
 
+#undef CTIME
+
 namespace mediadb {
 
 enum {

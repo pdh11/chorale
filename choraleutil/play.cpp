@@ -83,7 +83,8 @@ int main(int argc, char *argv[])
     gp.SetURL(std::string("file://") + argv[optind], "");
     gp.SetPlayState(output::PLAY);
 
-    while (1);
+    while (1)
+    {}
 
     output::Queue queue(&gp);
     for (int i = optind; i<argc; ++i)

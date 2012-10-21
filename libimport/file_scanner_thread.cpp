@@ -1,8 +1,11 @@
+#include "config.h"
 #include "file_scanner_thread.h"
 #include <stdlib.h>
 #include <errno.h>
 #include <sys/time.h>
+#ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
+#endif
 #include <boost/thread/thread.hpp>
 #include <boost/function.hpp>
 #include <boost/bind.hpp>
@@ -84,6 +87,7 @@ void FileScannerThread::Impl::ScanAndRewrite()
 
     TRACE << "Scan took " << buf << "s, writing\n";
 
+#ifdef HAVE_MKSTEMP
     char *buffer = new char[m_dbfilename.size() + 8];
     sprintf(buffer, "%s.XXXXXX", m_dbfilename.c_str());
     int fd = mkstemp(buffer);
@@ -102,6 +106,24 @@ void FileScannerThread::Impl::ScanAndRewrite()
     }
 
     delete[] buffer;
+#else
+    /* No mkstemp (eg. Windows)
+     */
+    std::string name2 = m_dbfilename + ".2";
+    FILE *f = fopen(name2.c_str(), "w");
+
+    if (!f)
+    {
+	TRACE << "Can't write database: " << errno << "\n";
+    }
+    else
+    {
+	mediadb::WriteXML(m_db, 1, f);
+	fclose(f);
+
+	::rename(name2.c_str(), m_dbfilename.c_str());
+    }
+#endif
 }
 
 void FileScannerThread::Impl::Run()
@@ -109,7 +131,9 @@ void FileScannerThread::Impl::Run()
     m_notifier.SetObserver(this);
     m_notifier.Init(&m_poller);
 
+#ifdef HAVE_SETPRIORITY
     setpriority(PRIO_PROCESS, 0, 15);
+#endif
 
     ScanAndRewrite();
 

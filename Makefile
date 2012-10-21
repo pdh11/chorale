@@ -4,75 +4,42 @@ all:
 
 include $(TOP)Make.common
 
-ifeq ($(imagery),)
-include imagery/Makefile
-endif
-ifeq ($(libdb),)
-include libdb/Makefile
-endif
-ifeq ($(libimport),)
-include libimport/Makefile
-endif
-ifeq ($(libreceiver),)
-include libreceiver/Makefile
-endif
-ifeq ($(libreceiverd),)
-include libreceiverd/Makefile
-endif
-ifeq ($(libupnp),)
-include libupnp/Makefile
-endif
-ifeq ($(libupnpd),)
-include libupnpd/Makefile
-endif
-ifeq ($(liboutput),)
-include liboutput/Makefile
-endif
-ifeq ($(libdbsteam),)
-include libdbsteam/Makefile
-endif
-ifeq ($(libdbupnp),)
-include libdbupnp/Makefile
-endif
-ifeq ($(libutil),)
-include libutil/Makefile
-endif
 ifeq ($(choraleutil),)
-include choraleutil/Makefile
+include $(TOP)choraleutil/Makefile
 endif
 ifeq ($(choraled),)
-include choraled/Makefile
+include $(TOP)choraled/Makefile
 endif
 ifeq ($(choralecd),)
-include choralecd/Makefile
+include $(TOP)choralecd/Makefile
 endif
 
 # Autoconf stuff for remaking 'configure' and 'Make.config'
 
-configure: configure.ac aclocal.m4
+$(TOP)configure: $(TOP)configure.ac $(TOP)aclocal.m4
 	autoconf
 
 configure:=configure
 
 # autoheader might not change config.h.in, so touch a stamp file.
-config.h.in: stamp-h.in
+$(TOP)config.h.in: $(TOP)stamp-h.in
 
-stamp-h.in: configure.ac aclocal.m4
+$(TOP)stamp-h.in: $(TOP)configure.ac $(TOP)aclocal.m4
 	autoheader
 	echo timestamp > stamp-h.in
 
 config.$(TARGET).h: stamp-h
-stamp-h: config.h.in config.status
+stamp-h: $(TOP)config.h.in config.status
 	./config.status
 
-Make.config.$(TARGET) $(LIBTOOL): Make.config.in config.status
+Make.config.$(TARGET) $(LIBTOOL): $(TOP)Make.config.in config.status
 	./config.status
 
-config.status: configure stamp-h.in
+config.status: $(TOP)configure $(TOP)stamp-h.in
 	[ -x config.status ] || ./configure
 	./config.status --recheck
 
-aclocal.m4: configure.ac
+$(TOP)aclocal.m4: $(TOP)configure.ac
 	aclocal -I autotools
 
 doc:
@@ -89,6 +56,9 @@ distclean: clean
 	find . -name '*.o' -exec rm -f \{} \;
 	find . -name '*~' -exec rm -f \{} \;
 
+maintainerclean: distclean
+	rm -f $(MAINTAINERCLEANS)
+
 install: $(choraled)
 	$(INSTALL) -d $(datadir)/chorale/upnp
 	$(INSTALL) libupnp/AVTransport2.xml $(datadir)/chorale/upnp/AVTransport.xml
@@ -104,7 +74,7 @@ install: $(choraled)
 	$(INSTALL) -m644 imagery/icon16.png $(datadir)/icons/hicolor/16x16/apps/choralecd.png
 	$(INSTALL) -d $(datadir)/icons/hicolor/32x32/apps
 	$(INSTALL) -m644 imagery/icon32.png $(datadir)/icons/hicolor/32x32/apps/choralecd.png
-	$(INSTALL) -d $(datadir)/icons/hicolor/32x32/apps
+	$(INSTALL) -d $(datadir)/icons/hicolor/48x48/apps
 	$(INSTALL) -m644 imagery/icon48.png $(datadir)/icons/hicolor/48x48/apps/choralecd.png
 	$(INSTALL) -m644 imagery/noart32.png $(datadir)/chorale/layout/
 	$(INSTALL) -m644 imagery/noart48.png $(datadir)/chorale/layout/

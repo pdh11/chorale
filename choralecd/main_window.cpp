@@ -49,7 +49,7 @@ void MainWindow::AddWidgetFactory(WidgetFactory *wf)
 
 void MainWindow::timerEvent(QTimerEvent*)
 {
-    unsigned int encode_tasks = m_cpu_queue->Count()
+    size_t encode_tasks = m_cpu_queue->Count()
 	+ m_disk_queue->Count();
 
     if (encode_tasks != m_encode_tasks)

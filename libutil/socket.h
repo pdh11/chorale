@@ -4,6 +4,7 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string>
+#include <boost/noncopyable.hpp>
 #include "stream.h"
 
 namespace util {
@@ -39,17 +40,15 @@ struct IPEndPoint
  *
  * Contains only calls useful to both UDP and TCP sockets.
  */
-class Socket
+class Socket: public boost::noncopyable
 {
 protected:
     int m_fd;
+    void *m_event;
 
     Socket();
     ~Socket();
     explicit Socket(int fd);
-
-    Socket(const Socket& other);
-    void operator=(const Socket& other);
 
     class Stream;
     friend class Stream;
@@ -78,7 +77,9 @@ public:
 
     unsigned Connect(const IPEndPoint&);
 
-    int GetPollHandle() const;
+    /** direction is PollerInterface::IN and/or OUT
+     */
+    int GetPollHandle(unsigned int direction);
 
     bool IsOpen() const;
     unsigned Close();

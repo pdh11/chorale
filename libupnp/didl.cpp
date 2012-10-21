@@ -29,7 +29,7 @@ MetadataList Parse(const std::string& xml)
 	    IXML_NodeList *containers = ixmlNode_getChildNodes(child);
 	
 	    size_t containercount = ixmlNodeList_length(containers);
-	    TRACE << containercount << " container(s)\n";
+//	    TRACE << containercount << " container(s)\n";
 	
 	    for (unsigned int j=0; j<containercount; ++j)
 	    {

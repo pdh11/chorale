@@ -6,7 +6,7 @@
 #if defined(HAVE_CURL)
 #define HAVE_LIBDBRECEIVER 1
 #endif
-#if defined(HAVE_UPNP) && defined(HAVE_LIBUUID) && defined(HAVE_OPENSSL)
+#if defined(HAVE_UPNP)
 #define HAVE_LIBDBUPNP 1
 #endif
 #if defined(HAVE_UPNP)

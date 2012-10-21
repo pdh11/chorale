@@ -16,7 +16,7 @@ StringStreamPtr StringStream::Create()
     return StringStreamPtr(new StringStream);
 }
 
-unsigned StringStream::ReadAt(void *buffer, size_t pos, size_t len,
+unsigned StringStream::ReadAt(void *buffer, pos64 pos, size_t len,
 			      size_t *pread)
 {
     size_t remain = m_string.length() - pos;
@@ -26,7 +26,7 @@ unsigned StringStream::ReadAt(void *buffer, size_t pos, size_t len,
     return 0;
 }
 
-unsigned StringStream::WriteAt(const void *buffer, size_t pos, size_t len, 
+unsigned StringStream::WriteAt(const void *buffer, pos64 pos, size_t len, 
 			       size_t *pwrote)
 {
     m_string.replace(pos, len, (const char*)buffer, len);

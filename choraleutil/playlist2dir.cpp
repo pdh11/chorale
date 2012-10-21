@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
     }
 
     std::string dirname = util::StripExtension(argv[optind]);
-    mkdir(dirname.c_str(), 0775);
+    util::Mkdir(dirname.c_str());
 
     for (unsigned int i=0; i<pp->GetLength(); ++i)
     {
@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
 	std::string target = pp->GetEntry(i);
 	linkname << dirname << "/" << std::setw(3) << std::setfill('0')
 		 << (i+1) << " " << util::GetLeafName(target.c_str());
-	util::MakeRelativeLink(linkname.str(), target);
+	util::posix::MakeRelativeLink(linkname.str(), target);
     }
     return 0;
 }

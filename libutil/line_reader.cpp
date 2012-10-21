@@ -34,7 +34,7 @@ unsigned LineReader::GetLine(std::string *line)
 	    if (nread == 0)
 	    {
 //		TRACE << "EOF\n";
-		return ENODATA;
+		return EIO;
 	    }
 	    m_buffered += nread;
 	}

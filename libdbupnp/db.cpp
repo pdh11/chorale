@@ -45,7 +45,9 @@ unsigned Database::Init(const std::string& url, const std::string& udn)
     std::string sc;
     rc = m_contentdirectory.GetSearchCapabilities(&sc);
     if (rc == 0)
-	TRACE << "SearchCaps='" << sc << "'\n";
+    {
+//	TRACE << "SearchCaps='" << sc << "'\n";
+    }
     else
 	TRACE << "Can't GetSearchCapabilities: " << rc << "\n";
 
@@ -58,7 +60,7 @@ unsigned Database::Init(const std::string& url, const std::string& udn)
 				       &result, NULL, NULL, NULL);
 	if (rc == 0)
 	{
-	    TRACE << "searchClasses=" << result << "\n";
+//	    TRACE << "searchClasses=" << result << "\n";
 	    
 	    if (strstr(result.c_str(), "object.container.person.musicArtist")
 		&& (sc == "*" || strstr(sc.c_str(), "upnp:artist")))

@@ -1,106 +1,30 @@
 #include "file_stream.h"
-#include "trace.h"
-#include "stream_test.h"
-#include <errno.h>
-#include <fcntl.h>
-#include <unistd.h>
+#include "file_stream_posix.h"
+#include "file_stream_win32.h"
 
 namespace util {
 
-unsigned FileStream::CreateTemporary(const char *filename, FileStreamPtr *fsp)
+#ifdef WIN32
+using win32::FileStream;
+#else
+using posix::FileStream;
+#endif
+
+unsigned int OpenFileStream(const char *filename, FileMode mode,
+			    SeekableStreamPtr *pstm)
 {
-    int fd = open(filename, O_RDWR|O_CREAT|O_TRUNC, 0664);
-    if (fd < 0)
-	return (unsigned)errno;
+    FileStream *f = new FileStream();
 
-    unlink(filename);
-    *fsp = FileStreamPtr(new FileStream(fd));
-    return 0;
-}
-
-unsigned FileStream::Create(const char *filename, unsigned int flags,
-			    FileStreamPtr *fsp)
-{
-    int fd = open(filename, (int)flags, 0664);
-    if (fd < 0)
-	return (unsigned)errno;
-
-    *fsp = FileStreamPtr(new FileStream(fd));
-    return 0;
-}
-
-FileStream::FileStream(int fd)
-    : m_fd(fd)
-{
-}
-
-FileStream::~FileStream()
-{
-//    TRACE << "~FileStream\n";
-    close(m_fd);
-}
-
-unsigned FileStream::ReadAt(void *buffer, size_t pos, size_t len, 
-			    size_t *pread)
-{
-    ssize_t rc = ::pread(m_fd, buffer, len, pos);
-    if (rc < 0)
+    unsigned int rc = f->Open(filename, mode);
+    if (rc)
     {
-	TRACE << "FS::Read failed len=" << len << "\n";
-	*pread = 0;
-	return (unsigned)errno;
+	delete f;
+	return rc;
     }
-    *pread = (size_t)rc;
-    return 0;
-}
 
-unsigned FileStream::WriteAt(const void *buffer, size_t pos, size_t len, 
-			     size_t *pwrote)
-{
-    ssize_t rc = ::pwrite(m_fd, buffer, len, pos);
-    if (rc < 0)
-    {
-	*pwrote = 0;
-	return (unsigned)errno;
-    }
-//    TRACE << "fs wrote " << rc << "/" << len << "\n";
-    *pwrote = (size_t)rc;
-    return 0;
-}
+    *pstm = SeekableStreamPtr(f);
 
-SeekableStream::pos64 FileStream::GetLength()
-{
-    struct stat st;
-    int rc = fstat(m_fd, &st);
-    if (rc < 0)
-	return 0;
-    return (pos64)st.st_size;
-}
-
-unsigned FileStream::SetLength(pos64 len)
-{
-    int rc = ftruncate(m_fd, (off_t)len);
-    if (rc<0)
-	return (unsigned)errno;
-    if (Tell() > len)
-	Seek(len);
     return 0;
 }
 
 } // namespace util
-
-#ifdef TEST
-
-int main()
-{
-    util::FileStreamPtr msp;
-
-    unsigned int rc = util::FileStream::CreateTemporary("test.tmp", &msp);
-    assert(rc == 0);
-
-    TestSeekableStream(msp);
-
-    return 0;
-}
-
-#endif

@@ -60,7 +60,8 @@ unsigned Server::Impl::Init(util::PollerInterface *poller)
     if (rc == 0)
 	m_socket.SetNonBlocking(true);
     if (rc == 0)
-	poller->AddHandle(m_socket.GetPollHandle(), this, util::Poller::IN);
+	poller->AddHandle(m_socket.GetPollHandle(util::Poller::IN), this,
+			  util::Poller::IN);
 
     TRACE << "Server init returned " << rc << "\n";
 
@@ -167,7 +168,8 @@ unsigned Client::Impl::Init(util::PollerInterface *poller,
     if (rc == 0)
 	m_socket.SetNonBlocking(true);
     if (rc == 0)
-	poller->AddHandle(m_socket.GetPollHandle(), this, util::Poller::IN);
+	poller->AddHandle(m_socket.GetPollHandle(util::Poller::IN), this,
+			  util::Poller::IN);
 
     m_callback = cb;
 

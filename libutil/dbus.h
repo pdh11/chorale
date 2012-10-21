@@ -44,13 +44,13 @@ public:
 
     unsigned int Connect(unsigned int bus);
 
-    unsigned int AddSignalObserver(const std::string& interface, 
+    unsigned int AddSignalObserver(const std::string& interf, 
 				   SignalObserver *obs);
     void RemoveSignalObserver(SignalObserver*);
 
     unsigned int CallMethod(const std::string& service,
 			    const std::string& object,
-			    const std::string& interface,
+			    const std::string& interf,
 			    const std::string& method,
 			    MethodObserver *callback);
 

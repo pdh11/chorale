@@ -7,6 +7,10 @@
 #include <time.h>
 #include <boost/format.hpp>
 
+#if defined(HAVE_LINUX_DVB_DMX_H) && defined(HAVE_LINUX_DVB_FRONTEND_H)
+#define HAVE_DVB 1
+#endif
+
 RootContentFactory::RootContentFactory(mediadb::Database *db)
     : m_db(db)
 {
@@ -71,6 +75,7 @@ util::SeekableStreamPtr RootContentFactory::HomePageStream()
     ss->str() += hostname;
     ss->str() += "</div>";
 
+#ifdef HAVE_DVB
     // TV/Radio listings
 
     ss->str() += "<table border=0 cellpadding=2 cellspacing=0><tr><th colspan=9 class=head>TV and radio listings</th></tr>"
@@ -102,6 +107,7 @@ util::SeekableStreamPtr RootContentFactory::HomePageStream()
 		      % i % buffer).str();
     }
     ss->str() += "<td><a href=/epg/r>All</a></td></tr></table><br><br>";
+#endif
 
     // Recent albums
 

@@ -61,14 +61,14 @@ public:
      *
      * May (or may not) change seek position.
      */
-    virtual unsigned ReadAt(void *buffer, size_t pos, size_t len,
+    virtual unsigned ReadAt(void *buffer, pos64 pos, size_t len,
 			    size_t *pread) ATTRIBUTE_WARNUNUSED = 0;
 
     /** Atomic seek-and-write.
      *
      * May (or may not) change seek position.
      */
-    virtual unsigned WriteAt(const void *buffer, size_t pos, size_t len,
+    virtual unsigned WriteAt(const void *buffer, pos64 pos, size_t len,
 			     size_t *pwrote) ATTRIBUTE_WARNUNUSED = 0;
 };
 

@@ -110,8 +110,8 @@ unsigned Tags::Read(db::RecordsetPtr tags)
     struct stat st;
     if (stat(m_filename.c_str(), &st) == 0)
     {
-	tags->SetInteger(mediadb::MTIME, st.st_mtime);
-	tags->SetInteger(mediadb::CTIME, st.st_ctime);
+	tags->SetInteger(mediadb::MTIME, (unsigned int)st.st_mtime);
+	tags->SetInteger(mediadb::CTIME, (unsigned int)st.st_ctime);
     }
 
     TagLib::Tag *tag = tff.tag();

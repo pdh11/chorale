@@ -155,8 +155,8 @@ void WriteFIDStructure(const char *outputdir, db::Database *thedb)
 			TRACE << "Highfid " << highfid << " failed ("
 			      << rs->GetString(mediadb::IDHIGH) << ")\n";
 		}
-		util::MakeRelativeLink(s+outputleaf,
-				       rs->GetString(mediadb::PATH));
+		util::posix::MakeRelativeLink(s+outputleaf,
+					      rs->GetString(mediadb::PATH));
 		drivesize[drive] += rs->GetInteger(mediadb::SIZEBYTES);
 		length = rs->GetInteger(mediadb::SIZEBYTES);
 	    }

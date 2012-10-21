@@ -1,15 +1,17 @@
 #include "trace.h"
 #include "worker_thread.h"
 #include "task.h"
-#include <pthread.h>
+#include <boost/thread.hpp>
+#include <boost/bind.hpp>
 #include <unistd.h>
 #include <math.h>
 #include <iostream>
 #include <sys/types.h>
-#include <linux/unistd.h>
 #include <errno.h>
 #include <sys/time.h>
+#ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
+#endif
 
 namespace util {
 
@@ -20,69 +22,44 @@ class WorkerThread::Impl
     
 public:
     Impl(TaskQueue *q, Priority p) 
-	: m_queue(q), m_prio(p) {}
+	: m_queue(q),
+	  m_prio(p),
+	  m_thread(boost::bind(&Impl::Run, this))
+	{}
+    ~Impl()
+    {
+	m_thread.join();
+    }
 
-    pthread_t m_thread;
+    boost::thread m_thread;
 
     void Run();
 };
 
-static void *WorkerThreadRun(void *p)
-{
-    WorkerThread::Impl *wti = (WorkerThread::Impl*)p;
-
-    wti->Run();
-    return NULL;
-}
-
 WorkerThread::WorkerThread(TaskQueue *queue, Priority p)
     : m_impl(new Impl(queue, p))
 {
-    pthread_attr_t attr;
-    pthread_attr_init(&attr);
-    pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
-
-    int rc = pthread_create(&m_impl->m_thread, &attr,
-			    WorkerThreadRun, m_impl);
-
-    if (rc != 0)
-    {
-	TRACE << "Couldn't start thread (" << rc << ")\n";
-    }
 }
 
 WorkerThread::~WorkerThread()
 {
 //    TRACE << "~Worker joins\n";
-    void *result;
-    pthread_join(m_impl->m_thread, &result);
     delete m_impl;
 //    TRACE << "~Worker done\n";
 }
-
-#if 0
-#ifndef __NR_gettid
-#define __NR_gettid		186
-#endif
-
-pid_t gettid()
-{
-    return syscall(__NR_gettid);
-}
-#endif
 
 void WorkerThread::Impl::Run()
 {
     if (m_prio == LOW)
     {
+#ifdef WIN32
+	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_LOWEST);
+#elif defined(HAVE_SETPRIORITY)
 	/* Both in linuxthreads and in NPTL, this affects only this thread, not
 	 * the whole process (fortunately).
 	 */
 	setpriority(PRIO_PROCESS, 0, 15);
-
-//	TRACE << "getpriority=" << getpriority(PRIO_PROCESS, tid) << "\n";
-//	TRACE << "getpriority(0)=" << getpriority(PRIO_PROCESS, 0) << "\n";
-//	TRACE << "getpriority(getpid())=" << getpriority(PRIO_PROCESS, getpid()) << "\n";
+#endif
     }
 
     for (;;)

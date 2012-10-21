@@ -452,7 +452,7 @@ void CDWindow::OnDone()
 
     std::string link = m_settings->GetMP3Root() + "/New Albums/" + album;
     util::MkdirParents(link.c_str());
-    util::MakeRelativeLink(link, m_settings->GetMP3Root() + "/" + albumroot);
+    util::posix::MakeRelativeLink(link, m_settings->GetMP3Root() + "/" + albumroot);
 
     close();
 }

@@ -10,10 +10,8 @@
 #include <errno.h>
 #include <boost/format.hpp>
 
-#if defined(HAVE_OPENSSL) && defined(HAVE_LIBUUID) && defined(HAVE_UPNP)
+#if defined(HAVE_UPNP)
 
-#include <openssl/md5.h>
-#include <uuid/uuid.h>
 #include <upnp/upnp.h>
 #include <upnp/upnptools.h>
 
@@ -79,6 +77,21 @@ Service *Server::Impl::FindService(const char *udn, const char *service)
     return i->second;
 }
 
+static uint32_t SimpleHash(const char *key)
+{
+    uint32_t hash = 0;
+    while (*key)
+    {
+	hash += *key++;
+	hash += (hash << 10);
+	hash ^= (hash >> 6);
+    }
+    hash += (hash << 3);
+    hash ^= (hash >> 11);
+    hash += (hash << 15);
+    return hash;
+}
+
 /** Construct the UUID for the UPnP Universal Device Name (UDN).
  *
  * In order to get the same UUID each time we run, we bake the IP address
@@ -87,20 +100,18 @@ Service *Server::Impl::FindService(const char *udn, const char *service)
 std::string Server::Impl::MakeUUID(const std::string& resource)
 {
     union {
-	unsigned char md5[MD5_DIGEST_LENGTH];
-	uuid_t uuid;
+	unsigned char ch[16];
+	uint32_t ui[4];
     } u;
 
-    std::string key = "chorale ";
-    key += UpnpGetServerIpAddress();
-    key += " " + resource;
-
-    MD5((const unsigned char*)key.c_str(), key.length(), u.md5);
+    strcpy((char*)u.ch, "chorale ");
+    u.ui[2] = SimpleHash(UpnpGetServerIpAddress());
+    u.ui[3] = SimpleHash(resource.c_str());
 
     char buf[40];
-    uuid_unparse(u.uuid, buf);
-
-//    TRACE << "key='" << key << "' uuid=" << buf << "\n";
+    sprintf(buf, "%08x-%04x-%04x-%04x-%04x%08x",
+	    u.ui[0], u.ui[1] >> 16, u.ui[1] & 0xFFFF, u.ui[2] >> 16, 
+	    u.ui[2] & 0xFFFF, u.ui[3]);
 
     return std::string(buf);
 }
@@ -332,7 +343,7 @@ unsigned int Server::Impl::Init(unsigned short port)
 	return ENOSYS;
     }
 
-    TRACE << "UPnP device started\n";
+//    TRACE << "UPnP device started\n";
 
     return 0;
 }
@@ -379,4 +390,4 @@ void Server::FireEvent(const std::string& udn, const char *service_id,
 
 } // namespace upnp
 
-#endif // HAVE_UPNP && HAVE_LIBUUID && HAVE_OPENSSL
+#endif // HAVE_UPNP

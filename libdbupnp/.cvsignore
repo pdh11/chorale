@@ -4,3 +4,4 @@ dbtest
 test.db
 obj-*
 .libs
+*.gcov

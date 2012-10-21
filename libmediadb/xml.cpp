@@ -5,11 +5,9 @@
 #include "schema.h"
 #include <string>
 #include <boost/static_assert.hpp>
-
-#ifdef HAVE_LIBXMLPP
-
-#include <libxml++/libxml++.h>
 #include "libutil/trace.h"
+#include "libutil/file_stream.h"
+#include "libutil/xml.h"
 #include "libutil/xmlescape.h"
 #include <stdio.h>
 
@@ -150,7 +148,7 @@ bool WriteXML(db::Database *db, unsigned int schema, ::FILE *f)
     return !ferror(f);
 }
 
-class MediaDBParser: public xmlpp::SaxParser
+class MediaDBParser: public xml::SaxParserObserver
 {
     db::Database *m_db;
     unsigned int m_field;
@@ -171,9 +169,10 @@ public:
 	    m_rev_codecmap[codecmap[i]] = i;
     }
 
-    void on_start_element(const Glib::ustring& name,
-			  const AttributeList&)
+    unsigned int OnBegin(const char *tag)
     {
+	std::string name = tag;
+
 	m_field = mediadb::FIELD_COUNT;
 	m_in_child = false;
 	m_value.clear();
@@ -202,10 +201,13 @@ public:
 		}
 	    }
 	}
+	return 0;
     }
 
-    void on_end_element(const Glib::ustring& name)
+    unsigned int OnEnd(const char *tag)
     {
+	std::string name = tag;
+
 	if (m_field < mediadb::FIELD_COUNT)
 	{
 //	    TRACE << tagmap[m_field] << " = '" << m_value << "'\n";
@@ -246,39 +248,41 @@ public:
 				mediadb::VectorToChildren(m_children));
 	    }
 	}
+	return 0;
     }
 
-    void on_characters(const Glib::ustring& text)
+    unsigned int OnContent(const char *content)
     {
 	if (m_field != mediadb::FIELD_COUNT || m_in_child)
 	{
-	    m_value += text.raw();
+	    m_value += content;
 	}
+	return 0;
     }
+
+    unsigned int OnAttribute(const char*, const char*) { return 0; }
 };
 
 bool ReadXML(db::Database *db, const char *filename)
 {
-    try
-    {
-	MediaDBParser parser(db);
-	parser.set_substitute_entities(true);
-	parser.parse_file(filename);
-    }
-    catch (const xmlpp::exception& ex)
-    {
-	TRACE << "Caught libxml++ exception: " << ex.what() << "\n";
-    }
-    catch (...)
-    {
-	TRACE << "Caught something (a-choo)\n";
-    }
+    MediaDBParser parser(db);
+    
+    xml::SaxParser saxp(&parser);
+    util::SeekableStreamPtr ssp;
+    
+    unsigned int rc = util::OpenFileStream(filename, util::READ, &ssp);
+    if (rc != 0)
+	return false;
+
+    rc = saxp.Parse(ssp);
+    if (rc != 0)
+	return false;
+
     return true;
 }
 
 } // namespace mediadb
 
-#endif // HAVE_LIBXMLPP
 
 #ifdef TEST
 
@@ -295,10 +299,10 @@ public:
 
 int main()
 {
-#ifdef HAVE_LIBXMLPP
     TestDB tdb;
     tdb.m_rs->SetInteger(mediadb::ID, 256);
     tdb.m_rs->SetString(mediadb::PATH, "You\xE2\x80\x99re My Flame.flac");
+    tdb.m_rs->SetString(mediadb::ALBUM, "X&Y");
     tdb.m_rs->SetInteger(mediadb::TYPE, mediadb::TUNE);
     tdb.m_rs->SetInteger(mediadb::CODEC, mediadb::FLAC);
 
@@ -316,6 +320,7 @@ int main()
     mediadb::ReadXML(&tdb2, "test.xml");
     assert(tdb2.m_rs->GetInteger(mediadb::ID) == 256);
     assert(tdb2.m_rs->GetString(mediadb::PATH) == "You\xE2\x80\x99re My Flame.flac");
+    assert(tdb2.m_rs->GetString(mediadb::ALBUM) == "X&Y");
     assert(tdb2.m_rs->GetInteger(mediadb::TYPE) == mediadb::TUNE);
     assert(tdb2.m_rs->GetInteger(mediadb::CODEC) == mediadb::FLAC);
 
@@ -324,8 +329,6 @@ int main()
     assert(cv2 == cv);
 
     unlink("test.xml");
-#endif // HAVE_LIBXMLPP
-
     return 0;
 }
 

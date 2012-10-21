@@ -36,8 +36,9 @@ libupnp:=$(TOP)$(DIR)$(TARGETDIR)libupnp.la
 all-libupnp: $(libupnp)
 
 $(TOP)$(DIR)% : CXXFLAGS += $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) \
-	$(LIBCDIOP_CXXFLAGS) $(LIBXMLPP_CXXFLAGS) \
-	$(LIBUUID_CXXFLAGS) $(OPENSSL_CXXFLAGS)
+	$(LIBCDIOP_CXXFLAGS) $(LIBXMLPP_CXXFLAGS)
+
+ifeq ($(HAVE_XSLTPROC),yes)
 
 $(TOP)$(DIR)%.h : $(TOP)$(DIR)%.xml $(LIBUPNP_DIR)scpd.xsl
 	$(GEN_PRE)$(XSLTPROC) --stringparam class $* \
@@ -75,6 +76,17 @@ $(TOP)$(DIR)%_server.cpp : $(TOP)$(DIR)%.xml $(LIBUPNP_DIR)scpd.xsl
 		    -o $@ \
 		    $(LIBUPNP_DIR)scpd.xsl $<
 
+else
+
+$(TOP)$(DIR)%.h $(TOP)$(DIR)%.cpp $(TOP)$(DIR)%_client.h \
+	$(TOP)$(DIR)%_client.cpp $(TOP)$(DIR)%_server.h \
+	$(TOP)$(DIR)%_server.cpp: $(TOP)$(DIR)%.xml $(LIBUPNP_DIR)scpd.xsl
+	@echo "** XML modified but xsltproc not found"
+	@echo "   Install it and re-run \"configure\" to enact changes"
+	@echo
+
+endif
+
 .PRECIOUS: $(TOP)$(DIR)%.cpp $(TOP)$(DIR)%_server.cpp \
 	$(TOP)$(DIR)%_client.cpp $(TOP)$(DIR)%.h
 
@@ -96,6 +108,8 @@ ifeq ($(libdbsteam),)
 include $(TOP)libdbsteam/Makefile
 endif
 
+$(TOP)$(DIR)% : CXXFLAGS += $(UPNP_CXXFLAGS)
+
 $(LIBUPNP_TESTS): TEST_LIBS+= $(UPNP_LIBS) $(LIBXMLPP_LIBS) $(BOOST_LIBS)
 
 $(LIBUPNP_TESTS): $(libmediadb) $(libdbsteam) $(libdb) $(libupnp) $(libutil)
@@ -113,7 +127,9 @@ $(upnpscan): $(UPNPSCAN_OBJS) $(libupnp) \
 
 -include $(UPNPSCAN_OBJS:%.lo=%.lo.dep)
 
-CLEANS += $(libupnp) \
+CLEANS += $(libupnp)
+
+MAINTAINERCLEANS += \
 	$(LIBUPNP_XML:%.xml=$(LIBUPNP_DIR)%.h) \
 	$(LIBUPNP_XML:%.xml=$(LIBUPNP_DIR)%.cpp) \
 	$(LIBUPNP_XML:%.xml=$(LIBUPNP_DIR)%_server.h) \

@@ -1,19 +1,53 @@
+#include "config.h"
 #include "socket.h"
 #include <unistd.h>
+
+#ifdef WIN32
+#include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+typedef int socklen_t;
+#else
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#include <string.h>
+#include <sys/ioctl.h>
 #include <netdb.h>
+#include <poll.h>
+#endif
+
+#include <string.h>
 #include <errno.h>
 #include <sstream>
-#include <sys/ioctl.h>
 #include <unistd.h>
-#include <poll.h>
-#include "libutil/trace.h"
+#include "trace.h"
+#include "poll.h"
+
 #undef CTIME
 
+#ifndef EWOULDBLOCK
+#define EWOULDBLOCK EAGAIN
+#endif
+
+#ifndef MSG_NOSIGNAL
+#define MSG_NOSIGNAL 0
+#endif
+
+#undef IN
+#undef OUT
+
 namespace util {
+
+#ifdef WIN32
+class SocketStartup
+{
+public:
+    SocketStartup() { WSADATA junk; WSAStartup(MAKEWORD(2,2), &junk); }
+    ~SocketStartup() { WSACleanup(); }
+};
+
+static SocketStartup g_ss;
+#endif
 
 enum { NO_SOCKET = (int)-1 };
 
@@ -26,49 +60,52 @@ static void SetUpSockaddr(const IPEndPoint& ep, struct sockaddr_in *sin)
 }
 
 Socket::Socket()
-    : m_fd(NO_SOCKET)
+    : m_fd(NO_SOCKET),
+      m_event(0)
 {
 }
 
 Socket::Socket(int fd)
-    : m_fd(fd)
+    : m_fd(fd),
+      m_event(0)
 {
 }
 
 Socket::~Socket()
 {
-    if (m_fd != NO_SOCKET)
-	::close(m_fd);
+#ifdef WIN32
+    if (m_event)
+    {
+	WSAEventSelect(m_fd, NULL, 0);
+	WSACloseEvent((WSAEVENT)m_event);
+    }
+#endif
+    if (IsOpen())
+	Close();
 }
 
-Socket::Socket(const Socket& other)
+int Socket::GetPollHandle(unsigned int direction)
 {
-    if (other.m_fd == NO_SOCKET)
-	m_fd = NO_SOCKET;
-    else
-	m_fd = ::dup(other.m_fd);
-}
-
-int Socket::GetPollHandle() const
-{
+#ifdef WIN32
+    if (!m_event)
+	m_event = WSACreateEvent();
+    long events = 0;
+    if (direction & PollerInterface::IN)
+	events |= FD_READ | FD_ACCEPT;
+    if (direction & PollerInterface::OUT)
+	events |= FD_WRITE | FD_CONNECT;
+    WSAEventSelect(m_fd, m_event, events);
+    return (int)m_event;
+#else
+    (void)direction;
     return (int)m_fd;
-}
-
-void Socket::operator=(const Socket& other)
-{
-    if (m_fd != NO_SOCKET)
-	::close(m_fd);
-
-    if (other.m_fd == NO_SOCKET)
-	m_fd = NO_SOCKET;
-    else
-	m_fd = ::dup(other.m_fd);
+#endif
 }
 
 unsigned Socket::Bind(const IPEndPoint& ep)
 {
     int i = 1;
-    ::setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, &i, sizeof(i));
+    ::setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, (const char*)&i, sizeof(i));
 
     union {
 	sockaddr_in sin;
@@ -125,7 +162,11 @@ IPEndPoint Socket::GetLocalEndPoint()
 unsigned Socket::SetNonBlocking(bool nonblocking)
 {
     unsigned long whether = nonblocking;
+#ifdef WIN32
+    int rc = ::ioctlsocket(m_fd, FIONBIO, &whether);
+#else
     int rc = ::ioctl(m_fd, FIONBIO, &whether);
+#endif
     if (rc<0)
 	return (unsigned int)errno;
     return 0;
@@ -138,13 +179,30 @@ bool Socket::IsOpen() const
 
 unsigned Socket::Close()
 {
+    if (!IsOpen())
+	return 0;
+    
+//    TRACE << "Closing socket " << m_fd << "\n";
+#ifdef WIN32
+    int rc = ::closesocket(m_fd);
+#else
     int rc = ::close(m_fd);
+#endif
     m_fd = NO_SOCKET;
     return (rc<0) ? (unsigned int)errno : 0;
 }
 
 unsigned Socket::WaitForRead(unsigned int ms)
 {
+#ifdef WIN32
+    HANDLE handle = (HANDLE)GetPollHandle(PollerInterface::IN);
+    DWORD rc = WaitForSingleObject(handle, ms);
+    if (rc == WAIT_OBJECT_0)
+	return 0;
+    if (rc == WAIT_TIMEOUT)
+	return EWOULDBLOCK;
+    return GetLastError();
+#else
     struct pollfd pfd;
     pfd.fd = m_fd;
     pfd.events = POLLIN;
@@ -155,10 +213,20 @@ unsigned Socket::WaitForRead(unsigned int ms)
     if (rc == 0)
 	return EWOULDBLOCK;
     return 0;
+#endif
 }
 
 unsigned Socket::WaitForWrite(unsigned int ms)
 {
+#ifdef WIN32
+    HANDLE handle = (HANDLE)GetPollHandle(PollerInterface::OUT);
+    DWORD rc = WaitForSingleObject(handle, ms);
+    if (rc == WAIT_OBJECT_0)
+	return 0;
+    if (rc == WAIT_TIMEOUT)
+	return EWOULDBLOCK;
+    return GetLastError();
+#else
     struct pollfd pfd;
     pfd.fd = m_fd;
     pfd.events = POLLOUT;
@@ -169,6 +237,7 @@ unsigned Socket::WaitForWrite(unsigned int ms)
     if (rc == 0)
 	return EWOULDBLOCK;
     return 0;
+#endif
 }
 
 class Socket::Stream: public util::Stream
@@ -186,32 +255,65 @@ public:
 
 unsigned Socket::Stream::Read(void *buffer, size_t len, size_t *pread)
 {
-    ssize_t rc = ::recv(m_socket->m_fd, buffer, len, MSG_NOSIGNAL);
+#ifdef WIN32
+    if (m_socket->m_event)
+	WSAResetEvent(m_socket->m_event);
+
+    ssize_t rc = ::recv(m_socket->m_fd, (char*)buffer, len, MSG_NOSIGNAL);
+
+    if (rc < 0 && WSAGetLastError() == WSAEWOULDBLOCK)
+    {
+	unsigned rc2 = m_socket->WaitForRead(m_timeout_ms);
+	if (rc2 != 0)
+	    return rc2;
+	rc = ::recv(m_socket->m_fd, (char*)buffer, len, MSG_NOSIGNAL);
+    }
+
+    if (rc < 0)
+    {
+	unsigned rc3 = WSAGetLastError();
+//	TRACE << "Socket read failed:" << rc3 << "\n";
+	if (rc3 == WSAEWOULDBLOCK)
+	    rc3 = EWOULDBLOCK;
+	return rc3;
+    }
+    *pread = (size_t)rc;
+#else
+    ssize_t rc = ::recv(m_socket->m_fd, (char*)buffer, len, MSG_NOSIGNAL);
 
     if (rc < 0 && errno == EWOULDBLOCK)
     {
 	unsigned rc2 = m_socket->WaitForRead(m_timeout_ms);
 	if (rc2 != 0)
 	    return rc2;
-	rc = ::recv(m_socket->m_fd, buffer, len, MSG_NOSIGNAL);
+	rc = ::recv(m_socket->m_fd, (char*)buffer, len, MSG_NOSIGNAL);
     }
 
     if (rc < 0)
+    {
 	return (unsigned int)errno;
+    }
     *pread = (size_t)rc;
+#endif
     return 0;
 }
 
 unsigned Socket::Stream::Write(const void *buffer, size_t len, size_t *pwrote)
 {
-    ssize_t rc = ::send(m_socket->m_fd, buffer, len, MSG_NOSIGNAL);
+#ifdef WIN32
+    if (m_socket->m_event)
+	WSAResetEvent(m_socket->m_event);
+#endif
+
+    ssize_t rc = ::send(m_socket->m_fd, (const char*)buffer, len,
+			MSG_NOSIGNAL);
 
     if (rc < 0 && errno == EWOULDBLOCK)
     {
 	unsigned rc2 = m_socket->WaitForWrite(m_timeout_ms);
 	if (rc2 != 0)
 	    return rc2;
-	rc = ::send(m_socket->m_fd, buffer, len, MSG_NOSIGNAL);
+	rc = ::send(m_socket->m_fd, (const char*)buffer, len, MSG_NOSIGNAL);
     }
 
     if (rc < 0)
@@ -262,6 +364,7 @@ IPAddress IPAddress::FromNetworkOrder(uint32_t netorder)
 
 IPAddress IPAddress::Resolve(const char *host)
 {
+#ifdef HAVE_GETHOSTBYNAME_R
     struct hostent ho;
     char buffer[1024];
     
@@ -281,6 +384,39 @@ IPAddress IPAddress::Resolve(const char *host)
 
     memcpy(u.buffer, result->h_addr, 4);
     return FromNetworkOrder(u.netorder);
+#elif defined(HAVE_GETADDRINFO)
+    struct addrinfo hints;
+    struct addrinfo *list = NULL;
+    memset(&hints, '\0', sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
+    int rc = ::getaddrinfo(host, 80, &hints, &list);
+    if (rc != 0)
+	return IPAddress::ANY;
+
+    if (!list)
+	return IPAddress::ANY;
+
+    sockaddr_in *sin = (sockaddr_in*)list->ai_addr;
+    uint32_t netorder = sin->sin_addr.s_addr;
+
+    ::freeaddrinfo(list);
+    
+    return FromNetworkOrder(netorder);
+#else
+    struct hostent *ho = ::gethostbyname(host);
+    if (!ho)
+	return IPAddress::ANY;
+
+    union {
+	char buffer[4];
+	uint32_t netorder;
+    } u;
+
+    memcpy(u.buffer, ho->h_addr, 4);
+    return FromNetworkOrder(u.netorder);
+#endif
 }
 
 
@@ -329,6 +465,38 @@ unsigned DatagramSocket::EnableBroadcast(bool broadcastable)
 unsigned DatagramSocket::Read(void *buffer, size_t buflen, size_t *nread,
 			      IPEndPoint *wasfrom, IPAddress *wasto)
 {
+#ifdef WIN32
+    /* Like so many things in Windows, there are multiple ways to do
+     * this -- one of which doesn't work, one of which requires you to
+     * rewrite your entire program to accommodate it, and the last of
+     * which only works on Vista. Here we ignore the problem of getting
+     * 'wasto' right.
+     */
+    WSABUF buf;
+    buf.buf = (char*)buffer;
+    buf.len = buflen;
+    DWORD bytesread = 0;
+    union {
+	sockaddr sa;
+	sockaddr_in sin;
+    } u;
+    DWORD flags = 0;
+    socklen_t fromlen;
+    int rc = WSARecvFrom(m_fd, &buf, 1, &bytesread, &flags, &u.sa, &fromlen,
+			 NULL, NULL);
+    if (rc != 0)
+	return WSAGetLastError();
+    *nread = bytesread;
+    if (wasfrom)
+    {
+	wasfrom->addr.addr = u.sin.sin_addr.s_addr;
+	wasfrom->port = ntohs(u.sin.sin_port);
+    }
+
+    if (wasto)
+	*wasto = IPAddress::ANY;
+    return 0;
+#else
     union {
 	sockaddr sa;
 	sockaddr_in sin;
@@ -403,6 +571,7 @@ unsigned DatagramSocket::Read(void *buffer, size_t buflen, size_t *nread,
 	}
     }
     return 0;
+#endif
 }
 
 unsigned DatagramSocket::Write(const void *buffer, size_t buflen,
@@ -415,7 +584,8 @@ unsigned DatagramSocket::Write(const void *buffer, size_t buflen,
 
     SetUpSockaddr(to, &u.sin);
 
-    ssize_t rc = ::sendto(m_fd, buffer, buflen, 0, &u.sa, sizeof(u.sin));
+    ssize_t rc = ::sendto(m_fd, (const char*)buffer, buflen, 0, &u.sa, 
+			  sizeof(u.sin));
     if (rc < 0)
 	return (unsigned int)errno;
 
@@ -441,7 +611,7 @@ unsigned StreamSocket::Open()
 {
     m_fd = ::socket(PF_INET, SOCK_STREAM, 0);
     int i = 1;
-    ::setsockopt(m_fd, IPPROTO_TCP, TCP_NODELAY, &i, sizeof(i));
+    ::setsockopt(m_fd, IPPROTO_TCP, TCP_NODELAY, (const char*)&i, sizeof(i));
     return 0;
 }
 
@@ -457,20 +627,41 @@ unsigned StreamSocket::Accept(StreamSocket *accepted)
 {
     struct sockaddr sa;
     socklen_t sl = sizeof(sa);
+#ifdef WIN32
+    if (m_event)
+	WSAResetEvent(m_event);
+
+    SOCKET rc = ::accept(m_fd, &sa, &sl);
+    if (rc == INVALID_SOCKET)
+    {
+	unsigned int error = WSAGetLastError();
+	TRACE << "Accept failed: " << error << "\n";
+	return error;
+    }
+
+    /* It starts out eventing the parent socket's event. So disassociate it. */
+    WSAEventSelect(rc, NULL, 0);
+#else
     int rc = ::accept(m_fd, &sa, &sl);
-    if (rc<0)
+    if (rc < 0)
 	return (unsigned int)errno;
+#endif
+
 //    TRACE << "Accepted fd " << rc << "\n";
-    *accepted = StreamSocket(rc);
+    if (accepted->IsOpen())
+	accepted->Close();
+    accepted->m_fd = rc;
     return 0;
 }
 
 unsigned StreamSocket::SetCork(bool corked)
 {
+#ifdef HAVE_TCP_CORK
     int i = corked;
     int rc = ::setsockopt(m_fd, IPPROTO_TCP, TCP_CORK, &i, sizeof(i));
     if (rc<0)
 	return (unsigned int)errno;
+#endif
     return 0;
 }
 

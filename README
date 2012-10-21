@@ -1,5 +1,5 @@
-	Chorale 0.09 (Technology Preview 9)
-	-----------------------------------
+	Chorale Technology Preview
+	--------------------------
 
 How to build it:
     ./configure --prefix=/usr
@@ -48,8 +48,10 @@ offers the following advantages over those packages:
     manual updating or SIGHUP. (Though SIGHUP still works, just in
     case.)
   - If the server PC has any DVB-T receivers, the server will gateway
-    Freeview radio stations to your Receivers. (Because Rio Receivers
-    can't decode MP2, the stations will be transcoded to WAV.)
+    Freeview radio stations to your Receivers. (Because car-players
+    can't decode MP2, the stations will be transcoded to WAV; Rio
+    Receivers can't play WAV *or* MP2, so radio is not available to
+    them.)
 
 Unlike Audio Receiver Manager, choraled does not incorporate an NFS
 server or a DHCP server. If you want to use choraled with real Rio

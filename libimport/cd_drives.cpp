@@ -6,8 +6,9 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <linux/cdrom.h>
-#include <sys/ioctl.h>
+//#include <linux/cdrom.h>
+//#include <sys/ioctl.h>
+#include <cdio/cdio.h>
 #include "libutil/task.h"
 #include "libutil/worker_thread.h"
 
@@ -24,6 +25,23 @@ CDDrives::CDDrives(util::hal::Context *hal)
 
 void CDDrives::Refresh()
 {
+#ifdef WIN32
+    DWORD d = ::GetLogicalDrives();
+    for (unsigned i=0; i<26; ++i)
+    {
+	if (d & (1<<i))
+	{
+	    char buf[4];
+	    sprintf(buf, "%c:", 'A' + i);
+	    UINT t = ::GetDriveType(buf);
+	    if (t == DRIVE_CDROM)
+	    {
+		if (!m_map.count(buf))
+		    m_map[buf] = CDDrivePtr(new LocalCDDrive(buf));
+	    }
+	}
+    }
+#else
     if (m_hal)
     {
 	m_hal->GetMatchingDevices("storage.drive_type", "cdrom", this);
@@ -61,13 +79,16 @@ void CDDrives::Refresh()
 	    }
 	}
     }
+#endif
 }
 
 void CDDrives::OnDevice(util::hal::DevicePtr dev)
 {
+#ifndef WIN32
     std::string device = dev->GetString("block.device");
     if (!m_map.count(device))
 	m_map[device] = CDDrivePtr(new LocalCDDrive(device, m_hal));
+#endif
 }
 
 CDDrivePtr CDDrives::GetDriveForDevice(const std::string& device)
@@ -99,17 +120,21 @@ public:
 	  m_hal(hal), 
 	  m_thread(&m_queue)
     {
+#ifndef WIN32
 	if (m_hal)
 	{
 	    m_hal->AddObserver(this);
 	    m_hal->GetMatchingDevices("volume.disc.type", "cd_rom", this);
 	}
+#endif
     }
 
     ~Impl()
     {
+#ifndef WIN32
 	if (m_hal)
 	    m_hal->RemoveObserver(this);
+#endif
 	m_queue.PushTask(util::TaskPtr());
     }
 
@@ -129,6 +154,7 @@ public:
 
 void LocalCDDrive::Impl::OnDeviceAdded(util::hal::DevicePtr dev)
 {
+#ifndef WIN32
     if (dev->GetString("block.device") == m_device
 	&& dev->GetString("volume.disc.type") == "cd_rom")
     {
@@ -136,25 +162,30 @@ void LocalCDDrive::Impl::OnDeviceAdded(util::hal::DevicePtr dev)
 //	TRACE << "CD present\n";
 	m_parent->Fire(&CDDriveObserver::OnDiscPresent, true);
     }
+#endif
 }
 
 void LocalCDDrive::Impl::OnDeviceRemoved(util::hal::DevicePtr dev)
 {
+#ifndef WIN32
     if (dev->GetUDI() == m_volume_udi)
     {
 //	TRACE << "CD no longer present\n";
 	m_parent->Fire(&CDDriveObserver::OnDiscPresent, false);
 	m_volume_udi.clear();
     }
+#endif
 }
 
 void LocalCDDrive::Impl::OnDevice(util::hal::DevicePtr dev)
 {
+#ifndef WIN32
     /* This is called with all CD-ROM volumes, we need only check if the block
      * device is us.
      */
     if (dev->GetString("block.device") == m_device)
 	m_volume_udi = dev->GetUDI();
+#endif
 }
 
 
@@ -199,7 +230,11 @@ util::TaskQueue *LocalCDDrive::GetTaskQueue()
 unsigned int LocalCDDrive::Eject()
 {
     TRACE << "Ejecting " << GetDevice() << "\n";
-    
+
+#if 1
+    cdio_eject_media_drive(GetDevice().c_str());
+    return 0;
+#else
     int fd = ::open(GetDevice().c_str(), O_RDONLY|O_NONBLOCK);
     if (fd < 0)
     {
@@ -211,6 +246,7 @@ unsigned int LocalCDDrive::Eject()
     ::close(fd);
 
     return (rc < 0) ? (unsigned int)errno : 0;
+#endif
 }
 
 unsigned int LocalCDDrive::GetCD(AudioCDPtr *result)

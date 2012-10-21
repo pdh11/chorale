@@ -3,9 +3,12 @@
 
 #include <string.h>
 #include <time.h>
+#include <map>
 
 #undef IN
 #undef OUT
+
+struct pollfd;
 
 namespace util {
 
@@ -35,6 +38,13 @@ public:
 
     enum { IN = 1, OUT = 2 };
 
+    /** Add a handle to the list being polled for.
+     *
+     * On Posix systems, poll_handle is a file descriptor, and
+     * direction should be set appropriately. On Win32, poll_handle is
+     * a HANDLE, and direction is ignored. This API does not support
+     * Win64 (where sizeof(HANDLE) != sizeof(int)).
+     */
     virtual void AddHandle(int poll_handle, Pollable *callback,
 			   unsigned int direction = IN|OUT) = 0;
     virtual void RemoveHandle(int poll_handle) = 0;
@@ -59,7 +69,10 @@ public:
  */
 class Poller: public PollerInterface
 {
+public:
     class Impl;
+
+private:
     Impl *m_impl;
     
 public:
@@ -72,12 +85,14 @@ public:
 
     // Being a PollerInterface
     void AddHandle(int poll_handle, Pollable *callback, 
-		   unsigned int direction = IN);
+		   unsigned int direction);
     void RemoveHandle(int poll_handle);
 
     void AddTimer(time_t first, unsigned int repeatms, Timed*);
     void RemoveTimer(Timed*);
 };
+
+namespace posix {
 
 /** For explicitly waking-up a Poller
  */
@@ -100,6 +115,72 @@ public:
     void Wake();
 };
 
-} // namespace utilx
+class PollerCore
+{
+    pollfd *m_array;
+    size_t m_count;
+
+public:
+    PollerCore();
+    ~PollerCore();
+
+    unsigned int SetUpArray(const std::map<int,Pollable*>*,
+			    const std::map<int,unsigned int>*);
+    unsigned int Poll(unsigned int timeout_ms);
+    unsigned int DoCallbacks(const std::map<int,Pollable*>*);
+};
+
+} // namespace util::posix
+
+namespace win32 {
+
+/** For explicitly waking-up a Poller
+ */
+class PollWaker: private Pollable
+{
+    Pollable *m_pollable;
+    void *m_event;
+
+    unsigned OnActivity();
+
+public:
+    /** Construct a PollWaker for waking up the given PollerInterface. 
+     *
+     * If the given Pollable is non-NULL, its OnActivity is called at
+     * wake time too.
+     */
+    PollWaker(PollerInterface*, Pollable* = NULL);
+    ~PollWaker();
+    
+    void Wake();
+};
+
+class PollerCore
+{
+    void **m_array;
+    size_t m_count;
+    int m_which;
+
+public:
+    PollerCore();
+    ~PollerCore();
+
+    unsigned int SetUpArray(const std::map<int,Pollable*>*,
+			    const std::map<int,unsigned int>*);
+    unsigned int Poll(unsigned int timeout_ms);
+    unsigned int DoCallbacks(const std::map<int,Pollable*>*);
+};
+
+} // namespace util::win32
+
+#ifdef WIN32
+namespace pollapi = ::util::win32;
+#else
+namespace pollapi = ::util::posix;
+#endif
+
+using pollapi::PollWaker;
+
+} // namespace util
 
 #endif

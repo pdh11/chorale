@@ -1,4 +1,11 @@
 choraled
+choraled-lib
+choralesvc
+choralesvc-lib
 obj-*
 .libs
 db.xml
+choraled.all-*
+choralesvc.all-*
+map.txt
+map2.txt

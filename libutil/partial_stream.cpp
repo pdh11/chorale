@@ -16,7 +16,7 @@ SeekableStreamPtr PartialStream::Create(SeekableStreamPtr s,
     return SeekableStreamPtr(new PartialStream(s,begin,end));
 }
 
-unsigned PartialStream::ReadAt(void *buffer, size_t pos, size_t len, 
+unsigned PartialStream::ReadAt(void *buffer, pos64 pos, size_t len, 
 			       size_t *pread)
 {
 //    TRACE << "PSRA pos=" << pos << " len=" << len << " m_end=" << m_end << "\n";
@@ -26,7 +26,7 @@ unsigned PartialStream::ReadAt(void *buffer, size_t pos, size_t len,
     return rc;
 }
 
-unsigned PartialStream::WriteAt(const void *buffer, size_t pos, size_t len,
+unsigned PartialStream::WriteAt(const void *buffer, pos64 pos, size_t len,
 				size_t *pwrote)
 {
     if (pos + len + m_begin > m_end)

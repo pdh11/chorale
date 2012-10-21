@@ -16,14 +16,19 @@ namespace import {
 unsigned LocalAudioCD::Create(const std::string& device, AudioCDPtr *pcd)
 {
     *pcd = AudioCDPtr(NULL);
-    
-    cdrom_drive_t *cdt =  cdio_cddap_identify(device.c_str(),
-					      1, NULL);
+
+    TRACE << "Calling identify\n";
+
+    cdrom_drive_t *cdt =  cdio_cddap_identify(device.c_str(), 
+					      CDDA_MESSAGE_FORGETIT, NULL);
+
     if (!cdt)
     {
 	TRACE << "Can't identify CD drive\n";
 	return EINVAL;
     }
+
+    TRACE << "Identified\n";
 
     int rc = cdio_cddap_open(cdt);
     if (rc<0)
@@ -32,7 +37,11 @@ unsigned LocalAudioCD::Create(const std::string& device, AudioCDPtr *pcd)
 	return (unsigned)errno;
     }
 
+    TRACE << "Opened\n";
+
     unsigned int total = cdio_cddap_tracks(cdt);
+
+    TRACE << "Got tracks\n";
 
     if (total == (track_t)-1)
     {
@@ -52,8 +61,8 @@ unsigned LocalAudioCD::Create(const std::string& device, AudioCDPtr *pcd)
 	    TocEntry te;
 	    te.first_sector = cdio_cddap_track_firstsector(cdt, i);
 	    te.last_sector  = cdio_cddap_track_lastsector(cdt, i);
-//	    TRACE << "Track " << i << " " << te.firstsector
-//		  << ".." << te.lastsector << "\n";
+	    TRACE << "Track " << i << " " << te.first_sector
+		  << ".." << te.last_sector << "\n";
 	    
 	    toc.push_back(te);
 
@@ -61,7 +70,7 @@ unsigned LocalAudioCD::Create(const std::string& device, AudioCDPtr *pcd)
 	}
 	else
 	{
-	    TRACE << "Track " << i+1 << " not audio\n";
+//	    TRACE << "Track " << i+1 << " not audio\n";
 	}
     }
 
@@ -71,6 +80,8 @@ unsigned LocalAudioCD::Create(const std::string& device, AudioCDPtr *pcd)
 	TRACE << "No audio tracks\n";
 	return ENOENT;
     }
+
+    TRACE << "Opened with " << toc.size() << " tracks\n";
 
     LocalAudioCD *cd = new LocalAudioCD();
     cd->m_toc = toc;
@@ -96,16 +107,26 @@ class ParanoiaStream: public util::SeekableStream
     const char *m_data;
     unsigned int m_skip;
 
+    static void StaticCallback(long int i, paranoia_cb_mode_t cbm)
+    {
+	if (cbm != PARANOIA_CB_READ)
+	{
+	    const char *cbmstr = paranoia_cb_mode2str[cbm];
+	    TRACE << "paranoia callback " << i << " mode " << cbmstr << "\n";
+	}
+    }
+
 public:
     ParanoiaStream(cdrom_drive_t *cdt, int first_sector, int last_sector)
 	: m_paranoia(paranoia_init(cdt)),
 	  m_first_sector(first_sector),
 	  m_last_sector(last_sector),
-	  m_sector(first_sector),
+	  m_sector(first_sector-1),
 	  m_data(NULL),
-	  m_skip(0)
+	  m_skip(2352)
     {
-	paranoia_modeset(m_paranoia,
+	TRACE << "Read starting\n";
+	paranoia_modeset(m_paranoia, 
 			 PARANOIA_MODE_FULL - PARANOIA_MODE_NEVERSKIP);
 	paranoia_seek(m_paranoia, first_sector, SEEK_SET);
     }
@@ -116,8 +137,8 @@ public:
     }
 
     // Being a SeekableStream
-    unsigned ReadAt(void *buffer, size_t pos, size_t len, size_t *pread);
-    unsigned WriteAt(const void *buffer, size_t pos, size_t len,
+    unsigned ReadAt(void *buffer, pos64 pos, size_t len, size_t *pread);
+    unsigned WriteAt(const void *buffer, pos64 pos, size_t len,
 		     size_t *pwrote);
     void Seek(pos64 pos);
     pos64 Tell();
@@ -125,7 +146,7 @@ public:
     unsigned SetLength(pos64);
 };
 
-unsigned ParanoiaStream::ReadAt(void *buffer, size_t pos, size_t len,
+unsigned ParanoiaStream::ReadAt(void *buffer, pos64 pos, size_t len,
 				size_t *pread)
 {
     /** @todo Isn't thread-safe like the other ReadAt's. Add a mutex. */
@@ -133,7 +154,7 @@ unsigned ParanoiaStream::ReadAt(void *buffer, size_t pos, size_t len,
     if (pos != Tell())
 	Seek(pos);
 
-    if (m_sector == m_last_sector+1 && !m_data)
+    if (m_sector == m_last_sector && !m_data)
     {
 	// EOF
 	*pread = 0;
@@ -142,9 +163,17 @@ unsigned ParanoiaStream::ReadAt(void *buffer, size_t pos, size_t len,
 
     if (!m_data)
     {
-	m_data = (const char*)paranoia_read(m_paranoia, NULL);
-	m_skip = 0;
 	++m_sector;
+	TRACE << "Reading sector " << m_sector << "\n";
+	m_data = (const char*)paranoia_read(m_paranoia, &StaticCallback);
+	if (!m_data)
+	{
+	    TRACE << "Unrecoverable error!\n";
+	    return EIO;
+	}
+
+//	TRACE << "Got sector " << m_sector << "\n";
+	m_skip = 0;
     }
 
     unsigned int lump = 2352 - m_skip;
@@ -159,23 +188,35 @@ unsigned ParanoiaStream::ReadAt(void *buffer, size_t pos, size_t len,
 	m_data = NULL;
     }
 
+    TRACE << "Returned bytes " << pos << ".." << (pos+lump) << "\n";
+
     *pread = lump;
     return 0;
 }
 
-unsigned ParanoiaStream::WriteAt(const void*, size_t, size_t, size_t*)
+unsigned ParanoiaStream::WriteAt(const void*, pos64, size_t, size_t*)
 {
     return EPERM; // We're read-only
 }
 
 void ParanoiaStream::Seek(pos64 pos)
 {
-    /* NB this is only accurate to the nearest sector */
+    if (pos == Tell())
+	return;
+
+    pos64 current = Tell();
+    TRACE << "Tell()=" << current/2352 << ":" << current%2352
+	  << " pos=" << pos/2352 << ":" << pos%2352 << ", seeking\n";
+
     m_sector = (int)(m_first_sector + pos/2352);
+    m_skip = (unsigned int)(pos % 2352);
+
+    assert(pos == Tell());
+
+    TRACE << "Seeking to sector " << m_sector << "\n";
 
     paranoia_seek(m_paranoia, m_sector, SEEK_SET);
 
-    m_skip = (unsigned int)(pos % 2352);
     m_data = NULL;
 }
 

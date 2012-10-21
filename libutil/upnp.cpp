@@ -1,17 +1,20 @@
 #include "config.h"
 #include "upnp.h"
-#include "libutil/trace.h"
+#include "trace.h"
+
+#ifdef HAVE_UPNP
+
 #include <list>
 #include <boost/thread/recursive_mutex.hpp>
+#ifndef WIN32
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <net/if.h>
+#endif
 #include "socket.h"
-
-#ifdef HAVE_UPNP
 
 #include <upnp/upnp.h>
 #include <upnp/ThreadPool.h>
@@ -24,6 +27,9 @@ static UpnpClient_Handle s_handle = 0;
 
 static unsigned int DeduceLocalIPAddress(std::string *ips)
 {
+#ifdef WIN32
+    return ENOSYS;
+#else
     int fd = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (fd < 0)
     {
@@ -67,7 +73,7 @@ static unsigned int DeduceLocalIPAddress(std::string *ips)
 	rc = ioctl(fd, SIOCGIFADDR, &reqs[i]);
 	if (rc < 0)
 	{
-	    TRACE << reqs[i].ifr_name << " has no address, skipping\n";
+//	    TRACE << reqs[i].ifr_name << " has no address, skipping\n";
 	    continue;
 	}
 
@@ -76,7 +82,7 @@ static unsigned int DeduceLocalIPAddress(std::string *ips)
 	    == (IFF_UP|IFF_RUNNING))
 	{
 	    // Definitely like this one
-	    TRACE << reqs[i].ifr_name << " is up and running, selecting\n";
+//	    TRACE << reqs[i].ifr_name << " is up and running, selecting\n";
 	    found = i;
 	    break;
 	}
@@ -84,8 +90,8 @@ static unsigned int DeduceLocalIPAddress(std::string *ips)
 	/* But settle for just IFF_UP */
 	if ((flags & (IFF_UP|IFF_LOOPBACK)) == IFF_UP && found == n)
 	{
-	    TRACE << reqs[i].ifr_name
-		  << " is up but not running, best so far\n";
+//	    TRACE << reqs[i].ifr_name
+//		  << " is up but not running, best so far\n";
 	    found = i;
 	}
     }
@@ -103,11 +109,12 @@ static unsigned int DeduceLocalIPAddress(std::string *ips)
 	u.sa = reqs[found].ifr_ifru.ifru_addr;
 	IPAddress ip = IPAddress::FromNetworkOrder(u.sin.sin_addr.s_addr);
 	*ips = ip.ToString();
-	TRACE << "Selecting " << reqs[found].ifr_name << ": " << *ips << "\n";
+//	TRACE << "Selecting " << reqs[found].ifr_name << ": " << *ips << "\n";
     }
 
     ::close(fd);
     return (found == n) ? ENOENT : 0u;
+#endif // !WIN32
 }
 
 LibUPnPUser::LibUPnPUser()
@@ -118,10 +125,11 @@ LibUPnPUser::LibUPnPUser()
 	std::string myip;
 	unsigned int rc = DeduceLocalIPAddress(&myip);
 
-//	TRACE << "Calling UpnpInit\n";
-	UpnpInit(rc == 0 ? myip.c_str() : NULL, 0);
-//	TRACE << "UpnpInit done\n";
-	TRACE << "UPnP got port " << UpnpGetServerPort() << "\n";
+	int rc2 = UpnpInit(rc == 0 ? myip.c_str() : NULL, 0);
+	if (rc2 != 0)
+	{
+	    TRACE << "UpnpInit failed (" << rc2 << ")\n";
+	}
     }
     s_list.push_back(this);
 }

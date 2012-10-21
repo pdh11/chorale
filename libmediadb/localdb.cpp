@@ -52,9 +52,9 @@ util::SeekableStreamPtr LocalDatabase::OpenRead(unsigned int id)
     if (i != m_factories.end())
 	return i->second->OpenRead(rs);
     
-    util::FileStreamPtr fsp;
-    unsigned int rc = util::FileStream::Create(rs->GetString(PATH).c_str(),
-					       O_RDONLY, &fsp);
+    util::SeekableStreamPtr fsp;
+    unsigned int rc = util::OpenFileStream(rs->GetString(PATH).c_str(),
+					   util::READ, &fsp);
     if (rc)
     {
 	TRACE << "Can't open ID " << id << " file " << rs->GetString(PATH)
@@ -80,9 +80,9 @@ util::SeekableStreamPtr LocalDatabase::OpenWrite(unsigned int id)
     if (i != m_factories.end())
 	return i->second->OpenWrite(rs);
     
-    util::FileStreamPtr fsp;
-    unsigned int rc = util::FileStream::Create(rs->GetString(PATH).c_str(),
-					       O_RDWR|O_CREAT, &fsp);
+    util::SeekableStreamPtr fsp;
+    unsigned int rc = util::OpenFileStream(rs->GetString(PATH).c_str(),
+					   util::WRITE, &fsp);
     if (rc)
     {
 	TRACE << "Can't open ID " << id << " file " << rs->GetString(PATH)

@@ -46,9 +46,9 @@ unsigned Tags::Read(db::RecordsetPtr rs)
     struct stat st;
     if (stat(m_filename.c_str(), &st) == 0)
     {
-	rs->SetInteger(mediadb::MTIME, st.st_mtime);
-	rs->SetInteger(mediadb::CTIME, st.st_ctime);
-	rs->SetInteger(mediadb::SIZEBYTES, st.st_size);
+	rs->SetInteger(mediadb::MTIME, (unsigned int)st.st_mtime);
+	rs->SetInteger(mediadb::CTIME, (unsigned int)st.st_ctime);
+	rs->SetInteger(mediadb::SIZEBYTES, (unsigned int)st.st_size);
     }
 
     const TagLib::Tag *tag = fr.tag();    

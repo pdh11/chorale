@@ -4,13 +4,14 @@
 #include <boost/thread/mutex.hpp>
 #include <unistd.h>
 #include <errno.h>
-#include <poll.h>
 #include <time.h>
 #include <sys/time.h>
 #include <assert.h>
 #include "trace.h"
 
 namespace util {
+
+using pollapi::PollerCore;
 
 class Poller::Impl
 {
@@ -43,7 +44,7 @@ class Poller::Impl
     directions_t m_directions;
     timers_t m_timers; // Used as a priority-queue
 
-    struct pollfd *m_array;
+    PollerCore m_core;
     bool m_array_valid;
 
 public:
@@ -60,14 +61,14 @@ public:
 };
 
 Poller::Impl::Impl()
-    : m_array(NULL),
+    : //m_array(NULL),
       m_array_valid(false)
 {
 }
 
 Poller::Impl::~Impl()
 {
-    free(m_array);
+//    free(m_array);
 }
 
 void Poller::Impl::AddHandle(int fd, Pollable *callback,
@@ -98,7 +99,7 @@ void Poller::Impl::AddTimer(time_t first, unsigned int repeatms,
     
     boost::mutex::scoped_lock lock(m_mutex);
     m_timers.push_back(t);
-    TRACE << "Pushing timer for " << t.t << "\n";
+//    TRACE << "Pushing timer for " << t.t << "\n";
     std::push_heap(m_timers.begin(), m_timers.end(), TimerSooner());
 }
 
@@ -112,13 +113,15 @@ void Poller::Impl::RemoveTimer(Timed *callback)
 
 unsigned Poller::Impl::Poll(unsigned int timeout_ms)
 {
-    nfds_t nfds;
+//    nfds_t nfds;
 
     {
 	boost::mutex::scoped_lock lock(m_mutex);
 
 	if (!m_array_valid)
 	{
+	    m_core.SetUpArray(&m_handles, &m_directions);
+/*
 	    struct pollfd *newarray = (struct pollfd*) realloc(m_array, 
 					      m_handles.size() * sizeof(struct pollfd));
 	    if (!newarray)
@@ -142,11 +145,12 @@ unsigned Poller::Impl::Poll(unsigned int timeout_ms)
 		++i;
 	    }
 	    nfds = (nfds_t)i;
+*/
 	    m_array_valid = true;
 	}
 	else
 	{
-	    nfds = m_handles.size();
+//	    nfds = m_handles.size();
 //	    TRACE << "Re-waiting on " << nfds << " fds\n";
 	}
 
@@ -174,12 +178,16 @@ unsigned Poller::Impl::Poll(unsigned int timeout_ms)
 	}
     }
 
-    int rc = ::poll(m_array, nfds, (int)timeout_ms);
+//    int rc = ::poll(m_array, nfds, (int)timeout_ms);
 
 //    TRACE << "polled " << rc << "\n";
 
-    if (rc < 0)
-	return (unsigned)errno;
+//    if (rc < 0)
+//	return (unsigned)errno;
+
+    unsigned int rc = m_core.Poll(timeout_ms);
+    if (rc != 0)
+	return rc;
 
     uint64_t nowms = 0;
     bool any = false;
@@ -210,7 +218,7 @@ unsigned Poller::Impl::Poll(unsigned int timeout_ms)
 		break;
 
 	    t = m_timers.front();
-	    TRACE << "now " << nowms << ", timer " << t.t << ", calling\n";
+//	    TRACE << "now " << nowms << ", timer " << t.t << ", calling\n";
 
 	    doit = true;
 
@@ -240,7 +248,7 @@ unsigned Poller::Impl::Poll(unsigned int timeout_ms)
 		    assert(m_timers.back().t <= (nowms + t.repeatms));
 		}
 
-		TRACE << "Next repeat at " << m_timers.back().t << "\n";
+//		TRACE << "Next repeat at " << m_timers.back().t << "\n";
 		std::push_heap(m_timers.begin(), m_timers.end(), TimerSooner());
 	    }
 	}
@@ -248,7 +256,9 @@ unsigned Poller::Impl::Poll(unsigned int timeout_ms)
 	if (doit && t.callback)
 	    t.callback->OnTimer();
     }
-	
+
+    m_core.DoCallbacks(&m_handles);
+/*
 
     if (rc == 0)
 	return 0;
@@ -262,7 +272,7 @@ unsigned Poller::Impl::Poll(unsigned int timeout_ms)
 	}
     }
 //    TRACE << "Done activity calls\n";
-
+*/
     return 0;
 }
 
@@ -299,40 +309,6 @@ void Poller::RemoveTimer(Timed *callback)
 unsigned Poller::Poll(unsigned int timeout_ms)
 {
     return m_impl->Poll(timeout_ms);
-}
-
-PollWaker::PollWaker(PollerInterface *p, Pollable *pollable)
-    : m_pollable(pollable)
-{
-    int rc = pipe(m_fd);
-    if (rc != 0)
-    {
-	TRACE << "Can't pipe\n";
-    }
-    p->AddHandle(m_fd[0], this, PollerInterface::IN);
-}
-
-PollWaker::~PollWaker()
-{
-    close(m_fd[0]);
-    close(m_fd[1]);
-}
-
-unsigned PollWaker::OnActivity()
-{
-    char ch;
-    ssize_t rc = read(m_fd[0], &ch, 1);
-    assert(rc == 1);
-    rc = rc;
-    return m_pollable ? m_pollable->OnActivity() : 0;
-}
-
-void PollWaker::Wake()
-{
-    char ch = '*';
-    ssize_t rc = write(m_fd[1], &ch, 1);
-    assert(rc == 1);
-    rc = rc;
 }
 
 } // namespace util

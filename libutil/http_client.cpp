@@ -1,15 +1,12 @@
 #include "config.h"
 #include "http_client.h"
+#include "http_stream.h"
+#include "string_stream.h"
 #include "trace.h"
 #include "file.h"
 #include <string.h>
 #include <stdlib.h>
-
-#ifdef HAVE_CURL
-
-#include <curl/curl.h>
-#include <curl/types.h>
-#include <curl/easy.h>
+#include <assert.h>
 
 namespace util {
 
@@ -18,46 +15,20 @@ HttpClient::HttpClient(const std::string& url)
 {
 }
 
-static size_t util_http_client_string_callback(void *data,
-					       size_t sz, size_t nmemb,
-					       void *handle)
-{
-    std::string *ps = (std::string*) handle;
-    size_t realsize = sz*nmemb;
-    ps->append((char*)data, realsize);
-    TRACE << "Received " << realsize << " bytes\n";
-    return realsize;
-}
-
 unsigned int HttpClient::FetchToString(std::string *presult)
 {
     *presult = std::string();
-    CURL *curl_handle;
 
-    /* init the curl session */
-    curl_handle = curl_easy_init();
-
-    /* specify URL to get */
-    curl_easy_setopt(curl_handle, CURLOPT_URL, m_url.c_str());
-
-    /* send all data to this function  */
-    curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, 
-		     util_http_client_string_callback);
-
-    curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void *)presult);
-
-    /* some servers don't like requests that are made without a user-agent
-       field, so we provide one */
-    curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, PACKAGE_STRING);
-
-    /* get it! */
-    curl_easy_perform(curl_handle);
+    StringStreamPtr output = StringStream::Create();
+    HTTPStreamPtr input;
+    unsigned int rc = HTTPStream::Create(&input, m_url.c_str());
+    if (rc != 0)
+	return rc;
+    rc = CopyStream(SeekableStreamPtr(input), output);
+    if (rc != 0)
+	return rc;
     
-    /* cleanup curl stuff */
-    curl_easy_cleanup(curl_handle);
-
-    TRACE << "Returned " << presult->length() << " bytes\n";
-
+   *presult = output->str();
     return 0;
 }
 
@@ -123,8 +94,6 @@ std::string ResolveURL(const std::string& base,
 
 } // namespace util
 
-#endif // HAVE_CURL
-
 #ifdef TEST
 
 static struct {
@@ -162,10 +131,14 @@ int main()
     unsigned short port;
 
     util::ParseURL(url, &hostpart, &path);
-    TRACE << "hp=" << hostpart << ", path=" << path << "\n";
+//    TRACE << "hp=" << hostpart << ", path=" << path << "\n";
+    assert(hostpart == "http://foo.bar:2888");
+    assert(path == "/wurdle");
     
     util::ParseHost(hostpart, 80, &host, &port);
-    TRACE << "host=" << host << ", port=" << port << "\n";
+//    TRACE << "host=" << host << ", port=" << port << "\n";
+    assert(host == "foo.bar");
+    assert(port == 2888);
 
     return 0;
 }

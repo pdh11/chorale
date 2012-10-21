@@ -8,6 +8,10 @@
 #include <boost/format.hpp>
 #include <boost/tokenizer.hpp>
 
+#ifndef EWOULDBLOCK
+#define EWOULDBLOCK EAGAIN
+#endif
+
 namespace util {
 
 HTTPStream::HTTPStream(const IPEndPoint& ipe, const std::string& path)
@@ -39,7 +43,7 @@ unsigned HTTPStream::Create(HTTPStreamPtr *result, const char *url)
     return 0;
 }
 
-unsigned HTTPStream::ReadAt(void *buffer, size_t pos, size_t len,
+unsigned HTTPStream::ReadAt(void *buffer, pos64 pos, size_t len,
 			    size_t *pread)
 {
     /** @todo Isn't thread-safe like the other ReadAt's. Add a mutex. */
@@ -52,8 +56,16 @@ unsigned HTTPStream::ReadAt(void *buffer, size_t pos, size_t len,
 	Seek(pos);
     }
 
+    if (m_len && pos == m_len)
+    {
+	*pread = 0;
+	return 0;
+    }
+
     if (m_need_fetch)
     {
+	m_socket.SetNonBlocking(false);
+
 	unsigned int rc = m_socket.Connect(m_ipe);
 	if (rc != 0)
 	    return rc;
@@ -68,7 +80,12 @@ unsigned HTTPStream::ReadAt(void *buffer, size_t pos, size_t len,
 
 	rc = m_stm->WriteAll(headers.c_str(), headers.length());
 	if (rc != 0)
+	{
+	    TRACE << "Can't even write headers: " << rc << "\n";
 	    return rc;
+	}
+
+//	TRACE << "Sent headers:\n" << headers;
 
 	util::LineReader lr(m_stm);
 
@@ -145,11 +162,9 @@ unsigned HTTPStream::ReadAt(void *buffer, size_t pos, size_t len,
 	    }
 	}
 
-	size_t this_xfer = len;
-
 	do {
 	    rc = lr.GetLine(&line);
-//	TRACE << "Header " << line << "\n";
+//	    TRACE << "Header " << line << "\n";
 
 	    tokenizer bt(line, sep);
 	    tokenizer::iterator bti = bt.begin();
@@ -169,7 +184,7 @@ unsigned HTTPStream::ReadAt(void *buffer, size_t pos, size_t len,
 
 			/* HTTP/1.1 says "Content-Range: bytes X-Y/Z"
 			 * but traditional Receiver servers send
-			 * "Content-Range: bytes=X-Y/Z"
+			 * "Content-Range: bytes=X-Y"
 			 */
 
 			if (sscanf(bti->c_str(), "%llu-%llu/%llu",
@@ -183,7 +198,8 @@ unsigned HTTPStream::ReadAt(void *buffer, size_t pos, size_t len,
 			{
 			    if (elen)
 				m_len = elen;
-			    this_xfer = rmax-rmin+1;
+			    else
+				m_len = rmax + 1;
 			}
 		    }
 		}
@@ -207,7 +223,7 @@ unsigned HTTPStream::ReadAt(void *buffer, size_t pos, size_t len,
     return rc;
 }
 
-unsigned HTTPStream::WriteAt(const void*, size_t, size_t, size_t*)
+unsigned HTTPStream::WriteAt(const void*, pos64, size_t, size_t*)
 {
     return EPERM;
 }
@@ -238,7 +254,7 @@ public:
 
     void Run()
     {
-	TRACE << "Fetcher running\n";
+//	TRACE << "Fetcher running\n";
 	util::HTTPStreamPtr hsp;
 	unsigned int rc = util::HTTPStream::Create(&hsp, m_url.c_str());
 	assert(rc == 0);
@@ -249,8 +265,8 @@ public:
 	assert(rc == 0);
 	m_contents = std::string(buf, buf+nread);
 	m_waker->Wake();
-	TRACE << "Fetcher done " << rc << "\n";
-	//m_done = true;
+//	TRACE << "Fetcher done " << rc << "\n";
+	m_done = true;
     }
 
     const std::string& GetContents() const { return m_contents; }
@@ -305,14 +321,14 @@ int main(int, char*[])
 	now = time(NULL);
 	if (now < finish)
 	{
-	    TRACE << "polling for " << (finish-now)*1000 << "ms\n";
+//	    TRACE << "polling for " << (finish-now)*1000 << "ms\n";
 	    poller.Poll((unsigned)(finish-now)*1000);
 	}
     } while (now < finish && !ft->IsDone());
 
-    TRACE << "Got '" << ft->GetContents() << "' (len "
-	  << strlen(ft->GetContents().c_str()) << " sz "
-	  << ft->GetContents().length() << ")\n";
+//    TRACE << "Got '" << ft->GetContents() << "' (len "
+//	  << strlen(ft->GetContents().c_str()) << " sz "
+//	  << ft->GetContents().length() << ")\n";
     assert(ft->GetContents() == "/zootle/wurdle.html");
 
     queue.PushTask(util::TaskPtr(NULL));

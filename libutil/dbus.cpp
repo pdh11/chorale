@@ -6,6 +6,9 @@
 #include <list>
 #include <errno.h>
 
+#undef IN
+#undef OUT
+
 #ifdef HAVE_DBUS
 
 #include <dbus/dbus.h>

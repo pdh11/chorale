@@ -38,7 +38,7 @@ OpticalDriveImpl::OpticalDriveImpl(import::CDDrivePtr cd,
     : m_cd(cd),
       m_factory(factory),
       m_port(port),
-      m_disc_present(false)
+      m_disc_present(!cd->SupportsDiscPresent()) // Pretend always there
 {
     m_cd->AddObserver(this);
 }

@@ -233,9 +233,9 @@ int main()
 
 //    TestSeekableStream(asp);
 
-    util::FileStreamPtr fsp;
+    util::SeekableStreamPtr fsp;
 
-    rc = util::FileStream::CreateTemporary("test2.tmp", &fsp);
+    rc = util::OpenFileStream("test2.tmp", util::TEMP, &fsp);
     assert(rc == 0);
 
     util::StreamPtr asp2;

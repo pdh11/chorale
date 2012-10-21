@@ -18,6 +18,13 @@
 #include <boost/format.hpp>
 #include <boost/tokenizer.hpp>
 
+#ifndef EWOULDBLOCK
+#define EWOULDBLOCK EAGAIN
+#endif
+
+#undef IN
+#undef OUT
+
 namespace util {
 
 class WebServer::Task: public util::Task
@@ -74,7 +81,7 @@ void WebServer::Task::Run()
 		break;
 	    if (rc != EWOULDBLOCK)
 	    {
-		if (rc != ENODATA)
+		if (rc != EIO)
 		    TRACE << "GetLine failed " << rc << "\n";
 		return;
 	    }
@@ -83,7 +90,7 @@ void WebServer::Task::Run()
 		rc = m_socket.WaitForRead(5000);
 		if (rc != 0)
 		{
-//		    TRACE << "Socket won't come ready " << rc << "\n";
+		    TRACE << "Socket won't come ready " << rc << "\n";
 		    return;
 		}
 	    }
@@ -192,7 +199,12 @@ void WebServer::Task::Run()
 
 	std::string headers;
 	if (!rs.ssp)
+	{
 	    headers = "HTTP/1.1 404 Not Found\r\n";
+	    StringStreamPtr ssp = StringStream::Create();
+	    ssp->str() = "<i>404, dude, it's just not there</i>";
+	    rs.ssp = ssp;
+	}
 	else if (do_range)
 	    headers = "HTTP/1.1 206 OK But A Bit Partial\r\n";
 	else
@@ -240,11 +252,11 @@ void WebServer::Task::Run()
 
 		len = range_max - range_min;
 	    }
-	    headers += (boost::format("Content-Length: %llu\r\n") % len).str();
 	}
 	else
 	    len = 0;
 
+	headers += (boost::format("Content-Length: %llu\r\n") % len).str();
 	headers += "\r\n";
 
 	m_socket.SetCork(true);
@@ -263,7 +275,7 @@ void WebServer::Task::Run()
 
 	if (rs.ssp)
 	{
-	    if (len > 128*1024)
+	    if (0)//len > 128*1024)
 	    {
 		StreamPtr awb;
 		rc = AsyncWriteBuffer::Create(stream,
@@ -323,7 +335,8 @@ unsigned WebServer::Init(util::PollerInterface *poller, const char *,
 
     m_server_socket.SetNonBlocking(true);
     m_server_socket.Listen();
-    poller->AddHandle(m_server_socket.GetPollHandle(), this);
+    poller->AddHandle(m_server_socket.GetPollHandle(PollerInterface::IN),
+		      this, PollerInterface::IN);
 
     TRACE << "WebServer got port " << ep.port << "\n";
     m_port = ep.port;
@@ -426,18 +439,16 @@ bool FileContentFactory::StreamForPath(const WebRequest *rq,
 	return true;
     }
 
-    FileStreamPtr fsp;
-    unsigned int rc = FileStream::Create(path2.c_str(), O_RDONLY, &fsp);
+    unsigned int rc = util::OpenFileStream(path2.c_str(), util::READ,
+					   &rs->ssp);
     if (rc != 0)
     {
-	TRACE << "Resolved file '" << path2 << "' won't open " << errno 
+	TRACE << "Resolved file '" << path2 << "' won't open " << rc
 	      << "\n";
 	return true;
     }
 
     TRACE << "Path '" << rq->path << "' is file '" << path2 << "'\n";
-    rs->ssp = fsp;
-
     return true;
 }
 
@@ -458,12 +469,13 @@ public:
 
     void Run()
     {
-	TRACE << "Fetcher running\n";
+//	TRACE << "Fetcher running\n";
 	util::HttpClient hc(m_url);
 	unsigned int rc = hc.FetchToString(&m_contents);
 	m_waker->Wake();
-	TRACE << "Fetcher done " << rc << "\n";
-	//m_done = true;
+//	TRACE << "Fetcher done " << rc << "\n";
+	if (!rc)
+	    m_done = true;
     }
 
     const std::string& GetContents() const { return m_contents; }
@@ -518,14 +530,14 @@ int main(int, char*[])
 	now = time(NULL);
 	if (now < finish)
 	{
-	    TRACE << "polling for " << (finish-now)*1000 << "ms\n";
+//	    TRACE << "polling for " << (finish-now)*1000 << "ms\n";
 	    poller.Poll((unsigned)(finish-now)*1000);
 	}
     } while (now < finish && !ft->IsDone());
 
-    TRACE << "Got '" << ft->GetContents() << "' (len "
-	  << strlen(ft->GetContents().c_str()) << " sz "
-	  << ft->GetContents().length() << ")\n";
+//    TRACE << "Got '" << ft->GetContents() << "' (len "
+//	  << strlen(ft->GetContents().c_str()) << " sz "
+//	  << ft->GetContents().length() << ")\n";
     assert(ft->GetContents() == "/zootle/wurdle.html");
 
     queue.PushTask(util::TaskPtr(NULL));

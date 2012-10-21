@@ -75,7 +75,7 @@ QMimeData *BrowseWidget::mimeData(const QList<QListWidgetItem*> items) const
     }
     
     QByteArray a;
-    a.resize(idpv.size() * sizeof(IDPair));
+    a.resize((int)(idpv.size() * sizeof(IDPair)));
     memcpy(a.data(), &idpv[0], idpv.size() * sizeof(IDPair));
 
     QMimeData *md = new QMimeData;

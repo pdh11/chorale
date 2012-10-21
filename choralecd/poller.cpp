@@ -88,7 +88,7 @@ void Poller::AddTimer(time_t first, unsigned int repeatms,
     t->moveToThread(QApplication::instance()->thread());
     boost::mutex::scoped_lock lock(m_mutex);
     m_timermap[callback] = t;
-    t->start((firstms > nowms) ? firstms - nowms : 0);
+    t->start((firstms > nowms) ? (int)(firstms - nowms) : 0);
 }
 
 void Poller::RemoveTimer(util::Timed *callback)

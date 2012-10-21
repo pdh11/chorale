@@ -1,6 +1,7 @@
 #include "stream.h"
 #include "stream_test.h"
 #include "memory_stream.h"
+#include "trace.h"
 #include <errno.h>
 
 namespace util {
@@ -35,7 +36,7 @@ unsigned Stream::ReadAll(void *buffer, size_t len)
 	if (rc)
 	    return rc;
 	if (!nread)
-	    return ENODATA;
+	    return EIO;
 	len -= nread;
 	buffer = ((char*)buffer) + nread;
     }
@@ -109,6 +110,7 @@ unsigned CopyStream(SeekableStreamPtr from, StreamPtr to)
     do {
 	nread = 0;
 	unsigned int rc = from->ReadAt(buffer, pos, BUFSIZE, &nread);
+//	TRACE << "rc=" << rc << " nread=" << nread << "\n";
 	if (rc)
 	    return rc;
 	rc = to->WriteAll(buffer, nread);

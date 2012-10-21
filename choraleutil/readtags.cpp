@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
 	    quiet = true;
 	    break;
 	case 't':
-	    nthreads = strtoul(optarg, NULL, 10);
+	    nthreads = (unsigned int)strtoul(optarg, NULL, 10);
 	    break;
 	default:
 	    Usage(stderr);

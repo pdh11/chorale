@@ -60,8 +60,8 @@ void RippingTask::Run()
     }
     else
     {
-	util::FileStreamPtr fsp;
-	if (util::FileStream::CreateTemporary(m_filename.c_str(), &fsp) != 0)
+	util::SeekableStreamPtr fsp;
+	if (util::OpenFileStream(m_filename.c_str(), util::TEMP, &fsp) != 0)
 	{
 	    TRACE << "Can't create temporary\n";
 	    return;
@@ -104,10 +104,10 @@ void RippingTask::Run()
 
     time_t t = time(NULL);
 
-    unsigned int done = 0;
+    size_t done = 0;
     while (done < pcmsize)
     {
-	unsigned int lump = pcmsize - done;
+	size_t lump = pcmsize - done;
 	if (lump > sizeof(buf))
 	    lump = sizeof(buf);
 
@@ -127,9 +127,11 @@ void RippingTask::Run()
 	    return;
 	}
 
+//	TRACE << "Got " << nread << " bytes\n";
+
 	done += nread;
 
-	FireProgress(done, pcmsize);
+	FireProgress((unsigned int)done, pcmsize);
     }
     
     t = time(NULL) - t;
