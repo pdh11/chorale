@@ -153,7 +153,7 @@ bool WriteXML(db::Database *db, unsigned int schema, ::FILE *f)
 class MediaDBParser: public xmlpp::SaxParser
 {
     db::Database *m_db;
-    int m_field;
+    unsigned int m_field;
     db::RecordsetPtr m_rs;
     std::vector<unsigned int> m_children;
     bool m_in_child;
@@ -163,7 +163,7 @@ class MediaDBParser: public xmlpp::SaxParser
 
 public:
     explicit MediaDBParser(db::Database *thedb)
-	: m_db(thedb), m_field(-1), m_in_child(false)
+	: m_db(thedb), m_field(mediadb::FIELD_COUNT), m_in_child(false)
     {
 	for (unsigned int i=0; i < NTYPES; ++i)
 	    m_rev_typemap[typemap[i]] = i;
@@ -174,7 +174,7 @@ public:
     void on_start_element(const Glib::ustring& name,
 			  const AttributeList&)
     {
-	m_field = -1;
+	m_field = mediadb::FIELD_COUNT;
 	m_in_child = false;
 	m_value.clear();
 
@@ -197,7 +197,7 @@ public:
 	    {
 		if (name == tagmap[i])
 		{
-		    m_field = (int)i;
+		    m_field = i;
 		    break;
 		}
 	    }
@@ -206,7 +206,7 @@ public:
 
     void on_end_element(const Glib::ustring& name)
     {
-	if (m_field >= 0)
+	if (m_field < mediadb::FIELD_COUNT)
 	{
 //	    TRACE << tagmap[m_field] << " = '" << m_value << "'\n";
 
@@ -228,10 +228,10 @@ public:
 	}
 	else if (m_in_child)
 	{
-	    m_children.push_back(atoi(m_value.c_str()));
+	    m_children.push_back((unsigned)strtoul(m_value.c_str(), NULL, 10));
 	}
 
-	m_field = -1;
+	m_field = mediadb::FIELD_COUNT;
 	m_in_child = false;
 	if (name == "record" && m_rs)
 	{
@@ -250,7 +250,7 @@ public:
 
     void on_characters(const Glib::ustring& text)
     {
-	if (m_field >= 0 || m_in_child)
+	if (m_field != mediadb::FIELD_COUNT || m_in_child)
 	{
 	    m_value += text.raw();
 	}

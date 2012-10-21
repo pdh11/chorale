@@ -1,6 +1,6 @@
 /* libutil/webserver.h */
-#ifndef LIBUTIL_WEBSERVER_H
-#define LIBUTIL_WEBSERVER_H 1
+#ifndef LIBUTIL_WEB_SERVER_H
+#define LIBUTIL_WEB_SERVER_H 1
 
 #include <string>
 #include <list>
@@ -73,7 +73,7 @@ public:
      */
     void AddContentFactory(const char *page_root, ContentFactory *cf);
 
-    SeekableStreamPtr StreamForPath(const char *path);
+    SeekableStreamPtr StreamForPath(const char *path, bool refresh);
 
     // Being a Pollable
     unsigned OnActivity();

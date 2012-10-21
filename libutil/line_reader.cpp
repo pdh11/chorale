@@ -2,6 +2,7 @@
 #include "trace.h"
 #include "string_stream.h"
 #include <errno.h>
+#include <string.h>
 
 namespace util {
 
@@ -39,11 +40,11 @@ unsigned LineReader::GetLine(std::string *line)
 	}
 	else
 	{
-	    *line = std::string(m_buffer, cr - m_buffer);
+	    *line = std::string(m_buffer, (size_t)(cr - m_buffer));
 	    if (cr[1] == '\n')
 		++cr;
 	    ++cr;
-	    unsigned int toskip = cr - m_buffer;
+	    size_t toskip = (size_t)(cr - m_buffer);
 	    m_buffered -= toskip;
 	    memmove(m_buffer, cr, m_buffered);
 	    return 0;

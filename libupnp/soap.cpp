@@ -59,13 +59,13 @@ void Inbound::Get(std::string *ps, const char *tag)
 void Inbound::Get(uint32_t *ps, const char *tag)
 {
     if (ps)
-	*ps = strtoul(m_params[tag].c_str(), NULL, 10);
+	*ps = (uint32_t)strtoul(m_params[tag].c_str(), NULL, 10);
 }
 
 void Inbound::Get(int32_t *ps, const char *tag)
 {
     if (ps)
-	*ps = strtol(m_params[tag].c_str(), NULL, 10);
+	*ps = (int32_t)strtol(m_params[tag].c_str(), NULL, 10);
 }
 
 std::string Inbound::GetString(const char *tag) const
@@ -77,13 +77,13 @@ std::string Inbound::GetString(const char *tag) const
 uint32_t Inbound::GetUInt(const char *tag) const
 {
     params_t::const_iterator ci = m_params.find(tag);
-    return ci == m_params.end() ? 0 : strtoul(ci->second.c_str(), NULL, 10);
+    return ci == m_params.end() ? 0 : (uint32_t)strtoul(ci->second.c_str(), NULL, 10);
 }
 
 int32_t Inbound::GetInt(const char *tag) const
 {
     params_t::const_iterator ci = m_params.find(tag);
-    return ci == m_params.end() ? 0 : strtol(ci->second.c_str(), NULL, 10);
+    return ci == m_params.end() ? 0 : (int32_t)strtol(ci->second.c_str(), NULL, 10);
 }
 
 bool Inbound::GetBool(const char *tag) const

@@ -75,9 +75,9 @@ class Database: public db::Database
     std::vector<intindex_t> m_intindexes;
 
 public:
-    explicit Database(int nfields);
+    explicit Database(field_t nfields);
 
-    void SetFieldInfo(int which, unsigned int flags)
+    void SetFieldInfo(field_t which, unsigned int flags)
     {
 	m_fields[which].flags = flags;
     }

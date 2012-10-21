@@ -63,7 +63,7 @@ unsigned int PlaylistWPL::Save()
     if (!f)
     {
 	TRACE << "failed " << errno << "\n";
-	return errno;
+	return (unsigned)errno;
     }
 
     fprintf(f, "<?wpl version=\"1.0\"?>\n<smil>\n<body>\n<seq>\n");
@@ -76,7 +76,7 @@ unsigned int PlaylistWPL::Save()
 		util::XmlEscape(relpath).c_str());
     }
     fprintf(f, "</seq>\n</body>\n</smil>\n");
-    unsigned int rc = ferror(f) ? errno : 0;
+    unsigned int rc = ferror(f) ? (unsigned)errno : 0u;
     fclose(f);
     return rc;
 }

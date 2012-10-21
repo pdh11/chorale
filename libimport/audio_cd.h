@@ -9,10 +9,12 @@ namespace import {
 
 class AudioCD: public CountedObject
 {
+    /** No, they shouldn't be unsigned -- sector numbers are allowed to be -ve.
+     */
     struct TocEntry
     {
-	unsigned int firstsector;
-	unsigned int lastsector; // inclusive!
+	int firstsector;
+	int lastsector; // inclusive!
     };
 
     typedef std::vector<TocEntry> toc_t;
@@ -39,8 +41,8 @@ public:
     iterator begin() { return m_toc.begin(); }
     iterator end() { return m_toc.end(); }
 
-    unsigned GetTrackCount() { return m_toc.size(); }
-    unsigned GetTotalSectors() { return m_total_sectors; }
+    size_t GetTrackCount() { return m_toc.size(); }
+    unsigned int GetTotalSectors() { return m_total_sectors; }
 
     /** For handing to libcdio.
      */

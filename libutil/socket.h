@@ -39,11 +39,11 @@ struct IPEndPoint
 class Socket
 {
 protected:
-    size_t m_fd;
+    int m_fd;
 
     Socket();
     ~Socket();
-    explicit Socket(size_t fd);
+    explicit Socket(int fd);
 
     Socket(const Socket& other);
     void operator=(const Socket& other);
@@ -93,7 +93,7 @@ public:
 /** TCP socket */
 class StreamSocket: public Socket
 {
-    explicit StreamSocket(size_t fd);
+    explicit StreamSocket(int fd);
 
 public:
     StreamSocket();

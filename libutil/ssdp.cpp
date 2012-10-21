@@ -64,7 +64,7 @@ unsigned Client::Impl::Init(const char *uuid, Callback *cb)
     boost::recursive_mutex::scoped_lock lock(m_mutex);
     m_map[uuid] = cb;
     TRACE << "Calling USA\n";
-    int rc = UpnpSearchAsync(GetHandle(), 100, uuid, this);
+    int rc = UpnpSearchAsync((UpnpClient_Handle)GetHandle(), 100, uuid, this);
     TRACE << "USA: " << rc << "\n";
     return 0;
 }
@@ -192,7 +192,7 @@ public:
     void OnService(const std::string& url, const std::string& udn);
 };
 
-void MyCallback::OnService(const std::string& url, const std::string& udn)
+void MyCallback::OnService(const std::string& url, const std::string&)
 {
     IXML_Document *xmldoc = NULL;
 //    TRACE << "downloading " << url << "\n";

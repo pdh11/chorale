@@ -15,6 +15,10 @@
 #include "libupnpd/media_renderer.h"
 #include "libupnpd/media_server.h"
 #include "libtv/stream_factory.h"
+#include "libtv/epg.h"
+#include "libtv/web_epg.h"
+#include "libtv/recording.h"
+#include "web.h"
 #include <getopt.h>
 #include <signal.h>
 #include <unistd.h>
@@ -42,7 +46,8 @@ static void Usage(FILE *f)
 " -r, --no-receiver  Don't become a Rio Receiver server\n"
 " -n, --no-nfs         Don't announce Receiver software on standard NFS\n"
 "     --nfs=SERVER     Announce an alternative Receiver software server\n"
-" -w, --web=DIR        Web server root dir (default=" DEFAULT_WEB_DIR ")\n"
+" -w, --web=DIR      Web server root dir (default=" DEFAULT_WEB_DIR ")\n"
+//" -i, --interface=IF Network interface to listen on (default=first found)\n"
 #ifdef HAVE_UPNP
 #ifdef HAVE_GSTREAMER
 " -a, --no-audio     Don't become a UPnP MediaRenderer server\n"
@@ -265,34 +270,6 @@ int main(int argc, char *argv[])
 
     receiver::ssdp::Server ssdp;
 
-    util::WebServer ws;
-
-    receiverd::ContentFactory rcf(&ldb);
-    util::FileContentFactory fcf(std::string(webroot)+"/layout",
-				 "/layout");
-
-    if (do_receiver || do_mserver)
-    {
-	ws.AddContentFactory("/tags", &rcf);
-	ws.AddContentFactory("/query", &rcf);
-	ws.AddContentFactory("/content", &rcf);
-	ws.AddContentFactory("/results", &rcf);
-	ws.AddContentFactory("/list", &rcf);
-	ws.AddContentFactory("/layout", &fcf);
-    
-	ws.Init(&poller, webroot, 0);
-	TRACE << "Webserver got port " << ws.GetPort() << "\n";
-    }
-
-    if (do_receiver)
-    {
-	ssdp.Init(&poller);
-	ssdp.RegisterService(receiver::ssdp::s_uuid_musicserver, ws.GetPort());
-	if (do_nfs)
-	    ssdp.RegisterService(receiver::ssdp::s_uuid_softwareserver, 111,
-				 software_server);
-    }
-
     tv::dvb::Frontend dvbf;
     if (do_dvb)
     {
@@ -347,10 +324,49 @@ int main(int argc, char *argv[])
     }
 
     tv::RadioStreamFactory rsf(&dvbf, &dvbc);
+    tv::dvb::EPG epg;
+
     if (do_dvb)
     {
 	rsf.AddRadioStations(&ldb);
 	ldb.RegisterStreamFactory(mediadb::RADIO, &rsf);
+	epg.Init(&dvbf, &dvbc);
+    }
+
+    util::WebServer ws;
+
+    receiverd::ContentFactory rcf(&ldb);
+    util::FileContentFactory fcf(std::string(webroot)+"/layout",
+				 "/layout");
+
+    if (do_receiver || do_mserver)
+    {
+	ws.AddContentFactory("/tags", &rcf);
+	ws.AddContentFactory("/query", &rcf);
+	ws.AddContentFactory("/content", &rcf);
+	ws.AddContentFactory("/results", &rcf);
+	ws.AddContentFactory("/list", &rcf);
+	ws.AddContentFactory("/layout", &fcf);
+    }
+
+    tv::WebEPG wepg;
+    tv::RecordingThread rt;
+    if (do_dvb)
+	wepg.Init(&ws, epg.GetDatabase(), &dvbc, &dvbf, &rt, mediaroot);
+
+    RootContentFactory rootcf;
+
+    ws.AddContentFactory("/", &rootcf);
+    ws.Init(&poller, webroot, 0);
+    TRACE << "Webserver got port " << ws.GetPort() << "\n";
+
+    if (do_receiver)
+    {
+	ssdp.Init(&poller);
+	ssdp.RegisterService(receiver::ssdp::s_uuid_musicserver, ws.GetPort());
+	if (do_nfs)
+	    ssdp.RegisterService(receiver::ssdp::s_uuid_softwareserver, 111,
+				 software_server);
     }
 
     char hostname[256];
@@ -388,7 +404,7 @@ int main(int argc, char *argv[])
     if (root_device)
     {
 	svr = new upnp::Server;
-	svr->Init(root_device);
+	svr->Init(root_device, ws.GetPort());
     }
 #endif
 

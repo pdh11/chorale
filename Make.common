@@ -82,6 +82,8 @@ CFLAGS += -fno-omit-frame-pointer -pg
 CXXFLAGS += -fno-omit-frame-pointer -pg
 endif
 
+# CXXFLAGS += -Werror
+
 ifneq ($(VERBOSE),)
 CC_PRE:=
 LD_PRE:=

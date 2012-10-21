@@ -1,4 +1,4 @@
-	Chorale 0.07 (Technology Preview 7)
+	Chorale 0.08 (Technology Preview 8)
 	-----------------------------------
 
 How to build it:
@@ -11,6 +11,7 @@ What you get:
       - Rio Receiver server
       - UPnP MediaRenderer server (experimental)
       - UPnP MediaServer server (experimental)
+      - Freeview PVR with EPG
     choralecd (desktop application)
       - CD ripping
       - Rio Receiver client
@@ -151,3 +152,13 @@ As well as Receiver servers, choralecd will let you browse any
 detected UPnP MediaServer device (tested with GMediaServer and
 Microsoft Windows Media Connect). This is still very incomplete. Use
 the "Playlists" item to browse the server's folder structure.
+
+
+Freeview PVR with EPG
+---------------------
+
+If choraled detects DVB-T (Freeview) hardware, it offers recording
+services -- currently, only through its web interface. The way to
+access the web interface, is as the presentation page of the UPnP
+device. Note that recordings are not currently transcoded, so radio
+recordings will not play back on devices which can't play MP2.

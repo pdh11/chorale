@@ -1,5 +1,6 @@
 #include "async_write_buffer.h"
 #include <errno.h>
+#include <string.h>
 #include <boost/thread/condition.hpp>
 #include "task.h"
 #include "worker_thread_pool.h"

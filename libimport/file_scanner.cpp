@@ -218,7 +218,7 @@ unsigned int FileScanner::Impl::OnFile(dircookie parent_cookie,
 			    || S_ISLNK(childst.st_mode))
 			    continue;
 
-			OnFile(id, i, abspath,
+			OnFile(id, (unsigned int)i, abspath,
 			       util::GetLeafName(abspath.c_str()), &childst);
 		    }
 	    
@@ -235,39 +235,20 @@ unsigned int FileScanner::Impl::OnFile(dircookie parent_cookie,
 	    }
 
 	    rs->SetString(mediadb::PATH, path);
-	    rs->SetInteger(mediadb::SIZEBYTES, pst->st_size);
+	    rs->SetInteger(mediadb::SIZEBYTES, (unsigned int)pst->st_size);
 	    rs->SetInteger(mediadb::ID, id);
-	    rs->SetInteger(mediadb::IDPARENT, parent_cookie);
+	    rs->SetInteger(mediadb::IDPARENT, (unsigned int)parent_cookie);
 	    rs->Commit();
-	}
-
-	/* Stats */
-	{
-	    boost::recursive_mutex::scoped_lock lock(m_mutex);
-	    
-	    if (rs->GetInteger(mediadb::TYPE) == mediadb::TUNE)
-	    {
-		++m_tunes;
-		if (rs->GetInteger(mediadb::IDHIGH))
-		    ++m_hicount;
-		else
-		    m_hisize += pst->st_size;
-	    
-		m_duration += rs->GetInteger(mediadb::DURATIONMS);
-		m_size += pst->st_size;
-	    }
-	    else if (rs->GetInteger(mediadb::TYPE) == mediadb::TUNEHIGH)
-		m_hisize += pst->st_size;
 	}
     }
 
     if (parent_cookie)
     {
 	boost::recursive_mutex::scoped_lock lock(m_mutex);
-	size_t oldsz = m_children[parent_cookie].size();
+	size_t oldsz = m_children[(unsigned int)parent_cookie].size();
 	if (index >= oldsz)
-	    m_children[parent_cookie].resize(index+1);
-	m_children[parent_cookie][index] = id;
+	    m_children[(unsigned int)parent_cookie].resize(index+1);
+	m_children[(unsigned int)parent_cookie][index] = id;
     }
 
     return 0;
@@ -292,13 +273,13 @@ unsigned int FileScanner::Impl::OnEnterDirectory(dircookie parent_cookie,
     {
 	boost::recursive_mutex::scoped_lock lock(m_mutex);
 	db::RecordsetPtr rs = GetRecordForPath(path, &id);
-	rs->SetInteger(mediadb::IDPARENT, parent_cookie);
+	rs->SetInteger(mediadb::IDPARENT, (unsigned int)parent_cookie);
 	rs->Commit();
 
-	size_t oldsz = m_children[parent_cookie].size();
+	size_t oldsz = m_children[(unsigned int)parent_cookie].size();
 	if (index >= oldsz)
-	    m_children[parent_cookie].resize(index+1);
-	m_children[parent_cookie][index] = id;
+	    m_children[(unsigned int)parent_cookie].resize(index+1);
+	m_children[(unsigned int)parent_cookie][index] = id;
     }
 
     *cookie_out = id;
@@ -322,7 +303,7 @@ unsigned int FileScanner::Impl::OnLeaveDirectory(dircookie cookie,
     rs->SetString(mediadb::TITLE, leaf);
     {
 	boost::recursive_mutex::scoped_lock lock(m_mutex);
-	std::vector<unsigned int>& vec = m_children[cookie];
+	std::vector<unsigned int>& vec = m_children[(unsigned int)cookie];
 	vec.erase(std::remove(vec.begin(), vec.end(), 0u), vec.end());
 	rs->SetString(mediadb::CHILDREN, mediadb::VectorToChildren(vec));
     }

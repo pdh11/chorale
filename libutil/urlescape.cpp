@@ -1,5 +1,7 @@
 #include "urlescape.h"
 #include "libutil/trace.h"
+#include <string.h>
+#include <stdlib.h>
 
 namespace util {
 
@@ -15,7 +17,7 @@ std::string URLEscape(const std::string& s)
 	    || strchr("$&+,/:?@'<>\"#%", c) != NULL)
 	{
 	    char buf[4];
-	    sprintf(buf, "%%%02x", c & 0xFFu);
+	    sprintf(buf, "%%%02x", c & 0xFF);
 	    result += buf;
 	}
 	else

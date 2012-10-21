@@ -1,16 +1,12 @@
 #include "memory_stream.h"
 #include "stream_test.h"
 #include "trace.h"
+#include <string.h>
 
 namespace util {
 
 class MemoryStream::Impl
 {
-    enum {
-	ROUNDUP = 1024*1024,
-	MASK = ROUNDUP-1
-    };
-
 public:
     struct Chunk: private boost::noncopyable
     {
@@ -67,6 +63,8 @@ void MemoryStream::Impl::Ensure(size_t sz)
 {
     if (sz > m_capacity)
     {
+	const size_t ROUNDUP = 1024*1024;
+	const size_t MASK = ROUNDUP-1;
 	size_t add = ((sz - m_capacity) + MASK) & ~MASK;
 	m_chunks.insert(std::make_pair(m_capacity, new Chunk(add)));
 	m_capacity += add;

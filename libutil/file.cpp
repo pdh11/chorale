@@ -43,7 +43,7 @@ std::string ProtectLeafname(const std::string& s)
 	    || s[i] == '\"' || s[i] == '|' || s[i] == '<' || s[i] == '>'
 	    || s[i] == '*')
 	{
-	    unsigned int ucs4 = 0xFF00 + (s[i] - 0x0020);
+	    unsigned int ucs4 = 0xFF00u + ((unsigned int)s[i] - 0x0020u);
 	    // 3-byte UTF-8
 	    out += (char)(0xE0 + (ucs4 >> 12));
 	    out += (char)(0x80 + ((ucs4 >> 6) & 0x3F));
@@ -149,7 +149,7 @@ unsigned MakeRelativeLink(const std::string& from, const std::string& to)
 
     int rc = symlink(thelink.c_str(), from.c_str());
     if (rc < 0)
-	return errno;
+	return (unsigned)errno;
     return 0;
 }
 
@@ -237,15 +237,15 @@ std::string URLToPath(const std::string& url)
 	    if (isxdigit(url[i+1])
 		&& isxdigit(url[i+2]))
 	    {
-		unsigned char uc;
+		char uc;
 		c = url[i+1];
-		uc = (c & 15) << 4;
+		uc = (char)((c & 15) << 4);
 		if (!isdigit(c))
-		    uc += 0x90; // A = 0x41 A&15=1
+		    uc = (char)(uc + 0x90); // A = 0x41 A&15=1
 		c = url[i+2];
-		uc += (c & 15);
+		uc = (char)(uc + (c & 15));
 		if (!isdigit(c))
-		    uc += 0x9;
+		    uc = (char)(uc + 0x9);
 		result += (char)uc;
 		i += 2;
 	    }

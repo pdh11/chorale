@@ -66,7 +66,7 @@ bool TaskQueue::AnyWaiting()
     return m_waiting > 0;
 }
 
-unsigned TaskQueue::Count()
+size_t TaskQueue::Count()
 {
     boost::mutex::scoped_lock lock(m_deque_mutex);
     return m_deque.size() + m_nthreads - m_waiting;

@@ -2,6 +2,7 @@
 #include "http_client.h"
 #include "trace.h"
 #include "file.h"
+#include <string.h>
 
 #ifdef HAVE_CURL
 
@@ -72,7 +73,7 @@ static void ParseURL(const std::string& url,
 	if (slash)
 	{
 	    *pathpart = slash;
-	    *hostpart = std::string(ptr, slash-ptr);
+	    *hostpart = std::string(ptr, (size_t)(slash-ptr));
 	}
 	else
 	{

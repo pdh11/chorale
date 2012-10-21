@@ -25,11 +25,12 @@
 #include "liboutput/queue.h"
 #include "liboutput/gstreamer.h"
 #include "libmediadb/registry.h"
+#include <memory>
 
-#include "cd.xpm"
-#include "folder.xpm"
-#include "network.xpm"
-#include "output.xpm"
+#include "imagery/cd.xpm"
+#include "imagery/folder.xpm"
+#include "imagery/network.xpm"
+#include "imagery/output.xpm"
 
 int main(int argc, char *argv[])
 {

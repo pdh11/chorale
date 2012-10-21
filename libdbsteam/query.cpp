@@ -18,12 +18,11 @@ db::RecordsetPtr Query::Execute()
 	assert(m_root != 0);
 
     m_regexes.clear();
-    for (restrictions_t::const_iterator i = m_restrictions.begin();
-	 i != m_restrictions.end();
-	 ++i)
+    for (unsigned int i=0; i<m_restrictions.size(); ++i)
     {
-	if (i->rt == db::LIKE)
-	    m_regexes[i-m_restrictions.begin()] = boost::regex(i->sval, boost::regex::icase);
+	if (m_restrictions[i].rt == db::LIKE)
+	    m_regexes[i] = boost::regex(m_restrictions[i].sval, 
+					boost::regex::icase);
     }
 
     if (!m_collateby.empty())
@@ -53,7 +52,7 @@ db::RecordsetPtr Query::Execute()
     if (m_restrictions.size() == 1
 	&& m_restrictions.begin()->rt == db::EQ)
     {
-	int field = m_restrictions.begin()->which;
+	unsigned int field = m_restrictions.begin()->which;
 
 	if (m_db->m_fields[field].flags & FIELD_INDEXED)
 	{
@@ -80,7 +79,7 @@ bool Query::MatchElement(db::Recordset *rs, ssize_t elem)
 {
     if (elem > 0)
     {
-	const Restriction& r = m_restrictions[elem-1];
+	const Restriction& r = m_restrictions[(size_t)(elem-1)];
 
 	if (r.is_string)
 	{
@@ -97,7 +96,8 @@ bool Query::MatchElement(db::Recordset *rs, ssize_t elem)
 		break;
 	    case db::LIKE:
 	    {
-		bool rc = boost::regex_match(val, m_regexes[elem-1]);
+		bool rc = boost::regex_match(val, 
+					     m_regexes[(unsigned int)(elem-1)]);
 //		TRACE << "'" << val << "' like '" << r.sval << "' : " << rc
 //		      << "\n";
 		if (!rc)
@@ -116,11 +116,23 @@ bool Query::MatchElement(db::Recordset *rs, ssize_t elem)
 	    switch (r.rt)
 	    {
 	    case db::EQ:
-		if (val != r.ival)
-		    return false;
-		break;
+		return val == r.ival;
+	    case db::NE:
+		return val != r.ival;
 	    case db::GT:
 		if (val <= r.ival)
+		    return false;
+		break;
+	    case db::LT:
+		if (val >= r.ival)
+		    return false;
+		break;
+	    case db::LE:
+		if (val > r.ival)
+		    return false;
+		break;
+	    case db::GE:
+		if (val < r.ival)
 		    return false;
 		break;
 	    default:
@@ -133,7 +145,7 @@ bool Query::MatchElement(db::Recordset *rs, ssize_t elem)
     {
 	assert(elem < 0);
 	
-	const Relation& r = m_relations[-elem-1];
+	const Relation& r = m_relations[(size_t)(-elem-1)];
 	bool lhs = MatchElement(rs, r.a);
 	if (r.anditive)
 	{

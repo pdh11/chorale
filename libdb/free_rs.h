@@ -23,11 +23,11 @@ public:
     // Being a Recordset
     bool IsEOF();
 
-    uint32_t GetInteger(int which);
-    std::string GetString(int which);
+    uint32_t GetInteger(field_t which);
+    std::string GetString(field_t which);
 
-    unsigned int SetInteger(int which, uint32_t value);
-    unsigned int SetString(int which, const std::string& value);
+    unsigned int SetInteger(field_t which, uint32_t value);
+    unsigned int SetString(field_t which, const std::string& value);
 
     void MoveNext();
     unsigned int AddRecord();

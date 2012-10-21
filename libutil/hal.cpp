@@ -119,7 +119,8 @@ std::string Context::Impl::DeviceGetPropertyString(const char *udi,
 unsigned int Context::Impl::DeviceGetPropertyInt(const char *udi,
 						 const char *property)
 {
-    return libhal_device_get_property_int(m_ctx, udi, property, NULL);
+    return (unsigned)libhal_device_get_property_int(m_ctx, udi, property,
+						    NULL);
 }
 
 

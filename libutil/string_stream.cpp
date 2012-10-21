@@ -1,4 +1,5 @@
 #include "string_stream.h"
+#include <string.h>
 
 namespace util {
 

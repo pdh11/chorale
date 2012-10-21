@@ -100,15 +100,14 @@ void AVTransportImpl::OnTimeCode(unsigned int sec)
     m_timecodesec = sec;
 }
 
-unsigned int AVTransportImpl::GetPositionInfo(uint32_t InstanceID,
+unsigned int AVTransportImpl::GetPositionInfo(uint32_t,
 					      uint32_t *Track,
 					      std::string *TrackDuration,
-					      std::string *TrackMetaData,
-					      std::string *TrackURI,
+					      std::string*,
+					      std::string*,
 					      std::string *RelTime,
-					      std::string *AbsTime,
-					      int32_t *RelCount,
-					      int32_t *AbsCount)
+					      std::string*,
+					      int32_t*, int32_t*)
 {
     if (Track)
 	*Track = 1;

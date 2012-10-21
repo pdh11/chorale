@@ -1,6 +1,7 @@
 TOP?=../
 DIR:=choraled/
-SRCS:=choraled.cpp
+SRCS:=choraled.cpp \
+	web.cpp
 
 choraled:=$(TOP)$(DIR)choraled
 

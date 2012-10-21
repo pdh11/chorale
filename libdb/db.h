@@ -19,6 +19,8 @@
  */
 namespace db {
 
+typedef unsigned int field_t;
+
 /** Models a cursor into the results of a query.
  *
  * Note that there is no separate class for a "Record" -- as all records are
@@ -31,11 +33,12 @@ public:
     virtual ~Recordset() {}
     virtual bool IsEOF() = 0;
 
-    virtual uint32_t GetInteger(int which) = 0;
-    virtual std::string GetString(int which) = 0;
+    virtual uint32_t GetInteger(field_t which) = 0;
+    virtual std::string GetString(field_t which) = 0;
 
-    virtual unsigned int SetInteger(int which, uint32_t value) = 0;
-    virtual unsigned int SetString(int which, const std::string& value) = 0;
+    virtual unsigned int SetInteger(field_t which, uint32_t value) = 0;
+    virtual unsigned int SetString(field_t which,
+				   const std::string& value) = 0;
 
     virtual void MoveNext() = 0;
     virtual unsigned int AddRecord() = 0;
@@ -69,16 +72,16 @@ class Query: public CountedObject
 {
 public:
     struct Restriction {
-	int which;
+	field_t which;
 	RestrictionType rt;
 	bool is_string;
 	std::string sval;
 	uint32_t ival;
 
-	Restriction(int w, RestrictionType r, const std::string& val)
+	Restriction(field_t w, RestrictionType r, const std::string& val)
 	    : which(w), rt(r), is_string(true), sval(val) {}
 
-	Restriction(int w, RestrictionType r, uint32_t val)
+	Restriction(field_t w, RestrictionType r, uint32_t val)
 	    : which(w), rt(r), is_string(false), ival(val) {}
     };
     typedef std::vector<Restriction> restrictions_t;
@@ -94,7 +97,7 @@ protected:
     };
     typedef std::vector<Relation> relations_t;
 
-    typedef std::list<int> orderby_t;
+    typedef std::list<field_t> orderby_t;
 
 protected:
     restrictions_t m_restrictions;
@@ -111,16 +114,16 @@ public:
 
     class Rep;
 
-    const Rep *Restrict(int which, RestrictionType rt, 
+    const Rep *Restrict(field_t which, RestrictionType rt, 
 			const std::string& val) ATTRIBUTE_WARNUNUSED;
-    const Rep *Restrict(int which, RestrictionType rt,
+    const Rep *Restrict(field_t which, RestrictionType rt,
 			uint32_t val) ATTRIBUTE_WARNUNUSED;
     const Rep *And(const Rep*, const Rep*);
     const Rep *Or(const Rep*, const Rep*);
 
     virtual unsigned int Where(const Rep*);
-    virtual unsigned int OrderBy(int which);
-    virtual unsigned int CollateBy(int which);
+    virtual unsigned int OrderBy(field_t which);
+    virtual unsigned int CollateBy(field_t which);
 
     virtual RecordsetPtr Execute() = 0;
 

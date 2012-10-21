@@ -118,6 +118,7 @@ public:
 #include &quot;soap.h&quot;
 #include &quot;libutil/trace.h&quot;
 #include &lt;errno.h&gt;
+#include &lt;string.h&gt;
 
 namespace upnp {  
     </xsl:when>
@@ -179,6 +180,7 @@ public:
 #include &quot;<xsl:value-of select="$class"/>_server.h&quot;
 #include &quot;<xsl:value-of select="$class"/>.h&quot;
 #include &quot;soap.h&quot;
+#include &quot;string.h&quot;
 
 namespace upnp {
     </xsl:when>
@@ -224,8 +226,10 @@ unsigned int <xsl:value-of select="$class"/>Server::OnAction(const char *name, c
       <xsl:if test="direction='in'">
       <xsl:variable name="type" select="//stateVariable[name=current()/relatedStateVariable]/dataType"/><xsl:choose>
       <xsl:when test="$type='boolean'">in.GetBool</xsl:when>
-      <xsl:when test="$type='i2' or $type='i4'">in.GetInt</xsl:when>
-      <xsl:when test="$type='ui2' or $type='ui4'">in.GetUInt</xsl:when>
+      <xsl:when test="$type='i2'">(short)in.GetInt</xsl:when>
+      <xsl:when test="$type='ui2'">(unsigned short)in.GetUInt</xsl:when>
+      <xsl:when test="$type='i4'">in.GetInt</xsl:when>
+      <xsl:when test="$type='ui4'">in.GetUInt</xsl:when>
       <xsl:when test="$type='uri' or $type='string'">in.GetString</xsl:when>
       <xsl:otherwise><xsl:value-of select="$type"/></xsl:otherwise>
     </xsl:choose>(<xsl:value-of select="$class"/>::sm_param_names[<xsl:value-of select="$class"/>::<xsl:value-of select="translate(name,$lcase,$ucase)"/>])</xsl:if>

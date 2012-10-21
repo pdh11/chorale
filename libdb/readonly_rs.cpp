@@ -3,10 +3,10 @@
 
 namespace db {
 
-unsigned int ReadOnlyRecordset::SetInteger(int, uint32_t)
+unsigned int ReadOnlyRecordset::SetInteger(field_t, uint32_t)
 { return EPERM; }
 
-unsigned int ReadOnlyRecordset::SetString(int, const std::string&)
+unsigned int ReadOnlyRecordset::SetString(field_t, const std::string&)
 { return EPERM; }
 
 unsigned int ReadOnlyRecordset::AddRecord()

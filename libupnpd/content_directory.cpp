@@ -42,7 +42,7 @@ unsigned int ContentDirectoryImpl::Browse(const std::string& ObjectID,
 					  uint32_t *TotalMatches,
 					  uint32_t *UpdateID)
 {
-    unsigned int id = strtoul(ObjectID.c_str(), NULL, 10);
+    unsigned int id = (unsigned int)strtoul(ObjectID.c_str(), NULL, 10);
 
     TRACE << BrowseFlag << "(" << ObjectID << ")\n";
 
@@ -94,10 +94,10 @@ unsigned int ContentDirectoryImpl::Browse(const std::string& ObjectID,
 	}
 
 	if (RequestedCount == 0)
-	    RequestedCount = children.size();
+	    RequestedCount = (uint32_t)children.size();
 	
 	if (StartingIndex + RequestedCount > children.size())
-	    RequestedCount = children.size() - StartingIndex;
+	    RequestedCount = (uint32_t)(children.size() - StartingIndex);
 
 	for (unsigned int i = 0; i < RequestedCount; ++i)
 	{
@@ -109,7 +109,7 @@ unsigned int ContentDirectoryImpl::Browse(const std::string& ObjectID,
 		ss << upnp::didl::FromRecord(m_db, rs, urlprefix.c_str());
 	}
 	*NumberReturned = RequestedCount;
-	*TotalMatches = children.size();
+	*TotalMatches = (uint32_t)children.size();
 	*UpdateID = 1;
     }
     else
@@ -257,6 +257,19 @@ unsigned int ContentDirectoryImpl::GetSearchCapabilities(std::string *ps)
 unsigned int ContentDirectoryImpl::GetSortCapabilities(std::string *ps)
 {
     *ps = std::string();
+    return 0;
+}
+
+unsigned int ContentDirectoryImpl::GetFeatureList(std::string *fl)
+{
+    *fl = 
+	"<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+	"<Features xmlns=\"urn:schemas-upnp-org:av:avs\">"
+	" <Feature name=\"TUNER\" version=\"1\">"
+	"  <objectIDs>240</objectIDs>"
+	" </Feature>"
+	"</Features>";
+    
     return 0;
 }
 

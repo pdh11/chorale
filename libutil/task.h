@@ -69,7 +69,7 @@ public:
     void PushTask(TaskPtr);
     TaskPtr PopTask();
     bool AnyWaiting();
-    unsigned Count();
+    size_t Count();
 };
 
 } // namespace util

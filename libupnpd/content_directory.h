@@ -41,6 +41,7 @@ public:
 			uint32_t *UpdateID);
     unsigned int GetSearchCapabilities(std::string *SearchCaps);
     unsigned int GetSortCapabilities(std::string *SortCaps);
+    unsigned int GetFeatureList(std::string *feature_list);
 };
 
 } // namespace upnpd

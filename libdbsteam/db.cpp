@@ -6,7 +6,7 @@
 namespace db {
 namespace steam {
 
-Database::Database(int nfields)
+Database::Database(field_t nfields)
     : m_nfields(nfields),
       m_next_recno(0)
 {

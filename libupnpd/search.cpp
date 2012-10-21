@@ -5,6 +5,7 @@
 #include "libmediadb/xml.h"
 #include "libdbsteam/db.h"
 #include <errno.h>
+#include <string.h>
 
 //#define BOOST_SPIRIT_DEBUG 1
 
@@ -43,7 +44,7 @@ struct SearchGrammar: public grammar<SearchGrammar>
 	definition(const SearchGrammar&)
 	    : literal( leaf_node_d[lexeme_d[
 				       ( chlit<>('\"') >>
-					 *( strlit<>("\\\"") | anychar_p - chlit<>('\"') ) >>
+					 *( strlit<>("\\\"") | (anychar_p - chlit<>('\"')) ) >>
 					 chlit<>('\"')
 					   )
 				       | str_p("true")

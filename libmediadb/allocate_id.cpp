@@ -2,6 +2,7 @@
 #include "schema.h"
 #include "libdb/db.h"
 #include "libutil/trace.h"
+#include <limits.h>
 
 namespace mediadb {
 

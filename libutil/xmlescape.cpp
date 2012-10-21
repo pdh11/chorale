@@ -1,5 +1,6 @@
 #include "xmlescape.h"
 #include <assert.h>
+#include <string.h>
 
 namespace util {
 
@@ -10,7 +11,7 @@ std::string XmlEscape(const std::string& s)
 
     for (unsigned int i=0; i<s.length(); ++i)
     {
-	unsigned char c = s[i];
+	unsigned char c = (unsigned char)s[i];
 	if (c == '&')
 	    result += "&amp;";
 	else if (c == '\"')

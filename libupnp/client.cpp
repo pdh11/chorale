@@ -225,10 +225,10 @@ unsigned int ClientConnection::Init(Client *parent, const char *service_id)
     m_impl->control_url = it->second.control_url;
     m_impl->service = service_id;
 
-    unsigned int rc = UpnpSubscribeAsync(parent->m_impl->GetHandle(),
-					 it->second.event_url.c_str(), 7200,
-					 SubscriptionCallback, this);
-
+    int rc = UpnpSubscribeAsync((UpnpClient_Handle)parent->m_impl->GetHandle(),
+				it->second.event_url.c_str(), 7200u,
+				SubscriptionCallback, this);
+    
     TRACE << "USA returned " << rc << "\n";
 
     return 0;
@@ -236,7 +236,7 @@ unsigned int ClientConnection::Init(Client *parent, const char *service_id)
 
 unsigned int ClientConnection::GenaUInt(const std::string& s)
 {
-    return strtoul(s.c_str(), NULL, 10);
+    return (unsigned int)strtoul(s.c_str(), NULL, 10);
 }
 
 void ClientConnection::SetSid(const std::string& sid)
@@ -270,7 +270,7 @@ unsigned int ClientConnection::SoapAction(const char *action_name,
 
     IXML_Document *response = NULL;
 //    TRACE << "handle = " << m_impl->GetHandle() << "\n";
-    int rc2 = UpnpSendAction(m_impl->parent->GetHandle(),
+    int rc2 = UpnpSendAction((UpnpClient_Handle)m_impl->parent->GetHandle(),
 			     m_impl->control_url.c_str(),
 			     m_impl->service,
 			     m_impl->parent->GetDescription().GetUDN().c_str(),
@@ -279,7 +279,7 @@ unsigned int ClientConnection::SoapAction(const char *action_name,
     if (rc2 != 0)
     {
 	TRACE << "SOAP failed, rc2 = " << rc2 << "\n";
-	return errno;
+	return (unsigned)errno;
     }
 
 //    if (response)
@@ -295,7 +295,7 @@ unsigned int ClientConnection::SoapAction(const char *action_name,
     {
 	IXML_NodeList *nl = ixmlNode_getChildNodes(child);
 	
-	unsigned int resultcount = ixmlNodeList_length(nl);
+	size_t resultcount = ixmlNodeList_length(nl);
 //	TRACE << resultcount << " result(s)\n";
 
 	for (unsigned int i=0; i<resultcount; ++i)

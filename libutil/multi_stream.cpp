@@ -1,6 +1,7 @@
 #include "multi_stream.h"
 #include "trace.h"
 #include <errno.h>
+#include <string.h>
 #include <boost/thread/condition.hpp>
 
 namespace util {

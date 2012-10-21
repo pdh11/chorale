@@ -29,7 +29,7 @@ MetadataList Parse(const std::string&);
 
 /** Construct a DIDL fragment representing the contents of the recordset.
  *
- * The result is a single DIDL <item> or <container>; to make it valid DIDL,
+ * The result is a single DIDL <%item> or <%container>; to make it valid DIDL,
  * you need to prepend s_header and append s_footer.
  *
  * Assumes the recordset has the standard MediaDB schema.

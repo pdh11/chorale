@@ -28,7 +28,7 @@ static unsigned int DeduceLocalIPAddress(std::string *ips)
     if (fd < 0)
     {
 	TRACE << "Can't create socket\n";
-	return errno;
+	return (unsigned)errno;
     }
     
     enum { MAX_IFS = 32 }; // Not found a valid one after 32? give up
@@ -42,9 +42,9 @@ static unsigned int DeduceLocalIPAddress(std::string *ips)
     {
 	TRACE << "Can't SIOCGIFCONF\n";
 	::close(fd);
-	return errno;
+	return (unsigned)errno;
     }
-    const unsigned int n = ifc.ifc_len / sizeof(reqs[0]);
+    const size_t n = ((unsigned)ifc.ifc_len) / sizeof(reqs[0]);
 
     for (unsigned int i=0; i<n; ++i)
     {
@@ -56,13 +56,13 @@ static unsigned int DeduceLocalIPAddress(std::string *ips)
 	      << "\n";
     }
 
-    int found = -1;
+    size_t found = n;
     
     for (unsigned int i=0; i<n; ++i)
     {
 	reqs[i].ifr_flags = 0;
 	ioctl(fd, SIOCGIFFLAGS, &reqs[i]);
-	unsigned int flags = reqs[i].ifr_flags;
+	unsigned int flags = (unsigned int)reqs[i].ifr_flags;
 
 	rc = ioctl(fd, SIOCGIFADDR, &reqs[i]);
 	if (rc < 0)
@@ -82,7 +82,7 @@ static unsigned int DeduceLocalIPAddress(std::string *ips)
 	}
 	      
 	/* But settle for just IFF_UP */
-	if ((flags & (IFF_UP|IFF_LOOPBACK)) == IFF_UP && found == -1)
+	if ((flags & (IFF_UP|IFF_LOOPBACK)) == IFF_UP && found == n)
 	{
 	    TRACE << reqs[i].ifr_name
 		  << " is up but not running, best so far\n";
@@ -90,7 +90,7 @@ static unsigned int DeduceLocalIPAddress(std::string *ips)
 	}
     }
 
-    if (found == -1)
+    if (found == n)
     {
 	TRACE << "No up interfaces found\n";
     }
@@ -107,7 +107,7 @@ static unsigned int DeduceLocalIPAddress(std::string *ips)
     }
 
     ::close(fd);
-    return (found == -1) ? ENOENT : 0;
+    return (found == n) ? ENOENT : 0u;
 }
 
 LibUPnPUser::LibUPnPUser()
@@ -121,6 +121,7 @@ LibUPnPUser::LibUPnPUser()
 //	TRACE << "Calling UpnpInit\n";
 	UpnpInit(rc == 0 ? myip.c_str() : NULL, 0);
 //	TRACE << "UpnpInit done\n";
+	TRACE << "UPnP got port " << UpnpGetServerPort() << "\n";
     }
     s_list.push_back(this);
 }
@@ -163,7 +164,7 @@ size_t LibUPnPUser::GetHandle()
 	else
 	    TRACE << "URC failed: " << rc << "\n";
     }
-    return s_handle;
+    return (size_t)s_handle;
 }
 
 int LibUPnPUser::OnUPnPEvent(int, void*)

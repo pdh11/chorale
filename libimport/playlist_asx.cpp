@@ -63,7 +63,7 @@ unsigned int PlaylistASX::Save()
     if (!f)
     {
 	TRACE << "failed " << errno << "\n";
-	return errno;
+	return (unsigned)errno;
     }
 
     fprintf(f, "<asx version=\"3.0\">\n");

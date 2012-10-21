@@ -14,13 +14,13 @@
 
 namespace util {
 
-enum { NO_SOCKET = (size_t)-1 };
+enum { NO_SOCKET = (int)-1 };
 
 static void SetUpSockaddr(const IPEndPoint& ep, struct sockaddr_in *sin)
 {
     memset(sin, 0, sizeof(*sin));
     sin->sin_family = AF_INET;
-    sin->sin_port = htons(ep.port);
+    sin->sin_port = (unsigned short)htons(ep.port);
     sin->sin_addr.s_addr = ep.addr.addr;
 }
 
@@ -29,7 +29,7 @@ Socket::Socket()
 {
 }
 
-Socket::Socket(size_t fd)
+Socket::Socket(int fd)
     : m_fd(fd)
 {
 }
@@ -75,7 +75,7 @@ unsigned Socket::Bind(const IPEndPoint& ep)
 
     int rc = ::bind(m_fd, &u.sa, sizeof(u.sin));
     if (rc < 0)
-	return errno;
+	return (unsigned int)errno;
     return 0;
 }
 
@@ -108,7 +108,7 @@ unsigned Socket::SetNonBlocking(bool nonblocking)
     unsigned long whether = nonblocking;
     int rc = ::ioctl(m_fd, FIONBIO, &whether);
     if (rc<0)
-	return errno;
+	return (unsigned int)errno;
     return 0;
 }
 
@@ -121,7 +121,7 @@ unsigned Socket::Close()
 {
     int rc = ::close(m_fd);
     m_fd = NO_SOCKET;
-    return (rc<0) ? errno : 0;
+    return (rc<0) ? (unsigned int)errno : 0;
 }
 
 unsigned Socket::WaitForRead(unsigned int ms)
@@ -130,9 +130,9 @@ unsigned Socket::WaitForRead(unsigned int ms)
     pfd.fd = m_fd;
     pfd.events = POLLIN;
     
-    int rc = ::poll(&pfd, 1, ms);
+    int rc = ::poll(&pfd, 1, (int)ms);
     if (rc < 0)
-	return errno;
+	return (unsigned int)errno;
     if (rc == 0)
 	return EWOULDBLOCK;
     return 0;
@@ -153,20 +153,20 @@ unsigned Socket::Stream::Read(void *buffer, size_t len, size_t *pread)
 {
 //    TRACE << "Calling recv\n";
 //    errno = 0;
-    int rc = ::recv(m_socket->m_fd, buffer, len, MSG_NOSIGNAL);
+    ssize_t rc = ::recv(m_socket->m_fd, buffer, len, MSG_NOSIGNAL);
 //    TRACE << "Recv returned " << rc << " errno " << errno << "\n";
     if (rc < 0)
-	return errno;
-    *pread = rc;
+	return (unsigned int)errno;
+    *pread = (size_t)rc;
     return 0;
 }
 
 unsigned Socket::Stream::Write(const void *buffer, size_t len, size_t *pwrote)
 {
-    int rc = ::send(m_socket->m_fd, buffer, len, MSG_NOSIGNAL);
+    ssize_t rc = ::send(m_socket->m_fd, buffer, len, MSG_NOSIGNAL);
     if (rc < 0)
-	return errno;
-    *pwrote = rc;
+	return (unsigned int)errno;
+    *pwrote = (size_t)rc;
     return 0;
 }
 
@@ -196,7 +196,8 @@ std::string IPAddress::ToString() const
 IPAddress IPAddress::FromDottedQuad(unsigned char a, unsigned char b,
 				    unsigned char c, unsigned char d)
 {
-    uint32_t hostorder = (a<<24) + (b<<16) + (c<<8) + d;
+    uint32_t hostorder = ((unsigned)a<<24) + ((unsigned)b<<16)
+	+ ((unsigned)c<<8) + d;
     IPAddress ip;
     ip.addr = htonl(hostorder);
     return ip;
@@ -240,7 +241,7 @@ unsigned DatagramSocket::EnableBroadcast(bool broadcastable)
     int rc = ::setsockopt(m_fd, SOL_SOCKET, SO_BROADCAST, (const char*)&i,
 			  sizeof(i));
     if (rc<0)
-	return errno;
+	return (unsigned int)errno;
     return 0;
 }
 
@@ -285,10 +286,10 @@ unsigned DatagramSocket::Read(void *buffer, size_t buflen, size_t *nread,
 	::setsockopt(m_fd, IPPROTO_IP, IP_PKTINFO, &on, sizeof(on));
     }
 
-    int rc = ::recvmsg(m_fd, &msg, 0);
+    ssize_t rc = ::recvmsg(m_fd, &msg, 0);
     if (rc < 0)
-	return errno;
-    *nread = rc;
+	return (unsigned int)errno;
+    *nread = (size_t)rc;
     if (wasfrom)
     {
 	wasfrom->addr.addr = u.sin.sin_addr.s_addr;
@@ -341,9 +342,9 @@ unsigned DatagramSocket::Write(const void *buffer, size_t buflen,
 
     SetUpSockaddr(to, &u.sin);
 
-    int rc = ::sendto(m_fd, buffer, buflen, 0, &u.sa, sizeof(u.sin));
+    ssize_t rc = ::sendto(m_fd, buffer, buflen, 0, &u.sa, sizeof(u.sin));
     if (rc < 0)
-	return errno;
+	return (unsigned int)errno;
 
     return 0;
 }
@@ -360,16 +361,16 @@ StreamSocket::StreamSocket()
     ::setsockopt(m_fd, IPPROTO_TCP, TCP_NODELAY, &i, sizeof(i));
 }
 
-StreamSocket::StreamSocket(size_t fd)
+StreamSocket::StreamSocket(int fd)
     : Socket(fd)
 {
 }
 
 unsigned StreamSocket::Listen(unsigned int queue)
 {
-    int rc = ::listen(m_fd, queue);
+    int rc = ::listen(m_fd, (int)queue);
     if (rc<0)
-	return errno;
+	return (unsigned int)errno;
     return 0;
 }
 
@@ -379,7 +380,7 @@ unsigned StreamSocket::Accept(StreamSocket *accepted)
     socklen_t sl = sizeof(sa);
     int rc = ::accept(m_fd, &sa, &sl);
     if (rc<0)
-	return errno;
+	return (unsigned int)errno;
 //    TRACE << "Accepted fd " << rc << "\n";
     *accepted = StreamSocket(rc);
     return 0;
@@ -390,7 +391,7 @@ unsigned StreamSocket::SetCork(bool corked)
     int i = corked;
     int rc = ::setsockopt(m_fd, IPPROTO_TCP, TCP_CORK, &i, sizeof(i));
     if (rc<0)
-	return errno;
+	return (unsigned int)errno;
     return 0;
 }
 

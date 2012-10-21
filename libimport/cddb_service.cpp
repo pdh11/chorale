@@ -84,9 +84,9 @@ CDDBLookupPtr CDDBService::Lookup(AudioCDPtr cd)
 	TRACE << found.title << " by " << found.artist
 	      << " extras '" << found.comment << "'\n";
 
-	unsigned int n = cddb_disc_get_track_count(disc);
+	int n = cddb_disc_get_track_count(disc);
 
-	for (unsigned int i=0; i<n; ++i)
+	for (int i=0; i<n; ++i)
 	{
 	    cddb_track_t *track = cddb_disc_get_track(disc, i);
 	    if (track)

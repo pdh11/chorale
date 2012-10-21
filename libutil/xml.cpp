@@ -1,5 +1,6 @@
 #include "xml.h"
 #include "libutil/trace.h"
+#include <string.h>
 
 namespace xml {
 
@@ -21,7 +22,7 @@ unsigned int SaxParser::Parse(util::StreamPtr s)
 	    rc = s->Read(buffer+bufused, BUFSIZE-bufused, &nread);
 	    if (nread == 0)
 		eof = true;
-	    bufused += nread;
+	    bufused += (unsigned)nread;
 	}
 
 	if (bufused == 0 && eof)
@@ -52,7 +53,7 @@ unsigned int SaxParser::Parse(util::StreamPtr s)
 		    m_observer->OnContent(buffer);
 		}
 		state = TAG;
-		unsigned int usedup = lt+1 - buffer;
+		unsigned int usedup = (unsigned)(lt+1 - buffer);
 		TRACE << "used up " << usedup << "\n";
 		memmove(buffer, lt+1, bufused-usedup);
 		bufused -= usedup;
@@ -88,7 +89,7 @@ unsigned int SaxParser::Parse(util::StreamPtr s)
 		    state = IN_TAG;
 	    }
 	    memmove(buffer, buffer+taglen+1, bufused-taglen-1);
-	    bufused -= (taglen+1);
+	    bufused -= (unsigned)(taglen+1);
 	    break;
 	}
 	
@@ -97,7 +98,7 @@ unsigned int SaxParser::Parse(util::StreamPtr s)
 	    char *gt = strchr(buffer, '>');
 	    if (gt == NULL && !eof && bufused < BUFSIZE)
 		continue;
-	    unsigned int usedup = gt+1 - buffer;
+	    unsigned int usedup = (unsigned)(gt+1 - buffer);
 	    memmove(buffer, gt+1, bufused-usedup);
 	    bufused -= usedup;
 	    state = CONTENT;

@@ -35,8 +35,8 @@ public:
     explicit Recordset(Database *parent);
 
     // Being a Recordset
-    uint32_t GetInteger(int which);
-    std::string GetString(int which);
+    uint32_t GetInteger(field_t which);
+    std::string GetString(field_t which);
 
     // Not MoveNext() or IsEOF() -- implemented in derived classes
 };
@@ -85,8 +85,8 @@ public:
 		     int collateby);
 
     // Being a Recordset
-    uint32_t GetInteger(int which);
-    std::string GetString(int which);
+    uint32_t GetInteger(field_t which);
+    std::string GetString(field_t which);
     void MoveNext();
     bool IsEOF();
 };

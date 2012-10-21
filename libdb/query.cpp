@@ -10,14 +10,14 @@ Query::Query()
 
 Query::~Query() {}
 
-const Query::Rep *Query::Restrict(int which, RestrictionType rt,
+const Query::Rep *Query::Restrict(field_t which, RestrictionType rt,
 				  const std::string& val)
 {
     m_restrictions.push_back(Restriction(which, rt, val));
     return (const Query::Rep*)m_restrictions.size();
 }
 
-const Query::Rep *Query::Restrict(int which, RestrictionType rt,
+const Query::Rep *Query::Restrict(field_t which, RestrictionType rt,
 				  uint32_t val)
 {
     m_restrictions.push_back(Restriction(which, rt, val));
@@ -90,7 +90,7 @@ unsigned int Query::Where(const Rep *expr)
 
 /** Impose a sort order on the results (like SQL "ORDER BY ...")
  */
-unsigned int Query::OrderBy(int which)
+unsigned int Query::OrderBy(field_t which)
 {
     m_orderby.push_back(which);
     return 0;
@@ -102,7 +102,7 @@ unsigned int Query::OrderBy(int which)
  * different schema. Field 0 is the first collation field, field 1 the second,
  * and so on.
  */
-unsigned int Query::CollateBy(int which)
+unsigned int Query::CollateBy(field_t which)
 {
     m_collateby.push_back(which);
     return 0;
@@ -133,7 +133,7 @@ std::string Query::ToStringElement(ssize_t elem)
 
     if (elem > 0)
     {
-	const Restriction& r = m_restrictions[elem-1];
+	const Restriction& r = m_restrictions[(size_t)(elem-1)];
 	std::ostringstream os;
 	os << "#" << r.which << " ";
 	switch (r.rt)
@@ -173,7 +173,7 @@ std::string Query::ToStringElement(ssize_t elem)
     }
     else
     {
-	const Relation& r = m_relations[-elem-1];
+	const Relation& r = m_relations[(size_t)(-elem-1)];
 	std::ostringstream os;
 	
 	os << "( " << ToStringElement(r.a);

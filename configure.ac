@@ -2,10 +2,10 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(chorale, [0.07], pdh@utter.chaos.org.uk)
+AC_INIT(chorale, [0.08], pdh@utter.chaos.org.uk)
 
 AC_MSG_NOTICE([Required: Taglib, Boost, xsltproc, and libxml++.])
-AC_MSG_NOTICE([Optional: qt, gstreamer, libcdio, libcddb, lame, flac, curl, libupnp, dbus, hal, libuuid, openssl, libmpg123.])
+AC_MSG_NOTICE([Optional: qt, gstreamer, libcdio, libcddb, lame, flac, curl, libupnp, dbus, hal, libuuid, openssl, libmpg123, inkscape, imagemagick.])
 AC_MSG_NOTICE([])
 
 AC_CONFIG_SRCDIR([libdb/db.h])
@@ -68,11 +68,12 @@ PDH_CXX_WARNING([-Wextra])
 PDH_CXX_WARNING([-Wundef])
 PDH_CXX_WARNING([-Wshadow])
 PDH_CXX_WARNING([-Waddress])
-PDH_CXX_WARNING([-Wcoercion])
+PDH_CXX_WARNING([-Wlogical-op])
 PDH_CXX_WARNING([-Wcast-align])
 PDH_CXX_WARNING([-Wconversion])
 PDH_CXX_WARNING([-Wwrite-strings])
 PDH_CXX_WARNING([-Wpointer-arith])
+# PDH_CXX_WARNING([-Wsign-conversion])
 PDH_CXX_WARNING([-Wstrict-overflow])
 PDH_CXX_WARNING([-Wnon-virtual-dtor])
 PDH_CXX_WARNING([-Woverloaded-virtual])
@@ -88,11 +89,23 @@ if test "x$ac_cv_sys_large_files" != "x"; then
   LARGEFILES=-D_LARGE_FILES=$ac_cv_sys_large_files
 fi
 AC_SUBST(LARGEFILES)
+AC_PATH_PROG(CONVERT, convert, no)
+if test "$CONVERT" = "no"; then
+   HAVE_CONVERT="no"
+else
+   HAVE_CONVERT="yes"
+fi
 AC_PATH_PROG(XSLTPROC, xsltproc, no)
 if test "$XSLTPROC" = "no"; then
    HAVE_XSLTPROC="no"
 else
    HAVE_XSLTPROC="yes"
+fi
+AC_PATH_PROG(INKSCAPE, inkscape, no)
+if test "$INKSCAPE" = "no"; then
+   HAVE_INKSCAPE="no"
+else
+   HAVE_INKSCAPE="yes"
 fi
 
 # Checks for libraries.
@@ -243,7 +256,7 @@ PDH_CHECK_SOCKOPT([TCP_NODELAY])
 printf "\n"
 pdh_ok=yes
 pdh_fail=no
-if test "${LIBCDIOP}${LIBCDDB}${QT}${LAME}${LIBFLAC}${CURL}${UPNP}${GSTREAMER}${DBUS}${HAL}${SQLITE}${LIBUUID}${OPENSSL}${MPG123}${TAGLIB}" != "yesyesyesyesyesyesyesyesyesyesyesyesyesyesyes" ; then
+if test "${LIBCDIOP}${LIBCDDB}${QT}${LAME}${LIBFLAC}${CURL}${UPNP}${GSTREAMER}${DBUS}${HAL}${SQLITE}${LIBUUID}${OPENSSL}${MPG123}${TAGLIB}${HAVE_INKSCAPE}${HAVE_CONVERT}" != "yesyesyesyesyesyesyesyesyesyesyesyesyesyesyesyesyes" ; then
 test "${QT}" = "yes"        || printf "** Install Qt 4.2.0 or later to build optional choralecd\n   http://www.troll.no\n"
 test "${LIBFLAC}" = "yes"   || printf "** Install flac 1.1.3 or later to build optional CD support\n   http://flac.sourceforge.net\n"
 test "${SQLITE}" = "yes"    || printf "** Install sqlite 3.3 or later to build optional SQL support\n   http://www.sqlite.org\n"
@@ -251,6 +264,7 @@ test "${LAME}" = "yes"      || printf "** Install Lame 3.96.1 or later to build 
 test "${LIBCDIOP}" = "yes"  || printf "** Install libcdio 0.76 or later to build optional CD support\n   http://www.gnu.org/software/libcdio\n"
 test "${LIBCDDB}" = "yes"   || printf "** Install libcddb 1.2.1 or later to build optional CD support\n   http://libcddb.sourceforge.net\n"
 test "${LIBUUID}" = "yes"   || printf "** Install libuuid 1.00 or later to build optional UPnP support\n   http://e2fsprogs.sourceforge.net\n"
+test "${HAVE_INKSCAPE}" = "yes"  || printf "** Install inkscape 0.44.1 or later to build optional choralecd\n   http://www.inkscape.org\n"
 test "${OPENSSL}" = "yes"   || printf "** Install openssl 0.9.0 or later to build optional UPnP support\n   http://www.openssl.org\n"
 test "${UPNP}" = "yes"      || printf "** Install libupnp-1.4.3 or later to build optional UPnP support\n   http://pupnp.sf.net\n"
 test "${HAL}" = "yes"       || printf "** Install hal 0.5.9.1 or later to build optional auto-configuration\n   http://hal.freedesktop.org\n"
@@ -260,6 +274,7 @@ test "${GSTREAMER}" = "yes" || printf "** Install gstreamer 0.10.13 or later to 
 test "${LIBXMLPP}" = "yes"  || printf "** Install libxml++-2.14.0 or later to build optional media-server support\n   http://libxmlplusplus.sourceforge.net\n"
 test "${TAGLIB}" = "yes"    || printf "** Install taglib-1.4 or later to build optional CD and media-server support\n   http://developer.kde.org/~wheeler/taglib.html\n"
 test "${MPG123}" = "yes"    || printf "** Install libmpg123 1.2.0 or later to build optional MP2 transcoding support\n   http://www.mpg123.de\n"
+test "${HAVE_CONVERT}" = "yes"  || printf "** Install convert from imagemagick 6.2.4 or later to build optional choralecd\n   http://www.imagemagick.org\n"
 printf "\n"
 pdh_ok=no
 fi
@@ -281,7 +296,7 @@ printf "        libdbus-1-dev libhal-dev uuid-dev libssl-dev libtag1-dev\n"
 printf "        libboost-thread-dev libboost-regex-dev libxml++2.6-dev liblame-dev\n"
 printf "        libcurl4-openssl-dev libupnp-dev libcdio-paranoia-dev libcddb2-dev\n"
 printf "        libgstreamer0.10-dev libqt4-dev qt4-dev-tools libsqlite3-dev\n"
-printf "        libmysqlclient15-dev\n"
+printf "        libmysqlclient15-dev imagemagick inkscape\n"
 printf "\n"
 fi
 
@@ -291,9 +306,15 @@ fi
 
 TARGET=`${CC} -dumpmachine`
 AC_SUBST(TARGET)
-mv libtool libtool.${TARGET}
 LIBTOOL=${LIBTOOL}.${TARGET}
 
 AC_CONFIG_HEADER([config.${TARGET}.h:config.h.in])
 AC_CONFIG_FILES([Make.config.${TARGET}:Make.config.in stamp-h])
 AC_OUTPUT
+
+if test -f libtool ; then
+  echo "#!/bin/sh" > libtool.${TARGET}
+  echo "echo=echo" >> libtool.${TARGET}
+  cat libtool >> libtool.${TARGET}
+  rm libtool
+fi

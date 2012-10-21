@@ -73,6 +73,9 @@ endif
 ifeq ($(libutil),)
 include $(TOP)libutil/Makefile
 endif
+ifeq ($(imagery),)
+include $(TOP)imagery/Makefile
+endif
 
 ifeq ($(QT),yes)
 

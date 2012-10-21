@@ -60,9 +60,9 @@ unsigned Description::Fetch(const std::string& url, const std::string& udn)
 
     if (rc == 0 && xmldoc)
     {
-//	DOMString ds = ixmlPrintDocument(xmldoc);
-//	TRACE << ds << "\n";
-//	ixmlFreeDOMString(ds);
+	DOMString ds = ixmlPrintDocument(xmldoc);
+	TRACE << ds << "\n";
+	ixmlFreeDOMString(ds);
 
 	IXML_Node *device_root = NULL;
 
@@ -70,7 +70,7 @@ unsigned Description::Fetch(const std::string& url, const std::string& udn)
 								    const_cast<char *>("UDN"));
 	if (udns)
 	{
-	    unsigned int devicecount = ixmlNodeList_length(udns);
+	    size_t devicecount = ixmlNodeList_length(udns);
 	    TRACE << devicecount << " devices\n";
 	    for (unsigned int i=0; i<devicecount; ++i)
 	    {

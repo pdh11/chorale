@@ -54,7 +54,7 @@ void RippingTask::Run()
 //    TRACE << "Ripping track " << m_track+1 << " sectors "
 //	  << start << ".." << end << "\n";
 
-    size_t pcmsize = (end-start+1) * CDIO_CD_FRAMESIZE_RAW;
+    size_t pcmsize = (unsigned)(end-start+1) * CDIO_CD_FRAMESIZE_RAW;
 
     // If there's CPU to spare, back to RAM, else back to disk
     util::SeekableStreamPtr backingstream;
@@ -116,14 +116,14 @@ void RippingTask::Run()
 	    return;
 	}
 
-	FireProgress(i-start+1, end-start+1);
+	FireProgress((unsigned)(i-start+1), (unsigned)(end-start+1));
     }
     
     t = time(NULL) - t;
 
     paranoia_free(p);
 
-    double x = ((end-start+1)/75.0)/t;
+    double x = ((end-start+1)/75.0)/(double)t;
 
     TRACE << "Rip track " << (m_track+1) << " done " << x << "x\n";
 }

@@ -8,6 +8,7 @@
 #include "libutil/xmlescape.h"
 #include <sstream>
 #include <errno.h>
+#include <boost/format.hpp>
 
 #if defined(HAVE_OPENSSL) && defined(HAVE_LIBUUID) && defined(HAVE_UPNP)
 
@@ -29,13 +30,14 @@ class Server::Impl: public util::LibUPnPUser
     static std::string MakeUUID(const std::string& resource);
 
     unsigned int m_device_index;
+    std::string m_presentation_url;
 
 public:
     Impl(Server*);
     ~Impl();
 
     Device *m_device;
-    unsigned int Init();
+    unsigned int Init(unsigned short port);
 
     std::string Description(Device*);
     void FireEvent(const std::string& udn, const char *service_id,
@@ -223,20 +225,30 @@ std::string Server::Impl::Description(Device *d)
     /* Note that all these are case-sensitive */
 
     ss << "<device>"
-       << "<deviceType>" << d->m_type << "</deviceType>"
-       << "<friendlyName>" << d->m_friendly_name << "</friendlyName>"
-       << "<manufacturer>" << "Peter Hartley" << "</manufacturer>"
-       << "<manufacturerURL>http://utter.chaos.org.uk/~pdh/software/chorale/</manufacturerURL>"
-       << "<modelDescription>chorale</modelDescription>"
-       << "<modelName>chorale</modelName>"
-       << "<modelNumber>chorale</modelNumber>"
-       << "<UDN>uuid:" << d->m_uuid << "</UDN>"
-       << "<presentationURL>/</presentationURL>"
-       << "<iconList><icon><mimetype>image/png</mimetype>"
-       << " <width>32</width><height>32</height><depth>24</depth>"
-       << " <url>/upnp/icon.png</url>"
-       << "</icon></iconList>"
-       << "<serviceList>";
+        "<deviceType>" << d->m_type << "</deviceType>"
+        "<friendlyName>" << d->m_friendly_name << "</friendlyName>"
+        "<manufacturer>" << "Peter Hartley" << "</manufacturer>"
+	"<manufacturerURL>http://utter.chaos.org.uk/~pdh/software/chorale/</manufacturerURL>"
+        "<modelDescription>chorale</modelDescription>"
+        "<modelName>chorale</modelName>"
+        "<modelNumber>chorale</modelNumber>"
+        "<UDN>uuid:" << d->m_uuid << "</UDN>"
+        "<presentationURL>" << m_presentation_url << "</presentationURL>"
+        "<iconList>"
+	"<icon><mimetype>image/png</mimetype>"
+        " <width>32</width><height>32</height><depth>24</depth>"
+        " <url>" << m_presentation_url << "layout/icon.png</url>"
+        "</icon>"
+	"<icon><mimetype>image/vnd.microsoft.icon</mimetype>"
+        " <width>32</width><height>32</height><depth>24</depth>"
+        " <url>" << m_presentation_url << "layout/icon.ico</url>"
+        "</icon>"
+	"<icon><mimetype>image/x-icon</mimetype>"
+        " <width>32</width><height>32</height><depth>24</depth>"
+        " <url>" << m_presentation_url << "layout/icon.ico</url>"
+        "</icon>"
+	"</iconList>"
+        "<serviceList>";
 
     for (Device::services_t::const_iterator i = d->m_services.begin();
 	 i != d->m_services.end();
@@ -272,8 +284,12 @@ std::string Server::Impl::Description(Device *d)
     return ss.str();
 }
 
-unsigned int Server::Impl::Init()
+unsigned int Server::Impl::Init(unsigned short port)
 {
+    m_presentation_url = (boost::format("http://%s:%u/")
+			  % UpnpGetServerIpAddress()
+			  % port).str();
+
     std::string s =
 	"<?xml version=\"1.0\"?><root xmlns=\"urn:schemas-upnp-org:device-1-0\"><specVersion><major>1</major><minor>0</minor></specVersion>"
 	+ Description(m_device)
@@ -311,7 +327,7 @@ void Server::Impl::FireEvent(const std::string& udn, const char *service_id,
     IXML_Document *propset = NULL;
     
     UpnpAddToPropertySet(&propset, variable, value.c_str());
-    unsigned rc = UpnpNotifyExt(m_handle, udn.c_str(), service_id, propset);
+    int rc = UpnpNotifyExt(m_handle, udn.c_str(), service_id, propset);
     TRACE << "UNE returned " << rc << "\n";
 
     ixmlDocument_free(propset);
@@ -331,10 +347,10 @@ Server::~Server()
     delete m_impl;
 }
 
-unsigned int Server::Init(Device *device)
+unsigned int Server::Init(Device *device, unsigned short port)
 {
     m_impl->m_device = device;
-    return m_impl->Init();
+    return m_impl->Init(port);
 }
 
 void Server::FireEvent(const std::string& udn, const char *service_id,

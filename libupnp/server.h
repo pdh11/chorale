@@ -16,7 +16,11 @@ public:
     Server();
     ~Server();
 
-    unsigned int Init(Device *rootdevice);
+    /** Start up UPnP client, including starting SSDP advertisements.
+     *
+     * @arg presentationport Port number of web server for presentation page.
+     */
+    unsigned int Init(Device *rootdevice, unsigned short presentationport);
 
     void FireEvent(const std::string& udn, const char *service_id,
 		   const char *variable, const std::string& value);

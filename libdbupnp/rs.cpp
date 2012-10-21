@@ -26,7 +26,7 @@ Recordset::Recordset(Database *parent)
 {
 }
 
-uint32_t Recordset::GetInteger(int which)
+uint32_t Recordset::GetInteger(field_t which)
 {
     if (which == mediadb::ID)
 	return m_id;
@@ -46,7 +46,7 @@ uint32_t Recordset::GetInteger(int which)
     return m_freers->GetInteger(which);
 }
 
-std::string Recordset::GetString(int which)
+std::string Recordset::GetString(field_t which)
 {
     if (IsEOF())
 	return std::string();

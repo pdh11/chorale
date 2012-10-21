@@ -8,7 +8,7 @@ void Hex::Dump(const void *address, size_t nbytes)
     {
 	unsigned int line = 16;
 	if (line > nbytes)
-	    line = nbytes;
+	    line = (unsigned int)nbytes;
 	printf("%08x ", offset);
 	unsigned int i;
 	for (i=0; i<line; ++i)

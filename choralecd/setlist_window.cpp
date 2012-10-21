@@ -24,11 +24,11 @@
 #include <vector>
 #include <boost/format.hpp>
 
-#include "play.xpm"
-#include "pause.xpm"
-#include "stop.xpm"
-#include "rew.xpm"
-#include "ffwd.xpm"
+#include "imagery/play.xpm"
+#include "imagery/pause.xpm"
+#include "imagery/stop.xpm"
+#include "imagery/rew.xpm"
+#include "imagery/ffwd.xpm"
 
 namespace choraleqt {
 

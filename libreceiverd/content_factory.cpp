@@ -499,7 +499,7 @@ void Flatten(mediadb::Database *db, unsigned int id, bool upgrade,
 	f->OnItem(id, rs);
 	break;
     default:
-	// Don't show Recievers videos or images
+	// Don't show Receivers videos or images
 	break;
     }
 }
@@ -570,7 +570,7 @@ util::SeekableStreamPtr ContentFactory::StreamForPath(const char *path)
 {
     unsigned int id = 0;
 
-    TRACE << path << "\n";
+//    TRACE << path << "\n";
 
     if (!strcmp(path, "/tags"))
     {
@@ -602,7 +602,7 @@ util::SeekableStreamPtr ContentFactory::StreamForPath(const char *path)
     }
     else
     {
-	TRACE << "** receiverd doesn't like URL " << path << "\n";
+//	TRACE << "** receiverd doesn't like URL " << path << "\n";
     }
     return util::SeekableStreamPtr();
 }

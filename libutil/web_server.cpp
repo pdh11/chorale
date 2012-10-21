@@ -127,8 +127,9 @@ void WebServer::Task::Run()
 
 	bool closing = false;
 	bool do_range = false;
-	unsigned int range_min = 0;
-	unsigned int range_max = 0;
+	bool refresh = false;
+	size_t range_min = 0;
+	size_t range_max = 0;
 	std::string header;
 	do {
 	    rc = lr.GetLine(&header);
@@ -158,7 +159,7 @@ void WebServer::Task::Run()
 		    ++bti;
 		    if (bti != end)
 		    {
-			if (sscanf(bti->c_str(), "bytes=%u-%u", &range_min,
+			if (sscanf(bti->c_str(), "bytes=%lu-%lu", &range_min,
 				   &range_max) == 2)
 			{
 			    do_range = true;
@@ -169,10 +170,12 @@ void WebServer::Task::Run()
 				  << "'\n";
 		    }
 		}
+		else if (!strcasecmp(bti->c_str(), "Cache-Control:"))
+		    refresh = true;
 	    }
 	} while (header != "");
 
-	SeekableStreamPtr ssp = m_parent->StreamForPath(path.c_str());
+	SeekableStreamPtr ssp = m_parent->StreamForPath(path.c_str(), refresh);
 
 	std::string headers;
 	if (!ssp)
@@ -184,9 +187,11 @@ void WebServer::Task::Run()
 
 	headers += "Server: " PACKAGE_STRING "\r\n";
 
+	headers += "Content-Type: text/html\r\n";
+
 	if (ssp)
 	{
-	    unsigned int len = ssp->GetLength();
+	    size_t len = ssp->GetLength();
 
 	    if (do_range)
 	    {
@@ -256,11 +261,11 @@ unsigned WebServer::Init(util::PollerInterface *poller, const char *,
 			 unsigned short port)
 {
     IPEndPoint ep = { IPAddress::ANY, port };
-    int rc = m_server_socket.Bind(ep);
-    if (rc < 0)
+    unsigned int rc = m_server_socket.Bind(ep);
+    if (rc != 0)
     {
-	TRACE << "WebServer bind failed " << errno << "\n";
-	return errno;
+	TRACE << "WebServer bind failed " << rc << "\n";
+	return rc;
     }
 
     ep = m_server_socket.GetLocalEndPoint();
@@ -287,12 +292,20 @@ unsigned short WebServer::GetPort()
     return m_port;
 }
 
-SeekableStreamPtr WebServer::StreamForPath(const char *path)
+SeekableStreamPtr WebServer::StreamForPath(const char *path, bool refresh)
 {
     if (path == m_cached_url)
     {
-	m_cache->Seek(0);
-	return m_cache;
+	if (refresh)
+	{
+	    m_cached_url.clear();
+	    m_cache = NULL;
+	}
+	else
+	{
+	    m_cache->Seek(0);
+	    return m_cache;
+	}
     }
 
     SeekableStreamPtr s;
@@ -448,7 +461,7 @@ int main(int, char*[])
 	if (now < finish)
 	{
 	    TRACE << "polling for " << (finish-now)*1000 << "ms\n";
-	    poller.Poll((finish-now)*1000);
+	    poller.Poll((unsigned)(finish-now)*1000);
 	}
     } while (now < finish && !ft->IsDone());
 

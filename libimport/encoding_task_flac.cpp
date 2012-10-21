@@ -41,11 +41,11 @@ void EncodingTaskFlac::Run()
     
     FLAC__stream_encoder_set_metadata(enc, md, 2);
 
-    unsigned int totalsamples = m_input_size / 4;
+    size_t totalsamples = m_input_size / 4;
 
     FLAC__stream_encoder_set_total_samples_estimate(enc, totalsamples);
 
-    unsigned int nseekpoints = totalsamples/441000;
+    unsigned int nseekpoints = (unsigned)(totalsamples/441000);
     if (nseekpoints < 64)
 	nseekpoints = 64;
 
@@ -73,7 +73,7 @@ void EncodingTaskFlac::Run()
 	    }
 
 	    FLAC__metadata_object_vorbiscomment_resize_comments(md[1],
-								tags.size());
+								(unsigned)tags.size());
 
 	    typedef std::map<std::string, std::string> tags_t;
 	    unsigned int j=0;
@@ -86,7 +86,7 @@ void EncodingTaskFlac::Run()
 		std::string cstr = comment.str();
 		FLAC__StreamMetadata_VorbisComment_Entry entry;
 		entry.entry = (unsigned char*)cstr.c_str();
-		entry.length = cstr.length();
+		entry.length = (FLAC__uint32)cstr.length();
 		FLAC__metadata_object_vorbiscomment_set_comment(md[1], j, 
 								entry, true);
 	    }
@@ -130,7 +130,7 @@ void EncodingTaskFlac::Run()
 	if (!nbytes)
 	    break;
 
-	size_t nsamples = nbytes/4;
+	unsigned int nsamples = (unsigned int)nbytes/4;
 
 	if (!nsamples)
 	    break;
@@ -142,7 +142,7 @@ void EncodingTaskFlac::Run()
 
 	samples_done += nsamples;
 
-	FireProgress(samples_done, totalsamples);
+	FireProgress(samples_done, (unsigned)totalsamples);
 
 	if (!ok)
 	{

@@ -181,8 +181,8 @@ void DirectoryWalker::DirectoryTask::Run()
     m_parent->m_obs->OnEnterDirectory(m_parent_cookie, m_parent_index, m_path,
 				      m_leaf, &m_st, &m_cookie);
 
-    /** @todo This would probably be faster if we read the entries in dirent
-     *        order.
+    /* An experiment with pushing the tasks in inode order didn't increase
+     * overall speed.
      */
 
     struct dirent **namelist;

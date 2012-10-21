@@ -28,7 +28,7 @@ unsigned AudioCD::Create(CDDrivePtr drive, AudioCDPtr *pcd)
     if (rc<0)
     {
 	TRACE << "Can't open CD drive\n";
-	return errno;
+	return (unsigned)errno;
     }
 
     unsigned int total = cdio_cddap_tracks(cdt);
@@ -44,19 +44,19 @@ unsigned AudioCD::Create(CDDrivePtr drive, AudioCDPtr *pcd)
 
     unsigned total_sectors = 0;
 
-    for (unsigned int i=0; i<total; ++i)
+    for (track_t i=1; i<=total; ++i) // Peculiar 1-based numbering
     {
-	if (cdio_cddap_track_audiop(cdt, i+1))
+	if (cdio_cddap_track_audiop(cdt, i))
 	{
 	    TocEntry te;
-	    te.firstsector = cdio_cddap_track_firstsector(cdt, i+1);
-	    te.lastsector  = cdio_cddap_track_lastsector(cdt, i+1);
-//	    TRACE << "Track " << i+1 << " " << te.firstsector
+	    te.firstsector = cdio_cddap_track_firstsector(cdt, i);
+	    te.lastsector  = cdio_cddap_track_lastsector(cdt, i);
+//	    TRACE << "Track " << i << " " << te.firstsector
 //		  << ".." << te.lastsector << "\n";
 	    
 	    toc.push_back(te);
 
-	    total_sectors += te.lastsector - te.firstsector + 1;
+	    total_sectors += (unsigned)(te.lastsector - te.firstsector + 1);
 	}
 	else
 	{

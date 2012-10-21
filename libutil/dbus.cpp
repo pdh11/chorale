@@ -311,7 +311,7 @@ int main()
 	    if (now < finish)
 	    {
 //		TRACE << "polling\n";
-		poller.Poll((finish-now)*1000);
+		poller.Poll((unsigned)(finish-now)*1000);
 	    }
 	} while (now < finish);
     }

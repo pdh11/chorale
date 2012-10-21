@@ -14,31 +14,29 @@ bool FreeRecordset::IsEOF()
     return m_eof;
 }
 
-uint32_t FreeRecordset::GetInteger(int which)
+uint32_t FreeRecordset::GetInteger(field_t which)
 {
     std::string s = GetString(which);
-    return strtoul(s.c_str(), NULL, 10);
+    return (uint32_t)strtoul(s.c_str(), NULL, 10);
 }
 
-std::string FreeRecordset::GetString(int which)
+std::string FreeRecordset::GetString(field_t which)
 {
-    if ((unsigned)which >= m_strings.size())
+    if (which >= m_strings.size())
 	return "";
     return m_strings[which];
 }
 
-unsigned int FreeRecordset::SetInteger(int which, uint32_t value)
+unsigned int FreeRecordset::SetInteger(field_t which, uint32_t value)
 {
     std::ostringstream os;
     os << value;
     return SetString(which, os.str());
 }
 
-unsigned int FreeRecordset::SetString(int which, const std::string& value)
+unsigned int FreeRecordset::SetString(field_t which, const std::string& value)
 {
-    if (which < 0)
-	return 0;
-    if (which >= (int)m_strings.size())
+    if (which >= m_strings.size())
 	m_strings.resize(which+1);
     m_strings[which] = value;
     return 0;

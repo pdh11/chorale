@@ -14,8 +14,8 @@ extern "C" {
 typedef struct db__Recordset *db_Recordset; // Opaque type
 
 int         db_Recordset_IsEOF(db_Recordset);
-uint32_t    db_Recordset_GetInteger(db_Recordset, int which);
-const char *db_Recordset_GetString(db_Recordset, int which);
+uint32_t    db_Recordset_GetInteger(db_Recordset, unsigned int which);
+const char *db_Recordset_GetString(db_Recordset, unsigned int which);
 void        db_Recordset_MoveNext(db_Recordset);
 void        db_Recordset_Free(db_Recordset*);
 
@@ -29,14 +29,14 @@ enum db_RestrictionType
 
 typedef struct db__Query *db_Query; // Opaque type
 
-typedef struct db__QueryRep *db_QueryRep; // Opaque type
+typedef const struct db__QueryRep *db_QueryRep; // Opaque type
 
-const db_QueryRep db_Query_Restrict(db_Query, int which, db_RestrictionType rt,
-			       const char *val);
-const db_QueryRep db_Query_Restrict2(db_Query, int which,
-				     db_RestrictionType rt, int val);
-const db_QueryRep db_Query_And(db_Query, const db_QueryRep, const db_QueryRep);
-const db_QueryRep db_Query_Or(db_Query, const db_QueryRep, const db_QueryRep);
+db_QueryRep db_Query_Restrict(db_Query, unsigned int which, 
+			      db_RestrictionType rt, const char *val);
+db_QueryRep db_Query_Restrict2(db_Query, unsigned int which,
+			       db_RestrictionType rt, uint32_t val);
+db_QueryRep db_Query_And(db_Query, const db_QueryRep, const db_QueryRep);
+db_QueryRep db_Query_Or(db_Query, const db_QueryRep, const db_QueryRep);
 
 unsigned int db_Query_Where(const db_QueryRep);
 db_Recordset db_Query_Execute(db_Query);

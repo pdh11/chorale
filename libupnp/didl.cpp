@@ -28,7 +28,7 @@ MetadataList Parse(const std::string& xml)
 	{
 	    IXML_NodeList *containers = ixmlNode_getChildNodes(child);
 	
-	    unsigned int containercount = ixmlNodeList_length(containers);
+	    size_t containercount = ixmlNodeList_length(containers);
 //	    TRACE << containercount << " container(s)\n";
 	
 	    for (unsigned int j=0; j<containercount; ++j)
@@ -65,7 +65,7 @@ MetadataList Parse(const std::string& xml)
 
 		    IXML_NodeList *nl = ixmlNode_getChildNodes(cnode);
 		    
-		    unsigned int fieldcount = ixmlNodeList_length(nl);
+		    size_t fieldcount = ixmlNodeList_length(nl);
 //		    TRACE << fieldcount << " field(s)\n";
 		    
 		    for (unsigned int i=0; i<fieldcount; ++i)
@@ -97,7 +97,7 @@ MetadataList Parse(const std::string& xml)
 				    ixmlNode_getAttributes(node2);
 				if (attrs2)
 				{
-				    unsigned int nattrs =
+				    size_t nattrs =
 					ixmlNamedNodeMap_getLength(attrs2);
 
 				    for (unsigned int k=0; k<nattrs; ++k)
@@ -245,8 +245,8 @@ std::string FromRecord(mediadb::Database *db, db::RecordsetPtr rs,
 		       const char *urlprefix)
 {
     std::ostringstream os;
-    int id = rs->GetInteger(mediadb::ID);
-    int parentid = rs->GetInteger(mediadb::IDPARENT);
+    unsigned int id = rs->GetInteger(mediadb::ID);
+    int parentid = (int)rs->GetInteger(mediadb::IDPARENT);
     if (id == 0x100)
     {
 	id = 0;
@@ -275,7 +275,12 @@ std::string FromRecord(mediadb::Database *db, db::RecordsetPtr rs,
 	    "<upnp:class>";
 
 	if (type == mediadb::DIR)
-	    os << "object.container.storageFolder";
+	{
+	    if (id == mediadb::RADIO_ROOT)
+		os << "object.container.channelGroup";
+	    else
+		os << "object.container.storageFolder";
+	}
 	else
 	    os << "object.container.playlistContainer";
 

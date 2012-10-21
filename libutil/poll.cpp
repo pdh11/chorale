@@ -92,7 +92,7 @@ void Poller::Impl::AddTimer(time_t first, unsigned int repeatms,
 			    Timed *callback)
 {
     Timer t;
-    t.t = first*(uint64_t)1000;
+    t.t = (uint64_t)first*1000u;
     t.repeatms = repeatms;
     t.callback = callback;
     
@@ -130,7 +130,7 @@ unsigned Poller::Impl::Poll(unsigned int timeout_ms)
 		 ++j)
 	    {
 		m_array[i].fd = j->first;
-		int events = 0;
+		short events = 0;
 		unsigned int directions = m_directions[j->first];
 		if (directions & IN)
 		    events |= POLLIN;
@@ -154,17 +154,18 @@ unsigned Poller::Impl::Poll(unsigned int timeout_ms)
 	{
 	    timeval now;
 	    ::gettimeofday(&now, NULL);
-	    uint64_t nowms = now.tv_sec*(uint64_t)1000 + now.tv_usec/1000;
+	    uint64_t nowms = (uint64_t)now.tv_sec*1000
+		+ (uint64_t)(now.tv_usec/1000);
 	    
 	    if (nowms >= m_timers.front().t)
 		timeout_ms = 0;
 	    else if (timeout_ms == Poller::INFINITE_MS
 		     || (nowms+timeout_ms) > m_timers.front().t)
 	    {
-		timeout_ms = m_timers.front().t - nowms;
+		timeout_ms = (unsigned)(m_timers.front().t - nowms);
 
-		TRACE << "Adjusted timeout to " << timeout_ms << " nowms="
-		      << nowms << "\n";
+//		TRACE << "Adjusted timeout to " << timeout_ms << " nowms="
+//		      << nowms << "\n";
 
 		// Wake up every ten minutes anyway, just in case
 		if (timeout_ms > 600000)
@@ -173,12 +174,12 @@ unsigned Poller::Impl::Poll(unsigned int timeout_ms)
 	}
     }
 
-    int rc = ::poll(m_array, nfds, timeout_ms);
+    int rc = ::poll(m_array, nfds, (int)timeout_ms);
 
 //    TRACE << "polled " << rc << "\n";
 
     if (rc < 0)
-	return errno;
+	return (unsigned)errno;
 
     uint64_t nowms = 0;
     bool any = false;
@@ -196,7 +197,8 @@ unsigned Poller::Impl::Poll(unsigned int timeout_ms)
 	    {
 		timeval now;
 		::gettimeofday(&now, NULL);
-		nowms = now.tv_sec*(uint64_t)1000 + now.tv_usec/1000;
+		nowms = (uint64_t)now.tv_sec*1000
+		    + (uint64_t)(now.tv_usec/1000);
 		any = true;
 	    }
 
@@ -319,7 +321,7 @@ PollWaker::~PollWaker()
 unsigned PollWaker::OnActivity()
 {
     char ch;
-    int rc = read(m_fd[0], &ch, 1);
+    ssize_t rc = read(m_fd[0], &ch, 1);
     assert(rc == 1);
     rc = rc;
     return m_pollable ? m_pollable->OnActivity() : 0;
@@ -328,7 +330,7 @@ unsigned PollWaker::OnActivity()
 void PollWaker::Wake()
 {
     char ch = '*';
-    int rc = write(m_fd[1], &ch, 1);
+    ssize_t rc = write(m_fd[1], &ch, 1);
     assert(rc == 1);
     rc = rc;
 }

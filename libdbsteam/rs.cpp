@@ -36,7 +36,7 @@ bool Recordset::IsEOF()
     return m_eof;
 }
 
-uint32_t Recordset::GetInteger(int which)
+uint32_t Recordset::GetInteger(field_t which)
 {
     if (m_eof)
 	return 0;
@@ -52,12 +52,12 @@ uint32_t Recordset::GetInteger(int which)
     if (v.svalid)
     {
 	v.ivalid = 1;
-	return v.i = strtoul(v.s.c_str(), NULL, 10);
+	return v.i = (uint32_t)strtoul(v.s.c_str(), NULL, 10);
     }
     return 0;
 }
 
-std::string Recordset::GetString(int which)
+std::string Recordset::GetString(field_t which)
 {
     if (m_eof)
     {
@@ -82,7 +82,7 @@ std::string Recordset::GetString(int which)
     return "";
 }
 
-unsigned int Recordset::SetString(int which, const std::string& s)
+unsigned int Recordset::SetString(field_t which, const std::string& s)
 {
     if (m_eof)
     {
@@ -127,7 +127,7 @@ unsigned int Recordset::SetString(int which, const std::string& s)
 		if (m_db->m_intindexes[which][v.i].empty())
 		    m_db->m_intindexes[which].erase(v.i);
 	    }
-	    v.i = strtoul(s.c_str(), NULL, 10);
+	    v.i = (uint32_t)strtoul(s.c_str(), NULL, 10);
 	    v.ivalid = 1;
 	    m_db->m_intindexes[which][v.i].insert(m_record);
 	    break;
@@ -139,7 +139,7 @@ unsigned int Recordset::SetString(int which, const std::string& s)
     return 0;
 }
 
-unsigned int Recordset::SetInteger(int which, uint32_t n)
+unsigned int Recordset::SetInteger(field_t which, uint32_t n)
 {
     if (m_eof)
 	return ENOENT;
@@ -292,7 +292,7 @@ void SimpleRecordset::MoveNext()
         /* IndexedRecordset */
 
 
-IndexedRecordset::IndexedRecordset(Database *db, int field, uint32_t intval)
+IndexedRecordset::IndexedRecordset(Database *db, field_t field, uint32_t intval)
     : Recordset(db),
       m_field(field),
       m_is_int(true),
@@ -311,7 +311,7 @@ IndexedRecordset::IndexedRecordset(Database *db, int field, uint32_t intval)
     }
 }
 
-IndexedRecordset::IndexedRecordset(Database *db, int field,
+IndexedRecordset::IndexedRecordset(Database *db, field_t field,
 				   std::string stringval)
     : Recordset(db),
       m_field(field),
@@ -386,7 +386,7 @@ void IndexedRecordset::MoveNext()
         /* OrderedRecordset */
 
 
-OrderedRecordset::OrderedRecordset(Database *db, int field)
+OrderedRecordset::OrderedRecordset(Database *db, field_t field)
     : Recordset(db),
       m_field(field)
 {
@@ -502,7 +502,7 @@ void OrderedRecordset::MoveNext()
         /* CollateRecordset */
 
 
-CollateRecordset::CollateRecordset(Database *db, int field, Query *query)
+CollateRecordset::CollateRecordset(Database *db, field_t field, Query *query)
     : m_parent(db), m_field(field), m_eof(false), m_query(query), m_rs(db)
 {
     boost::recursive_mutex::scoped_lock lock(m_parent->m_mutex);
@@ -573,12 +573,12 @@ bool CollateRecordset::IsEOF()
     return m_eof; 
 }
 
-uint32_t CollateRecordset::GetInteger(int)
+uint32_t CollateRecordset::GetInteger(field_t)
 {
     return m_intvalue;
 }
 
-std::string CollateRecordset::GetString(int)
+std::string CollateRecordset::GetString(field_t)
 {
     return m_strvalue; 
 }

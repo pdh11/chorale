@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <assert.h>
+#include <stdlib.h>
 #include "libutil/trace.h"
 #include "libutil/file.h"
 #include "libutil/poll.h"
@@ -56,7 +57,7 @@ unsigned int FileNotifier::Init(util::PollerInterface *poller)
     if (m_fd < 0)
     {
 	TRACE << "Can't initialise inotify (" << errno << ")\n";
-	return errno;
+	return (unsigned)errno;
     }
     else
     {
@@ -95,7 +96,7 @@ unsigned int FileNotifier::OnActivity()
     enum { BUFSIZE = 1024 };
     char buffer[BUFSIZE];
     bool any = false;
-    int rc;
+    ssize_t rc;
 
     do {
 	rc = read(m_fd, buffer, BUFSIZE);

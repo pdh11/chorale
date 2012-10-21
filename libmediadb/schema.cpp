@@ -55,7 +55,7 @@ std::string VectorToChildren(const std::vector<unsigned int>& v)
     std::string result;
     result.reserve(v.size() * 3);
 
-    AppendUTF8(result, v.size());
+    AppendUTF8(result, (unsigned int)v.size());
     for (unsigned int i=0; i<v.size(); ++i)
     {
 	AppendUTF8(result, v[i]);
@@ -85,7 +85,7 @@ static uint32_t GetUTF8Char(const char **pptr)
 	(*pptr)++;
 	unsigned char ch2 = (unsigned char)**pptr;
 	(*pptr)++;
-	return (ch2 & 0x3F) + ((ch & 0x1F) << 6);
+	return (ch2 & 0x3Fu) + ((ch & 0x1Fu) << 6);
     }
     else if (ch < 0xF0) // %1110xxxx
     {
@@ -94,7 +94,7 @@ static uint32_t GetUTF8Char(const char **pptr)
 	(*pptr)++;
 	unsigned char ch3 = (unsigned char)**pptr;
 	(*pptr)++;
-	return (ch3 & 0x3F) + ((ch2 & 0x3F)<<6) + ((ch & 0xF) << 12);
+	return (ch3 & 0x3Fu) + ((ch2 & 0x3Fu)<<6) + ((ch & 0xFu) << 12);
     }
     else if (ch < 0xF8) // %11110xxx
     {
@@ -105,7 +105,7 @@ static uint32_t GetUTF8Char(const char **pptr)
 	  (*pptr)++;
 	unsigned char ch4 = (unsigned char)**pptr;
 	   (*pptr)++;
-	return (ch4 & 0x3F) + ((ch3 & 0x3F)<<6) + ((ch2 & 0x3F)<<12) + ((ch & 7) << 18);
+	return (ch4 & 0x3Fu) + ((ch3 & 0x3Fu)<<6) + ((ch2 & 0x3Fu)<<12) + ((ch & 7u) << 18);
     }
     else if (ch < 0xFC) // %111110xx
     {
@@ -118,11 +118,11 @@ static uint32_t GetUTF8Char(const char **pptr)
 	(*pptr)++;
 	unsigned char ch5 = (unsigned char)**pptr;
 	(*pptr)++;
-	return (ch5 & 0x3F)
-	    + ((ch4 & 0x3F)<<6) 
-	    + ((ch3 & 0x3F)<<12)
-	    + ((ch2 & 0x3F)<<18)
-	    + ((ch & 3) << 24);
+	return (ch5 & 0x3Fu)
+	    + ((ch4 & 0x3Fu)<<6) 
+	    + ((ch3 & 0x3Fu)<<12)
+	    + ((ch2 & 0x3Fu)<<18)
+	    + ((ch & 3u) << 24);
     }
     else if (ch < 0xFE) // %1111110x
     {
@@ -137,12 +137,12 @@ static uint32_t GetUTF8Char(const char **pptr)
 	(*pptr)++;
 	unsigned char ch6 = (unsigned char)**pptr;
 	(*pptr)++;
-	return (ch6 & 0x3F)
-	    + ((ch5 & 0x3F)<<6) 
-	    + ((ch4 & 0x3F)<<12)
-	    + ((ch3 & 0x3F)<<18)
-	    + ((ch2 & 0x3F)<<24)
-	    + ((ch & 1) << 30);
+	return (ch6 & 0x3Fu)
+	    + ((ch5 & 0x3Fu)<<6) 
+	    + ((ch4 & 0x3Fu)<<12)
+	    + ((ch3 & 0x3Fu)<<18)
+	    + ((ch2 & 0x3Fu)<<24)
+	    + ((ch & 1u) << 30);
     }
 
     TRACE << "UTF-8 error 2\n";

@@ -16,7 +16,7 @@ EncodingTaskPtr EncodingTaskMP3::Create(const std::string& filename)
 
 void EncodingTaskMP3::Run()
 {
-    unsigned int totalsamples = m_input_size / 4;
+    size_t totalsamples = m_input_size / 4;
     
     lame_t gfp = lame_init();
 
@@ -38,7 +38,7 @@ void EncodingTaskMP3::Run()
     short *sbuf = new short[LUMP/2];
     unsigned char *obuf = new unsigned char[LUMP];
 
-    unsigned int samples_done = 0;
+    size_t samples_done = 0;
     
     FILE *f = fopen(m_output_filename.c_str(), "wb+");
 
@@ -66,27 +66,28 @@ void EncodingTaskMP3::Run()
 	if (!nsamples)
 	    break;
 	
-	rc2 = lame_encode_buffer_interleaved(gfp, sbuf, nsamples, obuf, LUMP);
+	rc2 = lame_encode_buffer_interleaved(gfp, sbuf, (int)nsamples, obuf,
+					     LUMP);
 	if (rc2 < 0)
 	{
 	    TRACE << "Lame encode failed: " << rc2 << "\n";
 	    break;
 	}
 
-	int rc3 = fwrite(obuf, 1, rc2, f);
-	if (rc3 != rc2)
+	size_t rc3 = fwrite(obuf, 1, (size_t)rc2, f);
+	if (rc3 != (size_t)rc2)
 	{
 	    TRACE << "Lame encode write failed\n";
 	}
 
 	samples_done += nsamples;
 
-	FireProgress(samples_done, totalsamples);
+	FireProgress((unsigned)samples_done, (unsigned)totalsamples);
     }
 
     int rc = lame_encode_flush(gfp, obuf, LUMP);
 
-    rc2 = fwrite(obuf, 1, rc, f);
+    rc = (int)fwrite(obuf, 1, (size_t)rc, f);
 	
     lame_mp3_tags_fid(gfp, f);
     lame_close(gfp);

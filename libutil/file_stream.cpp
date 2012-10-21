@@ -11,7 +11,7 @@ unsigned FileStream::CreateTemporary(const char *filename, FileStreamPtr *fsp)
 {
     int fd = open(filename, O_RDWR|O_CREAT|O_TRUNC, 0664);
     if (fd < 0)
-	return errno;
+	return (unsigned)errno;
 
     unlink(filename);
     *fsp = FileStreamPtr(new FileStream(fd));
@@ -21,9 +21,9 @@ unsigned FileStream::CreateTemporary(const char *filename, FileStreamPtr *fsp)
 unsigned FileStream::Create(const char *filename, unsigned int flags,
 			    FileStreamPtr *fsp)
 {
-    int fd = open(filename, flags, 0664);
+    int fd = open(filename, (int)flags, 0664);
     if (fd < 0)
-	return errno;
+	return (unsigned)errno;
 
     *fsp = FileStreamPtr(new FileStream(fd));
     return 0;
@@ -47,9 +47,9 @@ unsigned FileStream::Read(void *buffer, size_t len, size_t *pread)
     {
 	TRACE << "FS::Read failed len=" << len << "\n";
 	*pread = 0;
-	return errno;
+	return (unsigned)errno;
     }
-    *pread = rc;
+    *pread = (size_t)rc;
     return 0;
 }
 
@@ -59,21 +59,21 @@ unsigned FileStream::Write(const void *buffer, size_t len, size_t *pwrote)
     if (rc < 0)
     {
 	*pwrote = 0;
-	return errno;
+	return (unsigned)errno;
     }
 //    TRACE << "fs wrote " << rc << "/" << len << "\n";
-    *pwrote = rc;
+    *pwrote = (size_t)rc;
     return 0;
 }
 
 void FileStream::Seek(pos64 pos)
 {
-    lseek(m_fd, pos, SEEK_SET);
+    lseek(m_fd, (off_t)pos, SEEK_SET);
 }
 
 SeekableStream::pos64 FileStream::Tell()
 {
-    return lseek(m_fd, 0, SEEK_CUR);
+    return (pos64)lseek(m_fd, 0, SEEK_CUR);
 }
 
 SeekableStream::pos64 FileStream::GetLength()
@@ -82,14 +82,14 @@ SeekableStream::pos64 FileStream::GetLength()
     int rc = fstat(m_fd, &st);
     if (rc < 0)
 	return 0;
-    return st.st_size;
+    return (pos64)st.st_size;
 }
 
 unsigned FileStream::SetLength(pos64 len)
 {
-    int rc = ftruncate(m_fd, len);
+    int rc = ftruncate(m_fd, (off_t)len);
     if (rc<0)
-	return errno;
+	return (unsigned)errno;
     if (Tell() > len)
 	Seek(len);
     return 0;

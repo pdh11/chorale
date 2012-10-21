@@ -26,11 +26,11 @@ public:
     Recordset(Database *db);
 
     bool IsEOF();
-    uint32_t GetInteger(int which);
-    std::string GetString(int which);
+    uint32_t GetInteger(field_t which);
+    std::string GetString(field_t which);
 
-    unsigned int SetString(int which, const std::string&);
-    unsigned int SetInteger(int which, uint32_t);
+    unsigned int SetString(field_t which, const std::string&);
+    unsigned int SetInteger(field_t which, uint32_t);
 
     unsigned int AddRecord();
     unsigned int Commit();
@@ -54,7 +54,7 @@ public:
 class CollateRecordset: public ReadOnlyRecordset
 {
     Database *m_parent;
-    int m_field;
+    field_t m_field;
     bool m_is_int;
     unsigned int m_intvalue;
     std::string m_strvalue;
@@ -66,38 +66,38 @@ class CollateRecordset: public ReadOnlyRecordset
 			Database::stringindex_t::const_iterator end);
 
 public:
-    CollateRecordset(Database*, int field, Query* = NULL);
+    CollateRecordset(Database*, field_t field, Query* = NULL);
     
     bool IsEOF();
-    uint32_t GetInteger(int which);
-    std::string GetString(int which);
+    uint32_t GetInteger(field_t which);
+    std::string GetString(field_t which);
     void MoveNext();
 };
 
 class IndexedRecordset: public Recordset
 {
-    int m_field;
+    field_t m_field;
     bool m_is_int;
     std::string m_stringval;
     uint32_t m_intval;
     unsigned int m_subrecno;
 
 public:
-    IndexedRecordset(Database *db, int field, uint32_t intval);
-    IndexedRecordset(Database *db, int field, std::string stringval);
+    IndexedRecordset(Database *db, field_t field, uint32_t intval);
+    IndexedRecordset(Database *db, field_t field, std::string stringval);
     void MoveNext();
 };
 
 class OrderedRecordset: public Recordset
 {
-    int m_field;
+    field_t m_field;
     bool m_is_int;
     std::string m_stringval;
     uint32_t m_intval;
     unsigned int m_subrecno;
 
 public:
-    OrderedRecordset(Database *db, int field);
+    OrderedRecordset(Database *db, field_t field);
     void MoveNext();
 };
 
