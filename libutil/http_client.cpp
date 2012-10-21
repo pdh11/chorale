@@ -65,13 +65,13 @@ class Client::Task: public util::Task
     Parser m_parser;
 
     enum {
-	UNINITIALISED,
+	UNINITIALISED, // 0
 	CONNECTING,
 	SEND_HEADERS,
-	SEND_BODY,
+	SEND_BODY,  // 3
 	WAITING,
 	RECV_HEADERS,
-	RECV_BODY,
+	RECV_BODY, // 6
 	IDLE
     } m_state;
 
@@ -394,17 +394,20 @@ unsigned int Client::Task::Run()
 	/** @todo This is very like http::Server::Run's RECV_BODY -- merge
 	          somehow?
 	 */
-	size_t remain = (size_t)m_entity.transfer_length;
 
-	while (remain || m_buffer_fill)
+	while (m_entity.transfer_length || m_buffer_fill)
 	{
+	    LOG(HTTP_CLIENT) << "transfer_length=" << m_entity.transfer_length
+			     << " m_buffer_fill=" << m_buffer_fill << "\n";
+
 	    if (!m_buffer)
 	    {
 		m_buffer.reset(new char[BUFFER_SIZE]);
 		m_buffer_fill = 0;
 	    }
 
-	    size_t lump = std::min(remain, BUFFER_SIZE - m_buffer_fill);
+	    size_t lump = std::min(m_entity.transfer_length, 
+				   BUFFER_SIZE - m_buffer_fill);
 
 	    if (lump)
 	    {
@@ -424,10 +427,17 @@ unsigned int Client::Task::Run()
 		    TRACE << "Read failed (" << rc << ")\n";
 		    return rc;
 		}
+		else if (nread)
+		{
+		    LOG(HTTP_CLIENT) << "Read " << nread << " bytes\n";
+		    m_buffer_fill += nread;
+		    m_entity.transfer_length -= nread;
+		}
 		else
 		{
-		    m_buffer_fill += nread;
-		    remain -= nread;
+		    // Success, no bytes -- must be EOF
+		    TRACE << "EOF\n";
+		    m_entity.transfer_length = 0;
 		}
 	    }
 
@@ -451,6 +461,8 @@ unsigned int Client::Task::Run()
 	    }
 	    m_buffer_fill -= nwrote;	   
 	}
+
+	LOG(HTTP_CLIENT) << "Done\n";
 
 	m_target->OnDone(0);
 	m_target.reset(NULL);

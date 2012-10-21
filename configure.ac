@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(chorale, [0.17], pdh@utter.chaos.org.uk)
+AC_INIT(chorale, [0.18], pdh@utter.chaos.org.uk)
 AC_SUBST(PACKAGE_WEBSITE, [http://chorale.sf.net])
 AC_DEFINE_UNQUOTED([PACKAGE_WEBSITE], ["${PACKAGE_WEBSITE}"], [Define to the package's website])
 

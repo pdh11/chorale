@@ -1,3 +1,7 @@
+2009-Oct-18: Version 0.18 released; changes since 0.17:
+
+	* libutil: paper-bag bug in http::Client::Task
+	
 2009-Oct-18: Version 0.17 released; changes since 0.16:
 
 	* libutil: paper-bag bug in util::Compare (forced pull of 0.16)
