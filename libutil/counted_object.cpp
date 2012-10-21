@@ -17,3 +17,16 @@ void intrusive_ptr_release(CountedObject *o)
     if (deleteit)
 	delete o;
 }
+
+void intrusive_ptr_add_ref(SimpleCountedObject *o)
+{
+    o->CheckThread();
+    ++o->m_refcount;
+}
+
+void intrusive_ptr_release(SimpleCountedObject *o)
+{
+    o->CheckThread();
+    if (!--o->m_refcount)
+	delete o;
+}

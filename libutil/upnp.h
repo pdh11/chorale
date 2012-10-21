@@ -15,7 +15,7 @@ class LibUPnPUser
 {
 public:
     LibUPnPUser();
-    ~LibUPnPUser();
+    virtual ~LibUPnPUser();
 
     size_t GetHandle();
 

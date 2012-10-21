@@ -12,16 +12,18 @@
 #include "tree_widget.h"
 #include "browse_widget.h"
 #include "libmediadb/registry.h"
+#include "tree_model.h"
 #include <qsplitter.h>
 #include <qlayout.h>
+#include <QTreeView>
+#include <QHeaderView>
+#include "libmediadb/db.h"
 
 namespace choraleqt {
 
-ExplorerWindow::ExplorerWindow(mediatree::NodePtr root,
-			       mediadb::Database *db,
+ExplorerWindow::ExplorerWindow(mediadb::Database *db,
 			       mediadb::Registry *registry)
     : QDialog(NULL, NULL),
-      m_root(root),
       m_db(db),
       m_registry(registry)
 {
@@ -31,18 +33,42 @@ ExplorerWindow::ExplorerWindow(mediatree::NodePtr root,
 
     m_splitter = new QSplitter(this);
     vlayout->addWidget(m_splitter);
-    m_tree = new TreeWidget(m_splitter, m_root);
-//    m_table = new TagTable(7,7,m_splitter);
+
+//    TreeWidget *m_tree = new TreeWidget(m_splitter, m_root);
+
+    QTreeView *tv = new QTreeView(m_splitter);
+    m_treemodel = new TreeModel(db);
+    tv->setModel(m_treemodel);
+    tv->header()->hide();
+
     m_browse = new BrowseWidget(m_splitter, registry->IndexForDB(db));
 
-    connect(m_tree, SIGNAL(selectionChanged(Q3ListViewItem*)),
-	    this, SLOT(OnTreeSelectionChanged(Q3ListViewItem*)));
+    m_splitter->setStretchFactor(0,0);
+    m_splitter->setStretchFactor(1,1);
 
-    m_browse->SetNode(root);
+    connect(tv, SIGNAL(clicked(const QModelIndex&)),
+	    this, SLOT(OnTreeSelectionChanged(const QModelIndex&)));
+
+//    connect(m_tree, SIGNAL(selectionChanged(Q3ListViewItem*)),
+//	    this, SLOT(OnTreeSelectionChanged(Q3ListViewItem*)));
+
+    m_browse->SetNode(m_treemodel->NodeForIndex(QModelIndex()));
 
     resize(500,600);
 
     show();
+}
+
+ExplorerWindow::~ExplorerWindow()
+{
+    delete m_treemodel;
+}
+
+void ExplorerWindow::OnTreeSelectionChanged(const QModelIndex& qmi)
+{
+    mediatree::NodePtr node = m_treemodel->NodeForIndex(qmi);
+    if (node)
+	m_browse->SetNode(node);
 }
 
 void ExplorerWindow::OnTreeSelectionChanged(Q3ListViewItem *lvi)

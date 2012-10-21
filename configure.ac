@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(chorale, [0.01], pdh@utter.chaos.org.uk)
+AC_INIT(chorale, [0.04], pdh@utter.chaos.org.uk)
 
 AC_MSG_NOTICE([Required: Taglib, Boost, xsltproc, and libxml++.])
 AC_MSG_NOTICE([Optional: qt, gstreamer, libcdio, libcddb, lame, flac, curl, libupnp, dbus, hal, libuuid, openssl.])
@@ -15,6 +15,7 @@ AC_CONFIG_AUX_DIR([autotools])
 # Checks for programs.
 AC_PROG_CC
 AC_GNU_SOURCE
+AC_PROG_LIBTOOL
 
 AC_DEFUN([PDH_C_WARNING],
 [
@@ -39,8 +40,8 @@ PDH_C_WARNING([-Wwrite-strings])
 PDH_C_WARNING([-Wpointer-arith])
 PDH_C_WARNING([-Wstrict-prototypes])
 PDH_C_WARNING([-Wmissing-prototypes])
-PDH_C_WARNING([-Wdeclaration-after-statement])
 PDH_C_WARNING([-fdiagnostics-show-option])
+PDH_C_WARNING([-Wdeclaration-after-statement])
 
 AC_PROG_CXX
 
@@ -89,18 +90,17 @@ fi
 
 # Checks for libraries.
 
-AC_CHECK_HEADERS([sys/inotify.h])
-AC_CHECK_FUNCS([inotify_init])
-
 AC_CHECK_LIB(mp3lame, lame_init, [LAME="yes" LAME_LIBS="-lmp3lame"], [LAME="no"], -lm)
 if test "${LAME}" = "yes" ; then
     AC_CHECK_HEADER(lame/lame.h, , [LAME="no"])
 fi
+AC_SUBST(LAME)
 AC_SUBST(LAME_LIBS)
+AC_DEFINE(HAVE_LAME, 1, [Define to 1 if you have LAME])
 
 XIPH_PATH_OGG()
 
-PKG_CHECK_MODULES(QT, QtGui >= 4.3.3 Qt3Support >= 4.3.3 QtCore >= 4.3.3, [QT="yes"], [QT="no"])
+PKG_CHECK_MODULES(QT, QtGui >= 4.2.0 Qt3Support >= 4.2.0 QtCore >= 4.2.0, [QT="yes"], [QT="no"])
 AC_SUBST(QT)
 AC_SUBST(QT_CFLAGS)
 AC_SUBST(QT_LIBS)
@@ -109,86 +109,90 @@ if test "${QT}" = "yes" ; then
   AC_SUBST(QT_MOC)
 fi
 
-PKG_CHECK_MODULES(HAL, hal >= 0.5.9.1, [HAL="yes"], [HAL="no"])
-AC_SUBST(HAL)
-AC_SUBST(HAL_CFLAGS)
-AC_SUBST(HAL_LIBS)
+AC_DEFUN([PDH_PKGCONFIG], [
+AC_REQUIRE([PKG_PROG_PKG_CONFIG])
+AC_MSG_CHECKING([for $2])
+if AC_RUN_LOG([$PKG_CONFIG --exists --print-errors "$2"]); then
+  if AC_RUN_LOG([$PKG_CONFIG --print-errors "$2 >= $3"]); then
+    AC_MSG_RESULT([yes])
+    $1_CFLAGS=`$PKG_CONFIG --cflags $2 2>/dev/null`
+    $1_LIBS=`$PKG_CONFIG --libs $2 2>/dev/null`
+    $1="yes"
+    AC_DEFINE(HAVE_$1, 1, [Define to 1 if you have $2 >= $3])
+  else
+    pdh_result=`$PKG_CONFIG --modversion $2`
+    AC_MSG_RESULT([no (have $pdh_result, need $3)])
+    $1="no"
+  fi
+else
+  AC_MSG_RESULT([no])
+  $1="no"
+fi
+AC_SUBST($1)
+AC_SUBST($1_CFLAGS)
+AC_SUBST($1_LIBS)
+])
 
-PKG_CHECK_MODULES(UPNP, libupnp >= 1.6.0, [UPNP="yes"], [UPNP="no"])
-AC_SUBST(UPNP)
-AC_SUBST(UPNP_CFLAGS)
-AC_SUBST(UPNP_LIBS)
 
-PKG_CHECK_MODULES(CURL, libcurl >= 7.16.1, [CURL="yes"], [CURL="no"])
-AC_SUBST(CURL)
-AC_SUBST(CURL_CFLAGS)
-AC_SUBST(CURL_LIBS)
+PDH_PKGCONFIG(HAL,      hal,     0.5.9.1)
+PDH_PKGCONFIG(LIBFLAC,  flac,    1.1.3)
+PDH_PKGCONFIG(LIBUUID,  uuid,    1.00)
+PDH_PKGCONFIG(DBUS,     dbus-1,  1.1.1)
+PDH_PKGCONFIG(TAGLIB,   taglib,  1.4)
+PDH_PKGCONFIG(LIBCDDB,  libcddb, 1.2.1)
+PDH_PKGCONFIG(CURL,     libcurl, 7.16.1)
+PDH_PKGCONFIG(UPNP,     libupnp, 1.4.3)
+PDH_PKGCONFIG(OPENSSL,  openssl, 0.9.0)
+PDH_PKGCONFIG(SQLITE,   sqlite3, 3.3)
+PDH_PKGCONFIG(LIBXMLPP, libxml++-2.6, 2.14.0)
+PDH_PKGCONFIG(GSTREAMER, gstreamer-0.10, 0.10.13)
+PDH_PKGCONFIG(LIBCDIOP,  libcdio_paranoia, 0.76)
 
-PKG_CHECK_MODULES(DBUS, dbus-1 >= 1.1.2, [DBUS="yes"], [DBUS="no"])
-AC_SUBST(DBUS)
-AC_SUBST(DBUS_CFLAGS)
-AC_SUBST(DBUS_LIBS)
-
-PKG_CHECK_MODULES(SQLITE, sqlite3 >= 3.3, [SQLITE="yes"], [SQLITE="no"])
-AC_SUBST(SQLITE)
-AC_SUBST(SQLITE_CFLAGS)
-AC_SUBST(SQLITE_LIBS)
-
-PKG_CHECK_MODULES(TAGLIB, taglib >= 1.4, [TAGLIB="yes"], [TAGLIB="no"])
-AC_SUBST(TAGLIB)
-AC_SUBST(TAGLIB_CFLAGS)
-AC_SUBST(TAGLIB_LIBS)
-
-PKG_CHECK_MODULES(LIBCDDB, libcddb >= 1.3.0, [LIBCDDB="yes"], [LIBCDDB="no"])
-AC_SUBST(LIBCDDB)
-AC_SUBST(LIBCDDB_CFLAGS)
-AC_SUBST(LIBCDDB_LIBS)
-
-PKG_CHECK_MODULES(LIBUUID, uuid >= 1.00, [LIBUUID="yes"], [LIBUUID="no"])
-AC_SUBST(LIBUUID)
-AC_SUBST(LIBUUID_CFLAGS)
-AC_SUBST(LIBUUID_LIBS)
-
-PKG_CHECK_MODULES(OPENSSL, openssl >= 0.9.0, [OPENSSL="yes"], [OPENSSL="no"])
-AC_SUBST(OPENSSL)
-AC_SUBST(OPENSSL_CFLAGS)
-AC_SUBST(OPENSSL_LIBS)
-
-PKG_CHECK_MODULES(LIBCDIOP, libcdio_paranoia >= 0.77, [LIBCDIOP="yes"], [LIBCDIOP="no"])
-AC_SUBST(LIBCDIOP)
-AC_SUBST(LIBCDIOP_CFLAGS)
-AC_SUBST(LIBCDIOP_LIBS)
-
-PKG_CHECK_MODULES(LIBXMLPP, libxml++-2.6 >= 2.14.0, [LIBXMLPP="yes"], [LIBXMLPP="no"])
-AC_SUBST(LIBXMLPP)
-AC_SUBST(LIBXMLPP_CFLAGS)
-AC_SUBST(LIBXMLPP_LIBS)
-
-PKG_CHECK_MODULES(GSTREAMER, gstreamer-0.10 >= 0.10.13, [GSTREAMER="yes"], [GSTREAMER="no"])
-AC_SUBST(GSTREAMER)
-AC_SUBST(GSTREAMER_CFLAGS)
-AC_SUBST(GSTREAMER_LIBS)
-
-AM_PATH_LIBFLAC([LIBFLAC="yes"],[LIBFLAC="no"])
-AC_LANG_PUSH(C++)
-AM_PATH_LIBFLACPP([LIBFLACPP="yes"],[LIBFLACPP="no"])
-AC_LANG_POP()
-
-#PKG_CHECK_MODULES(LIBFLAC, flac >= 1.2.0, [LIBFLAC="yes"], [LIBFLAC="no"])
-AC_SUBST(LIBFLAC)
-AC_SUBST(LIBFLAC_CFLAGS)
-AC_SUBST(LIBFLAC_LIBS)
-
-#PKG_CHECK_MODULES(LIBFLACPP, flac++ >= 1.2.0, [LIBFLACPP="yes"], [LIBFLACPP="no"])
-AC_SUBST(LIBFLACPP)
-AC_SUBST(LIBFLACPP_CFLAGS)
-AC_SUBST(LIBFLACPP_LIBS)
+# NB do NOT use LIBFLAC_CFLAGS/LIBFLACPP_CFLAGS -- they introduce a directory
+# with a bogus <assert.h>.
 
 # ax_boost.m4 is AllPermissive
 AX_BOOST([1.33.1],[BOOST="yes"],[BOOST="no"])
 
 # Checks for header files.
-AC_CHECK_HEADERS([stdint.h unistd.h sys/types.h])
+AC_CHECK_HEADERS([stdint.h unistd.h sys/types.h sys/socket.h netinet/in.h netinet/tcp.h])
+
+AC_CHECK_HEADERS([sys/inotify.h])
+AC_CHECK_FUNCS([inotify_init])
+
+AC_DEFUN([PDH_CHECK_SOCKOPT], [
+AC_MSG_CHECKING([for $1])
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+#ifdef HAVE_NETINET_TCP_H
+#include <netinet/tcp.h>
+#endif
+#include <stdio.h>
+#include <stdlib.h>
+]],
+[[
+    int flag = 1;
+    return setsockopt(0, IPPROTO_TCP, $1, &flag, sizeof(flag));
+]])], [AC_MSG_RESULT([yes]) ; ac_pdh_sockopt=yes],
+      [AC_MSG_RESULT([no]) ; ac_pdh_sockopt=no])
+if test "$ac_pdh_sockopt" = "yes"; then
+AC_DEFINE_UNQUOTED([HAVE_$1], 1, [Define to 1 if you have the socket option $1])
+fi
+])
+
+PDH_CHECK_SOCKOPT([TCP_CORK])
+PDH_CHECK_SOCKOPT([IP_RECVIF])
+PDH_CHECK_SOCKOPT([TCP_NOPUSH])
+PDH_CHECK_SOCKOPT([IP_PKTINFO])
+PDH_CHECK_SOCKOPT([TCP_NODELAY])
 
 # Checks for typedefs, structures, and compiler characteristics.
 #AC_HEADER_STDBOOL
@@ -197,21 +201,24 @@ AC_CHECK_HEADERS([stdint.h unistd.h sys/types.h])
 
 # Optional libraries
 printf "\n"
+pdh_ok=yes
+pdh_fail=no
 if test "${LIBCDIOP}${LIBCDDB}${QT}${LAME}${LIBFLAC}${CURL}${UPNP}${GSTREAMER}${DBUS}${HAL}${SQLITE}${LIBUUID}${OPENSSL}" != "yesyesyesyesyesyesyesyesyesyesyesyesyes" ; then
-test "${LIBFLAC}" = "yes"   || printf "** Install flac 1.2.0 or later to build optional choralecd\n   http://flac.sourceforge.net\n"
+test "${LIBFLAC}" = "yes"   || printf "** Install flac 1.1.3 or later to build optional choralecd\n   http://flac.sourceforge.net\n"
 test "${LAME}" = "yes"      || printf "** Install Lame 3.96.1 or later to build optional choralecd\n   http://lame.sourceforge.net\n"
-test "${LIBCDIOP}" = "yes"  || printf "** Install libcdio 0.77 or later to build optional choralecd\n   http://www.gnu.org/software/libcdio\n"
-test "${LIBCDDB}" = "yes"   || printf "** Install libcddb 1.3.0 or later to build optional choralecd\n   http://libcddb.sourceforge.net\n"
-test "${QT}" = "yes"        || printf "** Install Qt 4.3.3 or later to build optional choralecd\n   http://www.troll.no\n"
+test "${LIBCDIOP}" = "yes"  || printf "** Install libcdio 0.76 or later to build optional choralecd\n   http://www.gnu.org/software/libcdio\n"
+test "${LIBCDDB}" = "yes"   || printf "** Install libcddb 1.2.1 or later to build optional choralecd\n   http://libcddb.sourceforge.net\n"
+test "${QT}" = "yes"        || printf "** Install Qt 4.2.0 or later to build optional choralecd\n   http://www.troll.no\n"
 test "${CURL}" = "yes"      || printf "** Install curl 7.16.1 or later to build optional Rio Receiver client\n   http://curl.haxx.se\n"
-test "${UPNP}" = "yes"      || printf "** Install libupnp-1.6.0 or later to build optional UPnP support\n   http://pupnp.sf.net\n"
+test "${UPNP}" = "yes"      || printf "** Install libupnp-1.4.3 or later to build optional UPnP support\n   http://pupnp.sf.net\n"
 test "${GSTREAMER}" = "yes" || printf "** Install gstreamer-0.10.13 or later to build optional choralecd\n   http://gstreamer.freedesktop.org\n"
-test "${DBUS}" = "yes"      || printf "** Install libdbus-1.0.0 or later to build optional auto-configuration\n   http://dbus.freedesktop.org\n"
+test "${DBUS}" = "yes"      || printf "** Install libdbus-1.1.1 or later to build optional auto-configuration\n   http://dbus.freedesktop.org\n"
 test "${HAL}" = "yes"       || printf "** Install hal-0.5.9.1 or later to build optional auto-configuration\n   http://hal.freedesktop.org\n"
 test "${SQLITE}" = "yes"    || printf "** Install sqlite 3.3 or later to build optional SQL support\n   http://www.sqlite.org\n"
 test "${LIBUUID}" = "yes"   || printf "** Install libuuid 1.00 or later to build optional UPnP support\n   http://e2fsprogs.sourceforge.net\n"
 test "${OPENSSL}" = "yes"   || printf "** Install openssl 0.9.0 or later to build optional UPnP support\n   http://www.openssl.org\n"
 printf "\n"
+pdh_ok=no
 fi
 
 # Required libraries
@@ -221,6 +228,23 @@ test "${BOOST}" = "yes"    || printf "** Boost 1.33.1 or later is required\n   h
 test "${LIBXMLPP}" = "yes" || printf "** Libxml++ 2.14.0 or later is required\n   http://libxmlplusplus.sourceforge.net\n"
 test "${HAVE_XSLTPROC}" = "yes" || printf "** Xsltproc from libxslt 1.0.0 or later is required\n  http://xmlsoft.org/XSLT/index.html\n"
 printf "\n"
+pdh_ok=no
+pdh_fail=yes
+fi
+
+if test "${pdh_ok}" = "no" ; then
+printf "With most distributions, it's the '-dev' packages you need. In Ubuntu\n"
+printf "or Debian, try:\n"
+printf "   sudo apt-get install g++ autoconf automake libflac-dev libflac++-dev\n"
+printf "        libdbus-1-dev libhal-dev uuid-dev libssl-dev libtag1-dev\n"
+printf "        libboost-thread-dev liboost-regex-dev libxml++2.6-dev liblame-dev\n"
+printf "        libcurl4-openssl-dev libupnp-dev libcdio-paranoia-dev libcddb2-dev\n"
+printf "        libgstreamer0.10-dev libqt4-dev qt4-dev-tools libsqlite3-dev libtool\n"
+printf "        libmysqlclient15-dev\n"
+printf "\n"
+fi
+
+if test "${pdh_fail}" = "yes" ; then
 AC_MSG_ERROR([Library dependencies not met])
 fi
 

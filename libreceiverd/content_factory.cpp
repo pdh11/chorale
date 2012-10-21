@@ -5,6 +5,7 @@
 #include "libmediadb/schema.h"
 #include "libutil/trace.h"
 #include "libutil/stream.h"
+#include "libutil/urlescape.h"
 #include "libreceiver/tags.h"
 #include <sstream>
 #include <algorithm>
@@ -185,6 +186,7 @@ util::SeekableStreamPtr QueryStream(mediadb::Database *db,
 		value = std::string(equals+1, ampers-equals-1);
 	    else
 		value = std::string(equals+1);
+	    value = util::URLUnEscape(value);
 
 	    std::string sfield(query+1, equals-query-1);
 	    if (sfield == "title")
@@ -287,6 +289,7 @@ util::SeekableStreamPtr ResultsStream(mediadb::Database *db,
 	value = std::string(equals+1, ampers-equals-1);
     else
 	value = std::string(equals+1);
+    value = util::URLUnEscape(value);
 
     db::QueryPtr qp = db->CreateQuery();
     qp->Restrict(field, db::EQ, value);
@@ -475,10 +478,11 @@ void Flatten(mediadb::Database *db, unsigned int id, bool upgrade,
 	    unsigned int newid = rs->GetInteger(mediadb::IDHIGH);
 	    if (newid)
 	    {
-		id = newid;
 		qp = db->CreateQuery();
 		qp->Restrict(mediadb::ID, db::EQ, newid);
 		rs = qp->Execute();
+		if (rs && !rs->IsEOF())
+		    id = newid;
 	    }
 	}
 	f->OnItem(id, rs);
@@ -711,6 +715,22 @@ static const struct {
       "176=TEnjoy The Silence\n"
       "177=TPolicy Of Truth\n"
       "179=TClean\n"
+    },
+
+    { "/results?source=The%20Garden",
+
+      "145=TFutures\n"
+      "147=TThrow It All Away\n"
+      "149=TSeeing Things\n"
+      "14c=TThe Pageant Of The Bizarre\n"
+      "14e=TYou\xe2\x80\x99re My Flame\n"
+      "151=TLeft Behind\n"
+      "152=TToday\n"
+      "154=TThis Fine Social Scene\n"
+      "157=TYour Place\n"
+      "159=TIf I Can\xe2\x80\x99t Have You\n"
+      "15c=TCrosses\n"
+      "15e=TWaiting To Die\n"
     },
 };
 

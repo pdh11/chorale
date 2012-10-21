@@ -9,6 +9,10 @@
 
 namespace import {
 
+/** A generic encoding task.
+ *
+ * Subclasses EncodingTaskFlac and EncodingTaskMP3 do all the work.
+ */
 class EncodingTask: public util::Task
 {
 protected:
@@ -47,28 +51,6 @@ public:
 };
 
 typedef boost::intrusive_ptr<EncodingTask> EncodingTaskPtr;
-
-class FlacEncodingTask: public EncodingTask
-{
-    void Run();
-
-    explicit FlacEncodingTask(const std::string& output_filename)
-	: EncodingTask(output_filename) {}
-
-public:
-    static EncodingTaskPtr Create(const std::string& output_filename);
-};
-
-class MP3LameEncodingTask: public EncodingTask
-{
-    void Run();
-
-    explicit MP3LameEncodingTask(const std::string& output_filename)
-	: EncodingTask(output_filename) {}
-
-public:
-    static EncodingTaskPtr Create(const std::string& output_filename);
-};
 
 }; // namespace import
 

@@ -33,7 +33,7 @@ all-choraleutil: $(pparse) $(playlist2dir) $(readtags) $(play) $(squirt) \
 	$(timedb)
 
 $(TOP)$(DIR)% : CXXFLAGS += $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) \
-	$(LIBCDIOP_CXXFLAGS) $(LIBFLAC_CXXFLAGS) $(LIBXMLPP_CXXFLAGS)
+	$(LIBCDIOP_CXXFLAGS) $(LIBXMLPP_CXXFLAGS)
 
 ifeq ($(libutil),)
 include $(TOP)libutil/Makefile

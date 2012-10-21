@@ -28,6 +28,7 @@ void Notifier::OnActivity(int fd)
 
 Poller::Poller()
 {
+    TRACE << "Poller is on " << pthread_self() << "\n";
 }
 
 Poller::~Poller()
@@ -38,11 +39,14 @@ Poller::~Poller()
 void Poller::AddHandle(int fd, util::Pollable *callback, 
 		       unsigned int direction)
 {
+    CheckThread();
+    TRACE << "Creating notifier on " << pthread_self() << "\n";
     m_map[fd] = new Notifier(fd, callback, direction);
 }
 
 void Poller::RemoveHandle(int poll_handle)
 {
+    CheckThread();
     delete m_map[poll_handle];
 }
 

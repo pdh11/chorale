@@ -1,13 +1,64 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Define to 1 if you have libcurl >= 7.16.1 */
+#undef HAVE_CURL
+
+/* Define to 1 if you have dbus-1 >= 1.1.1 */
+#undef HAVE_DBUS
+
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#undef HAVE_DLFCN_H
+
+/* Define to 1 if you have gstreamer-0.10 >= 0.10.13 */
+#undef HAVE_GSTREAMER
+
+/* Define to 1 if you have hal >= 0.5.9.1 */
+#undef HAVE_HAL
+
 /* Define to 1 if you have the `inotify_init' function. */
 #undef HAVE_INOTIFY_INIT
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
+/* Define to 1 if you have the socket option IP_PKTINFO */
+#undef HAVE_IP_PKTINFO
+
+/* Define to 1 if you have the socket option IP_RECVIF */
+#undef HAVE_IP_RECVIF
+
+/* Define to 1 if you have LAME */
+#undef HAVE_LAME
+
+/* Define to 1 if you have libcddb >= 1.2.1 */
+#undef HAVE_LIBCDDB
+
+/* Define to 1 if you have libcdio_paranoia >= 0.76 */
+#undef HAVE_LIBCDIOP
+
+/* Define to 1 if you have flac >= 1.1.3 */
+#undef HAVE_LIBFLAC
+
+/* Define to 1 if you have uuid >= 1.00 */
+#undef HAVE_LIBUUID
+
+/* Define to 1 if you have libxml++-2.6 >= 2.14.0 */
+#undef HAVE_LIBXMLPP
+
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
+
+/* Define to 1 if you have the <netinet/in.h> header file. */
+#undef HAVE_NETINET_IN_H
+
+/* Define to 1 if you have the <netinet/tcp.h> header file. */
+#undef HAVE_NETINET_TCP_H
+
+/* Define to 1 if you have openssl >= 0.9.0 */
+#undef HAVE_OPENSSL
+
+/* Define to 1 if you have sqlite3 >= 3.3 */
+#undef HAVE_SQLITE
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
@@ -24,14 +75,32 @@
 /* Define to 1 if you have the <sys/inotify.h> header file. */
 #undef HAVE_SYS_INOTIFY_H
 
+/* Define to 1 if you have the <sys/socket.h> header file. */
+#undef HAVE_SYS_SOCKET_H
+
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
 
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
 
+/* Define to 1 if you have taglib >= 1.4 */
+#undef HAVE_TAGLIB
+
+/* Define to 1 if you have the socket option TCP_CORK */
+#undef HAVE_TCP_CORK
+
+/* Define to 1 if you have the socket option TCP_NODELAY */
+#undef HAVE_TCP_NODELAY
+
+/* Define to 1 if you have the socket option TCP_NOPUSH */
+#undef HAVE_TCP_NOPUSH
+
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
+
+/* Define to 1 if you have libupnp >= 1.4.3 */
+#undef HAVE_UPNP
 
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT

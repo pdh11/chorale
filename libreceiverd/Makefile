@@ -20,7 +20,7 @@ libreceiverd:=$(TOP)$(DIR)$(TARGETDIR)libreceiverd.la
 all-libreceiverd: $(libreceiverd)
 
 $(TOP)$(DIR)% : CXXFLAGS += $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) \
-	$(LIBCDIOP_CXXFLAGS) $(LIBFLAC_CXXFLAGS) $(LIBXMLPP_CXXFLAGS)
+	$(LIBCDIOP_CXXFLAGS) $(LIBXMLPP_CXXFLAGS)
 
 ifeq ($(libutil),)
 include $(TOP)libutil/Makefile

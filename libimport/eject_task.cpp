@@ -1,12 +1,17 @@
 #include "eject_task.h"
 #include "libutil/trace.h"
-#include <cdio/cdio.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <linux/cdrom.h>
+#include <sys/ioctl.h>
 
 namespace import {
 
 void EjectTask::Run(void)
 {
-    cdio_eject_media_drive(m_cd->GetDevice().c_str());
+    int fd = ::open(m_cd->GetDevice().c_str(), O_RDONLY|O_NONBLOCK);
+    ::ioctl(fd, CDROMEJECT);
+    ::close(fd);
 }
 
 }; // namespace import

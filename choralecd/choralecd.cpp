@@ -31,9 +31,25 @@
 #include "network.xpm"
 #include "output.xpm"
 
+#if defined(HAVE_CURL)
+#define HAVE_LIBDBRECEIVER 1
+#endif
+#if defined(HAVE_UPNP) && defined(HAVE_LIBUUID) && defined(HAVE_OPENSSL)
+#define HAVE_LIBDBUPNP 1
+#endif
+#if defined(HAVE_UPNP)
+#define HAVE_LIBOUTPUT_UPNP 1
+#endif
+#if defined(HAVE_GSTREAMER)
+#define HAVE_LIBOUTPUT 1
+#endif
+
 int main(int argc, char *argv[])
 {
     QApplication app( argc, argv );
+
+    // Start this off really early, as it fork()s internally
+    output::GSTPlayer player;
 
     import::CDDrives cds;
     Settings settings;
@@ -58,31 +74,38 @@ int main(int argc, char *argv[])
 
     mediadb::Registry registry;
 
-    output::GSTPlayer player;
+#ifdef HAVE_LIBOUTPUT
     output::Queue queue(&player);
     QPixmap output_pixmap((const char**)output_xpm);
     choraleqt::OutputWidgetFactory owf(&output_pixmap, &queue, &registry);
     mainwin->AddWidgetFactory(&owf);
+#endif
 
     choraleqt::Poller poller;
-    util::ssdp::Client uclient(&poller);
 
+#ifdef HAVE_LIBOUTPUT_UPNP
+    util::ssdp::Client uclient(&poller);
     choraleqt::UpnpOutputWidgetFactory uowf(&output_pixmap, &registry);
     mainwin->AddWidgetFactory(&uowf);
     TRACE << "Calling uc.init\n";
     uclient.Init(util::ssdp::s_uuid_avtransport, &uowf);
     TRACE << "uc.init done\n";
+#endif
 
     QPixmap network_pixmap((const char**)network_xpm);
+#ifdef HAVE_LIBDBRECEIVER
     choraleqt::ReceiverDBWidgetFactory rdbwf(&network_pixmap, &registry);
     mainwin->AddWidgetFactory(&rdbwf);
 
     receiver::ssdp::Client client;
     client.Init(&poller, receiver::ssdp::s_uuid_musicserver, &rdbwf);
+#endif
 
+#ifdef HAVE_LIBDBUPNP
     choraleqt::UpnpDBWidgetFactory udbwf(&network_pixmap, &registry);
     mainwin->AddWidgetFactory(&udbwf);
     uclient.Init(util::ssdp::s_uuid_contentdirectory, &udbwf);
+#endif
 
     mainwin->show();
     int rc = app.exec();

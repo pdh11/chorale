@@ -14,7 +14,7 @@ namespace mediatree {
  *
  * @todo Push the database pointer into Node? all the subclasses have one
  */
-class Node: public CountedObject
+class Node: public SimpleCountedObject
 {
 public:
     virtual ~Node() {}

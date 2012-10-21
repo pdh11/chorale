@@ -31,14 +31,14 @@ SRCS:= \
 	settings_window.moc.cpp \
 	tagtable.cpp \
 	tagtable.moc.cpp \
+	tree_model.cpp \
+	tree_model.moc.cpp \
 	tree_widget.cpp \
 	tree_widget.moc.cpp 
 
 choralecd:=$(TOP)$(DIR)choralecd
 
 all-choralecd: $(choralecd)
-
-all: all-choralecd
 
 include $(TOP)Make.common
 
@@ -76,6 +76,11 @@ ifeq ($(libutil),)
 include $(TOP)libutil/Makefile
 endif
 
+ifeq ($(LAME)$(LIBFLAC)$(QT)$(GSTREAMER)$(LIBCDIOP)$(LIBCDDB),yesyesyesyesyesyes)
+
+all: all-choralecd
+install: install-choralecd
+
 $(choralecd): $(CHORALECD_OBJS) $(libutil) $(libimport) $(libreceiver) \
 		$(libdb) $(libdbreceiver) $(libdbupnp) $(libmediatree) \
 		$(libmediadb) $(libupnp) \
@@ -90,3 +95,8 @@ $(choralecd): $(CHORALECD_OBJS) $(libutil) $(libimport) $(libreceiver) \
 		$(LAME_LIBS) $(LIBXMLPP_LIBS) $(CURL_LIBS) $(UPNP_LIBS) \
 		$(GSTREAMER_LIBS)
 	@echo $@: `ldd $@ | wc -l` shared libraries | fmt
+
+else
+$(choralecd):
+	@echo "Ignoring choralecd (dependencies not met)"
+endif

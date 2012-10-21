@@ -60,6 +60,25 @@ template<typename X, typename Y>
     return n;
 }
 
+class Hex
+{
+    const void *m_address;
+    size_t m_nbytes;
+public:
+    Hex(const void *address, size_t nbytes)
+	: m_address(address), m_nbytes(nbytes) {}
+
+    static void Dump(const void *address, size_t nbytes);
+
+    friend const Tracer& operator<<(const Tracer&n, Hex hex);
+};
+
+inline const Tracer& operator<<(const Tracer&n, Hex hex)
+{
+    Hex::Dump(hex.m_address, hex.m_nbytes);
+    return n;
+}
+
 template <class T>
 inline const NullTracer& operator<<(const NullTracer& n, T) { return n; }
 

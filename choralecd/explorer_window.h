@@ -6,6 +6,7 @@
 
 class QSplitter;
 class Q3ListViewItem;
+class QModelIndex;
 
 namespace mediadb { class Database; };
 namespace mediadb { class Registry; };
@@ -15,27 +16,28 @@ namespace choraleqt {
 class TagTable;
 class TreeWidget;
 class BrowseWidget;
+class TreeModel;
 
 class ExplorerWindow: public QDialog
 {
     Q_OBJECT;
 
-    mediatree::NodePtr m_root;
     mediadb::Database *m_db;
     mediadb::Registry *m_registry;
 
-    TreeWidget *m_tree;
     QSplitter *m_splitter;
     TagTable *m_table;
     BrowseWidget *m_browse;
+    TreeModel *m_treemodel;
 
 public:
-    ExplorerWindow(mediatree::NodePtr root, 
-		   mediadb::Database *db,
+    ExplorerWindow(mediadb::Database *db,
 		   mediadb::Registry *registry);
+    ~ExplorerWindow();
 
 public slots:
     void OnTreeSelectionChanged(Q3ListViewItem*);
+    void OnTreeSelectionChanged(const QModelIndex&);
 };
 
 }; // namespace choraleqt

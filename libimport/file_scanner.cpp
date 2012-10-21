@@ -131,6 +131,37 @@ unsigned int FileScanner::Impl::OnFile(dircookie parent_cookie,
     {
 	db::RecordsetPtr rs = GetRecordForPath(path, &id);
 
+	std::string extension = util::GetExtension(path.c_str());
+	std::string flacname;
+	if (extension == "mp3" || extension == "ogg")
+	{
+	    // Look for FLAC version
+	    flacname = util::StripExtension(path.c_str()) + ".flac";
+	    struct stat st;
+	    if (stat(flacname.c_str(), &st) < 0)
+	    {
+		if (!m_hiroot.empty()
+		    && !strncmp(path.c_str(), m_loroot.c_str(), 
+				m_loroot.length()))
+		{
+		    flacname = m_hiroot
+			+ std::string(flacname, m_loroot.length());
+//			    TRACE << "mp3 " << path << " trying flac "
+//				  << flacname << " \n";
+		    if (stat(flacname.c_str(), &st) < 0)
+			flacname.clear();
+		}
+		else
+		    flacname.clear();
+	    }
+
+	    if (!flacname.empty())
+	    {
+		OnFile(0, 0, flacname,
+		       util::GetLeafName(flacname.c_str()), &st);
+	    }
+	}
+
 	// Has it changed since we last saw it?
 	if (rs->GetInteger(mediadb::MTIME) != (unsigned)pst->st_mtime
 	    || rs->GetInteger(mediadb::SIZEBYTES) != (unsigned)pst->st_size)
@@ -139,7 +170,6 @@ unsigned int FileScanner::Impl::OnFile(dircookie parent_cookie,
 	    rs->SetInteger(mediadb::TYPE, mediadb::FILE);
 	    rs->SetString(mediadb::TITLE, util::StripExtension(leaf.c_str()));
     
-	    std::string extension = util::GetExtension(path.c_str());
 	    if (extension == "mp3" || extension == "ogg"
 		|| extension == "flac")
 	    {
@@ -151,38 +181,12 @@ unsigned int FileScanner::Impl::OnFile(dircookie parent_cookie,
 				   (extension == "flac") ? mediadb::TUNEHIGH
 				                         : mediadb::TUNE);
 
-		if (extension != "flac")
+		if (extension != "flac" && !flacname.empty())
 		{
-		    // Look for FLAC version
-		    std::string flacname = util::StripExtension(path.c_str())
-			+ ".flac";
-		    struct stat st;
-		    if (stat(flacname.c_str(), &st) < 0)
-		    {
-			if (!m_hiroot.empty()
-			    && !strncmp(path.c_str(), m_loroot.c_str(), 
-					m_loroot.length()))
-			{
-			    flacname = m_hiroot
-				+ std::string(flacname, m_loroot.length());
-//			    TRACE << "mp3 " << path << " trying flac "
-//				  << flacname << " \n";
-			    if (stat(flacname.c_str(), &st) < 0)
-				flacname.clear();
-			}
-			else
-			    flacname.clear();
-		    }
-		    if (!flacname.empty())
-		    {
-			OnFile(0, 0, flacname,
-			       util::GetLeafName(flacname.c_str()), &st);
-
-			boost::recursive_mutex::scoped_lock lock(m_mutex);
-			rs->SetInteger(mediadb::IDHIGH, m_map[flacname]);
+		    boost::recursive_mutex::scoped_lock lock(m_mutex);
+		    rs->SetInteger(mediadb::IDHIGH, m_map[flacname]);
 //			TRACE << "flac(" << id << ")="
 //			      << m_map[flacname] << "\n";
-		    }
 		}
 	    }
 	    else if (extension == "asx" || extension == "wpl")

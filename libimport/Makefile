@@ -7,6 +7,8 @@ SRCS:=\
 	cd_toc_task.cpp \
 	eject_task.cpp \
 	encoding_task.cpp \
+	encoding_task_flac.cpp \
+	encoding_task_mp3.cpp \
 	file_notifier.cpp \
 	file_scanner.cpp \
 	file_scanner_thread.cpp \
@@ -40,7 +42,7 @@ libimport:=$(TOP)$(DIR)$(TARGETDIR)libimport.la
 all-libimport: $(libimport)
 
 $(TOP)$(DIR)% : CXXFLAGS += $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) \
-	$(LIBCDIOP_CXXFLAGS) $(LIBFLAC_CXXFLAGS) $(LIBXMLPP_CXXFLAGS)
+	$(LIBCDIOP_CXXFLAGS) $(LIBXMLPP_CXXFLAGS)
 
 ifeq ($(libutil),)
 include $(TOP)libutil/Makefile

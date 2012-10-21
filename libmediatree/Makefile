@@ -19,7 +19,7 @@ libmediatree:=$(TOP)$(DIR)$(TARGETDIR)libmediatree.la
 all-libmediatree: $(libmediatree)
 
 $(TOP)$(DIR)% : CXXFLAGS += $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) \
-	$(LIBCDIOP_CXXFLAGS) $(LIBFLAC_CXXFLAGS) $(LIBXMLPP_CXXFLAGS)
+	$(LIBCDIOP_CXXFLAGS) $(LIBXMLPP_CXXFLAGS)
 
 ifeq ($(libutil),)
 include $(TOP)libutil/Makefile

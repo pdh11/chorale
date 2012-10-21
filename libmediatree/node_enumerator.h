@@ -1,8 +1,7 @@
 #ifndef MEDIATREE_NODE_ENUMERATOR_H
 #define MEDIATREE_NODE_ENUMERATOR_H 1
 
-#include "libutil/counted_object.h"
-#include "libdb/db.h"
+#include "node.h"
 #include <string>
 #include "libutil/trace.h"
 
@@ -21,7 +20,7 @@ public:
     {}
 
     bool IsValid() { return m_iter != m_end; }
-    NodePtr Get() { TRACE << "getting\n"; return *m_iter; }
+    NodePtr Get() { return *m_iter; }
     void Next() { ++m_iter; }
 };
 

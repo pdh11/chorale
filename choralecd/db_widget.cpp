@@ -29,8 +29,7 @@ DBWidget::DBWidget(QWidget *parent, const std::string& name, QPixmap pm,
 
 void DBWidget::OnTopButton() /* "Open" */
 {
-    mediatree::NodePtr root = mediatree::Root::Create(m_db);
-    new ExplorerWindow(root, m_db, m_registry);
+    new ExplorerWindow(m_db, m_registry);
 }
 
 void DBWidget::OnBottomButton() /* "Close" */

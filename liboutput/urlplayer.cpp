@@ -66,11 +66,24 @@ void GSTPlayer::Impl::Run()
 {
     TRACE << "starting\n";
 
-    int argc = 0;
-    char **argv = { NULL };
-    gst_init(&argc, &argv);
+    gst_init(NULL, NULL);
 
-    m_loop = g_main_loop_new(NULL, false);
+    GMainContext *context = g_main_context_new();
+    GSource *timersource = g_timeout_source_new(500);
+    g_source_set_callback(timersource, &StaticAlarmCallback, this, NULL);
+    g_source_attach(timersource, context);
+
+    m_loop = g_main_loop_new(context, false);
+
+    /* For some reason, gstreamer deadlocks loading the gnomevfs
+     * element if we call set_element_state on playbin from the wrong
+     * thread. (With stock gstreamer-0.10.15, g-p-b 0.10.15, g-p-g
+     * 0.10.6, g-p-u 0.10.6, and even with the Ubuntu 7.10 versions.)
+     *
+     * This problem goes away if we force-load the gnomevfs element first.
+     */    
+    GstElement *gnomevfs = gst_element_factory_make("gnomevfssrc", "temp");
+    gst_object_unref(GST_OBJECT(gnomevfs));
     
     m_play = gst_element_factory_make("playbin", "play");
 
@@ -83,7 +96,6 @@ void GSTPlayer::Impl::Run()
     TRACE << "running\n";
 
     /* now run */
-    g_timeout_add(500, &StaticAlarmCallback, this);
     g_main_loop_run(m_loop);
 
     TRACE << "ran, exiting\n";
@@ -93,6 +105,8 @@ void GSTPlayer::Impl::Run()
     gst_object_unref(GST_OBJECT(m_play));
     g_main_loop_unref(m_loop);
     m_loop = NULL;
+    g_source_destroy(timersource);
+    g_main_context_unref(context);
     gst_deinit();
 
     TRACE << "now falling off thread\n";
@@ -105,7 +119,9 @@ unsigned int GSTPlayer::Impl::SetURL(const std::string& url)
 	m_url = url.c_str(); // Deep copy for thread-safety
 	m_next_url.clear();
     }
+    TRACE << "Calling g_object_set(" << m_url << ")\n";
     g_object_set(G_OBJECT(m_play), "uri", m_url.c_str(), NULL);
+    TRACE << "g_object_set returned\n";
 
     return 0;
 }
@@ -123,6 +139,7 @@ unsigned int GSTPlayer::Impl::SetPlayState(output::PlayState state)
     {
     case PLAY:
     {
+	TRACE << "Calling set_state\n";
 	GstStateChangeReturn sr = gst_element_set_state(m_play, 
 							GST_STATE_PLAYING);
 	TRACE << "set_state returned " << sr << "\n";
@@ -274,23 +291,6 @@ gboolean GSTPlayer::Impl::StaticAlarmCallback(gpointer data)
 
 gboolean GSTPlayer::Impl::OnAlarm()
 {
-    /* For some reason, gstreamer deadlocks if the FIRST time we try and play,
-     * we're on the wrong thread. (With gstreamer-0.10.15, g-p-b 0.10.15,
-     * g-p-g 0.10.6, g-p-u 0.10.6.)
-     *
-     * This problem goes away if we try and play a fake file first on the
-     * GStreamer thread.
-     */
-    static bool doneit = false;
-    if (!doneit)
-    {
-	doneit = true;
-	SetURL("http://127.0.0.1/fake.mp3");
-
-	GstStateChangeReturn sr = gst_element_set_state(m_play, GST_STATE_PAUSED);
-	TRACE << "set_state1 returned " << sr << "\n";
-    }
-
     GstFormat fmt = GST_FORMAT_TIME;
     gint64 ns;
 

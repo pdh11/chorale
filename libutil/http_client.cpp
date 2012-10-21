@@ -20,6 +20,7 @@ static size_t util_http_client_string_callback(void *data,
     std::string *ps = (std::string*) handle;
     size_t realsize = sz*nmemb;
     ps->append((char*)data, realsize);
+    TRACE << "Received " << realsize << " bytes\n";
     return realsize;
 }
 
@@ -49,6 +50,8 @@ unsigned int HttpClient::FetchToString(std::string *presult)
     
     /* cleanup curl stuff */
     curl_easy_cleanup(curl_handle);
+
+    TRACE << "Returned " << presult->length() << " bytes\n";
 
     return 0;
 }
@@ -90,6 +93,7 @@ std::string ResolveURL(const std::string& base,
     ParseURL(base, &basehost, &basepath);
     return basehost + util::MakeAbsolutePath(basepath, linkpath);
 }
+
 
 }; // namespace util
 

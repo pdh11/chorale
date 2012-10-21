@@ -9,6 +9,8 @@
 
 namespace output { class URLPlayer; }
 
+/** Classes implementing UPnP servers
+ */
 namespace upnpd {
 
 class MediaRenderer

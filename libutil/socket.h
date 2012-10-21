@@ -100,6 +100,8 @@ public:
     
     unsigned Listen(unsigned queue = 64);
     unsigned Accept(StreamSocket *accepted);
+
+    unsigned SetCork(bool corked);
 };
 
 }; // namespace util

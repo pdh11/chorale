@@ -79,7 +79,7 @@ doc:
 
 distclean: clean
 	rm -rf config.h Make.config stamp-h config.log config.status \
-		autom4te.cache
+		autom4te.cache libtool
 	find . -name diff.txt -exec rm -f \{} \;
 	find . -name map.txt -exec rm -f \{} \;
 	find . -name '*.dep' -exec rm -f \{} \;
@@ -91,6 +91,8 @@ install: $(choraled) $(choralecd)
 	$(INSTALL) libupnp/AVTransport2.xml $(datadir)/chorale/upnp/AVTransport.xml
 	$(INSTALL) -d $(localstatedir)/chorale
 	$(INSTALL) -s $(choraled) $(bindir)
+
+install-choralecd: $(choralecd)
 	$(INSTALL) -s $(choralecd) $(bindir)
 
 CHORALE:=chorale-$(CHORALE_VERSION)

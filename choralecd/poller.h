@@ -2,6 +2,7 @@
 #define QTPOLLER_H 1
 
 #include "libutil/poll.h"
+#include "libutil/not_thread_safe.h"
 #include <map>
 #include <qsocketnotifier.h>
 
@@ -23,7 +24,7 @@ public slots:
 /** A PollInterface implementation for use with Qt: callbacks will be made on
  * the UI thread.
  */
-class Poller: public util::PollerInterface
+class Poller: public util::PollerInterface, public util::NotThreadSafe
 {
     typedef std::map<int, QSocketNotifier*> map_t;
     map_t m_map;

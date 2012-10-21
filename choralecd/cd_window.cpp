@@ -24,7 +24,8 @@
 #include <qstring.h>
 #include "tagtable.h"
 #include "libimport/ripping_task.h"
-#include "libimport/encoding_task.h"
+#include "libimport/encoding_task_flac.h"
+#include "libimport/encoding_task_mp3.h"
 #include "libimport/eject_task.h"
 #include "libimport/playlist.h"
 #include "events.h"
@@ -218,7 +219,7 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
 	std::string filename = m_settings->GetFlacRoot() + "/" + leaf;
 
 	import::EncodingTaskPtr etp1
-	    = import::FlacEncodingTask::Create(filename + ".flac");
+	    = import::EncodingTaskFlac::Create(filename + ".flac");
 	m_entries[i].etp1 = etp1;
 	m_entries[i].et1_percent = 0;
 	etp1->SetObserver(this);
@@ -226,7 +227,7 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
 	m_settings->GetMP3Root() + "/" + leaf;
 
 	import::EncodingTaskPtr etp2
-	    = import::MP3LameEncodingTask::Create(filename + ".mp3");
+	    = import::EncodingTaskMP3::Create(filename + ".mp3");
 	m_entries[i].etp2 = etp2;
 	m_entries[i].et2_percent = 0;
 	etp2->SetObserver(this);
@@ -270,13 +271,13 @@ static QColor ColourFor(const QString& s)
 
     int opens = 0, closes = 0;
 
-    for (unsigned int pos = 0; pos < s.size(); ++pos)
+    for (unsigned int pos = 0; pos < (unsigned)s.size(); ++pos)
     {
 	QChar ch = s.at(pos);
 
 	if (ch == ' ')
 	{
-	    if (pos+1 == s.size() || s.at(pos+1) == '.')
+	    if (pos+1 == (unsigned)s.size() || s.at(pos+1) == '.')
 	    {
 		TRACE << "trailing space or ' .'\n";
 		return Qt::red;

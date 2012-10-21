@@ -4,6 +4,7 @@
 #include "libdb/free_rs.h"
 #include <sstream>
 #include "libutil/trace.h"
+#include "libutil/urlescape.h"
 #include "libutil/http_client.h"
 #include <boost/tokenizer.hpp>
 
@@ -152,6 +153,8 @@ void Recordset::GetContent()
     util::HttpClient hc(url);
     hc.FetchToString(&content);
 
+    TRACE << "Content is\n" << Hex(content.c_str(), content.length());
+
     /** Binary playlist format, little-endian words.
      *
      * If (word0 & 0xF) == 0, then each word is an ID.
@@ -227,17 +230,21 @@ RestrictionRecordset::RestrictionRecordset(Database *parent,
     }
 
     if (r.is_string)
-	os << r.sval;
+	os << util::URLEscape(r.sval);
     else 
 	os << r.ival;
+
+    os << "&_extended=2&_utf8=1";
 
     std::string url = os.str();
 
     TRACE << "restrict url=" << url << "\n";
     
-    std::string content;
     util::HttpClient hc(url);
     hc.FetchToString(&m_content);
+
+    TRACE << "results content (" << m_content.length() << ") =\n"
+	  << Hex(m_content.c_str(), m_content.length());
     
     m_eof = m_content.empty();
 
@@ -248,7 +255,7 @@ RestrictionRecordset::RestrictionRecordset(Database *parent,
 void RestrictionRecordset::MoveNext()
 {
     ++m_recno;
-    if (m_recno >= (m_content.size()/4))
+    if (m_recno >= (m_content.size()/12))
     {
 	m_eof = true;
 	return;
@@ -258,7 +265,7 @@ void RestrictionRecordset::MoveNext()
 
 void RestrictionRecordset::LoadID()
 {
-    size_t offset = m_recno*4;
+    size_t offset = m_recno*12;
     m_id = (unsigned char)m_content[offset]
 	+ ((unsigned char)m_content[offset+1] << 8)
 	+ ((unsigned char)m_content[offset+2] << 16)

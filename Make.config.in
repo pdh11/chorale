@@ -39,9 +39,11 @@ LIBCDDB_CFLAGS   := @LIBCDDB_CFLAGS@
 LIBCDDB_CXXFLAGS := @LIBCDDB_CFLAGS@
 LIBCDDB_LIBS     := @LIBCDDB_LIBS@
 
-LIBFLAC_CXXFLAGS := @LIBFLACPP_CFLAGS@ @LIBFLAC_CFLAGS@
-LIBFLAC_LIBS     := @LIBFLACPP_LIBS@   @LIBFLAC_LIBS@
+LIBFLAC          := @LIBFLAC@
+LIBFLAC_CXXFLAGS :=
+LIBFLAC_LIBS     := @LIBFLAC_LIBS@
 
+LAME              := @LAME@
 LAME_LIBS         := @LAME_LIBS@
 
 LIBUUID_CXXFLAGS := @LIBUUID_CFLAGS@
@@ -74,8 +76,10 @@ UPNP_LIBS       := @UPNP_LIBS@
 XSLTPROC        := @XSLTPROC@
 
 SRCROOT:=@abs_srcdir@
+top_builddir:=@abs_srcdir@
 
 INSTALL:=@INSTALL@
+LIBTOOL:=@LIBTOOL@
 
 # Overridable on 'make' command line, see Autoconf manual 4.7.2
 prefix=@prefix@

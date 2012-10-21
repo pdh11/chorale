@@ -207,7 +207,10 @@ void WebServer::Task::Run()
 
 	headers += "\r\n";
 
+	m_socket.SetCork(true);
+
 	rc = stream->WriteAll(headers.c_str(), headers.length());
+
 	if (rc != 0)
 	{
 	    TRACE << "Writing headers failed " << rc << "\n";
@@ -216,12 +219,15 @@ void WebServer::Task::Run()
 	if (ssp)
 	{
 	    rc = stream->Copy(ssp);
+
 	    if (rc != 0)
 	    {
 		TRACE << "Writing stream failed " << rc << "\n";
 		return;
 	    }
 	}
+
+	m_socket.SetCork(false);
 
 	if (closing)
 	    return;

@@ -19,7 +19,9 @@ SRCS:=	async_write_buffer.cpp \
 	stream_test.cpp \
 	string_stream.cpp \
 	task.cpp \
+	trace.cpp \
 	upnp.cpp \
+	urlescape.cpp \
 	walker.cpp \
 	web_server.cpp \
 	worker_thread.cpp \
@@ -27,22 +29,23 @@ SRCS:=	async_write_buffer.cpp \
 	xmlescape.cpp
 
 TEST_SRCS:= \
-	line_reader.cpp \
-	partial_stream.cpp \
-	web_server.cpp \
-	xml.cpp \
-	xmlescape.cpp
-
-PLUS:=	async_write_buffer.cpp \
+	async_write_buffer.cpp \
 	dbus.cpp \
 	file.cpp \
 	file_stream.cpp \
 	hal.cpp \
 	http_client.cpp \
+	line_reader.cpp \
 	memory_stream.cpp \
+	partial_stream.cpp \
 	ssdp.cpp \
 	stream.cpp \
 	string_stream.cpp \
+	urlescape.cpp \
+	web_server.cpp \
+	xml.cpp \
+	xmlescape.cpp
+
 
 all-util:
 

@@ -49,7 +49,7 @@ tests: all $(TESTS)
 
 -include .force-header-generation
 
-include $(TOP)Make.config
+-include $(TOP)Make.config
 
 CFLAGS += -DLOCALSTATEDIR=\"$(localstatedir)\" -DDATADIR=\"$(datarootdir)\"
 CXXFLAGS += -DLOCALSTATEDIR=\"$(localstatedir)\" -DDATADIR=\"$(datarootdir)\"
@@ -119,7 +119,7 @@ endif
 
 $(TOP)$(DIR)$(TARGETDIR)%.lo: $(TOP)$(DIR)%.cpp
 	@mkdir -p $(dir $@)
-	$(CC_PRE)libtool --tag=CXX --mode=compile --silent \
+	$(CC_PRE)$(LIBTOOL) --tag=CXX --mode=compile --silent \
 		$(CXX) $(CXXFLAGS) -I$(TOP). -c $< -o $@ \
 		-MD -MF $@.d -MT $@ -MP
 	@tr '.' ',' < $@.d \
@@ -132,7 +132,7 @@ $(TOP)$(DIR)$(TARGETDIR)%.lo: $(TOP)$(DIR)%.cpp
 
 $(TOP)$(DIR)$(TARGETDIR)%.lo: $(TOP)$(DIR)%.c
 	@mkdir -p $(dir $@)
-	$(CC_PRE)libtool --tag=CXX --mode=compile --silent \
+	$(CC_PRE)$(LIBTOOL) --tag=CXX --mode=compile --silent \
 		$(CC) $(CFLAGS) -I$(TOP). -c $< -o $@ \
 		-MD -MF $@.d -MT $@ -MP
 	@tr '.' ',' < $@.d \
@@ -145,7 +145,7 @@ $(TOP)$(DIR)$(TARGETDIR)%.lo: $(TOP)$(DIR)%.c
 
 $(TOP)$(DIR)$(TARGETDIR)%__test: $(TOP)$(DIR)%.cpp
 	@mkdir -p $(dir $@)
-	$(CC_PRE)libtool --tag=CXX --mode=compile --silent \
+	$(CC_PRE)$(LIBTOOL) --tag=CXX --mode=compile --silent \
 		$(CXX) $(CXXFLAGS) -fprofile-arcs -ftest-coverage \
 		-I$(TOP). -DTEST -DSRCROOT=\"$(SRCROOT)\" -O0 -c $< -o $@.lo \
 		-MD -MF $@.d -MT $@ -MP
@@ -156,7 +156,7 @@ $(TOP)$(DIR)$(TARGETDIR)%__test: $(TOP)$(DIR)%.cpp
 		> $@.dd
 	@mv $@.dd $@.dep
 	@rm $@.d
-	$(LD_PRE)libtool --tag=CXX --mode=link --silent \
+	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
 		$(CXX) $(CXXFLAGS) -fprofile-arcs -ftest-coverage \
 		$@.lo $(filter %.la,$^) $(TEST_LIBS) -o $@ -Wl,-Map,$@.map
 	$(RUN_PRE)$(TEST_RUN) $@ || ( echo $@ FAILED ; rm $@ ; false )

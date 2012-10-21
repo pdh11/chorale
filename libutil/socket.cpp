@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <string.h>
 #include <errno.h>
 #include <sstream>
@@ -354,6 +355,8 @@ StreamSocket::StreamSocket()
     : Socket()
 {
     m_fd = ::socket(PF_INET, SOCK_STREAM, 0);
+    int i = 1;
+    ::setsockopt(m_fd, IPPROTO_TCP, TCP_NODELAY, &i, sizeof(i));
 }
 
 StreamSocket::StreamSocket(size_t fd)
@@ -378,6 +381,15 @@ unsigned StreamSocket::Accept(StreamSocket *accepted)
 	return errno;
 //    TRACE << "Accepted fd " << rc << "\n";
     *accepted = StreamSocket(rc);
+    return 0;
+}
+
+unsigned StreamSocket::SetCork(bool corked)
+{
+    int i = corked;
+    int rc = ::setsockopt(m_fd, IPPROTO_TCP, TCP_CORK, &i, sizeof(i));
+    if (rc<0)
+	return errno;
     return 0;
 }
 

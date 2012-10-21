@@ -10,6 +10,7 @@ namespace mediatree {
 Root::Root(db::Database *thedb)
     : m_db(thedb)
 {
+    m_children.push_back(Query::Create(thedb, mediadb::ARTIST, "Artists"));
     m_children.push_back(Query::Create(thedb, mediadb::GENRE, "Genres"));
     m_children.push_back(Directory::Create(thedb, 0x100));
 }

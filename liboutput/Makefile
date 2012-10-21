@@ -1,11 +1,13 @@
 TOP?=../
 DIR:=liboutput/
 SRCS:=\
-	flac.cpp \
-	oss.cpp \
 	queue.cpp \
 	upnp.cpp \
 	urlplayer.cpp
+
+#	flac.cpp \
+#	oss.cpp \
+#
 
 all-liboutput:
 
@@ -20,7 +22,7 @@ liboutput:=$(TOP)$(DIR)$(TARGETDIR)liboutput.la
 all-liboutput: $(liboutput)
 
 $(TOP)$(DIR)% : CXXFLAGS += $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) \
-	$(LIBCDIOP_CXXFLAGS) $(LIBFLAC_CXXFLAGS) $(LIBXMLPP_CXXFLAGS) \
+	$(LIBCDIOP_CXXFLAGS) $(LIBXMLPP_CXXFLAGS) \
 	$(GSTREAMER_CXXFLAGS)
 
 ifeq ($(libutil),)

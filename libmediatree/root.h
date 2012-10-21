@@ -23,6 +23,7 @@ public:
     static NodePtr Create(db::Database*);
 
     std::string GetName();
+    bool IsCompound() { return true; }
     bool HasCompoundChildren();
 
     EnumeratorPtr GetChildren();
