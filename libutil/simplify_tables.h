@@ -109,7 +109,7 @@ const Table tables[] =
     { 0, 0, NULL }
 };
 
-const unsigned int tablecount = sizeof(tables)/sizeof(*tables);
+const unsigned int tablecount = unsigned(sizeof(tables)/sizeof(*tables));
 
 } // namespace util::simplify
 

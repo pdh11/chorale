@@ -604,7 +604,10 @@ PDH_PKGCONFIG(MPG123,    libmpg123, 1.2.0, $disable_lgpl)
 PDH_CHECK_CDPARANOIA
 PDH_PKGCONFIG(AVFORMAT,  libavformat, 50.0.0, $disable_lgpl)
 PDH_CHECK_TCP_WRAPPERS
-PDH_PKGCONFIG(GSTREAMER, gstreamer-0.10, 0.10.13, $disable_lgpl)
+PDH_PKGCONFIG(GSTREAMER, gstreamer-1.0, 1.0, $disable_lgpl)
+if test "$GSTREAMER" == "no"; then
+  PDH_PKGCONFIG(GSTREAMER, gstreamer-0.10, 0.10.13, $disable_lgpl)
+fi
 PDH_PKGCONFIG(LIBCDIOP,  libcdio_paranoia, 0.76,  $disable_gpl)
 
 # NB do NOT use LIBFLAC_CFLAGS/LIBFLACPP_CFLAGS -- they introduce a directory

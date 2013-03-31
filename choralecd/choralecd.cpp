@@ -58,7 +58,7 @@ int Main(int argc, char *argv[])
     disk_pool.PushTask(util::SchedulerTask::Create(&bg_poller));
 
     util::hal::Context *halp = NULL;
-#if HAVE_HAL
+#if HAVE_HAL && 0
     util::dbus::Connection dbusc(&fg_poller);
     unsigned int res = dbusc.Connect(util::dbus::Connection::SYSTEM);
     if (res)

@@ -525,7 +525,7 @@ gboolean URLPlayer::Impl::OnAlarm()
     GstFormat fmt = GST_FORMAT_TIME;
     gint64 ns;
 
-    if (gst_element_query_position(m_play, &fmt, &ns))
+    if (gst_element_query_position(m_play, fmt, &ns))
     {
 	unsigned int timecode = (unsigned int)(ns / 1000000000); // ns to s
 	if (timecode != m_last_timecode_sec)
