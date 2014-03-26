@@ -76,16 +76,19 @@ bool DirExists(const char *dirname)
 
 unsigned MakeRelativeLink(const std::string& from, const std::string& to)
 {
-    if (from.empty() || to.empty() || from[0] != '/' || to[0] != '/')
+    if (from.empty() || to.empty() || from[0] != '/' || to[0] != '/') {
 	return EINVAL;
+    }
 
     std::string thelink = MakeRelativePath(from, to);
 
 //    TRACE << "from=" << from << " to=" << to << " link=" << thelink << "\n";
 
     int rc = symlink(thelink.c_str(), from.c_str());
-    if (rc < 0)
+    if (rc < 0) {
+        perror("symlink");
 	return (unsigned)errno;
+    }
     return 0;
 }
 

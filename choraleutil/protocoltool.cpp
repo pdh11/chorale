@@ -10,12 +10,16 @@
 #include "libdb/recordset.h"
 #include "libempeg/discovery.h"
 #include "libempeg/protocol_client.h"
+#include "libkarma/protocol_client.h"
+#include "libutil/string_stream.h"
 #include "libutil/scheduler.h"
 #include "libutil/socket.h"
 #include "libutil/file_stream.h"
+#include "libutil/http.h"
 #include "libutil/http_server.h"
 #include "libutil/http_client.h"
 #include "libutil/worker_thread_pool.h"
+#include "libupnp/ssdp.h"
 #include <getopt.h>
 #include <stdlib.h>
 #if HAVE_SYS_TIME_H
@@ -25,6 +29,8 @@
 /** Command-line program for Empeg protocol operations (eg for car-players).
  */
 namespace protocoltool {
+
+namespace {
 
 static bool dry_run = false;
 static bool do_scan = false;
@@ -114,13 +120,15 @@ void FindDevice()
 
 /** Callback that lists all responding devices.
  */
-struct ScanCallback: public empeg::Discovery::Callback
+struct ScanCallback: public empeg::Discovery::Callback,
+                     public upnp::ssdp::Responder::Callback
 {
     bool any;
 
     ScanCallback() : any(false) {}
 
     void OnDiscoveredEmpeg(const util::IPAddress& ip, const std::string& name);
+    void OnService(const std::string& descurl, const std::string& udn);
 };
 
 void ScanCallback::OnDiscoveredEmpeg(const util::IPAddress& ip, 
@@ -204,16 +212,57 @@ void ScanCallback::OnDiscoveredEmpeg(const util::IPAddress& ip,
 	any = true;
 }
 
+void ScanCallback::OnService(const std::string& descurl,
+                             const std::string&)
+{
+    std::string host;
+    util::IPEndPoint ipe;
+    std::string path;
+    util::http::ParseURL(descurl, &host, &path);
+    std::string hostonly;
+    util::http::ParseHost(host, 8302, &hostonly, &ipe.port);
+    ipe.addr = util::IPAddress::Resolve(hostonly.c_str());
+    if (ipe.addr.addr == 0)
+	return;
+
+    printf("Found karma on %s\n", ipe.ToString().c_str());
+
+    if (do_full_scan) {
+        karma::ProtocolClient pc;
+        unsigned rc = pc.Init(ipe);
+        if (rc == 0) {
+            printf("Karma OK\n");
+            rc = pc.RequestIOLock(false);
+            if (rc == 0) {
+                printf("Lock OK\n");
+                std::auto_ptr<util::Stream> stream;
+                rc = util::OpenFileStream("karma.txt", util::WRITE, &stream);
+                if (rc == 0) {
+                    printf("file OK\n");
+                    rc = pc.GetAllFileDetails(stream.get());
+                    if (rc == 0) {
+                        printf("GAFD OK\n");
+                    }
+                }
+            }
+        }
+    }
+    
+    any = true;
+}
+
 static int Scan()
 {
     util::BackgroundScheduler poller;
     empeg::Discovery disc;
+    upnp::ssdp::Responder resp(&poller, NULL);
     ScanCallback sc;
     disc.Init(&poller, &sc);
+    resp.Search("urn:empeg-com:protocol2", &sc);
 
     time_t t = time(NULL);
 
-    while ((time(NULL) - t) < 5)
+    while ((time(NULL) - t) < 3)
     {
 	poller.Poll(1000);
     }
@@ -554,6 +603,8 @@ int Main(int argc, char *argv[])
     
     return 0;
 }
+
+} // anon namespace
 
 } // namespace protocoltool
 

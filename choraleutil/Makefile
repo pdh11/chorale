@@ -63,11 +63,17 @@ endif
 ifeq ($(libempeg),)
 include $(TOP)libempeg/Makefile
 endif
+ifeq ($(libkarma),)
+include $(TOP)libkarma/Makefile
+endif
 ifeq ($(libdbsteam),)
 include $(TOP)libdbsteam/Makefile
 endif
 ifeq ($(libmediadb),)
 include $(TOP)libmediadb/Makefile
+endif
+ifeq ($(libupnp),)
+include $(TOP)libupnp/Makefile
 endif
 ifeq ($(libdbempeg),)
 include $(TOP)libdbempeg/Makefile
@@ -109,11 +115,13 @@ $(pparse): $(PPARSE_OBJS) $(libimport) $(libutil) Makefile
 
 $(protocoltool): $(PROTOCOLTOOL_OBJS) \
 		$(libdbempeg) $(libimport) $(libdblocal) \
-		$(libmediadb) $(libdbsteam) $(libdb) $(libempeg) $(libutil)
+		$(libmediadb) $(libdbsteam) $(libdb) $(libempeg) $(libkarma) \
+		$(libupnp) $(libutil)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
 		$(CXX) -o $@ $(LDFLAGS) $(PROTOCOLTOOL_OBJS) \
 		$(libdbempeg) $(libdblocal) $(libimport) \
-		$(libmediadb) $(libdbsteam) $(libdb) $(libempeg) $(libutil) \
+		$(libmediadb) $(libdbsteam) $(libdb) $(libempeg) $(libkarma) \
+		$(libupnp) $(libutil) \
 		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS)
 	@$(STRIP) $@
 

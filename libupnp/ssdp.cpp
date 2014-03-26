@@ -432,6 +432,8 @@ unsigned Responder::Task::OnPacket(const std::string& packet,
 		std::string::size_type colons = value.find("::");
 		if (colons != std::string::npos)
 		    udn.assign(value, 0, colons);
+                else
+                    udn = value;
 	    }
 	    else if (!strcasecmp(key.c_str(), "NTS"))
 	    {
@@ -440,13 +442,13 @@ unsigned Responder::Task::OnPacket(const std::string& packet,
 	    }
 	} while (!key.empty());
 
-//	    TRACE << (verb == "NOTIFY" ? "notify" : "reply") << " from " << wasfrom.ToString() << " to "
-//		  << wasto.ToString() << ": " << service << "\n";
+//        TRACE << (verb == "NOTIFY" ? "notify" : "reply") << " from " << wasfrom.ToString() << " to "
+//              << wasto.ToString() << ": " << service << "\n";
 
 	if (!service.empty() && !location.empty() && !udn.empty())
 	{
-//		TRACE << "Service " << service << " found at '"
-//		      << location << "' in id '" << udn << "'\n";
+//            TRACE << "Service " << service << " found at '"
+//                  << location << "' in id '" << udn << "'\n";
 
 	    if (m_map.find(service) != m_map.end())
 	    {

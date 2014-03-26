@@ -25,9 +25,10 @@ static void Usage(FILE *f)
 "given music collection.\n"
 "\n"
 "The options are:\n"
-" -f, --dbfile=FILE  Database file (default=" DEFAULT_DB_FILE "\n"
+" -f, --dbfile=FILE  Database file (default=\"" DEFAULT_DB_FILE "\")\n"
 " -h, --help         These hastily-scratched notes\n"
 " -t, --threads=N    Use N threads to scan files (default NCPUS*2)\n"
+" -k, --karma        Write Rio Karma file structure\n"
 	    "\n"
 "From chorale " PACKAGE_VERSION " built on " __DATE__ ".\n"
 	);
@@ -38,7 +39,7 @@ typedef std::map<unsigned int, unsigned int> fidmap_t;
 static fidmap_t fidmap;
 static unsigned int next_fid = 0x120;
 
-void PreAllocateFIDs(db::Database *thedb, int type)
+static void PreAllocateFIDs(db::Database *thedb, int type)
 {
     db::QueryPtr qp = thedb->CreateQuery();
     qp->Where(qp->Restrict(mediadb::TYPE, db::EQ, type));
@@ -109,16 +110,49 @@ static void MaybeWriteInt(FILE *f, db::RecordsetPtr rs, const char *tag,
     fprintf(f, "%s=%u\n", tag, val);
 }
 
-void WriteFIDStructure(const char *outputdir, db::Database *thedb)
+static std::string EscapeKarmaPlaylist(const std::vector<unsigned int> *playlist)
+{
+    std::string s;
+    s.reserve(playlist->size()*16);
+    char buffer[8];
+    for (unsigned int i=0; i<playlist->size(); ++i) {
+        union {
+            unsigned u;
+            char c[4];
+        } u;
+        u.u = (*playlist)[i];
+        for (unsigned int j=0; j<4; ++j) {
+            char c = u.c[j];
+            if (c == '\\') {
+                s += "\\\\";
+            } else if (c == '\n') {
+                s += "\\n";
+            } else if (c >= 32) {
+                s += c;
+            } else {
+                sprintf(buffer, "\\x%02x", (unsigned char)c);
+                s += buffer;
+            }
+        }
+    }
+    return s;
+}
+
+static void WriteFIDStructure(const char *odir, db::Database *thedb,
+                              bool karma)
 {
     fidmap[0x100] = 0x100;
+
+    std::string outputdir(util::posix::Canonicalise(odir));
 
     // Allocate tunes first, to cause minimum pressure on dynamic data area
     PreAllocateFIDs(thedb, mediadb::TUNE);
     PreAllocateFIDs(thedb, mediadb::SPOKEN);
     printf("Highest tune fid: 0x%x\n", next_fid - 0x10);
-    PreAllocateFIDs(thedb, mediadb::DIR);
-    PreAllocateFIDs(thedb, mediadb::PLAYLIST);
+    if (!karma) {
+        PreAllocateFIDs(thedb, mediadb::DIR);
+        PreAllocateFIDs(thedb, mediadb::PLAYLIST);
+    }
     printf("Highest fid: 0x%x\n", next_fid - 0x10);
 
     uint64_t drivesize[2];
@@ -130,12 +164,19 @@ void WriteFIDStructure(const char *outputdir, db::Database *thedb)
 	db::QueryPtr qp = thedb->CreateQuery();
 	qp->Where(qp->Restrict(mediadb::ID, db::EQ, i->first));
 	db::RecordsetPtr rs = qp->Execute();
-	if (rs && !rs->IsEOF())
+	if (rs && !rs->IsEOF() && i->second)
 	{
 	    unsigned int destfid = i->second;
 	    std::string s = outputdir;
 	    char outputleaf[40];
-	    unsigned int drive = (drivesize[0] > drivesize[1]) ? 1 : 0;
+	    unsigned int drive;
+            std::string playlist;
+
+            if (karma) {
+                drive = 0;
+            } else {
+                drive = (drivesize[0] > drivesize[1]) ? 1 : 0;
+            }
 	    sprintf(outputleaf, "/drive%u/_%05x/%03x", drive^1,
 		    destfid/4096, destfid & 4095);
 	    unlink((s+outputleaf).c_str());
@@ -148,8 +189,13 @@ void WriteFIDStructure(const char *outputdir, db::Database *thedb)
 	    
 	    unsigned int type = rs->GetInteger(mediadb::TYPE);
 	    unsigned int length;
+
+            printf("type=%u (%u)\n", type, mediadb::TUNE);
+
 	    if (type == mediadb::TUNE || type == mediadb::SPOKEN)
-	    {
+	    {   
+                printf("type=tune\n");
+                
 		unsigned int highfid = rs->GetInteger(mediadb::IDHIGH);
 		if (highfid)
 		{
@@ -162,6 +208,7 @@ void WriteFIDStructure(const char *outputdir, db::Database *thedb)
 			TRACE << "Highfid " << highfid << " failed ("
 			      << rs->GetString(mediadb::IDHIGH) << ")\n";
 		}
+                printf("path=%s\n", rs->GetString(mediadb::PATH).c_str());
 		util::posix::MakeRelativeLink(s+outputleaf,
 					      rs->GetString(mediadb::PATH));
 		drivesize[drive] += rs->GetInteger(mediadb::SIZEBYTES);
@@ -170,8 +217,41 @@ void WriteFIDStructure(const char *outputdir, db::Database *thedb)
 	    else
 	    {
 		std::vector<unsigned int> children;
-		mediadb::ChildrenToVector(rs->GetString(mediadb::CHILDREN),
-					  &children);
+                if (karma) {
+                    printf("karmaplaylist\n");
+                    std::vector<unsigned int> rawChildren;
+                    mediadb::ChildrenToVector(rs->GetString(mediadb::CHILDREN),
+                                              &rawChildren);
+                    children.reserve(rawChildren.size()*2 + 1);
+                    children.push_back(0x2ff); // new-type-playlist marker
+                    for (std::vector<unsigned int>::const_iterator j = rawChildren.begin();
+                         j != rawChildren.end();
+                         ++j) {
+                        if (*j) {
+                            unsigned lefid = fidmap[*j];
+                            if (lefid) {
+                                children.push_back(lefid);
+                                children.push_back(1); // "fid generation"
+                            }
+                        }
+                    }
+                    playlist = EscapeKarmaPlaylist(&children);
+                } else {
+                    std::vector<unsigned int> rawChildren;
+                    mediadb::ChildrenToVector(rs->GetString(mediadb::CHILDREN),
+                                              &rawChildren);
+                    children.reserve(rawChildren.size());
+                    for (std::vector<unsigned int>::const_iterator j = rawChildren.begin();
+                         j != rawChildren.end();
+                         ++j) {
+                        if (*j) {
+                            unsigned lefid = fidmap[*j];
+                            if (lefid) {
+                                children.push_back(lefid);
+                            }
+                        }
+                    }
+                }
 
 		length = 0;
 		FILE *f = fopen((s+outputleaf).c_str(), "w");
@@ -179,13 +259,8 @@ void WriteFIDStructure(const char *outputdir, db::Database *thedb)
 		{
 		    for (unsigned int j=0; j<children.size(); ++j)
 		    {
-			if (children[j])
-			{
-			    uint32_t lefid;
-			    lefid = fidmap[children[j]];
-			    if (lefid)
-				length += (unsigned int)fwrite(&lefid, 1, 4, f);
-			}
+                        unsigned lefid = children[j];
+                        length += (unsigned int)fwrite(&lefid, 1, 4, f);
 		    }
 		    fclose(f);
 		}
@@ -224,7 +299,14 @@ void WriteFIDStructure(const char *outputdir, db::Database *thedb)
 		    MaybeWriteString(f, rs, "source", mediadb::ALBUM);
 		    MaybeWriteInt(f, rs, "tracknr", mediadb::TRACKNUMBER);
 		    MaybeWriteInt(f, rs, "year",    mediadb::YEAR);
-		}
+                    if (karma) {
+                        MaybeWriteInt(f, rs, "ctime", mediadb::CTIME);
+                        fprintf(f, "fid_generation=1\n");
+                    }
+		} else if (karma) {
+                    fprintf(f, "playlist=%s\n", playlist.c_str());
+                    fprintf(f, "fid_generation=1\n");
+                }
 
 		fclose(f);
 	    }
@@ -240,6 +322,7 @@ int main(int argc, char *argv[])
     static const struct option options[] =
     {
 	{ "help",  no_argument, NULL, 'h' },
+	{ "karma",  no_argument, NULL, 'k' },
 	{ "threads", required_argument, NULL, 't' },
 	{ "dbfile", required_argument, NULL, 'f' },
 	{ NULL, 0, NULL, 0 }
@@ -247,10 +330,11 @@ int main(int argc, char *argv[])
 
     int nthreads = 0;
     const char *dbfile = DEFAULT_DB_FILE;
+    bool karma = false;
 
     int option_index;
     int option;
-    while ((option = getopt_long(argc, argv, "ht:f:", options, &option_index))
+    while ((option = getopt_long(argc, argv, "ht:f:k", options, &option_index))
 	   != -1)
     {
 	switch (option)
@@ -264,6 +348,9 @@ int main(int argc, char *argv[])
 	case 'f':
 	    dbfile = optarg;
 	    break;
+        case 'k':
+            karma = true;
+            break;
 	default:
 	    Usage(stderr);
 	    return 1;
@@ -316,7 +403,7 @@ int main(int argc, char *argv[])
 
     TRACE << "arranging\n";
 
-    WriteFIDStructure(outputdir, &sdb);
+    WriteFIDStructure(outputdir, &sdb, karma);
 #endif
 
     return 0;
