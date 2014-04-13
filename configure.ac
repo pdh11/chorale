@@ -416,6 +416,18 @@ AC_DEFUN([PDH_CHECK_CDPARANOIA],[
 #
 AC_DEFUN([PDH_CHECK_BOOST], [
   AC_MSG_CHECKING([for Boost])
+    # We also need boost-system, but only if it's present (newer Boost)
+    BOOST_SYSTEM=
+    for i in -lboost_system-mt -lboost_system ; do
+      ok_LIBS=$LIBS
+      LIBS="$LIBS $i"
+      AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+]],
+[[
+]])],
+	[BOOST_SYSTEM=$i ; break],[])
+      LIBS=$ok_LIBS
+    done
   if test "$WIN32" = "yes" ; then
     MAYBE_BOOST_THREAD="-lboost_thread_win32-mt -lboost_thread_win32 -lboost_thread-mt -lboost_thread"
   else
@@ -425,7 +437,7 @@ AC_DEFUN([PDH_CHECK_BOOST], [
   BOOST_THREAD=
   for i in $MAYBE_BOOST_THREAD ; do
     ok_LIBS=$LIBS
-    LIBS="$LIBS $i"
+    LIBS="$LIBS $i $BOOST_SYSTEM"
     AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <boost/thread.hpp>
 ]],
 [[
@@ -441,7 +453,7 @@ AC_DEFUN([PDH_CHECK_BOOST], [
     BOOST_REGEX=
     for i in -lboost_regex-mt -lboost_regex ; do
       ok_LIBS=$LIBS
-      LIBS="$LIBS $i"
+      LIBS="$LIBS $i $BOOST_SYSTEM"
       AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <boost/regex.hpp>
 ]],
 [[
@@ -449,18 +461,6 @@ AC_DEFUN([PDH_CHECK_BOOST], [
 	boost::regex_match("afooa", rx);
 ]])],
 	[BOOST_REGEX=$i ; break],[])
-      LIBS=$ok_LIBS
-    done
-    # We also need boost-system, but only if it's present (newer Boost)
-    BOOST_SYSTEM=
-    for i in -lboost_system-mt -lboost_system ; do
-      ok_LIBS=$LIBS
-      LIBS="$LIBS $i"
-      AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-]],
-[[
-]])],
-	[BOOST_SYSTEM=$i ; break],[])
       LIBS=$ok_LIBS
     done
     if test "$BOOST_REGEX" = "" ; then
