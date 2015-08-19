@@ -134,14 +134,16 @@ int Compare(const char *s1, const char *s2, bool total)
 	if (!sc1)
 	{
 	    c1 = 0;
-	    continue;
 	}
 	sc2 = Simplify(c2);
 	if (!sc2)
 	{
 	    c2 = 0;
-	    continue;
 	}
+
+        if (!c1 || !c2) {
+            continue;
+        }
 	
 	bool digit1 = c1 >= '0' && c1 <= '9';
 	bool digit2 = c2 >= '0' && c2 <= '9';
@@ -237,6 +239,7 @@ static const struct {
     { "01", "10", -2 },
     { "01 Foo", "02 Bar", -2 },
     { "01 Foo", "10 Foo", -2 },
+    { "L.E.F.", "L.E.F.", 0 },
 };
 
 int main()
