@@ -391,19 +391,21 @@ void SaxParser::Parse()
         /* Internals of table-driven parser */
 
 
-namespace internals {
+namespace details {
+
+namespace {
 
 class TableDrivenParser: public SaxParserObserver
 {
     void *m_target;
-    const internals::Data *m_current;
-    std::list<const internals::Data*> m_table_stack;
+    const details::Data *m_current;
+    std::list<const details::Data*> m_table_stack;
     std::list<void*> m_target_stack;
     unsigned int m_ignore;
     std::string m_content;
 
 public:
-    TableDrivenParser(void *target, const internals::Data *table)
+    TableDrivenParser(void *target, const details::Data *table)
 	: m_target(target),
 	  m_current(table),
 	  m_ignore(0)
@@ -414,7 +416,7 @@ public:
     {
     }
 
-    unsigned int OnBegin(const char *tag)
+    unsigned int OnBegin(const char *tag) override
     {
 	m_content.clear();
 
@@ -445,8 +447,7 @@ public:
 	return 0;
     }
 
-    unsigned int OnAttribute(const char *name,
-			     const char *value)
+    unsigned int OnAttribute(const char *name, const char *value) override
     {
 	if (m_current && !m_ignore)
 	{
@@ -462,14 +463,14 @@ public:
 	return 0;
     }
 
-    unsigned int OnContent(const char *content)
+    unsigned int OnContent(const char *content) override
     {
 	if (m_current)
 	    m_content += content;
 	return 0;
     }
 
-    unsigned int OnEnd(const char *)
+    unsigned int OnEnd(const char *) override
     {
 	if (m_ignore)
 	{
@@ -495,22 +496,20 @@ public:
     }
 };
 
+} // anon namespace
+
 unsigned int Parse(util::Stream *sp, void *target,
-		   const internals::Data *table)
+		   const details::Data *table)
 {
     TableDrivenParser tdp(target, table);
     SaxParser saxp(&tdp);
     return saxp.Parse(sp);
 }
 
-const Data *const Children<NullSelector, NullSelector,
-			   NullSelector, NullSelector,
-			   NullSelector, NullSelector, 
-			   NullSelector, NullSelector>::data[] = {
-    NULL
-};
+template<>
+const Data *const ArrayHelper<>::data[] = {NULL};
 
-} // namespace internals
+} // namespace details
 
 /** @page xml XML parsing in C++
 
@@ -547,9 +546,9 @@ public:
     }
 };
 
-extern const char WPL[] = "wpl";
-extern const char MEDIA[] = "media";
-extern const char SRC[] = "src";
+constexpr const char WPL[] = "wpl";
+constexpr const char MEDIA[] = "media";
+constexpr const char SRC[] = "src";
 
 typedef xml::Parser<xml::Tag<WPL,
 			     xml::Tag<MEDIA,
@@ -577,7 +576,7 @@ from these functions is the usual Chorale way of indicating an error:
 (As is often the case with DSELs in C++, some technicalities leak out
 into the user-experience: in this case, string literals are not
 allowed as template parameters, and nor are objects with internal
-linkage, so we must declare \c extern objects corresponding to each of
+linkage, so we must declare \c constexpr objects corresponding to each of
 the strings we want to look for. Also, in the invocation of
 xml::Attribute, C++ isn't able to deduce the type "WPLReader" from the
 method pointer "&WPLReader::OnMediaSrc", or vice versa, so "WPLReader"
@@ -727,8 +726,8 @@ muddled somewhere.
 
 The generated XML parsers are extremely compact, both in static and
 dynamic memory usage. The actual parsing is done by the xml::SaxParser
-class, via an adaptor (xml::internals::TableDrivenParser) which follows tables
-(xml::internals::Data) telling it what to do on encountering the various tags.
+class, via an adaptor (xml::details::TableDrivenParser) which follows tables
+(xml::details::Data) telling it what to do on encountering the various tags.
 
 Each template invocation corresponds to one table entry, which on
 	   i686-linux is 20 bytes (plus the \c char* storage for the tag name). Tables are const, and so end up in the \c rodata segment. The size of an xml::Parser is also very small
@@ -765,8 +764,8 @@ don't actually contain the pointers-to-members shown above, but instead
 pointers to functions (such as TagMember::OnText) that do the upcast
 from \c void* and reference the correct member.
 
-Tables up to eight entries wide are supported; due to the lack of array or ellipsis ("...") support in template parameters, the tables are sized explicitly, using the dummy class NullSelector to signify absent entries, and then specialising the table type (xml::internals::Data)
-on the number of non-NullSelector entries present.
+Now that the code uses C++14 and its variadic template support, the
+previous restriction on table sizes (eight) has been lifted.
 
  */
 
@@ -787,9 +786,9 @@ public:
     }
 };
 
-extern const char WPL[] = "wpl";
-extern const char MEDIA[] = "media";
-extern const char SRC[] = "src";
+constexpr const char WPL[] = "wpl";
+constexpr const char MEDIA[] = "media";
+constexpr const char SRC[] = "src";
 
 typedef xml::Parser<xml::Tag<WPL,
 			     xml::Tag<MEDIA,
@@ -825,23 +824,23 @@ struct DescObserver
     Device root_device;
 };
 
-extern const char SERVICELIST[] = "serviceList";
-extern const char SERVICE[] = "service";
-extern const char SERVICE_TYPE[] = "serviceType"; // clashes with winsock2.h
-extern const char SERVICEID[] = "serviceId";
-extern const char CONTROLURL[] = "controlURL";
-extern const char EVENTSUBURL[] = "eventSubURL";
-extern const char SCPDURL[] = "SCPDURL";
-extern const char UDN[] = "UDN";
-extern const char FRIENDLYNAME[] = "friendlyName";
-extern const char PRESENTATIONURL[] = "presentationURL";
-extern const char FRINK[] = "frink";
-extern const char PTANG[] = "ptang";
+constexpr const char SERVICELIST[] = "serviceList";
+constexpr const char SERVICE[] = "service";
+constexpr const char SERVICE_TYPE[] = "serviceType"; // clashes with winsock2.h
+constexpr const char SERVICEID[] = "serviceId";
+constexpr const char CONTROLURL[] = "controlURL";
+constexpr const char EVENTSUBURL[] = "eventSubURL";
+constexpr const char SCPDURL[] = "SCPDURL";
+constexpr const char UDN[] = "UDN";
+constexpr const char FRIENDLYNAME[] = "friendlyName";
+constexpr const char PRESENTATIONURL[] = "presentationURL";
+constexpr const char FRINK[] = "frink";
+constexpr const char PTANG[] = "ptang";
 
-extern const char ROOT[] = "root";
-extern const char URLBASE[] = "URLBase";
-extern const char DEVICE[] = "device";
-extern const char DEVICETYPE[] = "deviceType";
+constexpr const char ROOT[] = "root";
+constexpr const char URLBASE[] = "URLBase";
+constexpr const char DEVICE[] = "device";
+constexpr const char DEVICETYPE[] = "deviceType";
 
 typedef xml::Parser<
     xml::Tag<ROOT,

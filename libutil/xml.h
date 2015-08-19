@@ -68,29 +68,39 @@ public:
     unsigned int WriteAll(const void *buffer, size_t len);
 };
 
-class NullSelector;
+namespace details {
 
-namespace internals {
+typedef unsigned int (*TextFn)(void*, const std::string&);
+typedef void* (*StructureBeginFn)(void *prev_target);
 
-struct Data;
+struct Data {
+    const char *name;
+    TextFn text;
+    StructureBeginFn sbegin;
+    size_t n;
+    const Data *const *children;
+
+    bool IsAttribute() const { return children == NULL; }
+};
+
+template <typename... Selectors>
+struct ArrayHelper
+{
+    static const Data *const data[];
+};
+
+template <typename... Selectors>
+constexpr const Data *const ArrayHelper<Selectors...>::data[] = {
+    &Selectors::data...
+};
+
+template<>
+constexpr const Data *const ArrayHelper<>::data[];
 
 unsigned int Parse(util::Stream*, void *target,
 		   const Data *table);
 
-}
-
-template <typename T1, typename T2>
-class AssertSame;
-
-template <typename T>
-class AssertSame<T, T> {};
-
-template <class Selector, class Target>
-class AssertCorrectTargetType
-    : public AssertSame<Target, typename Selector::Target> {};
-
-template <class Target>
-class AssertCorrectTargetType<NullSelector, Target> {};
+} // namespace details
 
 
         /* Parser */
@@ -104,15 +114,26 @@ class AssertCorrectTargetType<NullSelector, Target> {};
  * @param Selector0 Contained tags
  * @param Selector1 ...
  */
-template <class Selector0,
-	  class Selector1 = NullSelector,
-	  class Selector2 = NullSelector,
-	  class Selector3 = NullSelector,
-	  class Selector4 = NullSelector,
-	  class Selector5 = NullSelector,
-	  class Selector6 = NullSelector,
-	  class Selector7 = NullSelector>
-class Parser;
+template <typename Selector, typename... Selectors>
+class Parser
+{
+public:
+    typedef typename Selector::Target Target;
+
+    static const details::Data data;
+
+    unsigned int Parse(util::Stream *s, Target *obs)
+    {
+	return details::Parse(s, (void*)obs, &data);
+    }
+};
+
+template <typename Selector0, typename... Selectors>
+constexpr const details::Data Parser<Selector0, Selectors...>::data = {
+    NULL, NULL, NULL,
+    sizeof...(Selectors) + 1,
+    details::ArrayHelper<Selector0, Selectors...>::data
+};
 
 
         /* Tag */
@@ -127,29 +148,20 @@ class Parser;
  * @param Selector0 Contained tags
  * @param Selector1 ...
  */
-template <const char *name,
-	  class Selector0,
-	  class Selector1 = NullSelector,
-	  class Selector2 = NullSelector,
-	  class Selector3 = NullSelector,
-	  class Selector4 = NullSelector,
-	  class Selector5 = NullSelector,
-	  class Selector6 = NullSelector,
-	  class Selector7 = NullSelector>
+template <const char *name, typename Selector, typename... Selectors>
 class Tag
 {
 public:
-    typedef typename Selector0::Target Target;
+    typedef typename Selector::Target Target;
 
-    AssertCorrectTargetType<Selector1, Target> assert1;
-    AssertCorrectTargetType<Selector2, Target> assert2;
-    AssertCorrectTargetType<Selector3, Target> assert3;
-    AssertCorrectTargetType<Selector4, Target> assert4;
-    AssertCorrectTargetType<Selector5, Target> assert5;
-    AssertCorrectTargetType<Selector6, Target> assert6;
-    AssertCorrectTargetType<Selector7, Target> assert7;
+    static const details::Data data;
+};
 
-    static const internals::Data data;
+template <const char *name, typename Selector0, typename... Selectors>
+const details::Data Tag<name, Selector0, Selectors...>::data = {
+    name, NULL, NULL,
+    sizeof...(Selectors) + 1,
+    details::ArrayHelper<Selector0, Selectors...>::data
 };
 
 
@@ -169,33 +181,27 @@ public:
  */
 template <const char *name,
 	  class T, unsigned int (T::*fn)(const std::string&),
-	  class Selector0 = NullSelector, 
-	  class Selector1 = NullSelector,
-	  class Selector2 = NullSelector,
-	  class Selector3 = NullSelector,
-	  class Selector4 = NullSelector,
-	  class Selector5 = NullSelector,
-	  class Selector6 = NullSelector,
-	  class Selector7 = NullSelector>
+          typename... Selectors>
 class TagCallback
 {
     static unsigned int OnText(void *obs, const std::string& s)
     {
 	return (((T*)obs)->*fn)(s);
     }
+
 public:
     typedef T Target;
 
-    AssertCorrectTargetType<Selector0, Target> assert0;
-    AssertCorrectTargetType<Selector1, Target> assert1;
-    AssertCorrectTargetType<Selector2, Target> assert2;
-    AssertCorrectTargetType<Selector3, Target> assert3;
-    AssertCorrectTargetType<Selector4, Target> assert4;
-    AssertCorrectTargetType<Selector5, Target> assert5;
-    AssertCorrectTargetType<Selector6, Target> assert6;
-    AssertCorrectTargetType<Selector7, Target> assert7;
+    static const details::Data data;
+};
 
-    static const internals::Data data;
+template <const char *name,
+	  class T, unsigned int (T::*fn)(const std::string&),
+          typename... Selectors>
+const details::Data TagCallback<name, T, fn, Selectors...>::data = {
+    name, &OnText, NULL,
+    sizeof...(Selectors),
+    details::ArrayHelper<Selectors...>::data
 };
 
 
@@ -215,14 +221,7 @@ public:
  */
 template <const char *name,
 	  class T, std::string (T::*pmem),
-	  class Selector0 = NullSelector, 
-	  class Selector1 = NullSelector,
-	  class Selector2 = NullSelector,
-	  class Selector3 = NullSelector,
-	  class Selector4 = NullSelector,
-	  class Selector5 = NullSelector,
-	  class Selector6 = NullSelector,
-	  class Selector7 = NullSelector>
+          typename... Selectors>
 class TagMember
 {
     static unsigned int OnText(void *product, const std::string& s)
@@ -230,19 +229,20 @@ class TagMember
 	((T*)product)->*pmem = s;
 	return 0;
     }
+
 public:
     typedef T Target;
 
-    AssertCorrectTargetType<Selector0, Target> assert0;
-    AssertCorrectTargetType<Selector1, Target> assert1;
-    AssertCorrectTargetType<Selector2, Target> assert2;
-    AssertCorrectTargetType<Selector3, Target> assert3;
-    AssertCorrectTargetType<Selector4, Target> assert4;
-    AssertCorrectTargetType<Selector5, Target> assert5;
-    AssertCorrectTargetType<Selector6, Target> assert6;
-    AssertCorrectTargetType<Selector7, Target> assert7;
+    static const details::Data data;
+};
 
-    static const internals::Data data;
+template <const char *name,
+	  class T, std::string (T::*pmem),
+          typename... Selectors>
+const details::Data TagMember<name, T, pmem, Selectors...>::data = {
+    name, &OnText, NULL,
+    sizeof...(Selectors),
+    details::ArrayHelper<Selectors...>::data
 };
 
 
@@ -262,14 +262,7 @@ public:
  */
 template <const char *name,
 	  class T, unsigned int (T::*pmem),
-	  class Selector0 = NullSelector, 
-	  class Selector1 = NullSelector,
-	  class Selector2 = NullSelector,
-	  class Selector3 = NullSelector,
-	  class Selector4 = NullSelector,
-	  class Selector5 = NullSelector,
-	  class Selector6 = NullSelector,
-	  class Selector7 = NullSelector>
+          typename... Selectors>
 class TagMemberInt
 {
     static unsigned int OnText(void *product, const std::string& s)
@@ -277,19 +270,20 @@ class TagMemberInt
 	((T*)product)->*pmem = (unsigned int)strtoul(s.c_str(), NULL, 10);
 	return 0;
     }
+
 public:
     typedef T Target;
 
-    AssertCorrectTargetType<Selector0, Target> assert0;
-    AssertCorrectTargetType<Selector1, Target> assert1;
-    AssertCorrectTargetType<Selector2, Target> assert2;
-    AssertCorrectTargetType<Selector3, Target> assert3;
-    AssertCorrectTargetType<Selector4, Target> assert4;
-    AssertCorrectTargetType<Selector5, Target> assert5;
-    AssertCorrectTargetType<Selector6, Target> assert6;
-    AssertCorrectTargetType<Selector7, Target> assert7;
+    static const details::Data data;
+};
 
-    static const internals::Data data;
+template <const char *name,
+	  class T, unsigned int (T::*pmem),
+          typename... Selectors>
+const details::Data TagMemberInt<name, T, pmem, Selectors...>::data = {
+    name, &OnText, NULL,
+    sizeof...(Selectors),
+    details::ArrayHelper<Selectors...>::data
 };
 
 
@@ -316,7 +310,14 @@ class Attribute
 public:
     typedef T Target;
 
-    static const internals::Data data;
+    static const details::Data data;
+};
+
+template <const char *name, class T,
+	  unsigned int (T::*fn)(const std::string&) >
+const details::Data Attribute<name, T, fn>::data = {
+    name, &OnText, NULL,
+    0, NULL
 };
 
 
@@ -337,14 +338,7 @@ public:
  */
 template <const char *name, class NewTarget,
 	  class T, NewTarget (T::*pmem),
-	  class Selector0, 
-	  class Selector1, 
-	  class Selector2 = NullSelector,
-	  class Selector3 = NullSelector,
-	  class Selector4 = NullSelector,
-	  class Selector5 = NullSelector,
-	  class Selector6 = NullSelector,
-	  class Selector7 = NullSelector>
+          typename... Selectors>
 class Structure
 {
     static void *OnBegin(void *target)
@@ -352,19 +346,19 @@ class Structure
 	return (void*) &((T*)target->*pmem);
     }
 
-    AssertCorrectTargetType<Selector0, NewTarget> assert0;
-    AssertCorrectTargetType<Selector1, NewTarget> assert1;
-    AssertCorrectTargetType<Selector2, NewTarget> assert2;
-    AssertCorrectTargetType<Selector3, NewTarget> assert3;
-    AssertCorrectTargetType<Selector4, NewTarget> assert4;
-    AssertCorrectTargetType<Selector5, NewTarget> assert5;
-    AssertCorrectTargetType<Selector6, NewTarget> assert6;
-    AssertCorrectTargetType<Selector7, NewTarget> assert7;
-
 public:
     typedef T Target;
 
-    static const internals::Data data;
+    static const details::Data data;
+};
+
+template <const char *name, class NewTarget,
+	  class T, NewTarget (T::*pmem),
+          typename... Selectors>
+const details::Data Structure<name, NewTarget, T, pmem, Selectors...>::data = {
+    name, NULL, &OnBegin,
+    sizeof...(Selectors),
+    details::ArrayHelper<Selectors...>::data
 };
 
 
@@ -385,14 +379,7 @@ public:
  */
 template <const char *name, class NewTarget,
 	  class T, std::list<NewTarget> (T::*pmem),
-	  class Selector0, 
-	  class Selector1 = NullSelector, 
-	  class Selector2 = NullSelector,
-	  class Selector3 = NullSelector,
-	  class Selector4 = NullSelector,
-	  class Selector5 = NullSelector,
-	  class Selector6 = NullSelector,
-	  class Selector7 = NullSelector>
+          typename... Selectors>
 class List
 {
     static void *OnBegin(void *target)
@@ -402,23 +389,21 @@ class List
 	return (void*) &(((T*)target->*pmem).back());
     }
 
-    AssertCorrectTargetType<Selector0, NewTarget> assert0;
-    AssertCorrectTargetType<Selector1, NewTarget> assert1;
-    AssertCorrectTargetType<Selector2, NewTarget> assert2;
-    AssertCorrectTargetType<Selector3, NewTarget> assert3;
-    AssertCorrectTargetType<Selector4, NewTarget> assert4;
-    AssertCorrectTargetType<Selector5, NewTarget> assert5;
-    AssertCorrectTargetType<Selector6, NewTarget> assert6;
-    AssertCorrectTargetType<Selector7, NewTarget> assert7;
-
 public:
     typedef T Target;
 
-    static const internals::Data data;
+    static const details::Data data;
+};
+
+template <const char *name, class NewTarget,
+	  class T, std::list<NewTarget> (T::*pmem),
+          typename... Selectors>
+const details::Data List<name, NewTarget, T, pmem, Selectors...>::data = {
+    name, NULL, &OnBegin,
+    sizeof...(Selectors),
+    details::ArrayHelper<Selectors...>::data
 };
 
 } // namespace xml
-
-#include "xml_internal.h"
 
 #endif
