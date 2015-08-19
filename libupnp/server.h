@@ -41,8 +41,8 @@ public:
     unsigned int Init();
 
     // Being a upnp::soap::InfoSource
-    util::IPEndPoint GetCurrentEndPoint();
-    unsigned int GetCurrentAccess();
+    util::IPEndPoint GetCurrentEndPoint() override;
+    unsigned int GetCurrentAccess() override;
 };
 
 } // namespace upnp

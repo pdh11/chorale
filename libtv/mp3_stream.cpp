@@ -67,8 +67,8 @@ static const unsigned char three_hour_wav_header[] =
 
 #endif
 
-MP3Stream::MP3Stream(std::auto_ptr<util::Stream> stream)
-    : m_stream(stream),
+MP3Stream::MP3Stream(std::unique_ptr<util::Stream>& stream)
+    : m_stream(std::move(stream)),
       m_handle(NULL),
       m_fill(0),
       m_remaining_header(sizeof(three_hour_wav_header))

@@ -591,14 +591,14 @@ unsigned int Synchroniser::AddTune(unsigned int srcid,
     /** @todo SinkFromFile optimisation to allow sendfile()
      */
 
-    std::auto_ptr<util::Stream> ssps = m_src->OpenRead(srcid);
+    std::unique_ptr<util::Stream> ssps = m_src->OpenRead(srcid);
     if (!ssps.get())
     {
 	TRACE << "Can't open for read\n";
 	return EIO;
     }
 
-    std::auto_ptr<util::Stream> sspd = m_dest->OpenWrite(destid);
+    std::unique_ptr<util::Stream> sspd = m_dest->OpenWrite(destid);
     if (!sspd.get())
     {
 	TRACE << "Can't open for write\n";

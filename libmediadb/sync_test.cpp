@@ -65,8 +65,8 @@ public:
     }
 };
 
-void Test(const char *src, const char *dest,
-	  const char *delenda, const char *addenda, const char *mutanda)
+static void Test(const char *src, const char *dest,
+                 const char *delenda, const char *addenda, const char *mutanda)
 {
     mediadb::FakeDatabase dbsrc;
     util::StringStream streamsrc(src);

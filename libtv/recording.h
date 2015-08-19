@@ -19,7 +19,7 @@ public:
     Recording(util::Scheduler *poller, 
 	      time_t start, time_t end);
 
-    virtual unsigned int Run() = 0;
+    virtual unsigned int Run() override = 0;
 };
 
 typedef util::CountedPointer<Recording> RecordingPtr;

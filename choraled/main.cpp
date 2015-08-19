@@ -60,7 +60,7 @@ static void SignalHandler(int sig)
 	s_poller->Wake();
 }
 
-class ReceiverAssimilator: public receiver::ssdp::Client::Callback
+class ReceiverAssimilator final: public receiver::ssdp::Client::Callback
 {
     db::receiver::Database m_dbreceiver;
     db::merge::Database *m_dbmerge;
@@ -75,7 +75,7 @@ public:
     {
     }
 
-    void OnService(const util::IPEndPoint&);
+    void OnService(const util::IPEndPoint&) override;
 };
 
 void ReceiverAssimilator::OnService(const util::IPEndPoint& ipe)

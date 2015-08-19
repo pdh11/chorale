@@ -50,7 +50,7 @@ public:
 
     /** Returns a Stream of the raw PCM data for a particular track
      */
-    virtual std::auto_ptr<util::Stream> GetTrackStream(unsigned int track) = 0;
+    virtual std::unique_ptr<util::Stream> GetTrackStream(unsigned int track) = 0;
 };
 
 typedef util::CountedPointer<AudioCD> AudioCDPtr;
@@ -75,7 +75,7 @@ class LocalAudioCD: public AudioCD
     FullSector *m_sectors;
 
 public:
-    LocalAudioCD() : m_cdt(NULL), m_fd(-1), m_sectors(NULL) {}
+    LocalAudioCD() : m_cdt(NULL), m_fd(-1), m_first_sector(0), m_sectors(NULL) {}
     ~LocalAudioCD();
 
     static unsigned int Create(const std::string& device, AudioCDPtr *result);
@@ -83,7 +83,7 @@ public:
     unsigned ReadSector(unsigned int n, const uint8_t **pdata);
 
     // Being an AudioCD
-    std::auto_ptr<util::Stream> GetTrackStream(unsigned int track);
+    std::unique_ptr<util::Stream> GetTrackStream(unsigned int track) override;
 };
 
 } // namespace import

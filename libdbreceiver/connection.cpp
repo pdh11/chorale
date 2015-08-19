@@ -116,13 +116,13 @@ std::string Connection::GetURL(unsigned int id)
 			 m_ep.ToString().c_str(), id);
 }
 
-std::auto_ptr<util::Stream> Connection::OpenRead(unsigned int id)
+std::unique_ptr<util::Stream> Connection::OpenRead(unsigned int id)
 {
     LOG(RECEIVER) << "OpenRead(" << id << ")\n";
 
     std::string url = GetURL(id);
 
-    std::auto_ptr<util::Stream> stm;
+    std::unique_ptr<util::Stream> stm;
     unsigned rc = util::http::Stream::Create(&stm, m_http, url.c_str());
     if (!rc)
     {

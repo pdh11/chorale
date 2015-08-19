@@ -4,11 +4,11 @@
 
 namespace mediadb {
 
-#if 0
 Registry::Registry()
 {
 }
 
+#if 0
 Registry::~Registry()
 {
     TRACE << "Deleting databases\n";

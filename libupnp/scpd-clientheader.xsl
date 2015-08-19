@@ -29,7 +29,7 @@ public:
     {}
 
     // Being a ServiceObserver
-    void OnEvent(const char *var, const std::string&amp; value);
+    void OnEvent(const char *var, const std::string&amp; value) override;
     <xsl:for-each select="//action"><xsl:sort select="name"/>
     unsigned int <xsl:value-of select="name"/>(
       <xsl:for-each select="argumentList/argument">
@@ -57,7 +57,7 @@ public:
         </xsl:call-template>
       <xsl:if test="not(position()=last())">,
       </xsl:if>
-    </xsl:for-each>);
+    </xsl:for-each>) override;
 </xsl:for-each>
 };
 
@@ -75,7 +75,7 @@ public:
     {}
 
     // Being a ServiceClient
-    void OnEvent(const char *var, const std::string&amp; value);
+    void OnEvent(const char *var, const std::string&amp; value) override;
     <xsl:for-each select="//action"><xsl:sort select="name"/>
     unsigned int <xsl:value-of select="name"/>(
             <xsl:for-each select="argumentList/argument[direction='in']">
@@ -102,7 +102,7 @@ public:
         </xsl:call-template>
       <xsl:if test="not(position()=last())">,
             </xsl:if>
-            </xsl:for-each>);
+            </xsl:for-each>) override;
 </xsl:for-each>
 };
 

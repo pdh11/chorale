@@ -12,6 +12,7 @@
 #include <queue>
 #include <vector>
 #include <stdint.h>
+#include <unistd.h>
 #include <algorithm>
 #include <sys/time.h>
 

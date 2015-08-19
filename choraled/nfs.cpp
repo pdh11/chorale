@@ -12,7 +12,7 @@ namespace choraled {
 
 class NFSService::Impl
 {
-    std::auto_ptr<util::Stream> m_stream;
+    std::unique_ptr<util::Stream> m_stream;
     receiverd::PortMapperPtr m_portmap;
     util::TaskPtr m_mountd;
     receiverd::TarFS m_tarfs;
@@ -20,15 +20,15 @@ class NFSService::Impl
 
 public:
     Impl(util::Scheduler *poller, util::IPFilter *filter,
-	 std::auto_ptr<util::Stream> arfstream);
+	 std::unique_ptr<util::Stream>& arfstream);
 
     unsigned short GetPort() { return m_portmap->GetPort(); }
 };
 
 NFSService::Impl::Impl(util::Scheduler *poller, 
 		       util::IPFilter *filter,
-		       std::auto_ptr<util::Stream> arfstream)
-    : m_stream(arfstream),
+		       std::unique_ptr<util::Stream>& arfstream)
+    : m_stream(std::move(arfstream)),
       m_portmap(receiverd::PortMapper::Create(poller, filter)),
       m_mountd(receiverd::Mount::Create(poller, filter, m_portmap.get())),
       m_tarfs(m_stream.get()),
@@ -54,7 +54,7 @@ unsigned int NFSService::Init(util::Scheduler *poller,
     if (m_impl)
 	return EEXIST;
 
-    std::auto_ptr<util::Stream> stm;
+    std::unique_ptr<util::Stream> stm;
     unsigned int rc = util::OpenFileStream(arf, util::READ, &stm);
     if (rc != 0)
     {

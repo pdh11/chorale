@@ -12,7 +12,7 @@ class TaskQueue;
  * Non-streaming (non-consecutive) writes still work, but are less efficient
  * (probably synchronous).
  */
-class AsyncWriteBuffer: public SeekableStream
+class AsyncWriteBuffer final: public SeekableStream
 {
     class Impl;
     Impl *m_impl;
@@ -22,13 +22,17 @@ public:
     ~AsyncWriteBuffer();
     
     // Being a SeekableStream
-    uint64_t GetLength();
-    unsigned SetLength(uint64_t);
-    unsigned ReadAt(void *buffer, uint64_t pos, size_t len, size_t *pread);
+    uint64_t GetLength() override;
+    unsigned SetLength(uint64_t) override;
+    unsigned ReadAt(void *buffer, uint64_t pos, size_t len,
+                    size_t *pread) override;
     unsigned WriteAt(const void *buffer, uint64_t pos, size_t len, 
-		     size_t *pwrote);
+		     size_t *pwrote) override;
 
-    unsigned GetStreamFlags() const { return READABLE|WRITABLE|SEEKABLE; }
+    unsigned GetStreamFlags() const override
+    {
+        return READABLE|WRITABLE|SEEKABLE;
+    }
 };
 
 } // namespace util

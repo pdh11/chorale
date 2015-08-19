@@ -41,7 +41,7 @@ unsigned int PortMapper::OnRPC(uint32_t proc, const void *args,
     case PMAPPROC_GETPORT:
 	if (argslen >= sizeof(portmap::Mapping))
 	{
-	    portmap::Mapping *mapping = (portmap::Mapping*)args;
+	    const portmap::Mapping *mapping = (const portmap::Mapping*)args;
 	    
 	    uint32_t result = 0;
 	    

@@ -37,9 +37,9 @@ EncodingTask::~EncodingTask()
     TRACE << "~EncodingTask\n";
 }
 
-void EncodingTask::SetInputStream(std::auto_ptr<util::Stream> stm, size_t size)
+void EncodingTask::SetInputStream(std::unique_ptr<util::Stream>& stm, size_t size)
 {
-    m_input_stream = stm;
+    m_input_stream = std::move(stm);
     m_input_size = size; 
 }
 
@@ -258,7 +258,7 @@ public:
 int main()
 {
 #if HAVE_LAME
-    std::auto_ptr<util::Stream> ifs;
+    std::unique_ptr<util::Stream> ifs;
     unsigned int rc = util::OpenFileStream("track.pcm", 
 					   util::READ, &ifs);
     if (rc == ENOENT)

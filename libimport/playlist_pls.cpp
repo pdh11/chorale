@@ -6,15 +6,17 @@
 #include "libutil/http.h"
 #include "libutil/counted_pointer.h"
 #include "libutil/printf.h"
+#include <sstream>
 #include <locale.h>
 #include <string.h>
+#include <unistd.h>
 
 namespace import {
 
 unsigned int PlaylistPLS::Load(const std::string& filename,
 			       std::list<std::string> *entries)
 {
-    std::auto_ptr<util::Stream> ss;
+    std::unique_ptr<util::Stream> ss;
     unsigned int rc = util::OpenFileStream(filename.c_str(), util::READ, &ss);
     if (rc)
 	return rc;
@@ -34,6 +36,7 @@ unsigned int PlaylistPLS::Load(const std::string& filename,
 	    ptr = strchr(ptr, '=');
 	    if (ptr && ptr[1])
 	    {
+                TRACE << "Got " << ptr+1 << "\n";
 		if (util::http::IsHttpURL(ptr+1))
 		{
 		    entries->push_back(ptr+1);
@@ -54,7 +57,7 @@ unsigned int PlaylistPLS::Load(const std::string& filename,
 unsigned int PlaylistPLS::Save(const std::string& filename,
 			       const std::list<std::string> *entries)
 {
-    std::auto_ptr<util::Stream> ss;
+    std::unique_ptr<util::Stream> ss;
     unsigned int rc = util::OpenFileStream(filename.c_str(), util::WRITE, &ss);
     
     if (rc)
@@ -74,13 +77,17 @@ unsigned int PlaylistPLS::Save(const std::string& filename,
     {
 	std::string s = util::UTF8ToLocalEncoding(i->c_str());
 
-	if (!util::http::IsHttpURL(s))
+	if (!util::http::IsHttpURL(s)) {
 	    s = util::MakeRelativePath(filename, s);
+        }
 	
 	rc = ss->WriteString(util::Printf() << "File" << ++n
 			     << "=" << s << "\n");
-	if (rc)
+	if (rc) {
 	    return rc;
+        }
+
+        TRACE << "wrote " << s << "\n";
     }
 
     return 0;
@@ -129,6 +136,8 @@ void DoAllTests()
 
     rc = pp.Load(&entries);
     assert(rc == 0);
+
+    TRACE << "sz=" << entries.size() << " n=" << TESTS << "\n";
 
     assert(entries.size() == TESTS);
 

@@ -24,9 +24,9 @@ class Recording: public tv::Recording
     unsigned int m_channel;
     std::string m_filename;
     bool m_started;
-    std::auto_ptr<util::Stream> m_input_stream;
-    std::auto_ptr<util::Stream> m_output_stream;
-    std::auto_ptr<util::Stream> m_buffer_stream;
+    std::unique_ptr<util::Stream> m_input_stream;
+    std::unique_ptr<util::Stream> m_output_stream;
+    std::unique_ptr<util::Stream> m_buffer_stream;
 
 public:
     Recording(util::Scheduler*, util::TaskQueue *disk_queue,
@@ -34,7 +34,7 @@ public:
 	      const std::string& filename);
 
     // Being a Recording
-    unsigned int Run();
+    unsigned int Run() override;
 };
 
 typedef util::CountedPointer<Recording> RecordingPtr;

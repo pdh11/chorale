@@ -237,7 +237,7 @@ void Wall::dump()
 
 int main(int, const char *argv[])
 {
-    std::auto_ptr<util::Stream> stm;
+    std::unique_ptr<util::Stream> stm;
     if (util::OpenFileStream(argv[1], util::READ, &stm)) {
         perror("open");
         return 1;

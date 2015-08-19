@@ -6,7 +6,7 @@
 
 namespace choraled {
 
-class IPFilter: public util::IPFilter
+class IPFilter final: public util::IPFilter
 {
     util::TcpWrappers m_wrappers;
     util::TcpWrappers m_wrappers_readonly;
@@ -15,7 +15,7 @@ public:
     IPFilter();
     ~IPFilter();
 
-    unsigned int CheckAccess(util::IPAddress ip);
+    unsigned int CheckAccess(util::IPAddress ip) override;
 };
 
 } // namespace choraled

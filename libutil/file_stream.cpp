@@ -12,7 +12,7 @@ using posix::FileStream;
 #endif
 
 unsigned int OpenFileStream(const char *filename, unsigned int mode,
-			    std::auto_ptr<Stream> *pstm)
+			    std::unique_ptr<Stream> *pstm)
 {
     FileStream *f = new FileStream();
 
@@ -35,7 +35,7 @@ unsigned int OpenFileStream(const char *filename, unsigned int mode,
 
 int main()
 {
-    std::auto_ptr<util::Stream> msp;
+    std::unique_ptr<util::Stream> msp;
 
     unsigned int rc = util::OpenFileStream("test2.tmp", util::TEMP, &msp);
     assert(rc == 0);

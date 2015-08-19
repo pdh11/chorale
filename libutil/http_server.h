@@ -73,11 +73,11 @@ struct Response: public boost::noncopyable
      * in; the Read() method is never called. The Write() method gets
      * called with 0 bytes to mean successful end of input.
      */
-    std::auto_ptr<util::Stream> body_sink;
+    std::unique_ptr<util::Stream> body_sink;
 
     /** The stream to return to the client as the outgoing body.
      */
-    std::auto_ptr<util::Stream> body_source;
+    std::unique_ptr<util::Stream> body_source;
 
     /** The HTTP Content-Type to return; if left NULL, "text/html" is used.
      */
@@ -100,8 +100,8 @@ struct Response: public boost::noncopyable
 
     void Clear();
 
-    Response()
-        : content_type(NULL), status_line(NULL), length(0) {}
+    Response();
+    ~Response();
 };
 
 /** A http::Server plug-in, responsible for all the content under a
@@ -132,7 +132,7 @@ public:
     ~FileContentFactory();
 
     // Being a ContentFactory
-    bool StreamForPath(const Request*, Response*);
+    bool StreamForPath(const Request*, Response*) override;
 };
 
 /** An HTTP/1.1 web server.
@@ -174,9 +174,6 @@ public:
     void AddContentFactory(const std::string& page_root, ContentFactory *cf);
 
     void StreamForPath(const Request*, Response*);
-
-    // Being a Pollable
-    unsigned OnActivity();
 };
 
 } // namepace http

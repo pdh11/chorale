@@ -32,7 +32,7 @@ public:
 				 util::TaskQueue *encode_queue, 
 				 util::TaskQueue *disk_queue);
     
-    unsigned int Run();
+    unsigned int Run() override;
 };
 
 typedef util::CountedPointer<RippingTask> RippingTaskPtr;

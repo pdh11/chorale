@@ -54,7 +54,7 @@ unsigned int RippingTask::Run()
     unsigned int rc;
 
     // If there's CPU to spare, back to RAM, else back to disk
-    std::auto_ptr<util::Stream> backingstream;
+    std::unique_ptr<util::Stream> backingstream;
     if (0 && m_encode_queue->AnyWaiting())
     {
 	backingstream.reset(new util::MemoryStream(pcmsize));
@@ -78,10 +78,10 @@ unsigned int RippingTask::Run()
 							 pcmsize);
     // Note that msp now owns the backingstream
 
-    std::auto_ptr<util::Stream> pcmforflac;
+    std::unique_ptr<util::Stream> pcmforflac;
     msp->CreateOutput(&pcmforflac);
 
-    std::auto_ptr<util::Stream> pcmformp3;
+    std::unique_ptr<util::Stream> pcmformp3;
     msp->CreateOutput(&pcmformp3);
 
     m_etp1->SetInputStream(pcmforflac, pcmsize);
@@ -90,7 +90,7 @@ unsigned int RippingTask::Run()
     m_etp2->SetInputStream(pcmformp3, pcmsize);
     m_encode_queue->PushTask(util::Bind(m_etp2).To<&EncodingTask::Run>());
 
-    std::auto_ptr<util::Stream> cdstream = m_cd->GetTrackStream(m_track);
+    std::unique_ptr<util::Stream> cdstream = m_cd->GetTrackStream(m_track);
     if (!cdstream.get())
     {
 	TRACE << "Can't make CD stream\n";

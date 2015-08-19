@@ -19,7 +19,7 @@ class AudioEncoder;
  *
  * The AudioEncoder class does the real work
  */
-class EncodingTask: public util::Task
+class EncodingTask final: public util::Task
 {
     util::TaskQueue *m_cpu_queue;
     util::TaskQueue *m_disk_queue;
@@ -38,9 +38,9 @@ class EncodingTask: public util::Task
 	DONE
     } m_state;
 
-    std::auto_ptr<util::Stream> m_input_stream;
-    std::auto_ptr<util::Stream> m_buffer_stream;
-    std::auto_ptr<util::Stream> m_output_stream;
+    std::unique_ptr<util::Stream> m_output_stream;
+    std::unique_ptr<util::Stream> m_buffer_stream;
+    std::unique_ptr<util::Stream> m_input_stream;
     size_t m_input_size;
     size_t m_input_done;
 
@@ -61,9 +61,9 @@ public:
     /** Stream is read once sequentially until EOF. Stream must be set before
      * Run() is called, i.e. before task is queued anywhere.
      */
-    void SetInputStream(std::auto_ptr<util::Stream> stm, size_t size);
+    void SetInputStream(std::unique_ptr<util::Stream>& stm, size_t size);
 
-    unsigned int Run();
+    unsigned int Run() override;
 
     /** Called from UI thread once tags decided */
     void RenameAndTag(const std::string& new_filename, db::RecordsetPtr tags);

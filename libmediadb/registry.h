@@ -10,7 +10,7 @@ class Database;
 class Registry: public util::Registry<Database>
 {
 public:
-    Registry() {}
+    Registry();
 };
 
 } // namespace mediadb

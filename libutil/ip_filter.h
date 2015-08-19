@@ -21,10 +21,10 @@ public:
     virtual unsigned int CheckAccess(IPAddress ip) = 0;
 };
 
-class IPFilterYes: public IPFilter
+class IPFilterYes final: public IPFilter
 {
 public:
-    unsigned int CheckAccess(IPAddress) { return FULL; }
+    unsigned int CheckAccess(IPAddress) override { return FULL; }
 };
 
 } // namespace util

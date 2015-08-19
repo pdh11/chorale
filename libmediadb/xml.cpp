@@ -327,7 +327,7 @@ public:
 
 unsigned int ReadXML(db::Database *db, const char *filename)
 {
-    std::auto_ptr<util::Stream> ssp;
+    std::unique_ptr<util::Stream> ssp;
     unsigned int rc = util::OpenFileStream(filename, util::READ, &ssp);
     if (rc != 0)
 	return rc;

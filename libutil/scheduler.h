@@ -99,12 +99,13 @@ public:
     bool IsExiting() const;
 
     // Being a Scheduler
-    void WaitForReadable(const TaskCallback&, int, bool oneshot);
-    void WaitForWritable(const TaskCallback&, int, bool oneshot);
-    void Wait(const TaskCallback&, time_t first, unsigned int repeatms);
-    void Remove(TaskPtr);
-    void Wake();
-    void Shutdown();
+    void WaitForReadable(const TaskCallback&, int, bool oneshot) override;
+    void WaitForWritable(const TaskCallback&, int, bool oneshot) override;
+    void Wait(const TaskCallback&, time_t first,
+              unsigned int repeatms) override;
+    void Remove(TaskPtr) override;
+    void Wake() override;
+    void Shutdown() override;
 };
 
 /** For when you want a Scheduler to be polled from a background thread.
@@ -117,7 +118,7 @@ class SchedulerTask: public Task
     BackgroundScheduler *m_scheduler;
 
     explicit SchedulerTask(BackgroundScheduler*);
-    unsigned Run();
+    unsigned Run() override;
 
 public:
     static TaskCallback Create(BackgroundScheduler*);

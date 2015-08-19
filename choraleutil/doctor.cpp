@@ -420,7 +420,7 @@ static unsigned Doctor(const char *filename)
 
     printf("%s:\n", filename);
 
-    std::auto_ptr<util::Stream> st;
+    std::unique_ptr<util::Stream> st;
 
     unsigned rc = util::OpenFileStream(filename, util::READ|util::SEQUENTIAL,
 				       &st);

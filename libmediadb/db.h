@@ -21,8 +21,8 @@ class Database: public db::Database
 public:
     virtual unsigned int AllocateID() = 0;
     virtual std::string GetURL(unsigned int id) = 0;
-    virtual std::auto_ptr<util::Stream> OpenRead(unsigned int id) = 0;
-    virtual std::auto_ptr<util::Stream> OpenWrite(unsigned int id) = 0;
+    virtual std::unique_ptr<util::Stream> OpenRead(unsigned int id) = 0;
+    virtual std::unique_ptr<util::Stream> OpenWrite(unsigned int id) = 0;
 };
 
 } // namespace mediadb

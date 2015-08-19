@@ -34,7 +34,7 @@ public:
 			const std::string& title);
 
     unsigned int GetStream(unsigned int channel,
-			   std::auto_ptr<util::Stream>*);
+			   std::unique_ptr<util::Stream>*);
 };
 
 } // namespace dvb

@@ -5,13 +5,13 @@
 
 namespace db {
 
-class EmptyRecordset: public ReadOnlyRecordset
+class EmptyRecordset final: public ReadOnlyRecordset
 {
 public:
-    bool IsEOF() const { return true; }
-    void MoveNext() {}
-    uint32_t GetInteger(unsigned int) const { return 0; }
-    std::string GetString(unsigned int) const { return std::string(); }
+    bool IsEOF() const override { return true; }
+    void MoveNext() override {}
+    uint32_t GetInteger(unsigned int) const override { return 0; }
+    std::string GetString(unsigned int) const override { return std::string(); }
 };
 
 } // namespace db

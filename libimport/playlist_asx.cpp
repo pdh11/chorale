@@ -8,14 +8,16 @@
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 
 namespace import {
 
-extern const char ASX[] = "asx";
-extern const char ENTRY[] = "entry";
-extern const char REF[] = "ref";
-extern const char HREF[] = "href";
+namespace {
 
+constexpr const char ASX[] = "asx";
+constexpr const char ENTRY[] = "entry";
+constexpr const char REF[] = "ref";
+constexpr const char HREF[] = "href";
 
 typedef xml::Parser<
     xml::Tag<ASX,
@@ -26,11 +28,13 @@ typedef xml::Parser<
 					      &PlaylistXMLObserver::OnHref
 					      > > > > > ASXParser;
 
+} // anon namespace
+
 unsigned int PlaylistASX::Load(const std::string& filename,
 			       std::list<std::string> *entries)
 {
     PlaylistXMLObserver obs(filename, entries);
-    std::auto_ptr<util::Stream> ss;
+    std::unique_ptr<util::Stream> ss;
     unsigned int rc = util::OpenFileStream(filename.c_str(), util::READ, &ss);
     if (rc != 0)
 	return rc;

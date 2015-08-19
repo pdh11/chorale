@@ -93,9 +93,9 @@ std::string Database::GetURL(unsigned int)
     return "file:";
 }
 
-std::auto_ptr<util::Stream> Database::OpenRead(unsigned int id)
+std::unique_ptr<util::Stream> Database::OpenRead(unsigned int id)
 { 
-    std::auto_ptr<util::Stream> sp;
+    std::unique_ptr<util::Stream> sp;
 
     id -= CHANNEL_OFFSET;
     if (id >= m_channels->Count())
@@ -105,15 +105,15 @@ std::auto_ptr<util::Stream> Database::OpenRead(unsigned int id)
 	return sp;
 
 #if HAVE_MPG123
-    return std::auto_ptr<util::Stream>(new MP3Stream(sp));
+    return std::unique_ptr<util::Stream>(new MP3Stream(sp));
 #else
     return sp;
 #endif
 }
 
-std::auto_ptr<util::Stream> Database::OpenWrite(unsigned int)
+std::unique_ptr<util::Stream> Database::OpenWrite(unsigned int)
 {
-    return std::auto_ptr<util::Stream>();
+    return std::unique_ptr<util::Stream>();
 }
 
 db::QueryPtr Database::CreateQuery()

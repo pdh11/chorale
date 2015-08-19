@@ -5,13 +5,13 @@
 
 namespace import {
 
-class PlaylistWPL: public PlaylistIO
+class PlaylistWPL final: public PlaylistIO
 {
 public:
     unsigned int Load(const std::string& filename,
-		      std::list<std::string> *entries);
+		      std::list<std::string> *entries) override;
     unsigned int Save(const std::string& filename,
-		      const std::list<std::string> *entries);
+		      const std::list<std::string> *entries) override;
 };
 
 } // namespace import

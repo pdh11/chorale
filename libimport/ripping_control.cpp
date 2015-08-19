@@ -82,7 +82,7 @@ RippingControl::RippingControl(import::CDDrivePtr drive, import::AudioCDPtr cd,
 	    util::Bind(rtp).To<&RippingTask::Run>());
 	TRACE << "Pushed task for track " << i << "/" << m_ntracks << "\n";
     }
-    drive->GetTaskQueue()->PushTask(import::EjectTask::Create(drive));
+    //drive->GetTaskQueue()->PushTask(import::EjectTask::Create(drive));
     TRACE << "Pushed eject task\n";
 }
 

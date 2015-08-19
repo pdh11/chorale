@@ -122,9 +122,9 @@ static void TraceTags(const std::string& s)
 #endif
 
 static
-std::auto_ptr<util::Stream> TagsStream(mediadb::Database *db, unsigned int id)
+std::unique_ptr<util::Stream> TagsStream(mediadb::Database *db, unsigned int id)
 {
-    std::auto_ptr<util::Stream> ss;
+    std::unique_ptr<util::Stream> ss;
 
     db::QueryPtr qp = db->CreateQuery();
     qp->Where(qp->Restrict(mediadb::ID, db::EQ, id));
@@ -217,7 +217,7 @@ std::auto_ptr<util::Stream> TagsStream(mediadb::Database *db, unsigned int id)
     return ss;
 }
 
-static std::auto_ptr<util::Stream> QueryStream(mediadb::Database *db,
+static std::unique_ptr<util::Stream> QueryStream(mediadb::Database *db,
 					       const char *path)
 {
     unsigned int field = mediadb::FIELD_COUNT;
@@ -248,7 +248,7 @@ static std::auto_ptr<util::Stream> QueryStream(mediadb::Database *db,
 	}
     }
 
-    std::auto_ptr<util::Stream> sp;
+    std::unique_ptr<util::Stream> sp;
 
     if (field == mediadb::FIELD_COUNT)
     {
@@ -294,10 +294,10 @@ static std::auto_ptr<util::Stream> QueryStream(mediadb::Database *db,
     return sp;
 }
 
-static std::auto_ptr<util::Stream> ResultsStream(mediadb::Database *db,
+static std::unique_ptr<util::Stream> ResultsStream(mediadb::Database *db,
 						 const char *path)
 {
-    std::auto_ptr<util::Stream> sp;
+    std::unique_ptr<util::Stream> sp;
     
     unsigned int field = mediadb::FIELD_COUNT;
 
@@ -597,7 +597,7 @@ public:
     PREFlattener(std::vector<PlaylistReplyExtended> *pvec) 
 	: m_pvec(pvec) {}
 
-    void OnItem(unsigned int id, db::RecordsetPtr);
+    void OnItem(unsigned int id, db::RecordsetPtr) override;
 };
 
 void PREFlattener::OnItem(unsigned int id, db::RecordsetPtr rs)
@@ -611,7 +611,7 @@ void PREFlattener::OnItem(unsigned int id, db::RecordsetPtr rs)
 //    TRACE << "Returning id " << id << " size " << pre.length << "\n";
 }
 
-static std::auto_ptr<util::Stream> ListStream(mediadb::Database *db,
+static std::unique_ptr<util::Stream> ListStream(mediadb::Database *db,
 					      unsigned int id, 
 					      const char *path)
 {
@@ -623,7 +623,7 @@ static std::auto_ptr<util::Stream> ListStream(mediadb::Database *db,
     bool shuffle = (strstr(path, "shuffle=1") != NULL);
     bool utf8 = (strstr(path, "_utf8=1") != NULL);
 
-    std::auto_ptr<util::Stream> ms(new util::MemoryStream);
+    std::unique_ptr<util::Stream> ms(new util::MemoryStream);
     unsigned int rc;
 
     if (extended)

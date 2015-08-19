@@ -11,7 +11,7 @@ namespace upnpd {
 /** Actual implementation of upnp::ContentDirectory base class in terms of
  * a mediadb::Database.
  */
-class ContentDirectoryImpl: public upnp::ContentDirectory
+class ContentDirectoryImpl final: public upnp::ContentDirectory
 {
     mediadb::Database *m_db;
     upnp::soap::InfoSource *m_info_source;
@@ -29,7 +29,7 @@ public:
 			std::string *result,
 			uint32_t *number_returned,
 			uint32_t *total_matches,
-			uint32_t *update_id);
+			uint32_t *update_id) override;
     unsigned int Search(const std::string& container_id,
 			const std::string& search_criteria,
 			const std::string& filter,
@@ -39,12 +39,12 @@ public:
 			std::string *result,
 			uint32_t *number_returned,
 			uint32_t *total_matches,
-			uint32_t *update_id);
-    unsigned int GetSearchCapabilities(std::string *search_caps);
-    unsigned int GetSortCapabilities(std::string *sort_caps);
-    unsigned int GetFeatureList(std::string *feature_list);
-    unsigned int GetSystemUpdateID(uint32_t*);
-    unsigned int GetServiceResetToken(std::string*);
+			uint32_t *update_id) override;
+    unsigned int GetSearchCapabilities(std::string *search_caps) override;
+    unsigned int GetSortCapabilities(std::string *sort_caps) override;
+    unsigned int GetFeatureList(std::string *feature_list) override;
+    unsigned int GetSystemUpdateID(uint32_t*) override;
+    unsigned int GetServiceResetToken(std::string*) override;
 };
 
 } // namespace upnpd

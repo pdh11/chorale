@@ -2,6 +2,7 @@
 #include "libutil/trace.h"
 #include <sys/time.h>
 #include <QApplication>
+#include <unistd.h>
 
 namespace ui {
 namespace qt {

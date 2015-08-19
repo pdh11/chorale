@@ -62,7 +62,7 @@ static std::string Wikipedia(const std::string& search)
 	+ "%22\"><img src=/layout/search-wikipedia.png width=16 height=16 border=0></a>";
 }
 
-std::auto_ptr<util::Stream> RootContentFactory::HomePageStream()
+std::unique_ptr<util::Stream> RootContentFactory::HomePageStream()
 {
     char hostname[256];
     hostname[0] = '\0';
@@ -226,7 +226,7 @@ std::auto_ptr<util::Stream> RootContentFactory::HomePageStream()
 
     s += "</body></html>";
 
-    std::auto_ptr<util::Stream> ss(new util::StringStream(s));
+    std::unique_ptr<util::Stream> ss(new util::StringStream(s));
     return ss;
 }
 

@@ -1,5 +1,6 @@
 #include "cd_content_factory.h"
 #include "libutil/printf.h"
+#include "libutil/stream.h"
 #include <stdio.h>
 
 namespace import {

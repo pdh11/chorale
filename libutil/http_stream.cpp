@@ -39,7 +39,7 @@ Stream::~Stream()
     LOG(HTTP) << "~hs" << this << "\n";
 }
 
-unsigned Stream::Create(std::auto_ptr<util::Stream> *result, Client *client, 
+unsigned Stream::Create(std::unique_ptr<util::Stream> *result, Client *client, 
 			const char *url)
 {
     std::string host;
@@ -258,7 +258,7 @@ unsigned Stream::ReadAt(void *buffer, uint64_t pos, size_t len, size_t *pread)
 
 	if (is_error)
 	{
-	    std::auto_ptr<util::Stream> epage(CreatePartialStream(&m_socket, 0,
+	    std::unique_ptr<util::Stream> epage(CreatePartialStream(&m_socket, 0,
 								  clen));
 	    StringStream ssp;	    
 	    CopyStream(epage.get(), &ssp);
@@ -338,7 +338,7 @@ public:
     unsigned int Run()
     {
 //	TRACE << "Fetcher running\n";
-	std::auto_ptr<util::Stream> hsp;
+	std::unique_ptr<util::Stream> hsp;
 	unsigned int rc = util::http::Stream::Create(&hsp, m_client,
 						     m_url.c_str());
 	if (rc)

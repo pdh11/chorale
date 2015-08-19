@@ -146,7 +146,7 @@ unsigned FileStream::SetLength(uint64_t len)
 
 int main()
 {
-    std::auto_ptr<util::Stream> msp;
+    std::unique_ptr<util::Stream> msp;
 
     unsigned int rc = util::OpenFileStream("test.tmp", util::TEMP, &msp);
     assert(rc == 0);

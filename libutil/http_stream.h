@@ -35,7 +35,7 @@ class Stream: public util::SeekableStream
 public:
     ~Stream();
 
-    static unsigned Create(std::auto_ptr<util::Stream>*, Client *client,
+    static unsigned Create(std::unique_ptr<util::Stream>*, Client *client,
 			   const char *url);
 
     // Being a Pollable

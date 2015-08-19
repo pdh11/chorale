@@ -18,6 +18,7 @@
 #include <string.h>
 #include <limits.h>
 #include <stdio.h>
+#include <unistd.h>
 
 LOG_DECL(DBLOCAL);
 
@@ -76,7 +77,8 @@ public:
 	  m_idallocator(idallocator),
 	  m_queue(queue),
 	  m_notifier(notifier),
-	  m_scanning(false)
+	  m_scanning(false),
+          m_error(0)
     {
 	m_loroot = util::Canonicalise(loroot);
 	if (!hiroot.empty())

@@ -12,7 +12,7 @@ class TestCD: public AudioCD
 public:
     TestCD();
 
-    std::auto_ptr<util::Stream> GetTrackStream(unsigned int);
+    std::unique_ptr<util::Stream> GetTrackStream(unsigned int);
 };
 
 class TestCDDrive: public CDDrive

@@ -19,7 +19,7 @@ namespace db {
  */
 namespace merge {
 
-class Database: public mediadb::Database
+class Database final: public mediadb::Database
 {
     class Impl;
 
@@ -37,14 +37,14 @@ public:
     unsigned int RemoveDatabase(mediadb::Database*);
 
     // Being a db::Database
-    RecordsetPtr CreateRecordset();
-    QueryPtr CreateQuery();
+    RecordsetPtr CreateRecordset() override;
+    QueryPtr CreateQuery() override;
 
     // Being a mediadb::Database
-    unsigned int AllocateID();
-    std::string GetURL(unsigned int id);
-    std::auto_ptr<util::Stream> OpenRead(unsigned int id);
-    std::auto_ptr<util::Stream> OpenWrite(unsigned int id);
+    unsigned int AllocateID() override;
+    std::string GetURL(unsigned int id) override;
+    std::unique_ptr<util::Stream> OpenRead(unsigned int id) override;
+    std::unique_ptr<util::Stream> OpenWrite(unsigned int id) override;
 };
 
 } // namespace db::merge

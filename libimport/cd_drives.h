@@ -65,12 +65,12 @@ public:
     std::string GetDevice() const;
 
     // Being a CDDrive
-    std::string GetName() const;
-    bool SupportsDiscPresent() const;
-    bool DiscPresent() const;
-    unsigned int Eject();
-    util::TaskQueue *GetTaskQueue();
-    unsigned int GetCD(util::CountedPointer<AudioCD> *result);
+    std::string GetName() const override;
+    bool SupportsDiscPresent() const override;
+    bool DiscPresent() const override;
+    unsigned int Eject() override;
+    util::TaskQueue *GetTaskQueue() override;
+    unsigned int GetCD(util::CountedPointer<AudioCD> *result) override;
 };
 
 class CDDrives: public util::hal::DeviceObserver
@@ -96,7 +96,7 @@ public:
     CDDrivePtr GetDriveForDevice(const std::string& device);
 
     // Being a util::hal::DeviceObserver
-    void OnDevice(util::hal::DevicePtr);
+    void OnDevice(util::hal::DevicePtr) override;
 };
 
 } // namespace import

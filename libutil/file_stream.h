@@ -23,7 +23,7 @@ enum FileMode {
 };
 
 unsigned int OpenFileStream(const char *filename, unsigned int mode,
-			    std::auto_ptr<Stream>*) ATTRIBUTE_WARNUNUSED;
+			    std::unique_ptr<Stream>*) ATTRIBUTE_WARNUNUSED;
 
 } // namespace util
 

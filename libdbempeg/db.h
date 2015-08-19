@@ -31,8 +31,8 @@ public:
     // Being a mediadb::Database
     unsigned int AllocateID();
     std::string GetURL(unsigned int id);
-    std::auto_ptr<util::Stream> OpenRead(unsigned int id);
-    std::auto_ptr<util::Stream> OpenWrite(unsigned int id);
+    std::unique_ptr<util::Stream> OpenRead(unsigned int id);
+    std::unique_ptr<util::Stream> OpenWrite(unsigned int id);
 };
 
 } // namespace db::empeg

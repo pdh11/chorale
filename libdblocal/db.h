@@ -18,7 +18,7 @@ namespace local {
 /** A mediadb::Database that wraps up a db::Database and accesses data via
  * its "path" field.
  */
-class Database: public mediadb::Database
+class Database final: public mediadb::Database
 {
     db::Database *m_db;
     util::http::Client *m_client;
@@ -50,13 +50,13 @@ public:
 
     ~Database();
 
-    db::RecordsetPtr CreateRecordset();
-    db::QueryPtr CreateQuery();
+    db::RecordsetPtr CreateRecordset() override;
+    db::QueryPtr CreateQuery() override;
 
-    unsigned int AllocateID() { return m_aid.Allocate(); }
-    std::string GetURL(unsigned int id);
-    std::auto_ptr<util::Stream> OpenRead(unsigned int id);
-    std::auto_ptr<util::Stream> OpenWrite(unsigned int id);
+    unsigned int AllocateID() override { return m_aid.Allocate(); }
+    std::string GetURL(unsigned int id) override;
+    std::unique_ptr<util::Stream> OpenRead(unsigned int id) override;
+    std::unique_ptr<util::Stream> OpenWrite(unsigned int id) override;
 };
 
 } // namespace db::local

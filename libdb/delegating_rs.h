@@ -19,15 +19,16 @@ public:
     explicit DelegatingRecordset(util::CountedPointer<Recordset> rs)
 	: m_rs(rs) {}
 
-    bool IsEOF() const;
-    uint32_t GetInteger(unsigned int which) const;
-    std::string GetString(unsigned int which) const;
-    unsigned int SetInteger(unsigned int which, uint32_t value);
-    unsigned int SetString(unsigned int which, const std::string& value);
-    void MoveNext();
-    unsigned int AddRecord();
-    unsigned int Commit();
-    unsigned int Delete();
+    bool IsEOF() const override;
+    uint32_t GetInteger(unsigned int which) const override;
+    std::string GetString(unsigned int which) const override;
+    unsigned int SetInteger(unsigned int which, uint32_t value) override;
+    unsigned int SetString(unsigned int which,
+                           const std::string& value) override;
+    void MoveNext() override;
+    unsigned int AddRecord() override;
+    unsigned int Commit() override;
+    unsigned int Delete() override;
 };
 
 } // namespace db

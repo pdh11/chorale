@@ -14,11 +14,11 @@ namespace db {
 class ReadOnlyRecordset: public Recordset
 {
 public:    
-    unsigned int SetInteger(unsigned int, uint32_t);
-    unsigned int SetString(unsigned int, const std::string&);
-    unsigned int AddRecord();
-    unsigned int Commit();
-    unsigned int Delete();
+    unsigned int SetInteger(unsigned int, uint32_t) override;
+    unsigned int SetString(unsigned int, const std::string&) override;
+    unsigned int AddRecord() override;
+    unsigned int Commit() override;
+    unsigned int Delete() override;
 };
 
 } // namespace db

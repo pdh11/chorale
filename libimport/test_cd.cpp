@@ -20,9 +20,9 @@ TestCD::TestCD()
     m_total_sectors = 1601;
 }
 
-std::auto_ptr<util::Stream> TestCD::GetTrackStream(unsigned int t)
+std::unique_ptr<util::Stream> TestCD::GetTrackStream(unsigned int t)
 {
-    std::auto_ptr<util::Stream> ss(new util::MemoryStream);
+    std::unique_ptr<util::Stream> ss(new util::MemoryStream);
     ss->SetLength((m_toc[t].last_sector - m_toc[t].first_sector + 1) * 2352);
     return ss;
 }

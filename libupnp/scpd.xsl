@@ -210,7 +210,7 @@ public:
     {}
 
     // Being a ServiceObserver
-    void OnEvent(const char *var, const std::string&amp; value);
+    void OnEvent(const char *var, const std::string&amp; value) override;
 </xsl:when>
     <!-- Client source (or stubs) -->
 
@@ -254,14 +254,14 @@ public:
 
     // Being a soap::Server
     unsigned int OnAction(unsigned int which, const soap::Params&amp; in,
-                          soap::Params *out);
+                          soap::Params *out) override;
 
     // Being a <xsl:value-of select="$class"/>Observer <xsl:for-each select="//stateVariable">
         <xsl:if test="sendEventsAttribute='yes'">
           <xsl:variable name="type" select="dataType"/>
     void On<xsl:value-of select="name"/>(<xsl:call-template name="argtype">
           <xsl:with-param name="type" select="$type"/>
-        </xsl:call-template>);</xsl:if>
+        </xsl:call-template>) override;</xsl:if>
       </xsl:for-each>
 };
     </xsl:when>

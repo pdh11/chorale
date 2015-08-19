@@ -49,8 +49,8 @@ public:
     unsigned int Delete(db::RecordsetPtr);
     unsigned int RewriteData(db::RecordsetPtr);
 
-    db::QueryPtr CreateLocalQuery() { return m_db.CreateQuery(); }
-    db::RecordsetPtr CreateLocalRecordset() { return m_db.CreateRecordset(); }
+    db::QueryPtr CreateLocalQuery();
+    db::RecordsetPtr CreateLocalRecordset();
 
     // Being a ContentFactory
     bool StreamForPath(const util::http::Request*, util::http::Response*);

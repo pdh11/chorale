@@ -39,6 +39,17 @@ namespace util {
 
 namespace http {
 
+Response::Response()
+    : content_type(NULL),
+      status_line(NULL),
+      length(0)
+{
+}
+
+Response::~Response()
+{
+}
+
 void Response::Clear()
 {
     body_sink.reset(NULL);
@@ -54,7 +65,7 @@ void Response::Clear()
 class Server::DataTask: public util::Task
 {
     Server *m_parent;
-    std::auto_ptr<StreamSocket> m_socket;
+    std::unique_ptr<StreamSocket> m_socket;
 
     /** Count of requests serviced on this socket.
      */
@@ -66,7 +77,7 @@ class Server::DataTask: public util::Task
     Request m_rq;
     Response m_rs;
     std::string m_last_path;
-    std::auto_ptr<util::Stream> m_response_stream;
+    std::unique_ptr<util::Stream> m_response_stream;
     bool m_reuse_stream;
 
     std::string m_headers;
@@ -123,27 +134,27 @@ class Server::DataTask: public util::Task
 	return 0;
     }
 
-    DataTask(Server *parent, std::auto_ptr<StreamSocket> client);
+    DataTask(Server *parent, std::unique_ptr<StreamSocket> client);
 
 public:
     ~DataTask();
 
-    static TaskCallback Create(Server*, std::auto_ptr<StreamSocket>);
+    static TaskCallback Create(Server*, std::unique_ptr<StreamSocket>);
 
     /** Called on background thread */
     unsigned int Run();
 };
 
 TaskCallback Server::DataTask::Create(Server *parent,
-				      std::auto_ptr<StreamSocket> client)
+				      std::unique_ptr<StreamSocket> client)
 {
-    DataTaskPtr ptr(new DataTask(parent, client));
+    DataTaskPtr ptr(new DataTask(parent, std::move(client)));
     return util::Bind(ptr).To<&DataTask::Run>();
 }
 
-Server::DataTask::DataTask(Server *parent, std::auto_ptr<StreamSocket> client)
+Server::DataTask::DataTask(Server *parent, std::unique_ptr<StreamSocket> client)
     : m_parent(parent),
-      m_socket(client),
+      m_socket(std::move(client)),
       m_count(0),
       m_line_reader(m_socket.get()),
       m_parser(&m_line_reader),
@@ -527,10 +538,10 @@ again:
 							      m_entity.range_min,
 							      m_entity.range_max);
 	    else
-		m_response_stream = m_rs.body_source;
+		m_response_stream = std::move(m_rs.body_source);
 	}
 	else
-	    m_response_stream = m_rs.body_source;
+	    m_response_stream = std::move(m_rs.body_source);
 
 	m_response_stream->Seek(0);
 
@@ -779,11 +790,12 @@ public:
     {
 //	TRACE << "Got activity, trying to accept\n";
 
-	std::auto_ptr<StreamSocket> ssp;
+	std::unique_ptr<StreamSocket> ssp;
 	unsigned int rc = m_socket.Accept(&ssp);
 	if (rc == 0)
 	{
-	    m_parent->m_pool->PushTask(DataTask::Create(m_parent, ssp));
+	    m_parent->m_pool->PushTask(DataTask::Create(m_parent,
+                                                        std::move(ssp)));
 	}
 	else
 	{

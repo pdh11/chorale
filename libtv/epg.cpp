@@ -48,7 +48,7 @@ public:
 		  db::Database *db, Channels *ch, int demux_fd);
     ~EPGParserTask();
 
-    unsigned int Run();
+    unsigned int Run() override;
 };
 
 typedef util::CountedPointer<EPGParserTask> EPGParserTaskPtr;
@@ -66,7 +66,7 @@ public:
     EPGTimerTask(Frontend*, Channels*, util::Scheduler*, 
 		 const char *db_filename, Service *service);
 
-    unsigned int Run();
+    unsigned int Run() override;
     unsigned int OnParserDone();
 
     db::Database *GetDatabase() { return &m_db; }
@@ -250,12 +250,14 @@ unsigned int EPGParserTask::Run()
 			unsigned int tlen = *tptr++;
 			if (tlen + 4 <= len)
 			{
-			    title = std::string((char*)tptr, (char*)tptr+tlen);
+			    title = std::string((const char*)tptr,
+                                                (const char*)tptr+tlen);
 			    tptr += tlen;
 			    unsigned int dlen = *tptr++;
 			    if (tlen+dlen+5 <= len)
 			    {
-				desc = std::string((char*)tptr, (char*)tptr+dlen);
+				desc = std::string((const char*)tptr,
+                                                   (const char*)tptr+dlen);
 			    }
 			}
 		    }

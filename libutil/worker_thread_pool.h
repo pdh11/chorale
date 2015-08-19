@@ -11,7 +11,7 @@ namespace util {
 
 class WorkerThread;
 
-class SimpleTaskQueue: public TaskQueue
+class SimpleTaskQueue final: public TaskQueue
 {
     util::Mutex m_deque_mutex;
     util::Condition m_dequenotempty;
@@ -21,15 +21,16 @@ class SimpleTaskQueue: public TaskQueue
 
 public:
     SimpleTaskQueue();
-
-    void PushTask(const TaskCallback&);
-    void PushTaskFront(const TaskCallback&);
     TaskCallback PopTask(unsigned int timeout_sec);
-    bool AnyWaiting();
-    size_t Count();
+
+    // Being a TaskQueue
+    void PushTask(const TaskCallback&) override;
+    void PushTaskFront(const TaskCallback&) override;
+    bool AnyWaiting() override;
+    size_t Count() override;
 };
 
-class WorkerThreadPool: public TaskQueue
+class WorkerThreadPool final: public TaskQueue
 {
 public:
     enum Priority {
@@ -47,6 +48,7 @@ private:
     util::Condition m_threads_empty;
 
     void SuggestNewThread();
+    TaskCallback PopTask(unsigned int timeout_sec);
 
 public:
     /** Create a thread pool with up to n threads. 
@@ -68,11 +70,10 @@ public:
     TaskCallback PopTaskOrQuit(WorkerThread*);
 
     // Being a TaskQueue
-    void PushTask(const TaskCallback&);
-    void PushTaskFront(const TaskCallback&);
-    TaskCallback PopTask(unsigned int timeout_sec);
-    bool AnyWaiting();
-    size_t Count();
+    void PushTask(const TaskCallback&) override;
+    void PushTaskFront(const TaskCallback&) override;
+    bool AnyWaiting() override;
+    size_t Count() override;
 };
 
 } // namespace util

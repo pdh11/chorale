@@ -11,7 +11,7 @@ namespace gstreamer {
 
 /** Implementation of URLPlayer in terms of %GStreamer.
  */
-class URLPlayer: public output::URLPlayer
+class URLPlayer final: public output::URLPlayer
 {
     class Impl;
     Impl *m_impl;
@@ -25,14 +25,14 @@ public:
      */
     unsigned int Init(int card = -1, int device = -1);
 
-    unsigned int SetURL(const std::string&, const std::string&);
-    unsigned int SetNextURL(const std::string&, const std::string&);
+    unsigned int SetURL(const std::string&, const std::string&) override;
+    unsigned int SetNextURL(const std::string&, const std::string&) override;
 
-    unsigned int SetPlayState(output::PlayState);
-    unsigned int Seek(unsigned int ms);
+    unsigned int SetPlayState(output::PlayState) override;
+    unsigned int Seek(unsigned int ms) override;
 
-    void AddObserver(URLObserver*);
-    void RemoveObserver(URLObserver*);
+    void AddObserver(URLObserver*) override;
+    void RemoveObserver(URLObserver*) override;
 };
 
 } // namespace gstreamer

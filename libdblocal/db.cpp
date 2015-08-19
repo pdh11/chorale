@@ -9,6 +9,7 @@
 #include "libutil/http_stream.h"
 #include "libimport/playlist.h"
 #include <fcntl.h>
+#include <unistd.h>
 
 namespace db {
 namespace local {
@@ -141,9 +142,9 @@ std::string Database::GetURL(unsigned int id)
     return util::PathToURL(rs->GetString(mediadb::PATH));
 }
 
-std::auto_ptr<util::Stream> Database::OpenRead(unsigned int id)
+std::unique_ptr<util::Stream> Database::OpenRead(unsigned int id)
 {
-    std::auto_ptr<util::Stream> sp;
+    std::unique_ptr<util::Stream> sp;
 	
     db::QueryPtr qp = m_db->CreateQuery();
     qp->Where(qp->Restrict(mediadb::ID, db::EQ, id));
@@ -194,9 +195,9 @@ std::auto_ptr<util::Stream> Database::OpenRead(unsigned int id)
     return sp;
 }
 
-std::auto_ptr<util::Stream> Database::OpenWrite(unsigned int id)
+std::unique_ptr<util::Stream> Database::OpenWrite(unsigned int id)
 {
-    std::auto_ptr<util::Stream> fsp;
+    std::unique_ptr<util::Stream> fsp;
 
     db::QueryPtr qp = m_db->CreateQuery();
     qp->Where(qp->Restrict(mediadb::ID, db::EQ, id));

@@ -298,9 +298,9 @@ unsigned int ParanoiaStream::SetLength(uint64_t)
     return EPERM;
 }
 
-std::auto_ptr<util::Stream> LocalAudioCD::GetTrackStream(unsigned int track)
+std::unique_ptr<util::Stream> LocalAudioCD::GetTrackStream(unsigned int track)
 {
-    return std::auto_ptr<util::Stream>(
+    return std::unique_ptr<util::Stream>(
 	new ParanoiaStream((cdrom_drive*)m_cdt,
 			   m_toc[track].first_sector,
 			   m_toc[track].last_sector));

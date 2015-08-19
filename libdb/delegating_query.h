@@ -20,15 +20,15 @@ public:
 
     // Being a Query
     Subexpression Restrict(unsigned int which, RestrictionType rt, 
-			   const std::string& val);
+			   const std::string& val) override;
     Subexpression Restrict(unsigned int which, RestrictionType rt,
-			   uint32_t val);
-    Subexpression And(const Subexpression&, const Subexpression&);
-    Subexpression Or(const Subexpression&, const Subexpression&);
-    unsigned int Where(const Subexpression&);
-    unsigned int OrderBy(unsigned int which);
-    unsigned int CollateBy(unsigned int which);
-    util::CountedPointer<Recordset> Execute();
+			   uint32_t val) override;
+    Subexpression And(const Subexpression&, const Subexpression&) override;
+    Subexpression Or(const Subexpression&, const Subexpression&) override;
+    unsigned int Where(const Subexpression&) override;
+    unsigned int OrderBy(unsigned int which) override;
+    unsigned int CollateBy(unsigned int which) override;
+    util::CountedPointer<Recordset> Execute() override;
 };
 
 } // namespace db

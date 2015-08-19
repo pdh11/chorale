@@ -18,12 +18,17 @@ public:
     ~StringStream();
 
     // Being a SeekableStream
-    unsigned GetStreamFlags() const { return READABLE|WRITABLE|SEEKABLE; }
-    unsigned ReadAt(void *buffer, uint64_t pos, size_t len, size_t *pread);
+    unsigned GetStreamFlags() const override
+    {
+        return READABLE|WRITABLE|SEEKABLE;
+    }
+
+    unsigned ReadAt(void *buffer, uint64_t pos, size_t len,
+                    size_t *pread) override;
     unsigned WriteAt(const void *buffer, uint64_t pos, size_t len, 
-		     size_t *pwrote);
-    uint64_t GetLength();
-    unsigned SetLength(uint64_t);
+		     size_t *pwrote) override;
+    uint64_t GetLength() override;
+    unsigned SetLength(uint64_t) override;
 
     std::string& str() { return m_string; }
 };

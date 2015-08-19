@@ -194,28 +194,11 @@ class SeekableStream: public Stream
 public:
     SeekableStream();
 
-    unsigned Read(void *buffer, size_t len, size_t *pread);
-    unsigned Write(const void *buffer, size_t len, size_t *pwrote);
+    unsigned Read(void *buffer, size_t len, size_t *pread) override;
+    unsigned Write(const void *buffer, size_t len, size_t *pwrote) override;
 
-    unsigned int Seek(uint64_t pos) { m_pos = pos; return 0; }
-    uint64_t Tell() { return m_pos; }
-
-    virtual uint64_t GetLength() = 0;
-    virtual unsigned SetLength(uint64_t) = 0;
-
-    /** Atomic seek-and-read.
-     *
-     * May (or may not) change seek position.
-     */
-    virtual unsigned ReadAt(void *buffer, uint64_t pos, size_t len,
-			    size_t *pread) ATTRIBUTE_WARNUNUSED = 0;
-
-    /** Atomic seek-and-write.
-     *
-     * May (or may not) change seek position.
-     */
-    virtual unsigned WriteAt(const void *buffer, uint64_t pos, size_t len,
-			     size_t *pwrote) ATTRIBUTE_WARNUNUSED = 0;
+    unsigned int Seek(uint64_t pos) override { m_pos = pos; return 0; }
+    uint64_t Tell() override { return m_pos; }
 };
 
 /** Repeatedly Read()s one stream and Writes() the other, until EOF or error.

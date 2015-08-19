@@ -14,7 +14,7 @@ class MultiStream::Impl
 {
     class Output;
 
-    std::auto_ptr<Stream> m_stm;
+    std::unique_ptr<Stream> m_stm;
     uint64_t m_size;
     uint64_t m_inputpos;
     unsigned m_noutputs;
@@ -30,10 +30,10 @@ class MultiStream::Impl
     unsigned OutputWait(const util::TaskCallback& callback, unsigned ix);
 
 public:
-    Impl(std::auto_ptr<Stream> stm, uint64_t size);
+    Impl(std::unique_ptr<Stream>& stm, uint64_t size);
     ~Impl();
 
-    unsigned CreateOutput(MultiStream*, std::auto_ptr<Stream>*);
+    unsigned CreateOutput(MultiStream*, std::unique_ptr<Stream>*);
     unsigned Write(const void*, size_t, size_t*);
 };
 
@@ -72,8 +72,11 @@ unsigned MultiStream::Impl::Output::Wait(const util::TaskCallback& callback)
         /* MultiStream::Impl */
 
 
-MultiStream::Impl::Impl(std::auto_ptr<Stream> stm, uint64_t size)
-    : m_stm(stm), m_size(size), m_inputpos(0), m_noutputs(0)
+MultiStream::Impl::Impl(std::unique_ptr<Stream>& stm, uint64_t size)
+    : m_stm(std::move(stm)),
+      m_size(size),
+      m_inputpos(0),
+      m_noutputs(0)
 {
     memset(m_outputposes, 0, MAX_OP*sizeof(uint64_t));
 }
@@ -83,7 +86,7 @@ MultiStream::Impl::~Impl()
 }
 
 unsigned MultiStream::Impl::CreateOutput(MultiStream *parent, 
-					 std::auto_ptr<Stream> *pp)
+					 std::unique_ptr<Stream> *pp)
 {
     if (m_inputpos)
 	return EINVAL;
@@ -198,12 +201,12 @@ unsigned MultiStream::Impl::Write(const void *buffer, size_t len,
         /* MultiStream */
 
 
-MultiStreamPtr MultiStream::Create(std::auto_ptr<Stream> stm, uint64_t size)
+MultiStreamPtr MultiStream::Create(std::unique_ptr<Stream>& stm, uint64_t size)
 {
     return MultiStreamPtr(new MultiStream(stm, size));
 }
 
-MultiStream::MultiStream(std::auto_ptr<Stream> stm, uint64_t size)
+MultiStream::MultiStream(std::unique_ptr<Stream>& stm, uint64_t size)
     : m_impl(new Impl(stm, size))
 {
 }
@@ -214,7 +217,7 @@ MultiStream::~MultiStream()
     delete m_impl;
 }
 
-unsigned MultiStream::CreateOutput(std::auto_ptr<Stream> *pp)
+unsigned MultiStream::CreateOutput(std::unique_ptr<Stream> *pp)
 {
     return m_impl->CreateOutput(this, pp);
 }

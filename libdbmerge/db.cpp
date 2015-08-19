@@ -13,7 +13,8 @@
 namespace db {
 namespace merge {
 
-class Database::Impl: public mediadb::Database, public util::PerObjectLocking
+class Database::Impl final: public mediadb::Database,
+                            public util::PerObjectLocking
 {
     std::vector<mediadb::Database*> m_databases;
     
@@ -28,19 +29,19 @@ public:
     unsigned int RemoveDatabase(mediadb::Database*);
 
     // Being a db::Database
-    RecordsetPtr CreateRecordset();
-    QueryPtr CreateQuery();
+    RecordsetPtr CreateRecordset() override;
+    QueryPtr CreateQuery() override;
 
     // Being a mediadb::Database
-    unsigned int AllocateID();
-    std::string GetURL(unsigned int id);
-    std::auto_ptr<util::Stream> OpenRead(unsigned int id);
-    std::auto_ptr<util::Stream> OpenWrite(unsigned int id);
+    unsigned int AllocateID() override;
+    std::string GetURL(unsigned int id) override;
+    std::unique_ptr<util::Stream> OpenRead(unsigned int id) override;
+    std::unique_ptr<util::Stream> OpenWrite(unsigned int id) override;
 };
 
 /** A query that returns merged results from all the available databases.
  */
-class Database::Query: public db::Query
+class Database::Query final: public db::Query
 {
     Database::Impl *m_database;
 
@@ -50,14 +51,14 @@ public:
     {}
     
     // Being a Query
-    db::RecordsetPtr Execute();
+    db::RecordsetPtr Execute() override;
 };
 
 /** A recordset that adds the top-eight-bits database identifier into all IDs.
  * 
  * And strips them out again on the way back in.
  */
-class Database::WrapRecordset: public db::DelegatingRecordset
+class Database::WrapRecordset final: public db::DelegatingRecordset
 {
     unsigned int m_id;
 
@@ -67,15 +68,16 @@ public:
 	  m_id(id)
     {}
 
-    uint32_t GetInteger(unsigned int which) const;
-    unsigned int SetInteger(unsigned int which, uint32_t value);
-    std::string GetString(unsigned int which) const;
-    unsigned int SetString(unsigned int which, const std::string& value);
+    uint32_t GetInteger(unsigned int which) const override;
+    unsigned int SetInteger(unsigned int which, uint32_t value) override;
+    std::string GetString(unsigned int which) const override;
+    unsigned int SetString(unsigned int which,
+                           const std::string& value) override;
 };
 
 /** A recordset that presents the root item (with merged children).
  */
-class Database::RootRecordset: public db::DelegatingRecordset
+class Database::RootRecordset final: public db::DelegatingRecordset
 {
     Database::Impl *m_database;
     mutable std::string m_children; ///< Calculated lazily
@@ -86,8 +88,9 @@ public:
     {
     }
 
-    std::string GetString(unsigned int which) const;
-    unsigned int SetString(unsigned int which, const std::string& value);
+    std::string GetString(unsigned int which) const override;
+    unsigned int SetString(unsigned int which,
+                           const std::string& value) override;
 };
 
 
@@ -156,27 +159,27 @@ std::string Database::Impl::GetURL(unsigned int id)
     return m_databases[db]->GetURL(id & 0xFFFFFF);
 }
 
-std::auto_ptr<util::Stream> Database::Impl::OpenRead(unsigned int id)
+std::unique_ptr<util::Stream> Database::Impl::OpenRead(unsigned int id)
 {
     unsigned int db = id >> 24;
 
     Lock lock(this);
     if (db >= m_databases.size())
-	return std::auto_ptr<util::Stream>();
+	return std::unique_ptr<util::Stream>();
     if (!m_databases[db])
-	return std::auto_ptr<util::Stream>();
+	return std::unique_ptr<util::Stream>();
     return m_databases[db]->OpenRead(id & 0xFFFFFF);
 }
 
-std::auto_ptr<util::Stream> Database::Impl::OpenWrite(unsigned int id)
+std::unique_ptr<util::Stream> Database::Impl::OpenWrite(unsigned int id)
 {
     unsigned int db = id >> 24;
 
     Lock lock(this);
     if (db >= m_databases.size())
-	return std::auto_ptr<util::Stream>();
+	return std::unique_ptr<util::Stream>();
     if (!m_databases[db])
-	return std::auto_ptr<util::Stream>();
+	return std::unique_ptr<util::Stream>();
     return m_databases[db]->OpenWrite(id & 0xFFFFFF);
 }
 
@@ -397,12 +400,12 @@ std::string Database::GetURL(unsigned int id)
     return m_impl->GetURL(id);
 }
 
-std::auto_ptr<util::Stream> Database::OpenRead(unsigned int id)
+std::unique_ptr<util::Stream> Database::OpenRead(unsigned int id)
 {
     return m_impl->OpenRead(id);
 }
 
-std::auto_ptr<util::Stream> Database::OpenWrite(unsigned int id)
+std::unique_ptr<util::Stream> Database::OpenWrite(unsigned int id)
 {
     return m_impl->OpenWrite(id);
 }

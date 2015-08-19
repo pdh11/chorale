@@ -23,7 +23,7 @@ class PortMapper: public RPCServer
 
     // Being an RPCServer
     unsigned int OnRPC(uint32_t proc, const void *args,
-		       size_t argslen, void *reply, size_t *replylen);
+		       size_t argslen, void *reply, size_t *replylen) override;
 
     PortMapper(util::Scheduler*, util::IPFilter*);
 

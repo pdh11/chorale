@@ -12,6 +12,8 @@
 #include <getopt.h>
 #include <stdio.h>
 
+namespace {
+
 void Usage(FILE *f)
 {
     fprintf(f,
@@ -21,6 +23,8 @@ void Usage(FILE *f)
 	    "From chorale " PACKAGE_VERSION " built on " __DATE__ ".\n"
 	);
 }
+
+} // anon namespace
 
 int main(int argc, char *argv[])
 {

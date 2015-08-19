@@ -49,7 +49,7 @@ public:
     unsigned Connect(const IPEndPoint&);
 
     // Being a Pollable
-    int GetHandle() { return m_fd; }
+    int GetHandle() override { return m_fd; }
 
     /** Returns stream flags.
      *
@@ -57,7 +57,10 @@ public:
      * to a scheduler or task queue. Only a higher-level object such as an
      * http::Client can be WAITABLE.
      */
-    unsigned GetStreamFlags() const { return READABLE|WRITABLE|POLLABLE; }
+    unsigned GetStreamFlags() const override
+    {
+        return READABLE|WRITABLE|POLLABLE;
+    }
 
     bool IsOpen() const;
     unsigned Close();
@@ -71,8 +74,8 @@ public:
     bool IsWritable();
 
     // Being a Stream
-    unsigned Read(void *buffer, size_t len, size_t *pread);
-    unsigned Write(const void *buffer, size_t len, size_t *pwrote);
+    unsigned Read(void *buffer, size_t len, size_t *pread) override;
+    unsigned Write(const void *buffer, size_t len, size_t *pwrote) override;
 
     struct Buffer
     {
@@ -126,7 +129,7 @@ public:
     ~StreamSocket();
     
     unsigned Listen(unsigned int queue = 64);
-    unsigned Accept(std::auto_ptr<StreamSocket> *accepted);
+    unsigned Accept(std::unique_ptr<StreamSocket> *accepted);
    
     unsigned Open();
 

@@ -28,7 +28,7 @@ class NFSServer: public RPCServer
 
     // Being an RPCServer
     unsigned int OnRPC(uint32_t proc, const void *args,
-		       size_t argslen, void *reply, size_t *replylen);
+		       size_t argslen, void *reply, size_t *replylen) override;
 
 public:
     static util::TaskPtr Create(util::Scheduler*, util::IPFilter*, PortMapper*,

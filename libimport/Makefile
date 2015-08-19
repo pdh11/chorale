@@ -54,7 +54,10 @@ libimport:=$(TOP)$(DIR)$(TARGETDIR)libimport.a
 rip:=$(TOP)$(DIR)rip$(DOTEXE)
 RIP_OBJS:=$(TOP)$(DIR)$(TARGETDIR)rip.lo
 
-all-libimport: $(libimport) $(rip)
+rip2:=$(TOP)$(DIR)rip2$(DOTEXE)
+RIP2_OBJS:=$(TOP)$(DIR)$(TARGETDIR)2rip.lo
+
+all-libimport: $(libimport) $(rip) $(rip2)
 
 $(TOP)$(DIR)% : CXXFLAGS += $(TAGLIB_CXXFLAGS) $(BOOST_CXXFLAGS) \
 	$(LIBCDIOP_CXXFLAGS)
@@ -85,5 +88,12 @@ $(rip): $(RIP_OBJS) $(libimport) $(libutil)
 		$(CXX) -o $@ $(LDFLAGS) $(RIP_OBJS) \
 		$(libimport) $(libutil) \
 		$(PARANOIA_LIBS) $(LIBCDIOP_LIBS) $(BOOST_LIBS) $(LIBS)
+
+$(rip2): $(RIP2_OBJS) $(libimport) $(libutil)
+	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
+		$(CXX) -o $@ $(LDFLAGS) $(RIP2_OBJS) \
+		$(libimport) $(libdb) $(libutil) $(TAGLIB_LIBS) $(HAL_LIBS) \
+		$(PARANOIA_LIBS) $(LIBCDIOP_LIBS) $(BOOST_LIBS) \
+		$(LAME_LIBS) $(LIBFLAC_LIBS) $(LIBS)
 
 CLEANS += $(libimport) $(rip)

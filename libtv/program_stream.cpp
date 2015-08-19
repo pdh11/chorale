@@ -14,8 +14,8 @@ static const unsigned char mpegps_header[] =
     0x00 
 };
 
-ProgramStream::ProgramStream(std::auto_ptr<util::Stream> stream)
-    : m_stream(stream),
+ProgramStream::ProgramStream(std::unique_ptr<util::Stream>& stream)
+    : m_stream(std::move(stream)),
       m_output_buffer(mpegps_header, mpegps_header + sizeof(mpegps_header)),
       m_video_pid(0),
       m_audio_pid(0)

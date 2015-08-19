@@ -130,7 +130,7 @@ std::string WebEPG::FullItem(unsigned int id, const std::string& title,
     return s;
 }
 
-std::auto_ptr<util::Stream> WebEPG::EPGStream(bool tv, bool radio, int day)
+std::unique_ptr<util::Stream> WebEPG::EPGStream(bool tv, bool radio, int day)
 {
     char datebuf[80];
 
@@ -339,10 +339,10 @@ std::auto_ptr<util::Stream> WebEPG::EPGStream(bool tv, bool radio, int day)
     }
 
     s += "</table></body></html>";
-    return std::auto_ptr<util::Stream>(new util::StringStream(s));
+    return std::unique_ptr<util::Stream>(new util::StringStream(s));
 }
 
-std::auto_ptr<util::Stream> WebEPG::ExpandStream(unsigned int id)
+std::unique_ptr<util::Stream> WebEPG::ExpandStream(unsigned int id)
 {
     std::string s;
     db::QueryPtr qp = m_db->CreateQuery();
@@ -358,10 +358,10 @@ std::auto_ptr<util::Stream> WebEPG::ExpandStream(unsigned int id)
 		     rs->GetString(tv::epg::DESCRIPTION),
 		     rs->GetInteger(tv::epg::STATE));
     }
-    return std::auto_ptr<util::Stream>(new util::StringStream(s));
+    return std::unique_ptr<util::Stream>(new util::StringStream(s));
 }
 
-std::auto_ptr<util::Stream> WebEPG::RecordStream(unsigned int id)
+std::unique_ptr<util::Stream> WebEPG::RecordStream(unsigned int id)
 {
     std::string s;
     db::QueryPtr qp = m_db->CreateQuery();
@@ -384,10 +384,10 @@ std::auto_ptr<util::Stream> WebEPG::RecordStream(unsigned int id)
 		     rs->GetString(tv::epg::DESCRIPTION),
 		     rs->GetInteger(tv::epg::STATE));
     }
-    return std::auto_ptr<util::Stream>(new util::StringStream(s));
+    return std::unique_ptr<util::Stream>(new util::StringStream(s));
 }
 
-std::auto_ptr<util::Stream> WebEPG::CancelStream(unsigned int id)
+std::unique_ptr<util::Stream> WebEPG::CancelStream(unsigned int id)
 {
     std::string s;
     db::QueryPtr qp = m_db->CreateQuery();
@@ -405,7 +405,7 @@ std::auto_ptr<util::Stream> WebEPG::CancelStream(unsigned int id)
 		     rs->GetString(tv::epg::DESCRIPTION),
 		     rs->GetInteger(tv::epg::STATE));
     }
-    return std::auto_ptr<util::Stream>(new util::StringStream(s));
+    return std::unique_ptr<util::Stream>(new util::StringStream(s));
 }
 
 bool WebEPG::StreamForPath(const util::http::Request *rq, 

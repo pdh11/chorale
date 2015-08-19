@@ -5,6 +5,7 @@
 #include "libdb/query.h"
 #include "libdb/recordset.h"
 #include "libutil/counted_pointer.h"
+#include "libutil/stream.h"
 #include <stdio.h>
 
 namespace mediadb {

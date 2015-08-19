@@ -36,7 +36,7 @@ enum {
     STATE_COUNT
 };
 
-class Database: public db::Database
+class Database final: public db::Database
 {
     const char *m_filename;
     db::steam::Database m_db;
@@ -50,8 +50,8 @@ public:
     unsigned int Rewrite();
 
     // Being a db::Database
-    db::RecordsetPtr CreateRecordset();
-    db::QueryPtr CreateQuery();
+    db::RecordsetPtr CreateRecordset() override;
+    db::QueryPtr CreateQuery() override;
 };
 
 } // namespace epg

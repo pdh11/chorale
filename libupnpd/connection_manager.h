@@ -9,7 +9,7 @@ namespace upnpd {
  *
  * Bare minimum required by standard.
  */
-class ConnectionManagerImpl: public upnp::ConnectionManager
+class ConnectionManagerImpl final: public upnp::ConnectionManager
 {
 public:
     enum WhichEnd { CLIENT, SERVER };
@@ -27,7 +27,7 @@ public:
     }
 
     // Being a ConnectionManager2
-    unsigned int GetCurrentConnectionIDs(std::string *connection_i_ds);
+    unsigned int GetCurrentConnectionIDs(std::string *connection_i_ds) override;
     unsigned int GetCurrentConnectionInfo(int32_t connection_id,
 					  int32_t *rcs_id,
 					  int32_t *av_transport_id,
@@ -35,9 +35,9 @@ public:
 					  std::string *peer_connection_manager,
 					  int32_t *peer_connection_id,
 					  Direction *direction,
-					  ConnectionStatus *status);
+					  ConnectionStatus *status) override;
     unsigned int GetProtocolInfo(std::string *source,
-				 std::string *sink);
+				 std::string *sink) override;
 };
 
 } // namespace upnpd

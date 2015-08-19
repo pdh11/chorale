@@ -51,7 +51,7 @@ public:
     std::string GetFieldName(int mediadbtag) { return m_tag_to_fieldname_map[mediadbtag]; }
 
     std::string GetURL(unsigned int id);
-    std::auto_ptr<util::Stream> OpenRead(unsigned int id);
+    std::unique_ptr<util::Stream> OpenRead(unsigned int id);
 };
 
 } // namespace receiver

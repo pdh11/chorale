@@ -45,15 +45,15 @@ struct TimerData
     std::list<RecordData> records;
 };
 
-extern const char TIMERDB[] = "timerdb";
-extern const char RECORD[] = "record";
-extern const char S_ID[] = "id";
-extern const char S_TITLE[] = "title";
-extern const char S_DESCRIPTION[] = "description";
-extern const char S_START[] = "start";
-extern const char S_END[] = "end";
-extern const char S_CHANNEL[] = "channel";
-extern const char S_STATE[] = "state";
+constexpr const char TIMERDB[] = "timerdb";
+constexpr const char RECORD[] = "record";
+constexpr const char S_ID[] = "id";
+constexpr const char S_TITLE[] = "title";
+constexpr const char S_DESCRIPTION[] = "description";
+constexpr const char S_START[] = "start";
+constexpr const char S_END[] = "end";
+constexpr const char S_CHANNEL[] = "channel";
+constexpr const char S_STATE[] = "state";
 
 typedef xml::Parser<
     xml::Tag<TIMERDB,
@@ -82,7 +82,7 @@ typedef xml::Parser<
 
 /** A Recordset that overrides Commit to update the on-disk database.
  */
-class Recordset: public db::DelegatingRecordset
+class Recordset final: public db::DelegatingRecordset
 {
     Database *m_parent;
 
@@ -93,7 +93,7 @@ public:
     {}
 
     // Being a Recordset
-    unsigned int Commit();
+    unsigned int Commit() override;
 };
 
 unsigned int Recordset::Commit()
@@ -112,7 +112,7 @@ unsigned int Recordset::Commit()
 
 /** A Query that wraps all returned Recordsets in a tv::epg::Recordset
  */
-class Query: public db::DelegatingQuery
+class Query final: public db::DelegatingQuery
 {
     Database *m_parent;
 
@@ -124,7 +124,7 @@ public:
     }
 
     // Being a Query
-    db::RecordsetPtr Execute();
+    db::RecordsetPtr Execute() override;
 };
 
 db::RecordsetPtr Query::Execute()
@@ -152,7 +152,7 @@ Database::Database(const char *filename, dvb::Service *service)
     m_db.SetFieldInfo(tv::epg::CHANNEL,
 		      db::steam::FIELD_INT|db::steam::FIELD_INDEXED);
 
-    std::auto_ptr<util::Stream> ssp;
+    std::unique_ptr<util::Stream> ssp;
     unsigned int rc = util::OpenFileStream(m_filename, util::READ,
 					   &ssp);
 

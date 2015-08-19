@@ -8,14 +8,17 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
+#include <unistd.h>
 
 namespace import {
 
-extern const char SMIL[] = "smil";
-extern const char BODY[] = "body";
-extern const char SEQ[] = "seq";
-extern const char MEDIA[] = "media";
-extern const char SRC[] = "src";
+namespace {
+
+constexpr const char SMIL[] = "smil";
+constexpr const char BODY[] = "body";
+constexpr const char SEQ[] = "seq";
+constexpr const char MEDIA[] = "media";
+constexpr const char SRC[] = "src";
 
 typedef xml::Parser<
     xml::Tag<SMIL,
@@ -27,11 +30,13 @@ typedef xml::Parser<
 						       &PlaylistXMLObserver::OnHref
 						       > > > > > > WPLParser;
 
+} // anon namespace
+
 unsigned int PlaylistWPL::Load(const std::string& filename,
 			       std::list<std::string> *entries)
 {
     PlaylistXMLObserver obs(filename, entries);
-    std::auto_ptr<util::Stream> ss;
+    std::unique_ptr<util::Stream> ss;
     unsigned int rc = util::OpenFileStream(filename.c_str(), util::READ, &ss);
     if (rc != 0)
 	return rc;

@@ -122,14 +122,13 @@ unsigned int RPCServer::Run()
     }
 }
 
-std::string String(uint32_t *lenptr, size_t maxlen)
+std::string String(const uint32_t *lenptr, size_t maxlen)
 {
     size_t len = be32_to_cpu(*lenptr);
     if (len > maxlen)
 	return "";
-    char *s = (char*)(lenptr+1);
-    s[len] = '\0';
-    return std::string(s);
+    const char *s = (const char*)(lenptr+1);
+    return std::string(s, s+len);
 }
 
 } // namespace receiverd

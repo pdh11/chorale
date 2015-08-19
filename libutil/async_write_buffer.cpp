@@ -57,7 +57,7 @@ public:
     static TaskPtr Create(AsyncWriteBuffer::Impl *parent, int which);
 
     // Being a Task
-    unsigned int Run();
+    unsigned int Run() override;
 };
 
 CountedPointer<AsyncWriteBuffer::Impl::Task>
@@ -250,7 +250,7 @@ int main()
     util::AsyncWriteBuffer asp(&ms, &wtp);
     TestSeekableStream(&asp);
 
-    std::auto_ptr<util::Stream> fsp;
+    std::unique_ptr<util::Stream> fsp;
 
     unsigned int rc = util::OpenFileStream("test2.tmp", util::TEMP, &fsp);
     assert(rc == 0);

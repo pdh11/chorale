@@ -10,9 +10,9 @@ RemoteAudioCD::~RemoteAudioCD()
 {
 }
 
-std::auto_ptr<util::Stream> RemoteAudioCD::GetTrackStream(unsigned int track)
+std::unique_ptr<util::Stream> RemoteAudioCD::GetTrackStream(unsigned int track)
 {
-    std::auto_ptr<util::Stream> ptr;
+    std::unique_ptr<util::Stream> ptr;
     if (track >= m_urls.size())
 	return ptr;
     unsigned int rc = util::http::Stream::Create(&ptr, m_client,

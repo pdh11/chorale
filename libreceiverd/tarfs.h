@@ -13,7 +13,7 @@ namespace receiverd {
  * File handles are simply the offsets into the tar file of the file's header
  * block (see, for example, TarFS::Stat).
  */
-class TarFS: public VFS
+class TarFS final: public VFS
 {
     util::Stream *m_stm;
 
@@ -37,13 +37,14 @@ public:
     unsigned int Stat(unsigned int fh,
 		      unsigned int *type, unsigned int *mode,
 		      unsigned int *size, unsigned int *mtime,
-		      unsigned int *devt);
-    unsigned int GetHandleForName(const std::string& s, unsigned int *fh);
-    unsigned int GetNameForHandle(unsigned int fh, std::string *s);
-    unsigned int ReadLink(unsigned int fh, std::string *s);
+		      unsigned int *devt) override;
+    unsigned int GetHandleForName(const std::string& s,
+                                  unsigned int *fh) override;
+    unsigned int GetNameForHandle(unsigned int fh, std::string *s) override;
+    unsigned int ReadLink(unsigned int fh, std::string *s) override;
     unsigned int Read(unsigned int fh, unsigned int offset,
 		      void *buffer, unsigned int count, 
-		      unsigned int *nread);
+		      unsigned int *nread) override;
 };
 
 } // namespace receiverd

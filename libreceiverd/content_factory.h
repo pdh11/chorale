@@ -18,7 +18,7 @@ public:
 
     // Being a ContentFactory
     bool StreamForPath(const util::http::Request *rq, 
-		       util::http::Response *rs);
+		       util::http::Response *rs) override;
 };
 
 } // namespace receiverd

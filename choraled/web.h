@@ -9,13 +9,13 @@ class RootContentFactory: public util::http::ContentFactory
 {
     mediadb::Database *m_db;
 
-    std::auto_ptr<util::Stream> HomePageStream();
+    std::unique_ptr<util::Stream> HomePageStream();
 
 public:
     RootContentFactory(mediadb::Database *db);
 
     bool StreamForPath(const util::http::Request *rq,
-		       util::http::Response *rs);
+		       util::http::Response *rs) override;
 };
 
 #endif

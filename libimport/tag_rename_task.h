@@ -9,7 +9,7 @@
 
 namespace import {
 
-class TagRenameTask: public util::Task
+class TagRenameTask final: public util::Task
 {
     std::string m_oldname;
     std::string m_newname;
@@ -23,7 +23,7 @@ public:
     static util::TaskCallback Create(const std::string& oldname, 
 				     const std::string& newname, 
 				     db::RecordsetPtr tags);
-    unsigned int Run();
+    unsigned int Run() override;
 };
 
 } // namespace import

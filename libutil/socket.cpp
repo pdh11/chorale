@@ -861,7 +861,7 @@ unsigned StreamSocket::Listen(unsigned int queue)
     return 0;
 }
 
-unsigned StreamSocket::Accept(std::auto_ptr<StreamSocket> *accepted)
+unsigned StreamSocket::Accept(std::unique_ptr<StreamSocket> *accepted)
 {
     struct sockaddr sa;
     socklen_t sl = sizeof(sa);

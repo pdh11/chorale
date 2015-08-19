@@ -235,7 +235,7 @@ void ScanCallback::OnService(const std::string& descurl,
             rc = pc.RequestIOLock(false);
             if (rc == 0) {
                 printf("Lock OK\n");
-                std::auto_ptr<util::Stream> stream;
+                std::unique_ptr<util::Stream> stream;
                 rc = util::OpenFileStream("karma.txt", util::WRITE, &stream);
                 if (rc == 0) {
                     printf("file OK\n");
@@ -371,7 +371,7 @@ static int Update()
 
     if (update_xml)
     {
-	std::auto_ptr<util::Stream> fsp;
+	std::unique_ptr<util::Stream> fsp;
 	rc = util::OpenFileStream(update_xml, util::READ, &fsp);
 	if (rc)
 	{

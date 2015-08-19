@@ -36,14 +36,14 @@ std::string Database::GetURL(unsigned int id)
     return m_connection.GetURL(id);
 }
 
-std::auto_ptr<util::Stream> Database::OpenRead(unsigned int id)
+std::unique_ptr<util::Stream> Database::OpenRead(unsigned int id)
 {
     return m_connection.OpenRead(id);
 }
 
-std::auto_ptr<util::Stream> Database::OpenWrite(unsigned int)
+std::unique_ptr<util::Stream> Database::OpenWrite(unsigned int)
 {
-    return std::auto_ptr<util::Stream>();
+    return std::unique_ptr<util::Stream>();
 }
 
 } // namespace receiver

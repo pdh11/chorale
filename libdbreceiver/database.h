@@ -17,7 +17,7 @@ namespace receiver {
 
 /** Implementation of db::Database; also owns the connection to the server.
  */
-class Database: public mediadb::Database
+class Database final: public mediadb::Database
 {
     Connection m_connection;
 
@@ -30,14 +30,14 @@ public:
     std::string GetFieldName(int mediadbtag);
 
     // Being a db::Database
-    db::RecordsetPtr CreateRecordset();
-    db::QueryPtr CreateQuery();
+    db::RecordsetPtr CreateRecordset() override;
+    db::QueryPtr CreateQuery() override;
 
     // Being a mediadb::Database
-    unsigned int AllocateID() { return 0; } // read-only, no new IDs
-    std::string GetURL(unsigned int id);
-    std::auto_ptr<util::Stream> OpenRead(unsigned int id);
-    std::auto_ptr<util::Stream> OpenWrite(unsigned int id);
+    unsigned int AllocateID() override { return 0; } // read-only, no new IDs
+    std::string GetURL(unsigned int id) override;
+    std::unique_ptr<util::Stream> OpenRead(unsigned int id) override;
+    std::unique_ptr<util::Stream> OpenWrite(unsigned int id) override;
 };
 
 } // namespace receiver

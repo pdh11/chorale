@@ -6,6 +6,7 @@
 #include "libutil/trace.h"
 #include "libutil/errors.h"
 #include "libutil/printf.h"
+#include "libutil/stream.h"
 
 namespace tv {
 
@@ -65,7 +66,7 @@ unsigned int Service::Record(unsigned int channel, time_t start, time_t end,
 }
 
 unsigned int Service::GetStream(unsigned int channel, 
-				std::auto_ptr<util::Stream> *pstm)
+				std::unique_ptr<util::Stream> *pstm)
 {
     *pstm = m_frontend->GetStream(*(m_channels->begin()+channel));
     return 0;

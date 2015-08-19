@@ -36,12 +36,12 @@ db::QueryPtr Database::CreateQuery()
 				  m_connection));
 }
 
-std::auto_ptr<util::Stream> Database::OpenRead(unsigned int id)
+std::unique_ptr<util::Stream> Database::OpenRead(unsigned int id)
 {
     return m_connection->OpenRead(id);
 }
 
-std::auto_ptr<util::Stream> Database::OpenWrite(unsigned int id)
+std::unique_ptr<util::Stream> Database::OpenWrite(unsigned int id)
 {
     return m_connection->OpenWrite(id);
 }

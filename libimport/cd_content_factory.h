@@ -7,7 +7,7 @@
 
 namespace import {
 
-class CDContentFactory: public util::http::ContentFactory
+class CDContentFactory final: public util::http::ContentFactory
 {
     AudioCDPtr m_audiocd;
     unsigned int m_index;
@@ -23,7 +23,7 @@ public:
 
     // Being a ContentFactory
     bool StreamForPath(const util::http::Request *rq,
-		       util::http::Response *rs);
+		       util::http::Response *rs) override;
 };
 
 } // namespace import

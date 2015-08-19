@@ -161,7 +161,9 @@ Client::Task::Task(Client *parent,
     ParseURL(url, &host, &m_path);
     std::string hostonly;
     ParseHost(host, 80, &hostonly, &m_remote_endpoint.port);
-    m_host = util::Printf() << hostonly << ":" << m_remote_endpoint.port;
+    std::stringstream ss;
+    ss << hostonly << ":" << m_remote_endpoint.port;
+    m_host = ss.str();
     m_remote_endpoint.addr = util::IPAddress::Resolve(hostonly.c_str());
 }
 
@@ -254,9 +256,10 @@ unsigned int Client::Task::Run()
 	m_headers += m_parent->m_useragent_header;
 	m_headers += "Accept: */*\r\n";
 	m_headers += m_extra_headers;
-	if (!m_body.empty())
+	if (!m_body.empty()) {
 	    m_headers += util::Printf() << "Content-Length: " << m_body.size()
 					<< "\r\n";
+        }
 	m_headers += "\r\n";
 	m_state = SEND_HEADERS;
 	/* fall through */

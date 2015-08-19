@@ -78,7 +78,7 @@ class RPCServer: public util::Task
     enum { BUFSIZE = 9000 };
     static unsigned char sm_buf[BUFSIZE];
 
-    unsigned int Run();
+    unsigned int Run() override;
     
     typedef util::CountedPointer<RPCServer> RPCServerPtr;
 
@@ -95,7 +95,7 @@ public:
 			       void *reply, size_t *replylen) = 0;
 };
 
-std::string String(uint32_t *lenptr, size_t maxlen);
+std::string String(const uint32_t *lenptr, size_t maxlen);
 
 } // namespace receiverd
 

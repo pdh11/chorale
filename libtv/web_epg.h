@@ -24,10 +24,10 @@ class WebEPG: public util::http::ContentFactory
     std::string FullItem(unsigned int id, const std::string&, 
 			 const std::string&, unsigned int);
 
-    std::auto_ptr<util::Stream> EPGStream(bool tv, bool radio, int day);
-    std::auto_ptr<util::Stream> ExpandStream(unsigned int id);
-    std::auto_ptr<util::Stream> RecordStream(unsigned int id);
-    std::auto_ptr<util::Stream> CancelStream(unsigned int id);
+    std::unique_ptr<util::Stream> EPGStream(bool tv, bool radio, int day);
+    std::unique_ptr<util::Stream> ExpandStream(unsigned int id);
+    std::unique_ptr<util::Stream> RecordStream(unsigned int id);
+    std::unique_ptr<util::Stream> CancelStream(unsigned int id);
 
 public:
     WebEPG();
@@ -37,7 +37,7 @@ public:
 
     // Being a ContentFactory
     bool StreamForPath(const util::http::Request *rq, 
-		       util::http::Response *rs);
+		       util::http::Response *rs) override;
 };
 
 } // namespace tv

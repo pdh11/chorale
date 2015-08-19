@@ -18,7 +18,7 @@ namespace upnp {
 
 /** Implementation of db::Database; also owns the connection to the server.
  */
-class Database: public mediadb::Database
+class Database final: public mediadb::Database
 {
     Connection m_connection;
 
@@ -45,14 +45,14 @@ public:
     }
 
     // Being a Database
-    RecordsetPtr CreateRecordset();
-    QueryPtr CreateQuery();
+    RecordsetPtr CreateRecordset() override;
+    QueryPtr CreateQuery() override;
 
     // Being a mediadb::Database
-    unsigned int AllocateID() { return m_connection.AllocateID(); }
-    std::string GetURL(unsigned int id);
-    std::auto_ptr<util::Stream> OpenRead(unsigned int id);
-    std::auto_ptr<util::Stream> OpenWrite(unsigned int id);
+    unsigned int AllocateID() override { return m_connection.AllocateID(); }
+    std::string GetURL(unsigned int id) override;
+    std::unique_ptr<util::Stream> OpenRead(unsigned int id) override;
+    std::unique_ptr<util::Stream> OpenWrite(unsigned int id) override;
 };
 
 } // namespace upnp

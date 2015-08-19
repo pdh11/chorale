@@ -90,8 +90,8 @@ public:
     }
 
     // Being a db::Database
-    db::RecordsetPtr CreateRecordset();
-    db::QueryPtr CreateQuery();
+    db::RecordsetPtr CreateRecordset() override;
+    db::QueryPtr CreateQuery() override;
 };
 
 void Test();

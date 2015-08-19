@@ -250,9 +250,9 @@ void Frontend::GetState(unsigned int*, unsigned int*, bool *ptuned)
 	TRACE << "tuned!\n";
 }
 
-std::auto_ptr<util::Stream> Frontend::GetStream(const Channel& c)
+std::unique_ptr<util::Stream> Frontend::GetStream(const Channel& c)
 {
-    std::auto_ptr<util::Stream> sp;
+    std::unique_ptr<util::Stream> sp;
 
     Tune(c);
 
@@ -281,7 +281,7 @@ std::auto_ptr<util::Stream> Frontend::GetStream(const Channel& c)
 	    return sp;
 	}
 	sp.reset(vs);
-	return std::auto_ptr<util::Stream>(new ProgramStream(sp));
+	return std::unique_ptr<util::Stream>(new ProgramStream(sp));
     }
     else
     {

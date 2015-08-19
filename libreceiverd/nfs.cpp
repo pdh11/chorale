@@ -95,7 +95,7 @@ unsigned int NFSServer::OnRPC(uint32_t proc, const void *args,
     case NFSPROC_GETATTR:
 	if (argslen >= sizeof(nfs::Fhandle))
 	{
-	    nfs::Fhandle *fhandle = (nfs::Fhandle*)args;
+	    const nfs::Fhandle *fhandle = (const nfs::Fhandle*)args;
 	    unsigned int fileid = fhandle->fileid;
 
 //	    TRACE << "Alleged getattr is:\n" << Hex(args, argslen);
@@ -113,7 +113,7 @@ unsigned int NFSServer::OnRPC(uint32_t proc, const void *args,
 	    else
 	    {
 //		TRACE << "NFS stat succeeded\n";
-		memset(attrstat, '\0', sizeof(attrstat));
+		memset(attrstat, '\0', sizeof(*attrstat));
 		attrstat->attributes.type = cpu_to_be32(type);
 		attrstat->attributes.mode = cpu_to_be32(mode);
 		attrstat->attributes.nlink = cpu_to_be32(1);
@@ -130,7 +130,7 @@ unsigned int NFSServer::OnRPC(uint32_t proc, const void *args,
     case NFSPROC_LOOKUP:
 	if (argslen >= sizeof(nfs::Diropargs))
 	{
-	    nfs::Diropargs *diropargs = (nfs::Diropargs*)args;
+	    const nfs::Diropargs *diropargs = (const nfs::Diropargs*)args;
 	    unsigned int fileid = diropargs->dir.fileid;
 	    std::string child = String(&diropargs->name,
 				       argslen - sizeof(nfs::Diropargs));
@@ -175,7 +175,7 @@ unsigned int NFSServer::OnRPC(uint32_t proc, const void *args,
     case NFSPROC_READLINK:
 	if (argslen >= sizeof(nfs::Fhandle))
 	{
-	    nfs::Fhandle *link = (nfs::Fhandle*)args;
+	    const nfs::Fhandle *link = (const nfs::Fhandle*)args;
 	    std::string s;
 	    unsigned int rc = m_vfs->ReadLink(link->fileid, &s);
 	    if (rc == 0)
@@ -199,7 +199,7 @@ unsigned int NFSServer::OnRPC(uint32_t proc, const void *args,
     case NFSPROC_READ:
 	if (argslen >= sizeof(nfs::Readargs))
 	{
-	    nfs::Readargs *readargs = (nfs::Readargs*)args;
+            auto readargs((const nfs::Readargs*)args);
 	    unsigned int fileid = readargs->file.fileid;
 	    unsigned int offset = be32_to_cpu(readargs->offset);
 	    unsigned int count = be32_to_cpu(readargs->count);
@@ -279,7 +279,7 @@ int main(int argc, char *argv[])
 								      NULL);
 	receiverd::Mount::Create(&poller, NULL, pmap.get());
 
-	std::auto_ptr<util::Stream> stm;
+	std::unique_ptr<util::Stream> stm;
 	unsigned int rc = util::OpenFileStream(argv[1], util::READ, &stm);
 	if (rc != 0)
 	{

@@ -79,7 +79,7 @@ public:
 
     /** Access an audio channel from a multiplex (Tune() must have been called)
      */
-    std::auto_ptr<util::Stream> GetStream(const Channel&);
+    std::unique_ptr<util::Stream> GetStream(const Channel&);
 };
 
 } // namespace dvb

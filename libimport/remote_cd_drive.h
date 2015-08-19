@@ -58,7 +58,7 @@ public:
     ~RemoteAudioCD();
 
     // Being an AudioCD
-    std::auto_ptr<util::Stream> GetTrackStream(unsigned int track);
+    std::unique_ptr<util::Stream> GetTrackStream(unsigned int track);
 };
 
 } // namespace import

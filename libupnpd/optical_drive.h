@@ -15,8 +15,8 @@ namespace upnpd {
 
 /** Actual implementation of upnp::OpticalDrive in terms of libimport.
  */
-class OpticalDriveImpl: public upnp::OpticalDrive,
-			public import::CDDriveObserver
+class OpticalDriveImpl final: public upnp::OpticalDrive,
+                              public import::CDDriveObserver
 {
     import::CDDrivePtr m_cd;
     import::AudioCDPtr m_audiocd;
@@ -30,20 +30,21 @@ public:
     ~OpticalDriveImpl();
     
     // Being an OpticalDrive
-    unsigned int Eject();
-    unsigned int GetDiscInfo(uint8_t *track_count, int32_t *total_sectors);
+    unsigned int Eject() override;
+    unsigned int GetDiscInfo(uint8_t *track_count,
+                             int32_t *total_sectors) override;
     unsigned int GetTrackInfo(uint8_t track,
 			      TrackType *type,
 			      int32_t *first_sector,
 			      int32_t *last_sector,
-			      std::string *data_url);
-    unsigned int GetDiscPresent(bool*);
+			      std::string *data_url) override;
+    unsigned int GetDiscPresent(bool*) override;
 
     // Being a CDDriveObserver
-    void OnDiscPresent(bool whether);
+    void OnDiscPresent(bool whether) override;
 };
 
-class OpticalDriveDevice: public upnp::Device
+class OpticalDriveDevice final: public upnp::Device
 {
     upnpd::OpticalDriveImpl m_opticaldrive;
     upnp::OpticalDriveServer m_opticaldriveserver;

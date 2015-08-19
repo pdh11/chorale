@@ -82,8 +82,8 @@ unsigned int ProtocolClient::Transaction()
 
     unsigned char syncbyte = 2;
 
-//    TRACE << "Sending packet, len=" << header->datasize << " op="
-//	  << header->opcode << " type=" << header->type << "\n";
+    TRACE << "Sending packet, len=" << header->datasize << " op="
+	  << header->opcode << " type=" << header->type << "\n";
 
     m_socket.SetCork(true);
     unsigned rc = m_socket.WriteAll(&syncbyte, 1);
@@ -562,7 +562,7 @@ void ReadFidToFile(empeg::ProtocolClient *pc, uint32_t fid,
 
     unsigned int rc = pc->ReadFidToBuffer(fid, &sz, &buf);
 
-    std::auto_ptr<util::Stream> ssp;
+    std::unique_ptr<util::Stream> ssp;
     rc = util::OpenFileStream(filename, util::WRITE, &ssp);
     if (rc != 0)
 	return;

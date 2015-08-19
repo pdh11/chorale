@@ -42,12 +42,12 @@ public:
     SetlistWindow(output::Queue*, mediadb::Registry*);
     ~SetlistWindow();
 
-    void customEvent(QEvent*);
-    void keyPressEvent(QKeyEvent*);
+    void customEvent(QEvent*) override;
+    void keyPressEvent(QKeyEvent*) override;
 
     // Being a output::QueueObserver
-    void OnTimeCode(unsigned int index, unsigned int sec);
-    void OnPlayState(output::PlayState state);
+    void OnTimeCode(unsigned int index, unsigned int sec) override;
+    void OnPlayState(output::PlayState state) override;
 
 public slots:
     void Play();

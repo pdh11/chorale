@@ -279,13 +279,15 @@ unsigned int ContentDirectoryImpl::Search(const std::string& container_id,
     }
     ss << mediadb::didl::s_footer;
 
+    LOG(CDS) << "Returned " << n << " now scanning for more\n";
+
     while (rs && !rs->IsEOF())
     {
 	rs->MoveNext();
 	++n;
     }
 
-    LOG(CDS) << "Search result is " << ss.str() << " (" << nok << " items)\n";
+    LOG(CDS) << "Search result is " << ss.str() << " (" << nok << "/" << n << " items)\n";
 
     *result = ss.str();
     *number_returned = nok;
@@ -738,7 +740,7 @@ static const struct {
       "16f"
       "</res>"
       "</item>"
-      "</DIDL-Lite>", 2, 0 },
+      "</DIDL-Lite>", 2, 9 },
 
     // Album query
     { "0",
@@ -852,12 +854,15 @@ int main(int, char**)
 
 				    &result, &n, &total, &updateid);
 	assert(rc == 0);
-	if (result != searchtests[i].result)
+	if (result != searchtests[i].result
+            || total != searchtests[i].total)
 	{
 	    TRACE << "Search test " << i << ": " << searchtests[i].criteria
-		  << "\n";
+		  << "(" << searchtests[i].total << ")" << "\n";
 	    TRACE << "Got:\n" << result << "\nexpected:\n"
-		  << searchtests[i].result << "\nFAIL.\n";
+		  << searchtests[i].result
+                  << "(" << total << ")"
+                  << "\nFAIL.\n";
 	}
 	assert(result == searchtests[i].result);
 	assert(n      == searchtests[i].n);

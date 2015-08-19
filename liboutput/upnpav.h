@@ -61,18 +61,19 @@ public:
     bool SupportsVideo() const { return m_supports_video; }
 
     // Being an URLPlayer
-    unsigned int SetURL(const std::string& url, const std::string& metadata);
+    unsigned int SetURL(const std::string& url,
+                        const std::string& metadata) override;
     unsigned int SetNextURL(const std::string& url,
-			    const std::string& metadata);
-    unsigned int SetPlayState(PlayState);
-    unsigned int Seek(unsigned int ms);
+			    const std::string& metadata) override;
+    unsigned int SetPlayState(PlayState) override;
+    unsigned int Seek(unsigned int ms) override;
 
     // These are virtual in URLPlayer itself so must be defined explicitly
     void AddObserver(URLObserver*);
     void RemoveObserver(URLObserver*);
     
     // Being an AVTransport2Observer
-    void OnLastChange(const std::string& value);
+    void OnLastChange(const std::string& value) override;
     
     // Being an AVTransport2AsyncObserver
     void OnGetPositionInfoDone(unsigned int rc,
@@ -83,12 +84,12 @@ public:
 			       const std::string& rel_time,
 			       const std::string& abs_time,
 			       int32_t rel_count,
-			       uint32_t abs_count);
+			       uint32_t abs_count) override;
     
     // Being a ConnectionManager2AsyncObserver
     void OnGetProtocolInfoDone(unsigned int rc,
 			       const std::string& source,
-			       const std::string& sink);
+			       const std::string& sink) override;
 
     // XML callbacks
     unsigned int OnTransportState(const std::string&);

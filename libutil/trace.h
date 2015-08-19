@@ -7,6 +7,7 @@
 #define LIBUTIL_TRACE_H
 
 #include <string>
+#include <memory>
 
 namespace util {
 
@@ -110,6 +111,13 @@ inline const Tracer& operator<<(const Tracer& n, const std::pair<X,Y>& p)
 
 template<typename X, template<typename Y> class SmartPtr>
 inline const Tracer& operator<<(const Tracer&n, const SmartPtr<X>& ptr)
+{
+    n << ptr.get();
+    return n;
+}
+
+template<typename X>
+inline const Tracer& operator<<(const Tracer&n, const std::unique_ptr<X>& ptr)
 {
     n << ptr.get();
     return n;

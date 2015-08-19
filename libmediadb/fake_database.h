@@ -58,14 +58,14 @@ public:
 	return (boost::format("test:%u") % fid).str();
     }
 
-    std::auto_ptr<util::Stream> OpenRead(unsigned int)
+    std::unique_ptr<util::Stream> OpenRead(unsigned int)
     {
-	return std::auto_ptr<util::Stream>(new util::StringStream(""));
+	return std::unique_ptr<util::Stream>(new util::StringStream(""));
     }
 
-    std::auto_ptr<util::Stream> OpenWrite(unsigned int)
+    std::unique_ptr<util::Stream> OpenWrite(unsigned int)
     {
-	return std::auto_ptr<util::Stream>(new util::StringStream(""));
+	return std::unique_ptr<util::Stream>(new util::StringStream(""));
     }
 };
 

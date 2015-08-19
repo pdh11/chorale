@@ -311,10 +311,12 @@ const char *Connection::ChoraleTypeToEmpegType(unsigned int ctype)
 	"file",
 	"file",
 	"tune",
-	"tune"
+	"tune",
+        "file",
+        "file"
     };
 
-    assert(sizeof(array)/sizeof(*array) == mediadb::TYPE_COUNT);
+    BOOST_STATIC_ASSERT(sizeof(array)/sizeof(*array) == mediadb::TYPE_COUNT);
 
     return array[ctype];
 }
@@ -331,10 +333,11 @@ const char *Connection::ChoraleCodecToEmpegCodec(unsigned int ccodec)
 	"vorbis",
 	"wave",
 	"wave",
-	"none"
+	"none",
+        "none"
     };
 
-    assert(sizeof(array)/sizeof(*array) == mediadb::AUDIOCODEC_COUNT);
+    BOOST_STATIC_ASSERT(sizeof(array)/sizeof(*array) == mediadb::AUDIOCODEC_COUNT);
 
     return array[ccodec];
 }
@@ -473,6 +476,16 @@ std::string Connection::GetURL(unsigned int id)
 	    % m_server->GetPort()
 	    % m_generation
 	    % id).str();
+}
+
+db::QueryPtr Connection::CreateLocalQuery()
+{
+    return m_db.CreateQuery();
+}
+
+db::RecordsetPtr Connection::CreateLocalRecordset()
+{
+    return m_db.CreateRecordset();
 }
 
 } // namespace db::empeg

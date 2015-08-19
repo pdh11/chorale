@@ -15,7 +15,7 @@ namespace tv {
  */
 class ProgramStream: public util::Stream
 {
-    std::auto_ptr<util::Stream> m_stream;
+    std::unique_ptr<util::Stream> m_stream;
     std::string m_output_buffer;
     std::string m_video_buffer;
     std::string m_audio_buffer;
@@ -29,7 +29,7 @@ public:
      *
      * Note that the ProgramStream takes ownership of the underlying stream.
      */
-    explicit ProgramStream(std::auto_ptr<util::Stream>);
+    explicit ProgramStream(std::unique_ptr<util::Stream>&);
     ~ProgramStream();
     
     // Being a Stream

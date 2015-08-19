@@ -1,6 +1,7 @@
 #ifndef MEDIATREE_NODE_ENUMERATOR_H
 #define MEDIATREE_NODE_ENUMERATOR_H 1
 
+#include "libutil/counted_pointer.h"
 #include "node.h"
 #include <string>
 
