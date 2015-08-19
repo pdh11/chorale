@@ -1,6 +1,7 @@
 TOP?=../
 DIR:=libkarma/
 SRCS:=\
+	db_writer.cpp \
 	protocol_client.cpp \
 
 all-libkarma:

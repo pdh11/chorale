@@ -1,9 +1,11 @@
 #include "config.h"
 #include "libdbsteam/db.h"
+#include "libkarma/db_writer.h"
 #include "libdblocal/file_scanner.h"
 #include "libdblocal/db.h"
 #include "libdb/query.h"
 #include "libdb/recordset.h"
+#include "libdb/free_rs.h"
 #include "libmediadb/schema.h"
 #include "libmediadb/xml.h"
 #include "libutil/worker_thread_pool.h"
@@ -12,6 +14,7 @@
 #include "libutil/file.h"
 #include "libutil/http_client.h"
 #include "libutil/counted_pointer.h"
+#include "libutil/file_stream.h"
 #include <boost/format.hpp>
 #include <getopt.h>
 
@@ -110,6 +113,7 @@ static void MaybeWriteInt(FILE *f, db::RecordsetPtr rs, const char *tag,
     fprintf(f, "%s=%u\n", tag, val);
 }
 
+#if 0
 static std::string EscapeKarmaPlaylist(const std::vector<unsigned int> *playlist)
 {
     std::string s;
@@ -137,6 +141,7 @@ static std::string EscapeKarmaPlaylist(const std::vector<unsigned int> *playlist
     }
     return s;
 }
+#endif
 
 static void WriteFIDStructure(const char *odir, db::Database *thedb,
                               bool karma)
@@ -149,15 +154,15 @@ static void WriteFIDStructure(const char *odir, db::Database *thedb,
     PreAllocateFIDs(thedb, mediadb::TUNE);
     PreAllocateFIDs(thedb, mediadb::SPOKEN);
     printf("Highest tune fid: 0x%x\n", next_fid - 0x10);
-    if (!karma) {
-        PreAllocateFIDs(thedb, mediadb::DIR);
-        PreAllocateFIDs(thedb, mediadb::PLAYLIST);
-    }
+    PreAllocateFIDs(thedb, mediadb::DIR);
+    PreAllocateFIDs(thedb, mediadb::PLAYLIST);
     printf("Highest fid: 0x%x\n", next_fid - 0x10);
 
     uint64_t drivesize[2];
     drivesize[0] = 0;
     drivesize[1] = 0;
+
+    karma::DBWriter kdbwriter;
 
     for (fidmap_t::const_iterator i = fidmap.begin(); i != fidmap.end(); ++i)
     {
@@ -171,6 +176,9 @@ static void WriteFIDStructure(const char *odir, db::Database *thedb,
 	    char outputleaf[40];
 	    unsigned int drive;
             std::string playlist;
+
+            db::RecordsetPtr krs(db::FreeRecordset::Create());
+            krs->SetInteger(mediadb::ID, destfid);
 
             if (karma) {
                 drive = 0;
@@ -190,12 +198,8 @@ static void WriteFIDStructure(const char *odir, db::Database *thedb,
 	    unsigned int type = rs->GetInteger(mediadb::TYPE);
 	    unsigned int length;
 
-            printf("type=%u (%u)\n", type, mediadb::TUNE);
-
 	    if (type == mediadb::TUNE || type == mediadb::SPOKEN)
 	    {   
-                printf("type=tune\n");
-                
 		unsigned int highfid = rs->GetInteger(mediadb::IDHIGH);
 		if (highfid)
 		{
@@ -208,7 +212,6 @@ static void WriteFIDStructure(const char *odir, db::Database *thedb,
 			TRACE << "Highfid " << highfid << " failed ("
 			      << rs->GetString(mediadb::IDHIGH) << ")\n";
 		}
-                printf("path=%s\n", rs->GetString(mediadb::PATH).c_str());
 		util::posix::MakeRelativeLink(s+outputleaf,
 					      rs->GetString(mediadb::PATH));
 		drivesize[drive] += rs->GetInteger(mediadb::SIZEBYTES);
@@ -218,7 +221,6 @@ static void WriteFIDStructure(const char *odir, db::Database *thedb,
 	    {
 		std::vector<unsigned int> children;
                 if (karma) {
-                    printf("karmaplaylist\n");
                     std::vector<unsigned int> rawChildren;
                     mediadb::ChildrenToVector(rs->GetString(mediadb::CHILDREN),
                                               &rawChildren);
@@ -235,7 +237,6 @@ static void WriteFIDStructure(const char *odir, db::Database *thedb,
                             }
                         }
                     }
-                    playlist = EscapeKarmaPlaylist(&children);
                 } else {
                     std::vector<unsigned int> rawChildren;
                     mediadb::ChildrenToVector(rs->GetString(mediadb::CHILDREN),
@@ -252,6 +253,8 @@ static void WriteFIDStructure(const char *odir, db::Database *thedb,
                         }
                     }
                 }
+
+                /// @todo if (karma) write to krs too
 
 		length = 0;
 		FILE *f = fopen((s+outputleaf).c_str(), "w");
@@ -278,6 +281,12 @@ static void WriteFIDStructure(const char *odir, db::Database *thedb,
 	    FILE *f = fopen((s+outputleaf).c_str(), "w");
 	    if (f)
 	    {
+                /// @todo Write fields to krs too
+
+                krs->SetString(mediadb::TITLE, rs->GetString(mediadb::TITLE));
+                krs->SetString(mediadb::TYPE,  typemap[type]);
+                krs->SetInteger(mediadb::SIZEBYTES, length);
+
 		fprintf(f, "type=%s\n", typemap[type]);
 		fprintf(f, "title=%s\n",
 			rs->GetString(mediadb::TITLE).c_str());
@@ -303,14 +312,37 @@ static void WriteFIDStructure(const char *odir, db::Database *thedb,
                         MaybeWriteInt(f, rs, "ctime", mediadb::CTIME);
                         fprintf(f, "fid_generation=1\n");
                     }
+                    krs->SetString(mediadb::ARTIST, rs->GetString(mediadb::ARTIST));
+                    krs->SetString(mediadb::ALBUM, rs->GetString(mediadb::ALBUM));
+                    krs->SetString(mediadb::GENRE, rs->GetString(mediadb::GENRE));
+                    krs->SetString(mediadb::YEAR, rs->GetString(mediadb::YEAR));
+                    krs->SetString(mediadb::BITSPERSEC, ebr.c_str());
 		} else if (karma) {
-                    fprintf(f, "playlist=%s\n", playlist.c_str());
                     fprintf(f, "fid_generation=1\n");
                 }
 
 		fclose(f);
 	    }
+
+            if (karma) {
+                kdbwriter.addRecord(krs);
+            }
 	}
+    }
+
+    if (karma) {
+        std::string smalldb(outputdir);
+        smalldb += "/smalldb";
+        std::unique_ptr<util::Stream> fs;
+        unsigned rc = OpenFileStream(smalldb.c_str(), util::WRITE, &fs);
+        if (rc) {
+            perror("open smalldb");
+        } else {
+            rc = kdbwriter.write(fs.get());
+            if (rc) {
+                perror("write smalldb");
+            }
+        }
     }
 
     printf("Drive 0: %llu bytes used\n", (unsigned long long)drivesize[0]);

@@ -114,12 +114,12 @@ $(pparse): $(PPARSE_OBJS) $(libimport) $(libutil) Makefile
 		 $(BOOST_LIBS) $(LIBS)
 
 $(protocoltool): $(PROTOCOLTOOL_OBJS) \
-		$(libdbempeg) $(libimport) $(libdblocal) \
+		$(libdbempeg) $(libimport) $(libdblocal) $(libkarma) \
 		$(libmediadb) $(libdbsteam) $(libdb) $(libempeg) $(libkarma) \
 		$(libupnp) $(libutil)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
 		$(CXX) -o $@ $(LDFLAGS) $(PROTOCOLTOOL_OBJS) \
-		$(libdbempeg) $(libdblocal) $(libimport) \
+		$(libdbempeg) $(libdblocal) $(libimport) $(libkarma) \
 		$(libmediadb) $(libdbsteam) $(libdb) $(libempeg) $(libkarma) \
 		$(libupnp) $(libutil) \
 		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS)
@@ -149,11 +149,11 @@ $(readtags): $(READTAGS_OBJS) $(libimport) $(libdb) $(libutil) \
 		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS)
 
 $(squirt): $(SQUIRT_OBJS) $(libimport) $(libdb) $(libutil) \
-		$(libdblocal) $(libdbsteam) $(libmediadb)
+		$(libdblocal) $(libdbsteam) $(libmediadb) $(libkarma)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CXX) -o $@ $(SQUIRT_OBJS) \
 		$(libdblocal) $(libimport) $(libdbsteam) $(libmediadb) \
-		$(libdb) $(libutil) \
+		$(libkarma) $(libdb) $(libutil) \
 		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS)
 
 $(timedb): $(TIMEDB_OBJS) $(libimport) $(libdb) $(libutil) \
