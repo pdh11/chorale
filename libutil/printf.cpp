@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdio.h>
 
 std::string util::SPrintf(const char *fmt, ...)
 {
@@ -60,6 +61,14 @@ int main()
     TRACE << "s='" << s << "'\n";
 
     assert(s == "37\n");
+
+    std::string s3 = "Long long long long long long";
+
+    std::string s2 = util::Printf() << 2 << s3 << 3;
+    
+    printf("%s\n", s2.c_str());
+
+    assert(s2 == "2"+s3+"3");
 
     return 0;
 }
