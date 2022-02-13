@@ -121,7 +121,7 @@ public:
 
 /** A ContentFactory which exposes a directory on the server's filesystem.
  */
-class FileContentFactory: public ContentFactory
+class FileContentFactory final: public ContentFactory
 {
     std::string m_file_root;
     std::string m_page_root;

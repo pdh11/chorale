@@ -20,7 +20,7 @@ TcpWrappers::~TcpWrappers()
 {
 }
 
-bool TcpWrappers::Allowed(IPAddress client)
+bool TcpWrappers::Allowed(IPAddress client __attribute__((unused)))
 {
 #if HAVE_LIBWRAP
     Lock lock(this);

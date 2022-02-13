@@ -446,9 +446,9 @@ bool Connection::StreamForPath(const util::http::Request *rq,
     return false; 
 }
 
-std::auto_ptr<util::Stream> Connection::OpenWrite(unsigned int id)
+std::unique_ptr<util::Stream> Connection::OpenWrite(unsigned int id)
 {
-    std::auto_ptr<util::Stream> sp;
+    std::unique_ptr<util::Stream> sp;
 
     unsigned int rc = EnsureWritable();
     if (rc)
@@ -461,9 +461,9 @@ std::auto_ptr<util::Stream> Connection::OpenWrite(unsigned int id)
     return sp;
 }
 
-std::auto_ptr<util::Stream> Connection::OpenRead(unsigned int id)
+std::unique_ptr<util::Stream> Connection::OpenRead(unsigned int id)
 {
-    std::auto_ptr<util::Stream> result;
+    std::unique_ptr<util::Stream> result;
     unsigned int rc = ::empeg::FidStream::CreateRead(&m_client, id, &result);
     (void)rc;
     return result;

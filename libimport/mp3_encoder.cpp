@@ -41,6 +41,7 @@ unsigned int MP3Encoder::Init(util::Stream *output, size_t)
 	return EINVAL;
     }
 
+    TRACE << "MP3 encoder inited\n";
     return 0;
 }
 

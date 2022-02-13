@@ -22,9 +22,9 @@ class FidStream: public util::SeekableStream
 
 public:
     static unsigned int CreateRead(ProtocolClient*, unsigned int fid,
-				   std::auto_ptr<util::Stream> *result);
+				   std::unique_ptr<util::Stream> *result);
     static unsigned int CreateWrite(ProtocolClient*, unsigned int fid,
-				    std::auto_ptr<util::Stream> *result);
+				    std::unique_ptr<util::Stream> *result);
 
     // Being a SeekableStream
     unsigned GetStreamFlags() const { return READABLE|WRITABLE|SEEKABLE; }

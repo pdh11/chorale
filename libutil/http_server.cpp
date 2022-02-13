@@ -62,7 +62,7 @@ void Response::Clear()
 
 /** Per-socket HTTP server subtask
  */
-class Server::DataTask: public util::Task
+class Server::DataTask final: public util::Task
 {
     Server *m_parent;
     std::unique_ptr<StreamSocket> m_socket;
@@ -142,7 +142,7 @@ public:
     static TaskCallback Create(Server*, std::unique_ptr<StreamSocket>);
 
     /** Called on background thread */
-    unsigned int Run();
+    unsigned int Run() override;
 };
 
 TaskCallback Server::DataTask::Create(Server *parent,
@@ -247,8 +247,9 @@ again:
 	    m_entity.closing = true;
 
 	m_state = RECV_HEADERS;
-	/* fall through */
     }
+    /* fall through */
+
     case RECV_HEADERS:
 	for (;;)
 	{
@@ -553,8 +554,8 @@ again:
 //	TRACE << "st" << this << ": len=" << len << "\n";
 
 	m_state = SEND_HEADERS;
-	/* Fall through */
     }
+    /* Fall through */
 
     case SEND_HEADERS:
 	/* This is a separate step only if there isn't a body; if

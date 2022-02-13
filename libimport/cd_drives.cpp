@@ -59,11 +59,13 @@ void CDDrives::Refresh()
 	}
     }
 #else
+#if HAVE_HAL
     if (m_hal)
     {
 	m_hal->GetMatchingDevices("storage.drive_type", "cdrom", this);
     }
     else
+#endif
     {
 	/* libcdio gets this wrong if /dev/cdrom is a symlink */
     
@@ -101,7 +103,7 @@ void CDDrives::Refresh()
 
 void CDDrives::OnDevice(util::hal::DevicePtr dev)
 {
-#ifndef WIN32
+#if HAVE_HAL
     std::string device = dev->GetString("block.device");
     if (!m_map.count(device))
 	m_map[device] = CDDrivePtr(new LocalCDDrive(device, m_hal));
@@ -136,7 +138,7 @@ public:
 	  m_hal(hal), 
 	  m_threads(util::WorkerThreadPool::NORMAL, 1)
     {
-#ifndef WIN32
+#if HAVE_HAL
 	if (m_hal)
 	{
 	    m_hal->AddObserver(this);
@@ -147,7 +149,7 @@ public:
 
     ~Impl()
     {
-#ifndef WIN32
+#if HAVE_HAL
 	if (m_hal)
 	    m_hal->RemoveObserver(this);
 #endif
@@ -169,7 +171,7 @@ public:
 
 void LocalCDDrive::Impl::OnDeviceAdded(util::hal::DevicePtr dev)
 {
-#ifndef WIN32
+#if HAVE_HAL
     if (dev->GetString("block.device") == m_device
 	&& dev->GetString("volume.disc.type") == "cd_rom")
     {
@@ -182,7 +184,7 @@ void LocalCDDrive::Impl::OnDeviceAdded(util::hal::DevicePtr dev)
 
 void LocalCDDrive::Impl::OnDeviceRemoved(util::hal::DevicePtr dev)
 {
-#ifndef WIN32
+#if HAVE_HAL
     if (dev->GetUDI() == m_volume_udi)
     {
 //	TRACE << "CD no longer present\n";
@@ -194,7 +196,7 @@ void LocalCDDrive::Impl::OnDeviceRemoved(util::hal::DevicePtr dev)
 
 void LocalCDDrive::Impl::OnDevice(util::hal::DevicePtr dev)
 {
-#ifndef WIN32
+#if HAVE_HAL
     /* This is called with all CD-ROM volumes, we need only check if the block
      * device is us.
      */

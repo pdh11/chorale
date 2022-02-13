@@ -10,6 +10,7 @@
 # include <mswsock.h>
 typedef int socklen_t;
 #else
+# include <sys/uio.h>
 # include <sys/socket.h>
 # include <netinet/in.h>
 # include <netinet/tcp.h>

@@ -10,6 +10,7 @@
 #include "libutil/xmlescape.h"
 #include "libutil/socket.h"
 #include "libutil/printf.h"
+#include "libutil/bind.h"
 #include "libupnp/soap_info_source.h"
 #include "search.h"
 #include <sstream>
@@ -20,6 +21,77 @@
 LOG_DECL(CDS);
 
 namespace upnpd {
+
+template <typename RET, typename ...ARGS>
+class Callback
+{
+    typedef RET (*pfn)(void*, ARGS...);
+
+    void *m_ptr;
+    pfn m_pfn;
+
+public:
+    Callback() :  m_ptr(NULL), m_pfn(NULL) {}
+    Callback(void *ptr, pfn ppfn) : m_ptr(ptr), m_pfn(ppfn) {}
+
+    RET operator()(ARGS... args) const { return (*m_pfn)(m_ptr, args...); }
+};
+
+template <typename T>
+struct Binder;
+
+template <typename RET, typename T, typename ...ARGS>
+class Binder<RET (T::*)(ARGS...)>
+{
+    template <RET (T::*FN)(ARGS...)>
+    static RET Call(void *ptr, ARGS... args)
+    {
+        return (((T*)ptr)->*FN)(args...);
+    }
+
+public:
+    template <RET (T::*FN)(ARGS...)>
+    static Callback<RET,ARGS...> bind(T *t)
+    {
+        return Callback<RET,ARGS...>((void*)t, &Call<FN>);
+    }
+};
+
+#define BIND(x,y) Binder<typeof(x)>::bind<x>(y)
+
+template <typename T>
+struct IntFuncs
+{
+    template <T N>
+    static T IntFunc()
+    {
+        return N;
+    }
+};
+
+unsigned answer = IntFuncs<unsigned>::IntFunc<42>();
+
+typedef Callback<unsigned int, unsigned int, unsigned int, const std::string&> BDC;
+
+class CDA
+{
+public:
+    unsigned browse(uint32_t starting_index, BDC callback)
+    {
+        return callback(2, starting_index+1, "hello");
+    }
+};
+
+class Foo
+{
+    unsigned onBrowseDone(unsigned int, unsigned int, const std::string&);
+
+public:
+    void fnord(CDA *cda)
+    {
+        cda->browse(3, BIND(&Foo::onBrowseDone, this));
+    }
+};
 
 ContentDirectoryImpl::ContentDirectoryImpl(mediadb::Database *db,
 					   upnp::soap::InfoSource *info_source)

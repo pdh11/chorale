@@ -93,8 +93,11 @@ unsigned int EncodingTask::Run()
 	unsigned int rc = util::OpenFileStream(m_output_filename.c_str(),
 					       util::WRITE|util::SEQUENTIAL,
 					       &m_output_stream);
-	if (rc)
+	if (rc) {
+            TRACE << "Can't open " << m_output_filename << "\n";
+            exit(1);
 	    return rc;
+        }
 
 	m_buffer_stream.reset(new util::AsyncWriteBuffer(m_output_stream.get(),
 							 m_disk_queue));

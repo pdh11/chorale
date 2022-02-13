@@ -120,6 +120,7 @@ unsigned int FlacEncoder::Init(util::Stream *output,
 	TRACE << "Flac encoder init failed: " << state << "\n";
 	return EINVAL;
     }
+    TRACE << "Flac encoder inited\n";
     return 0;
 }
 

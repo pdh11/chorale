@@ -88,7 +88,7 @@ $(choraled): $(libchoraled) $(libtv) $(libdblocal) $(libdbmerge) \
 		$(libreceiverd) $(libdbreceiver) $(libreceiver) $(libimport) \
 		$(libdbsteam) $(libdb) $(libutil) $(libmediadb) \
 		$(libupnpd) $(libupnp) $(liboutput) Makefile
-	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CXX) -o $@ $(LDFLAGS) $(TOP)choraled/$(TARGETDIR)$(CHORALED_MAIN).lo \
 		$(LDMAP) \
 		$(libchoraled) $(libtv) $(libdbreceiver) \

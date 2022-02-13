@@ -37,11 +37,11 @@ class Connection: public util::http::ContentFactory
 public:
     explicit Connection(util::http::Server*);
     ~Connection();
-    
+
     unsigned int Init(const util::IPAddress&);
 
-    std::auto_ptr<util::Stream> OpenRead(unsigned int id);
-    std::auto_ptr<util::Stream> OpenWrite(unsigned int id);
+    std::unique_ptr<util::Stream> OpenRead(unsigned int id);
+    std::unique_ptr<util::Stream> OpenWrite(unsigned int id);
     std::string GetURL(unsigned int id);
 
     unsigned int AllocateID() { return m_aid.Allocate(); }

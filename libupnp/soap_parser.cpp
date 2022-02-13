@@ -17,7 +17,7 @@ Parser::Parser(const upnp::Data *data, const unsigned char *expected,
 
 int Parser::CaselessCompare(const void *n1, const void *n2)
 {
-    return strcasecmp(*(const char**)n1, *(const char**)n2);
+    return strcasecmp(*(const char *const *)n1, *(const char *const *)n2);
 }
 
 unsigned int Parser::OnBegin(const char *tag)

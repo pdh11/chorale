@@ -14,7 +14,7 @@ FidStream::FidStream(ProtocolClient *pc, unsigned int fid, unsigned int size)
 }
 
 unsigned int FidStream::CreateRead(ProtocolClient *pc, unsigned int fid,
-				   std::auto_ptr<util::Stream> *result)
+				   std::unique_ptr<util::Stream> *result)
 {
     unsigned int size;
     unsigned int rc = pc->Stat(fid, &size);
@@ -25,7 +25,7 @@ unsigned int FidStream::CreateRead(ProtocolClient *pc, unsigned int fid,
 }
 
 unsigned int FidStream::CreateWrite(ProtocolClient *pc, unsigned int fid,
-				    std::auto_ptr<util::Stream> *result)
+				    std::unique_ptr<util::Stream> *result)
 {
     result->reset(new FidStream(pc, fid, 0));
     return 0;

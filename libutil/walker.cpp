@@ -71,7 +71,7 @@ public:
         /* DirectoryWalker::FileTask */
 
 
-class DirectoryWalker::FileTask: public DirectoryWalker::Task
+class DirectoryWalker::FileTask final: public DirectoryWalker::Task
 {
     Observer::dircookie m_cookie;
     unsigned int m_index;
@@ -94,7 +94,7 @@ public:
     {
     }
 
-    unsigned int Run();
+    unsigned int Run() override;
 };
 
 unsigned int DirectoryWalker::FileTask::Run()
@@ -121,7 +121,7 @@ unsigned int DirectoryWalker::FileTask::Run()
         /* DirectoryWalker::DirectoryTask */
 
 
-class DirectoryWalker::DirectoryTask: public DirectoryWalker::Task
+class DirectoryWalker::DirectoryTask final: public DirectoryWalker::Task
 {
     Observer::dircookie m_parent_cookie;
     unsigned int m_parent_index;
@@ -146,7 +146,7 @@ public:
 	{}
     ~DirectoryTask();
     
-    unsigned int Run();
+    unsigned int Run() override;
 };
 
 unsigned int DirectoryWalker::DirectoryTask::Run()

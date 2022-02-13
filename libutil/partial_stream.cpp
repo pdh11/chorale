@@ -121,10 +121,10 @@ unsigned PartialStream::Write(const void *buffer, size_t len, size_t *pwrote)
         /* Exposed functions */
 
 
-std::auto_ptr<Stream> CreatePartialStream(Stream *s, uint64_t begin,
+std::unique_ptr<Stream> CreatePartialStream(Stream *s, uint64_t begin,
 					  uint64_t end)
 {
-    std::auto_ptr<Stream> r;
+    std::unique_ptr<Stream> r;
 
     if (s->GetStreamFlags() & Stream::SEEKABLE)
 	r.reset(new PartialSeekableStream(s, begin, end));
@@ -144,7 +144,7 @@ int main(int, char*[])
 {
     util::StringStream ss1("ABCDEFGHIJ");
 
-    std::auto_ptr<util::Stream> ps = util::CreatePartialStream(&ss1, 4, 8);
+    std::unique_ptr<util::Stream> ps = util::CreatePartialStream(&ss1, 4, 8);
 
     util::StringStream ss2;
 

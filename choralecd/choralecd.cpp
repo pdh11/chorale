@@ -89,7 +89,7 @@ int Main(int argc, char *argv[])
     output::Registry output_registry;
 
     QPixmap output_pixmap(output_xpm);
-#if HAVE_LIBOUTPUT
+#if HAVE_LIBOUTPUT && HAVE_HAL
     choraleqt::OutputWidgetFactory owf(&output_pixmap, halp, &db_registry);
     mainwin->AddWidgetFactory(&owf);
 #endif

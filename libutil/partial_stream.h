@@ -10,7 +10,7 @@ namespace util {
  *
  * If the underlying stream isn't SEEKABLE, begin must be 0.
  */
-std::auto_ptr<Stream> CreatePartialStream(Stream *underlying,
+std::unique_ptr<Stream> CreatePartialStream(Stream *underlying,
 					  uint64_t begin,
 					  uint64_t end);
 

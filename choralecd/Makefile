@@ -125,7 +125,7 @@ $(choralecd): $(libchoralecd) $(libutil) $(libimport) $(libdbreceiver) \
 		$(libmediadb) $(libupnp) $(libdbempeg) $(libempeg) \
 		$(libdbsteam) $(libdb) $(liboutput) $(libuiqt) \
 		$(CHORALECD_RESOURCES)
-	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CXX) -o $@ $(LDFLAGS) \
 		$(TOP)$(CHORALECD_DIR)$(TARGETDIR)choralecd.lo \
 		$(CHORALECD_RESOURCES) \
@@ -151,7 +151,7 @@ ifneq ($(FINAL),no)
 		-fwhole-program $(BOOST_CXXFLAGS) \
 		$(TAGLIB_CXXFLAGS) -E -C -dD \
 		$(DBUS_CXXFLAGS) $(HAL_CXXFLAGS) $(GSTREAMER_CXXFLAGS) &
-	$(CC_PRE)libtool --tag=CXX --mode=compile --silent \
+	$(CC_PRE)$(LIBTOOL) --tag=CXX --mode=compile --silent \
 		$(CXX) $(CXXFLAGS) -I$(TOP). \
 		-include $(TOP)choralecd/all-$(FULLTARGET).cpp \
 		-c $(TOP)choralecd/choralecd.cpp \
@@ -159,7 +159,7 @@ ifneq ($(FINAL),no)
 		-fwhole-program $(BOOST_CXXFLAGS) \
 		$(TAGLIB_CXXFLAGS) \
 		$(DBUS_CXXFLAGS) $(HAL_CXXFLAGS) $(GSTREAMER_CXXFLAGS)
-	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CXX) -o $@ $(LDFLAGS) \
 		$(TOP)choralecd/$(TARGETDIR)all-cpp.lo \
 		$(CHORALECD_RESOURCES) \
@@ -182,7 +182,7 @@ $(cloud): $(libchoralecd) $(libutil) $(libimport) $(libdbreceiver) \
 		$(libmediadb) $(libupnp) $(libdbempeg) $(libempeg) \
 		$(libdbsteam) $(libdb) $(liboutput) $(libuiqt) \
 		$(CHORALECD_RESOURCES)
-	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CXX) -o $@ $(LDFLAGS) \
 		$(TOP)$(CHORALECD_DIR)$(TARGETDIR)cloud.lo \
 		$(CHORALECD_RESOURCES) \
@@ -199,7 +199,7 @@ $(cloud): $(libchoralecd) $(libutil) $(libimport) $(libdbreceiver) \
 
 $(tageditor): $(libchoralecd) $(libutil) $(libimport) $(libdblocal) $(libdb) \
 		$(libuiqt) $(libmediatree) $(libdbsteam) $(CHORALECD_RESOURCES)
-	$(LD_PRE)libtool --tag=CXX --mode=link --quiet \
+	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
 		$(CXX) -o $@ $(LDFLAGS) \
 		$(TOP)$(CHORALECD_DIR)$(TARGETDIR)tageditor.lo \
 		$(CHORALECD_RESOURCES) \

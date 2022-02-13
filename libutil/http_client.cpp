@@ -262,9 +262,10 @@ unsigned int Client::Task::Run()
         }
 	m_headers += "\r\n";
 	m_state = SEND_HEADERS;
-	/* fall through */
 
 	LOG(HTTP_CLIENT) << "Sending headers:\n" << m_headers << "\n";
+
+	/* fall through */
 
     case SEND_HEADERS:
     {
@@ -307,8 +308,8 @@ unsigned int Client::Task::Run()
 //	TRACE << "Sent all headers\n";
 
 	m_state = SEND_BODY;
-	/* fall through */
     }
+    /* fall through */
 
     case SEND_BODY:
 	if (!m_body.empty()) /// @todo writev(headers, body)
@@ -360,9 +361,9 @@ unsigned int Client::Task::Run()
 
 	m_entity.Clear();
 	m_state = RECV_HEADERS;
-	/* fall through */
     }
-	
+    /* fall through */
+
     case RECV_HEADERS:
     {
 	for (;;)
@@ -431,8 +432,8 @@ unsigned int Client::Task::Run()
 	}
 
 	m_state = RECV_BODY;
-	/* fall through */
     }
+    /* fall through */
 
     case RECV_BODY:
     {
