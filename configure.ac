@@ -885,6 +885,11 @@ PDH_CHECK_ERRNO([EWOULDBLOCK])
 
 AC_DEFINE([HAVE_DVB], (HAVE_LINUX_DVB_DMX_H && HAVE_LINUX_DVB_FRONTEND_H), [Define to 1 if you have the Linux DVB API, or to 0 if you don't])
 
+AC_ARG_ENABLE([werror],
+[AS_HELP_STRING([--enable-werror],
+[Compile with "-Werror".])],WERROR=yes,WERROR=no)
+AC_SUBST(WERROR)
+
 AC_ARG_ENABLE([final],
 [AS_HELP_STRING([--enable-final],
 [Compile final binaries in a single compiler invocation. Smaller output, but needs ~1GB RAM (or swap) during compilation.])],FINAL=yes,FINAL=no)
