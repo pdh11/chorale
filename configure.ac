@@ -90,7 +90,7 @@ PDH_C_WARNING([-fdiagnostics-show-option])
 PDH_C_WARNING([-Wdeclaration-after-statement])
 
 AC_MSG_CHECKING(bitfield ordering in structs)
-AC_LINK_IFELSE([
+AC_LINK_IFELSE([AC_LANG_SOURCE([
 int conftest_undefined_reference_();
 int main() {
   union {
@@ -107,7 +107,7 @@ int main() {
     return conftest_undefined_reference_();
   return 0;
 }
-], [bf_lsbf=0; AC_MSG_RESULT(MSB first);], [bf_lsbf=1; AC_MSG_RESULT(LSB first);])
+])], [bf_lsbf=0; AC_MSG_RESULT(MSB first);], [bf_lsbf=1; AC_MSG_RESULT(LSB first);])
 AC_DEFINE_UNQUOTED(BITFIELDS_LSB_FIRST, $bf_lsbf,
 	[Define to 1 if C bitfields start from the LSB, or 0 for MSB])
 
