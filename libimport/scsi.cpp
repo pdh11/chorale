@@ -16,28 +16,28 @@ static unsigned TryTransport(ScsiTransport *scsi, const char *device)
 }
 
 unsigned CreateScsiTransport(const char *device,
-			     std::auto_ptr<ScsiTransport> *result)
+			     std::unique_ptr<ScsiTransport> *result)
 {
     result->reset(NULL);
 
 #if HAVE_LINUX_CDROM_H
     {
-	std::auto_ptr<LinuxCDTransport> lcd(new LinuxCDTransport);
+	std::unique_ptr<LinuxCDTransport> lcd(new LinuxCDTransport);
 	unsigned rc = TryTransport(lcd.get(), device);
 	if (!rc)
 	{
-	    *result = lcd;
+	    *result = std::move(lcd);
 	    TRACE << "Got CD transport\n";
 	    return 0;
 	}
     }
 
     {
-	std::auto_ptr<LinuxSGTransport> lsg(new LinuxSGTransport(true));
+	std::unique_ptr<LinuxSGTransport> lsg(new LinuxSGTransport(true));
 	unsigned rc = TryTransport(lsg.get(), device);
 	if (!rc)
 	{
-	    *result = lsg;
+	    *result = std::move(lsg);
 	    TRACE << "Got SG transport\n";
 	    return 0;
 	}
@@ -45,7 +45,7 @@ unsigned CreateScsiTransport(const char *device,
 #endif
 #if HAVE_WINDOWS_H
     {
-	std::auto_ptr<Win32ScsiTransport> wst(new Win32ScsiTransport);
+	std::unique_ptr<Win32ScsiTransport> wst(new Win32ScsiTransport);
 	unsigned rc = TryTransport(wst.get(), device);
 	if (!rc)
 	{

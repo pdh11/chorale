@@ -39,6 +39,8 @@
 
 namespace choraleqt {
 
+namespace {
+
 int Main(int argc, char *argv[])
 {
     QApplication app( argc, argv );
@@ -75,7 +77,7 @@ int Main(int argc, char *argv[])
     import::CDDrives cds(halp);
 #endif
 
-    std::auto_ptr<choraleqt::MainWindow> mainwin(
+    std::unique_ptr<choraleqt::MainWindow> mainwin(
 	new choraleqt::MainWindow(&settings, &cpu_pool, &disk_pool) );
 
     QPixmap cd_pixmap(cddrive_xpm);
@@ -151,6 +153,8 @@ int Main(int argc, char *argv[])
 
     return rc;
 }
+
+} // anon namespace
 
 } // namespace choraleqt
 

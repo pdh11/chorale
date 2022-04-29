@@ -105,21 +105,13 @@ URLPlayer::Impl::Impl(int card, int device)
       m_exiting(false),
       m_thread(util::Bind(this).To<&Impl::Run>())
 {
-    if (!g_thread_supported())
-    {
-	TRACE << "Initing g threads\n";
-	g_thread_init(NULL);
-    }
-    else
-	TRACE << "no need\n";
-
     /* For some reason, gstreamer deadlocks loading the gnomevfs
      * element if we call set_element_state on playbin from the wrong
      * thread. (With stock gstreamer-0.10.15, g-p-b 0.10.15, g-p-g
      * 0.10.6, g-p-u 0.10.6, and even with the Ubuntu 7.10 versions.)
      *
      * This problem goes away if we force-load the gnomevfs element first.
-     */    
+     */
     GstElement *gnomevfs = gst_element_factory_make("gnomevfssrc", "temp");
     gst_object_unref(GST_OBJECT(gnomevfs));
 }
@@ -185,7 +177,7 @@ gboolean URLPlayer::Impl::OnStartup()
 	GSource *src = gst_bus_create_watch(m_bus);
 
 	// Hurrah for filthy GLib non-typesafety
-	g_source_set_callback(src, (GSourceFunc)&StaticBusCallback, this, 
+	g_source_set_callback(src, G_SOURCE_FUNC(&StaticBusCallback), this,
 			      NULL);
 	g_source_attach(src, m_context);
 

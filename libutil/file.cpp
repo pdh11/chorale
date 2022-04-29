@@ -271,7 +271,7 @@ static const struct {
 #endif
 };
 
-void TestRelativePaths()
+static void TestRelativePaths()
 {
     for (unsigned int i=0; i<(sizeof(tests)/sizeof(*tests)); ++i)
     {

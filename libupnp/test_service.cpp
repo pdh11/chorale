@@ -133,7 +133,7 @@ struct PtangObserver: public upnp::TestServiceObserver
     void OnPtang(uint32_t p) { ptang = p; }
 };
 
-void DoTest(upnp::TestService *service)
+static void DoTest(upnp::TestService *service)
 {
     PtangObserver pto;
     pto.ptang = 0;

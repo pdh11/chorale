@@ -297,6 +297,10 @@ void Test()
     assert(rs3->GetInteger(1) == 37);
     rs3->SetInteger(2, 110);
     assert(rs3->GetString(2) == "110");
+
+    (void)!rc;
+    (void)!id1;
+    (void)!id2;
 }
 
 } // namespace steam

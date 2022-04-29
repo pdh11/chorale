@@ -550,7 +550,7 @@ public:
 
 /** Checks that each Entry appears in the Queue exactly once.
  */
-void CheckQueue(const output::Queue *queue)
+static void CheckQueue(const output::Queue *queue)
 {
     std::set<unsigned int> theset;
     unsigned int entries = (unsigned int)(queue->entries_end() - queue->entries_begin());
@@ -576,7 +576,7 @@ void CheckQueue(const output::Queue *queue)
     assert(theset.size() == entries);
 }
 
-void TestQueueing1(mediadb::Database *db)
+static void TestQueueing1(mediadb::Database *db)
 {
     output::TestURLPlayer player;
     output::Queue queue(&player);
@@ -648,7 +648,7 @@ void TestQueueing1(mediadb::Database *db)
     }
 }
 
-void TestQueueing2(mediadb::Database *db)
+static void TestQueueing2(mediadb::Database *db)
 {
     output::TestURLPlayer player;
     output::Queue queue(&player);
@@ -692,7 +692,7 @@ void TestQueueing2(mediadb::Database *db)
     assert(queue.EntryAt(2).id == 5);
 }
 
-void TestPlaying(mediadb::Database *db)
+static void TestPlaying(mediadb::Database *db)
 {
     output::TestURLPlayer player;
     output::Queue queue(&player);

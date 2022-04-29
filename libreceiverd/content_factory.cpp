@@ -398,8 +398,8 @@ static std::unique_ptr<util::Stream> ResultsStream(mediadb::Database *db,
     return sp;
 }
 
-void GetContentStream(mediadb::Database *db, unsigned int id, 
-		      const char *path, util::http::Response *rsp)
+static void GetContentStream(mediadb::Database *db, unsigned int id,
+                             const char *path, util::http::Response *rsp)
 {
     db::QueryPtr qp = db->CreateQuery();
     qp->Where(qp->Restrict(mediadb::ID, db::EQ, id));
@@ -540,8 +540,8 @@ public:
     virtual void OnItem(unsigned int id, db::RecordsetPtr rs) = 0;
 };
 
-void Flatten(mediadb::Database *db, unsigned int id, bool upgrade,
-	     Flattener *f)
+static void Flatten(mediadb::Database *db, unsigned int id, bool upgrade,
+                    Flattener *f)
 {
     db::QueryPtr qp = db->CreateQuery();
     qp->Where(qp->Restrict(mediadb::ID, db::EQ, id));
@@ -612,8 +612,8 @@ void PREFlattener::OnItem(unsigned int id, db::RecordsetPtr rs)
 }
 
 static std::unique_ptr<util::Stream> ListStream(mediadb::Database *db,
-					      unsigned int id, 
-					      const char *path)
+                                                unsigned int id,
+                                                const char *path)
 {
     db::QueryPtr qp = db->CreateQuery();
     qp->Where(qp->Restrict(mediadb::ID, db::EQ, id));
@@ -624,7 +624,6 @@ static std::unique_ptr<util::Stream> ListStream(mediadb::Database *db,
     bool utf8 = (strstr(path, "_utf8=1") != NULL);
 
     std::unique_ptr<util::Stream> ms(new util::MemoryStream);
-    unsigned int rc;
 
     if (extended)
     {
@@ -642,13 +641,13 @@ static std::unique_ptr<util::Stream> ListStream(mediadb::Database *db,
 	assert(sizeof(PlaylistReplyExtended) == 12);
 
 	PlaylistReplyExtended *pre = &vec[0];
-	rc = ms->WriteAll(pre, size * sizeof(PlaylistReplyExtended));
+        (void)!ms->WriteAll(pre, size * sizeof(PlaylistReplyExtended));
     }
     ms->Seek(0);
     return ms;
 }
 
-bool ContentFactory::StreamForPath(const util::http::Request *rq, 
+bool ContentFactory::StreamForPath(const util::http::Request *rq,
 				   util::http::Response *rs)
 {
     unsigned int id = 0;
@@ -896,7 +895,7 @@ static const struct {
 enum { NTESTS2 = sizeof(tests2)/sizeof(tests2[0]) };
 
 
-std::string Printable(const std::string& s)
+static std::string Printable(const std::string& s)
 {
     std::string result;
     result.reserve(s.length());
@@ -916,7 +915,7 @@ std::string Printable(const std::string& s)
     return result;
 }
 
-void DoTests(mediadb::Database *mdb)
+static void DoTests(mediadb::Database *mdb)
 {
     receiverd::ContentFactory rcf(mdb);
 

@@ -9,6 +9,8 @@
 
 namespace doctor {
 
+namespace {
+
 static bool s_all = false;
 static bool s_frames = false;
 
@@ -73,7 +75,7 @@ static unsigned CheckID3v2(util::Stream *st, uint64_t *pos, bool *ok)
 	    {
 		printf("  %u bytes of ID3v2.%u\n", len, version);
 	    }
-	    unsigned flags = header[4];
+	    //unsigned flags = header[4];
 
 	    uint64_t frame = 0;
 	    while (frame < len)
@@ -84,7 +86,8 @@ static unsigned CheckID3v2(util::Stream *st, uint64_t *pos, bool *ok)
 		if (frameheader[0] == 0)
 		{
 		    if (s_all)
-			printf("    %u bytes of padding\n", len-frame);
+			printf("    %u bytes of padding\n",
+                               unsigned(len-frame));
 		    break;
 		}
 
@@ -430,9 +433,8 @@ static unsigned Doctor(const char *filename)
 	return rc;
     }
 
-    uint64_t sz = st->GetLength();
+    //uint64_t sz = st->GetLength();
     uint64_t pos = 0;
-    unsigned tail = 0;
     bool ok = true;
 
     /** Look for ID3v2 */
@@ -501,6 +503,8 @@ int Main(int argc, char *argv[])
 
     return ok ? 0 : 1;
 }
+
+} // anon namespace
 
 } // namespace doctor
 

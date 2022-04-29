@@ -49,7 +49,7 @@ std::string util::SPrintf(const char *fmt, ...)
 
 #ifdef TEST
 
-std::string foo()
+static std::string foo()
 {
     return util::Printf() << 37 << "\n";
 }

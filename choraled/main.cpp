@@ -259,9 +259,8 @@ int Main(const Settings *settings, Complaints *complaints)
 			       &ras);
     }
 
-    util::hal::Context *halp = NULL;
-
 #if HAVE_HAL
+    util::hal::Context *halp = NULL;
     util::dbus::Connection dbusc(&poller);
     rc = dbusc.Connect(util::dbus::Connection::SYSTEM);
     if (rc)

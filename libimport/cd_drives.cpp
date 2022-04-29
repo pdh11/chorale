@@ -107,6 +107,8 @@ void CDDrives::OnDevice(util::hal::DevicePtr dev)
     std::string device = dev->GetString("block.device");
     if (!m_map.count(device))
 	m_map[device] = CDDrivePtr(new LocalCDDrive(device, m_hal));
+#else
+    (void)dev;
 #endif
 }
 
@@ -179,6 +181,8 @@ void LocalCDDrive::Impl::OnDeviceAdded(util::hal::DevicePtr dev)
 //	TRACE << "CD present\n";
 	m_parent->Fire(&CDDriveObserver::OnDiscPresent, true);
     }
+#else
+    (void)dev;
 #endif
 }
 
@@ -191,6 +195,8 @@ void LocalCDDrive::Impl::OnDeviceRemoved(util::hal::DevicePtr dev)
 	m_parent->Fire(&CDDriveObserver::OnDiscPresent, false);
 	m_volume_udi.clear();
     }
+#else
+    (void)dev;
 #endif
 }
 
@@ -202,6 +208,8 @@ void LocalCDDrive::Impl::OnDevice(util::hal::DevicePtr dev)
      */
     if (dev->GetString("block.device") == m_device)
 	m_volume_udi = dev->GetUDI();
+#else
+    (void)dev;
 #endif
 }
 

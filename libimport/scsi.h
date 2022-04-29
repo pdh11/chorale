@@ -75,7 +75,7 @@ public:
 /** Open and return the right sort of ScsiTransport object for this device
  */
 unsigned CreateScsiTransport(const char *device, 
-			     std::auto_ptr<ScsiTransport>*);
+			     std::unique_ptr<ScsiTransport>*);
 
 /** cf MMC-3 table 11 */
 enum {

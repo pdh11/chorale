@@ -53,7 +53,7 @@ public:
 };
 
 template <class LockingPolicy>
-void Test()
+static void Test()
 {
     util::CountedPointer<Foo<LockingPolicy> > fooptr(new Foo<LockingPolicy>());
 
@@ -67,7 +67,7 @@ void Test()
     }
 
     fooptr.reset(NULL);
-    
+
     assert(!s_exists);
 }
 

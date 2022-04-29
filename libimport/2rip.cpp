@@ -18,8 +18,8 @@ public:
     {
     }
 
-    void OnProgress(unsigned int which, unsigned int type,
-		    unsigned int num, unsigned int denom)
+    void OnProgress(unsigned int, unsigned int,
+		    unsigned int, unsigned int)
     {
     }
 

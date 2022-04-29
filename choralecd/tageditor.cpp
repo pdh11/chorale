@@ -22,6 +22,8 @@
 
 namespace tageditor {
 
+namespace {
+
 class ScanProgressDialog: public QProgressDialog, 
 		    public db::local::FileScanner::Observer
 {
@@ -183,6 +185,8 @@ int Main(int argc, char *argv[])
 
     return app.exec();
 }
+
+} // anon namespace
 
 } // namespace tageditor
 

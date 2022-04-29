@@ -106,8 +106,9 @@ unsigned int EncodingTask::Run()
 	if (rc)
 	    return rc;
 	m_state = RUNNING;
-	/* fall through */
     }
+    /* fall through */
+
     case RUNNING:
     {
 	enum { BUFSIZE = 1176*20 }; // In shorts
@@ -216,6 +217,8 @@ unsigned int EncodingTask::Run()
 	TRACE << "et" << (void*)this << ": encoding finished\n";
 	m_state = DONE;
     }
+    /* fall through */
+
     case DONE:
     default:
 	m_buffer.reset();

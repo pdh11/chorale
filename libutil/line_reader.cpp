@@ -87,7 +87,7 @@ static const Test tests[] = {
 
 };
 
-void DoTest(const Test *t)
+static void DoTest(const Test *t)
 {
     util::StringStream ss(t->input);
 

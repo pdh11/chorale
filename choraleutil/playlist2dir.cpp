@@ -9,7 +9,7 @@
 #include <sstream>
 #include <iomanip>
 
-void Usage(FILE *f)
+static void Usage(FILE *f)
 {
     fprintf(f,
 	 "Usage: playlist2dir <playlist.asx>\n\n"

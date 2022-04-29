@@ -33,6 +33,10 @@
 
 namespace cloud {
 
+namespace {
+
+#if HAVE_HAL
+
 class QueueListModel: public QAbstractListModel
 {
     output::Queue *m_queue;
@@ -136,7 +140,6 @@ unsigned int Output::OnSelect()
     return 0;
 }
 
-#if HAVE_HAL
 class LocalOutputs: public util::hal::DeviceObserver
 {
     Window *m_parent;
@@ -237,8 +240,8 @@ int Main(int argc, char *argv[])
     util::WorkerThreadPool disk_pool(util::WorkerThreadPool::NORMAL, 32);
     disk_pool.PushTask(util::SchedulerTask::Create(&bg_poller));
 
-    util::hal::Context *halp = NULL;
 #if HAVE_HAL
+    util::hal::Context *halp = NULL;
     util::dbus::Connection dbusc(&fg_poller);
     unsigned int res = dbusc.Connect(util::dbus::Connection::SYSTEM);
     if (res)
@@ -272,6 +275,8 @@ int Main(int argc, char *argv[])
     mainwindow.show();
     return app.exec();
 }
+
+} // anon namespace
 
 } // namespace cloud
 

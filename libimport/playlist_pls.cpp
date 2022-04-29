@@ -112,7 +112,7 @@ static const char *const tests[] = {
 
 enum { TESTS = sizeof(tests)/sizeof(tests[0]) };
 
-void DoAllTests()
+static void DoAllTests()
 {
     std::string name = util::Canonicalise("test.pls");
     import::Playlist pp;

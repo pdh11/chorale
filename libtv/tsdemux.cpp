@@ -22,7 +22,7 @@ int main(int, char**)
     std::map<unsigned int, std::string> buffers;
     unsigned int pes_packet_remain = 0;
     
-    write(1, mpegps_header, sizeof(mpegps_header));
+    (void)!write(1, mpegps_header, sizeof(mpegps_header));
 
     for (;;)
     {
@@ -85,7 +85,7 @@ int main(int, char**)
 		    s[4] = (char)(packetlen >> 8);
 		    s[5] = (char)packetlen;
 		}
-		write(1, s.data(), s.length());
+		(void)!write(1, s.data(), s.length());
 		s.clear();
 	    }
 	}
@@ -113,7 +113,7 @@ int main(int, char**)
 		eslen = pes_packet_remain;
 	}
 
-	write(1, esdata, eslen);
+	(void)!write(1, esdata, eslen);
 
 	pes_packet_remain -= eslen;
 

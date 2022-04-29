@@ -193,7 +193,7 @@ unsigned int FileWriteTask::Run()
 //	    TRACE << "Mopping-up " << remainder << " bytes at " << offset+len
 //		  << "\n";
 	    unsigned char buffer[4096];
-	    off_t rc = ::lseek(m_infd, offset+len, SEEK_SET);
+	    (void)!::lseek(m_infd, offset+len, SEEK_SET);
 //	    TRACE << "lseek() returned " << rc << "\n";
 	    ssize_t nread = ::read(m_infd, buffer, remainder);
 	    if (nread != remainder)
@@ -224,7 +224,7 @@ unsigned int FileWriteTask::Run()
 	    posix_fadvise(m_infd, 0, m_st.st_size, POSIX_FADV_DONTNEED);
 	    posix_fadvise(m_outfd, 0, m_st.st_size, POSIX_FADV_DONTNEED);
 	}
-	int rc = fchown(m_outfd, m_st.st_uid, m_st.st_gid);
+	(void)!fchown(m_outfd, m_st.st_uid, m_st.st_gid);
 	fchmod(m_outfd, m_st.st_mode);
 	struct timeval times[2];
 	memset(times, '\0', sizeof(times));
@@ -275,7 +275,7 @@ unsigned int Copier::OnFile(dircookie,
 	    return errno;
 	}
 
-	chown(outfile.c_str(), st->st_uid, st->st_gid);
+	(void)!chown(outfile.c_str(), st->st_uid, st->st_gid);
 	return 0;
     }
 
@@ -294,8 +294,8 @@ unsigned int Copier::OnFile(dircookie,
 	TRACE << "Can't open " << outfile << ": " << errno << "\n";
 	return errno;
     }
-    
-    ftruncate(outfd, st->st_size);
+
+    (void)!ftruncate(outfd, st->st_size);
     posix_fadvise(outfd, 0, st->st_size, POSIX_FADV_SEQUENTIAL);
     fchmod(outfd, 0600);
 
@@ -427,7 +427,7 @@ void Copier::WaitForCompletion()
 
 #endif /* __linux__ */
 
-int main(int argc, char *argv[])
+int main(int, char *argv[])
 {
 #ifdef __linux__
     util::WorkerThreadPool writers(util::WorkerThreadPool::NORMAL, 1);

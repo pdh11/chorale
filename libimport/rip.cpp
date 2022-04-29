@@ -401,7 +401,7 @@ static unsigned rip(import::ScsiTransport *scsi, unsigned int track)
 
 static unsigned rip(const char *device, int track)
 {
-    std::auto_ptr<import::ScsiTransport> st;
+    std::unique_ptr<import::ScsiTransport> st;
     unsigned rc = import::CreateScsiTransport(device, &st);
     if (rc)
 	return rc;

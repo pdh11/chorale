@@ -87,10 +87,9 @@ public:
     };
 
     virtual Subexpression Restrict(unsigned int which, RestrictionType rt, 
-				   const std::string& val)
-	ATTRIBUTE_WARNUNUSED;
+				   const std::string& val);
     virtual Subexpression Restrict(unsigned int which, RestrictionType rt,
-				   uint32_t val) ATTRIBUTE_WARNUNUSED;
+				   uint32_t val);
     virtual Subexpression And(const Subexpression&, const Subexpression&);
     virtual Subexpression Or(const Subexpression&, const Subexpression&);
 

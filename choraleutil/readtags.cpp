@@ -15,7 +15,7 @@
 #include "libdblocal/db.h"
 #include "libdblocal/file_scanner.h"
 
-void Usage(FILE *f)
+static void Usage(FILE *f)
 {
     fprintf(f,
 	 "Usage: readtags [-q] [-t n] [-s] <dir> [<flac-dir>]\n\n"
@@ -26,7 +26,7 @@ void Usage(FILE *f)
 	);
 }
 
-bool quiet = false;
+static bool quiet = false;
 
 int main(int argc, char *argv[])
 {
@@ -87,7 +87,10 @@ int main(int argc, char *argv[])
     db::local::FileScanner ifs(argv[optind], flacdir, &sdb, &ldb, &wtp);
 
     unsigned int rc = ifs.Scan();
-    assert(rc == 0);
+    if (rc) {
+        fprintf(stderr, "Scan failed\n");
+        return 1;
+    }
 #endif
 
     mediadb::WriteXML(&ldb, mediadb::SCHEMA_VERSION, stdout);

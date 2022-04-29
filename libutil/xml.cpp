@@ -871,7 +871,7 @@ typedef xml::Parser<
 							      &Service::scpd>
 > > > > > DescriptionParser;
 
-void TestTableDriven()
+static void TestTableDriven()
 {
     WPLParser parser;
 
@@ -1179,7 +1179,7 @@ public:
     }
 };
 
-void TestSax()
+static void TestSax()
 {
     for (unsigned int i=0; i<TESTS; ++i)
     {

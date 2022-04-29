@@ -36,7 +36,7 @@ const struct {
 
 };
 
-void Test(const char *s1, const char *s2, unsigned int dist)
+static void Test(const char *s1, const char *s2, unsigned int dist)
 {
     util::DiffResult res;
 

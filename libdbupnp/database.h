@@ -26,8 +26,7 @@ public:
     Database(util::http::Client*, util::http::Server*, util::Scheduler*);
     ~Database();
 
-    unsigned Init(const std::string& url, const std::string& udn)
-	ATTRIBUTE_DEPRECATED;
+    unsigned Init(const std::string& url, const std::string& udn);
 
     typedef util::Callback1<unsigned int> InitCallback;
 

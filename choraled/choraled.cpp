@@ -1,7 +1,4 @@
 #include "config.h"
-
-#ifndef WIN32
-
 #include "libutil/trace.h"
 #include "libutil/counted_pointer.h"
 #include "cd.h"
@@ -34,6 +31,8 @@
 /** Classes for the Chorale daemon (or Windows service)
  */
 namespace choraled {
+
+namespace {
 
 #if (HAVE_LIBCDIOP && !HAVE_PARANOIA)
 #define LICENCE "  This program is free software under the GNU General Public Licence.\n\n"
@@ -190,7 +189,7 @@ int ParseArgs(int argc, char *argv[], Settings *settings,
 	{ NULL, 0, NULL, 0 }
     };
 
-    memset(settings, '\0', sizeof(settings));
+    memset(settings, '\0', sizeof(*settings));
     settings->flags = AUDIO | MEDIA_SERVER | RECEIVER | DVB | CD | LOCAL_DB;
     settings->database_file = DEFAULT_DB_FILE;
     settings->timer_database_file = DEFAULT_TIMER_DB_FILE;
@@ -316,6 +315,8 @@ int ParseArgs(int argc, char *argv[], Settings *settings,
     return 0;
 }
 
+} // anon namespace
+
 } // namespace choraled
 
 int main(int argc, char *argv[])
@@ -327,5 +328,3 @@ int main(int argc, char *argv[])
 
     return choraled::Main(&settings, &complaints);
 }
-
-#endif // !WIN32

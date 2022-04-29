@@ -356,17 +356,15 @@ int main(int argc, char *argv[])
 	{ "help",  no_argument, NULL, 'h' },
 	{ "karma",  no_argument, NULL, 'k' },
 	{ "threads", required_argument, NULL, 't' },
-	{ "dbfile", required_argument, NULL, 'f' },
 	{ NULL, 0, NULL, 0 }
     };
 
     int nthreads = 0;
-    const char *dbfile = DEFAULT_DB_FILE;
     bool karma = false;
 
     int option_index;
     int option;
-    while ((option = getopt_long(argc, argv, "ht:f:k", options, &option_index))
+    while ((option = getopt_long(argc, argv, "ht:k", options, &option_index))
 	   != -1)
     {
 	switch (option)
@@ -376,9 +374,6 @@ int main(int argc, char *argv[])
 	    return 0;
 	case 't':
 	    nthreads = (int)strtoul(optarg, NULL, 10);
-	    break;
-	case 'f':
-	    dbfile = optarg;
 	    break;
         case 'k':
             karma = true;

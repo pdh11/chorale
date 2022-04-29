@@ -115,7 +115,7 @@ unsigned int FlacEncoder::Init(util::Stream *output,
 					   NULL,
 					   this);
 
-    if (state != FLAC__STREAM_ENCODER_INIT_STATUS_OK)
+    if (!ok || state != FLAC__STREAM_ENCODER_INIT_STATUS_OK)
     {
 	TRACE << "Flac encoder init failed: " << state << "\n";
 	return EINVAL;

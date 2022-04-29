@@ -553,8 +553,8 @@ unsigned int ProtocolClient::WriteFidFromString(uint32_t fid,
 # include "libutil/file_stream.h"
 # include <boost/scoped_array.hpp>
 
-void ReadFidToFile(empeg::ProtocolClient *pc, uint32_t fid,
-		   const char *filename)
+static void ReadFidToFile(empeg::ProtocolClient *pc, uint32_t fid,
+                          const char *filename)
 {
     unsigned int sz;
 
@@ -600,10 +600,10 @@ public:
 	TRACE << "tags " << tsize << ", db " << dsize << ", playlists "
 	      << psize << " version " << version << "\n";
 
-	
-//	ReadFidToFile(&pc, empeg::FID_TAGS, "tags");
-//	ReadFidToFile(&pc, empeg::FID_DATABASE, "database3");
-//	ReadFidToFile(&pc, empeg::FID_PLAYLISTS, "playlists");
+
+	ReadFidToFile(&pc, empeg::FID_TAGS, "tags");
+	ReadFidToFile(&pc, empeg::FID_DATABASE, "database3");
+	ReadFidToFile(&pc, empeg::FID_PLAYLISTS, "playlists");
     }
 };
 

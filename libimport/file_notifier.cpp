@@ -125,7 +125,7 @@ unsigned int FileNotifierTask::Run()
 	    any = true;
     } while (rc > 0);
 
-    if (m_obs)
+    if (m_obs && any)
 	m_obs->OnChange();
 #endif
 

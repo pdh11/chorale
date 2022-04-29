@@ -91,8 +91,8 @@ int Scanf64(const char *input, const char *format, uint64_t *arg1,
 
 # include <assert.h>
 
-void Test1(const char *input, const char *format, 
-	   int res_expect, uint64_t arg1_expect)
+static void Test1(const char *input, const char *format,
+                  int res_expect, uint64_t arg1_expect)
 {
     uint64_t arg1 = ~arg1_expect;
     int res = util::Scanf64(input, format, &arg1);
@@ -101,8 +101,8 @@ void Test1(const char *input, const char *format,
 	assert(arg1 == arg1_expect);
 }
 
-void Test2(const char *input, const char *format, 
-	   int res_expect, uint64_t arg1_expect, uint64_t arg2_expect)
+static void Test2(const char *input, const char *format,
+                  int res_expect, uint64_t arg1_expect, uint64_t arg2_expect)
 {
     uint64_t arg1 = ~arg1_expect;
     uint64_t arg2 = ~arg2_expect;
@@ -114,9 +114,9 @@ void Test2(const char *input, const char *format,
 	assert(arg2 == arg2_expect);
 }
 
-void Test3(const char *input, const char *format, 
-	   int res_expect, uint64_t arg1_expect, uint64_t arg2_expect,
-	   uint64_t arg3_expect)
+static void Test3(const char *input, const char *format,
+                  int res_expect, uint64_t arg1_expect, uint64_t arg2_expect,
+                  uint64_t arg3_expect)
 {
     uint64_t arg1 = ~arg1_expect;
     uint64_t arg2 = ~arg2_expect;

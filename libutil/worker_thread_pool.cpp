@@ -304,7 +304,7 @@ unsigned int Snooze::Run()
 
 typedef util::CountedPointer<Snooze> SnoozePtr;
 
-void Test2(util::WorkerThreadPool::Priority p, unsigned int n)
+static void Test2(util::WorkerThreadPool::Priority p, unsigned int n)
 {
     s_created = s_destroyed = s_run = 0;
 
@@ -328,7 +328,7 @@ void Test2(util::WorkerThreadPool::Priority p, unsigned int n)
 //    TRACE << "Test(" << n << ") done\n";
 }
 
-void Test(util::WorkerThreadPool::Priority p)
+static void Test(util::WorkerThreadPool::Priority p)
 {
     Test2(p, 4);
     Test2(p, 1);

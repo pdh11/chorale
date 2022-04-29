@@ -173,7 +173,8 @@ unsigned int EPGParserTask::Run()
 	ssize_t sz = ::read(m_demux_fd, buf, BUFSIZE);
 	if (sz <= 0)
 	{
-	    if (errno == EAGAIN || errno == EWOULDBLOCK)
+	    if (errno == EAGAIN ||
+                (EAGAIN != EWOULDBLOCK && errno == EWOULDBLOCK))
 		break;
 
 	    TRACE << "EPG read got error " << errno << "\n";
