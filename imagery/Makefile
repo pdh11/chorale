@@ -53,87 +53,87 @@ DO_INKSCAPE:=$(INKSCAPE) -z >/dev/null -b white
 ifeq ($(HAVE_INKSCAPE)$(HAVE_CONVERT),yesyes)
 
 $(TOP)$(DIR)icon16.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(INKSCAPE) -z -e $@ -a 60:660:150:750 -w16 -h16 $< >/dev/null
+	$(GEN_PRE)$(INKSCAPE) -z $(INKSCAPE_EXPORT)=$@ -a 60:660:150:750 -w16 -h16 $< >/dev/null
 $(TOP)$(DIR)icon32.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(INKSCAPE) -z -e $@ -a 60:660:150:750 -w32 -h32 $< >/dev/null
+	$(GEN_PRE)$(INKSCAPE) -z $(INKSCAPE_EXPORT)=$@ -a 60:660:150:750 -w32 -h32 $< >/dev/null
 $(TOP)$(DIR)icon48.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(INKSCAPE) -z -e $@ -a 60:660:150:750 -w48 -h48 $< >/dev/null
+	$(GEN_PRE)$(INKSCAPE) -z $(INKSCAPE_EXPORT)=$@ -a 60:660:150:750 -w48 -h48 $< >/dev/null
 $(TOP)$(DIR)icon60.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(INKSCAPE) -z -e $@ -a 60:660:150:750 -w60 -h60 $< >/dev/null
+	$(GEN_PRE)$(INKSCAPE) -z $(INKSCAPE_EXPORT)=$@ -a 60:660:150:750 -w60 -h60 $< >/dev/null
 $(TOP)$(DIR)320x480.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(INKSCAPE) -z -e $@ -a 170:770:260:900 -w320 -h480 -y 255 $< >/dev/null
+	$(GEN_PRE)$(INKSCAPE) -z $(INKSCAPE_EXPORT)=$@ -a 170:770:260:900 -w320 -h480 -y 255 $< >/dev/null
 
 $(TOP)$(DIR)icon16s.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(INKSCAPE) -z -e $@ -a 170:660:260:750 -w16 -h16 $< >/dev/null
+	$(GEN_PRE)$(INKSCAPE) -z $(INKSCAPE_EXPORT)=$@ -a 170:660:260:750 -w16 -h16 $< >/dev/null
 $(TOP)$(DIR)icon32s.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(INKSCAPE) -z -e $@ -a 170:660:260:750 -w32 -h32 $< >/dev/null
+	$(GEN_PRE)$(INKSCAPE) -z $(INKSCAPE_EXPORT)=$@ -a 170:660:260:750 -w32 -h32 $< >/dev/null
 $(TOP)$(DIR)icon48s.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(INKSCAPE) -z -e $@ -a 170:660:260:750 -w48 -h48 $< >/dev/null
+	$(GEN_PRE)$(INKSCAPE) -z $(INKSCAPE_EXPORT)=$@ -a 170:660:260:750 -w48 -h48 $< >/dev/null
 
 $(TOP)$(DIR)cd.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 295:450:395:550 -w32 -h32 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 295:450:395:550 -w32 -h32 $<
 $(TOP)$(DIR)cddrive.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 775:450:875:550 -w32 -h32 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 775:450:875:550 -w32 -h32 $<
 $(TOP)$(DIR)portcullis.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 775:570:875:670 -w32 -h32 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 775:570:875:670 -w32 -h32 $<
 $(TOP)$(DIR)empeg.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 535:450:635:550 -w32 -h32 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 535:450:635:550 -w32 -h32 $<
 $(TOP)$(DIR)folder.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 415:450:515:550 -w32 -h32 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 415:450:515:550 -w32 -h32 $<
 $(TOP)$(DIR)network.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 425:580:505:660 -w32 -h32 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 425:580:505:660 -w32 -h32 $<
 $(TOP)$(DIR)output.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 295:570:395:670 -w32 -h32 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 295:570:395:670 -w32 -h32 $<
 $(TOP)$(DIR)vibez.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 175:450:275:550 -w32 -h32 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 175:450:275:550 -w32 -h32 $<
 $(TOP)$(DIR)portable.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 55:450:155:550 -w32 -h32 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 55:450:155:550 -w32 -h32 $<
 $(TOP)$(DIR)tv.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 655:570:755:670 -w32 -h32 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 655:570:755:670 -w32 -h32 $<
 $(TOP)$(DIR)noart32.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 535:570:635:670 -w32 -h32 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 535:570:635:670 -w32 -h32 $<
 $(TOP)$(DIR)noart48.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 535:570:635:670 -w48 -h48 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 535:570:635:670 -w48 -h48 $<
 $(TOP)$(DIR)noart100.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 535:570:635:670 -w100 -h100 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 535:570:635:670 -w100 -h100 $<
 
 $(TOP)$(DIR)resize.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 655:450:755:550 -w32 -h32 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 655:450:755:550 -w32 -h32 $<
 $(TOP)$(DIR)close.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 490:320:540:370 -w16 -h16 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 490:320:540:370 -w16 -h16 $<
 $(TOP)$(DIR)minimise.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 430:320:480:370 -w16 -h16 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 430:320:480:370 -w16 -h16 $<
 
 $(TOP)$(DIR)dir.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 10:320:60:370 -w12 -h12 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 10:320:60:370 -w12 -h12 $<
 $(TOP)$(DIR)ffwd.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 370:320:420:370 -w16 -h16 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 370:320:420:370 -w16 -h16 $<
 $(TOP)$(DIR)file.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 70:320:120:370 -w12 -h12 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 70:320:120:370 -w12 -h12 $<
 $(TOP)$(DIR)query.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 70:260:120:310 -w12 -h12 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 70:260:120:310 -w12 -h12 $<
 $(TOP)$(DIR)pause.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 130:320:180:370 -w16 -h16 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 130:320:180:370 -w16 -h16 $<
 $(TOP)$(DIR)image.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 130:260:180:310 -w12 -h12 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 130:260:180:310 -w12 -h12 $<
 $(TOP)$(DIR)play.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 190:320:240:370 -w16 -h16 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 190:320:240:370 -w16 -h16 $<
 $(TOP)$(DIR)film.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 190:260:240:310 -w12 -h12 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 190:260:240:310 -w12 -h12 $<
 $(TOP)$(DIR)rew.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 310:320:360:370 -w16 -h16 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 310:320:360:370 -w16 -h16 $<
 $(TOP)$(DIR)stop.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 250:320:300:370 -w16 -h16 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 250:320:300:370 -w16 -h16 $<
 $(TOP)$(DIR)settings.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 550:320:600:370 -w16 -h16 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 550:320:600:370 -w16 -h16 $<
 $(TOP)$(DIR)shuffle.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 610:320:660:370 -w16 -h16 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 610:320:660:370 -w16 -h16 $<
 $(TOP)$(DIR)repeatall.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 670:320:720:370 -w16 -h16 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 670:320:720:370 -w16 -h16 $<
 $(TOP)$(DIR)norepeat.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 730:320:780:370 -w16 -h16 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 730:320:780:370 -w16 -h16 $<
 $(TOP)$(DIR)repeatone.png: $(TOP)$(DIR)chorale.svg
-	$(GEN_PRE)$(DO_INKSCAPE) -e $@ -a 790:320:840:370 -w16 -h16 $<
+	$(GEN_PRE)$(DO_INKSCAPE) $(INKSCAPE_EXPORT)=$@ -a 790:320:840:370 -w16 -h16 $<
 
 $(TOP)$(DIR)%.xpm: $(TOP)$(DIR)%.png
 	$(GEN_PRE)$(CONVERT) -transparent white $< $*.0.xpm

@@ -218,6 +218,11 @@ if test "$INKSCAPE" = "no"; then
    HAVE_INKSCAPE="no"
 else
    HAVE_INKSCAPE="yes"
+   if inkscape --help | grep -q -e --export-filename ; then
+      INKSCAPE_EXPORT="--export-filename" # 1.1
+   else
+      INKSCAPE_EXPORT="--export-png" # 0.9
+   fi
 fi
 AC_PATH_PROG(VALGRIND, valgrind, no)
 VALGRIND_OPTS=""
@@ -238,6 +243,7 @@ AC_SUBST(HAVE_CADAVER)
 AC_SUBST(HAVE_CONVERT)
 AC_SUBST(HAVE_XSLTPROC)
 AC_SUBST(HAVE_INKSCAPE)
+AC_SUBST(INKSCAPE_EXPORT)
 AC_SUBST(HAVE_VALGRIND)
 AC_SUBST(HAVE_WINDRES)
 AC_SUBST(VALGRIND_OPTS)
