@@ -1,5 +1,8 @@
 TOP?=../
 DIR:=libuiqt/
+
+ifeq ($(QT),yes)
+
 SRCS:= \
 	frame_buffer.cpp \
 	frame_buffer_window.cpp \
@@ -31,8 +34,6 @@ endif
 $(LIBUIQT_TESTS): TEST_LIBS+= $(libuiqt) $(libutil) $(QT_LIBS) $(BOOST_LIBS) $(CAIRO_LIBS) $(LIBS)
 
 $(LIBUIQT_TESTS): $(libuiqt) $(libutil)
-
-ifeq ($(QT),yes)
 
 all: all-libuiqt
 
