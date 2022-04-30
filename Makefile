@@ -104,6 +104,7 @@ release: distclean
 	tar cf $(CHORALE).tar --transform=s,./,$(CHORALE)/, \
 		--exclude=$(CHORALE).tar --exclude=CVS --exclude=doc \
 		--exclude=.libs --exclude=.cvsignore --exclude=.svn \
+		--exclude=.git \
 		 .
 	bzip2 -9 $(CHORALE).tar
 
