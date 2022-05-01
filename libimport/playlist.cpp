@@ -7,15 +7,15 @@
 
 #include <vector>
 
-namespace import {
-
 template<>
-const util::ChooseByExtension<PlaylistIO>::ExtensionMap 
-util::ChooseByExtension<PlaylistIO>::sm_map[] = {
+const util::ChooseByExtension<import::PlaylistIO>::ExtensionMap
+util::ChooseByExtension<import::PlaylistIO>::sm_map[] = {
     { "wpl",  &Factory<import::PlaylistWPL> },
     { "asx",  &Factory<import::PlaylistASX> },
     { "pls",  &Factory<import::PlaylistPLS> },
 };
+
+namespace import {
 
 Playlist::Playlist()
 {

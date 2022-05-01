@@ -14,7 +14,6 @@ class RippingEngine
 
     unsigned m_ripping_flags;
 
-    unsigned m_min_lba;
     unsigned m_max_lba;
 
     struct Sector

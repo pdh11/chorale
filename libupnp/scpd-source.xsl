@@ -132,25 +132,25 @@ static const char *const <xsl:value-of select="$class"/>_action_names[] = {
 static const char *const <xsl:value-of select="$class"/>_action_args[] = {
 <xsl:for-each select="//action/name">
   <xsl:sort select="."/>
-  <xsl:for-each select="//action[name=current()]/argumentList/argument">
+  (<xsl:for-each select="//action[name=current()]/argumentList/argument">
     <xsl:if test="direction='in'">
   "<xsl:variable name="thisarg"><xsl:value-of select="name"/></xsl:variable>
   <xsl:for-each select="str:split($allparams)">
     <xsl:if test="current() = $thisarg"><xsl:value-of select="substring($ascii48,position(),1)"/></xsl:if>
   </xsl:for-each>" // <xsl:value-of select="$thisarg"/></xsl:if></xsl:for-each>
-  "",
+  ""),
 </xsl:for-each>};
 
 static const char *const <xsl:value-of select="$class"/>_action_results[] = {
 <xsl:for-each select="//action/name">
   <xsl:sort select="."/>
-  <xsl:for-each select="//action[name=current()]/argumentList/argument">
+  (<xsl:for-each select="//action[name=current()]/argumentList/argument">
     <xsl:if test="direction='out'">
   "<xsl:variable name="thisarg"><xsl:value-of select="name"/></xsl:variable>
   <xsl:for-each select="str:split($allparams)">
     <xsl:if test="current() = $thisarg"><xsl:value-of select="substring($ascii48,position(),1)"/></xsl:if>
   </xsl:for-each>" // <xsl:value-of select="$thisarg"/></xsl:if></xsl:for-each>
-  "",
+  ""),
 </xsl:for-each>};
 
 static const char *const <xsl:value-of select="$class"/>_param_names[] = {

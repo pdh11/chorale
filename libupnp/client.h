@@ -12,7 +12,7 @@ namespace util { template<class,class> class Callback2; }
 
 namespace upnp {
 
-namespace soap { class Params; }
+namespace soap { struct Params; }
 namespace soap { class Inbound; }
 namespace soap { class Outbound; }
 
@@ -99,6 +99,7 @@ public:
 
     unsigned int SoapAction(unsigned int action,
 			    const SoapCallback& callback,
+                            unsigned int dummy,
 			    ...);
 
     virtual void OnEvent(const char *var, const std::string& value) = 0;

@@ -11,7 +11,6 @@
 namespace mediatree {
 
 Root::Root(db::Database *thedb, uint32_t flags)
-    : m_db(thedb)
 {
     if (flags & (1<<mediadb::ALBUM))
 	m_children.push_back(Query::Create(thedb, mediadb::ALBUM, "Albums"));

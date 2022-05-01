@@ -834,8 +834,8 @@ constexpr const char SCPDURL[] = "SCPDURL";
 constexpr const char UDN[] = "UDN";
 constexpr const char FRIENDLYNAME[] = "friendlyName";
 constexpr const char PRESENTATIONURL[] = "presentationURL";
-constexpr const char FRINK[] = "frink";
-constexpr const char PTANG[] = "ptang";
+//constexpr const char FRINK[] = "frink";
+//constexpr const char PTANG[] = "ptang";
 
 constexpr const char ROOT[] = "root";
 constexpr const char URLBASE[] = "URLBase";

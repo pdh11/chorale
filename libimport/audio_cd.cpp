@@ -10,12 +10,12 @@
 
 #if HAVE_PARANOIA
 // Oh joy, not C++-compatible
-#define private c_private
 extern "C" {
+//#define private c_private
 #include <cdda_interface.h>
 #include <cdda_paranoia.h>
+//#undef private
 }
-#undef private
 typedef int paranoia_cb_mode_t;
 typedef unsigned int track_t;
 #else

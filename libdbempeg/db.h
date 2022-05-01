@@ -3,7 +3,7 @@
 
 #include "libmediadb/db.h"
 
-namespace util { class IPAddress; }
+namespace util { struct IPAddress; }
 namespace util { namespace http { class Server; } }
 
 namespace db {

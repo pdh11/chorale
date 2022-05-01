@@ -125,14 +125,14 @@ void SettingsEntryEndpoint::OnOK()
         /* Map */
 
 
-SettingsEntryMap::SettingsEntryMap(QBoxLayout *parent, 
-				   Settings *settings,
+SettingsEntryMap::SettingsEntryMap(QBoxLayout *parent,
+				   Settings*,
 				   const char *label,
-				   setter_fn setter, 
-				   getter_fn getter)
-    : m_settings(settings),
-      m_setter(setter),
-      m_getter(getter),
+				   setter_fn,
+				   getter_fn)
+    : //m_settings(settings),
+      //m_setter(setter),
+      //m_getter(getter),
       m_table(NULL)
 {
     parent->addWidget(new QLabel(label));

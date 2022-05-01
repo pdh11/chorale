@@ -636,8 +636,8 @@ const char s_service_type_av_transport2[] =
 const char s_service_type_connection_manager[] =
     "urn:schemas-upnp-org:service:ConnectionManager:1";
 
-const char s_service_type_ms_receiver_registrar[] =
-    "urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1";
+//const char s_service_type_ms_receiver_registrar[] =
+//    "urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1";
 
 
 } // namespace upnp

@@ -11,14 +11,14 @@ class VideoStream: public util::Stream
 {
     int m_audio_fd;
     int m_video_fd;
-    bool m_started;
-    unsigned m_pes_packet_remaining;
-    unsigned int m_fill;
+    //bool m_started;
+    //unsigned m_pes_packet_remaining;
+    //unsigned int m_fill;
 
-    const unsigned char *m_esdata;
-    unsigned int m_eslen;
-    enum { BUFFER = 65536 };
-    unsigned char m_buffer[BUFFER];
+    //const unsigned char *m_esdata;
+    //unsigned int m_eslen;
+    //enum { BUFFER = 65536 };
+    //unsigned char m_buffer[BUFFER];
 
 public:
     VideoStream();

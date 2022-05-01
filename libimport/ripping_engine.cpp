@@ -6,10 +6,9 @@
 namespace import {
 
 RippingEngine::RippingEngine(ScsiTransport *transport, unsigned ripping_flags,
-			     unsigned min_lba, unsigned max_lba)
+			     unsigned, unsigned max_lba)
     : m_transport(transport),
       m_ripping_flags(ripping_flags),
-      m_min_lba(min_lba),
       m_max_lba(max_lba),
       m_buffer(new unsigned char[BUFSIZE])
 {

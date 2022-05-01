@@ -38,7 +38,7 @@ public:
 };
 
 template <typename T>
-struct Binder;
+class Binder;
 
 template <typename RET, typename T, typename ...ARGS>
 class Binder<RET (T::*)(ARGS...)>
@@ -57,7 +57,7 @@ public:
     }
 };
 
-#define BIND(x,y) Binder<typeof(x)>::bind<x>(y)
+#define BIND(x,y) Binder<decltype(x)>::bind<x>(y)
 
 template <typename T>
 struct IntFuncs

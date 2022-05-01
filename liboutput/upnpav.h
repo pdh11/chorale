@@ -69,8 +69,8 @@ public:
     unsigned int Seek(unsigned int ms) override;
 
     // These are virtual in URLPlayer itself so must be defined explicitly
-    void AddObserver(URLObserver*);
-    void RemoveObserver(URLObserver*);
+    void AddObserver(URLObserver*) override;
+    void RemoveObserver(URLObserver*) override;
     
     // Being an AVTransport2Observer
     void OnLastChange(const std::string& value) override;

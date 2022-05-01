@@ -9,9 +9,9 @@
 #include <string.h>
 #include <stdint.h>
 
-LOG_DECL(TV);
-
 #if HAVE_DVB
+
+//LOG_DECL(TV);
 
 #include <sys/ioctl.h>
 #include <poll.h>

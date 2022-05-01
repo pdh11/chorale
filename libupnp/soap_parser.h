@@ -13,7 +13,7 @@ struct Data;
  */
 namespace soap {
 
-class Params;
+struct Params;
 
 /** Parsing XML into a SOAP parameter structure
  *

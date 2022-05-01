@@ -36,7 +36,7 @@ typedef util::CountedPointer<CDDBLookup> CDDBLookupPtr;
 
 class CDDBService
 {
-    class Impl;
+    struct Impl;
     Impl *m_impl;
 
 public:

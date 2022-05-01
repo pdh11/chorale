@@ -36,6 +36,7 @@ class ProtocolClient: public util::Observable<ProtocolObserver,
     util::IPAddress m_address;
     util::StreamSocket m_socket;
     util::StreamSocket m_fastsocket;
+    uint64_t *m_aligned_buffer;
     unsigned char *m_buffer;
     unsigned int m_packet_id;
     util::Mutex m_mutex;

@@ -23,7 +23,7 @@ ResourceWidget::ResourceWidget(QWidget *parent, const std::string& label,
       m_top(NULL),
       m_bottom(NULL)
 {
-    setFrameStyle( Panel | Sunken );
+    setFrameStyle( unsigned(Panel) | unsigned(Sunken) );
     setLineWidth(2);
     setMidLineWidth(0);
 

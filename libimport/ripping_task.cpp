@@ -25,15 +25,14 @@ RippingTask::RippingTask(AudioCDPtr cd, unsigned int track,
 			 const std::string& filename,
 			 EncodingTaskPtr etp1, EncodingTaskPtr etp2,
 			 util::TaskQueue *encode_queue, 
-			 util::TaskQueue *disk_queue)
+			 util::TaskQueue*)
     : Task(util::Printf() << "rip-" << (track+1)),
       m_cd(cd), 
       m_track(track),
       m_filename(filename),
       m_etp1(etp1),
       m_etp2(etp2),
-      m_encode_queue(encode_queue),
-      m_disk_queue(disk_queue)
+      m_encode_queue(encode_queue)
 {
 }
 

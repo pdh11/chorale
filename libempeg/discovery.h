@@ -5,7 +5,7 @@
 #include "libutil/counted_pointer.h"
 
 
-namespace util { class IPAddress; }
+namespace util { struct IPAddress; }
 namespace util { class Scheduler; }
 
 /** Classes for communicating with Empeg car-players over Ethernet.

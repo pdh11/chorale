@@ -7,19 +7,26 @@
 
 #if HAVE_TAGLIB
 
-namespace import {
-
-
-/* TagReader */
-
-
 template<>
-const util::ChooseByExtension<TagReaderBase>::ExtensionMap 
-util::ChooseByExtension<TagReaderBase>::sm_map[] = {
+const util::ChooseByExtension<import::TagReaderBase>::ExtensionMap
+util::ChooseByExtension<import::TagReaderBase>::sm_map[] = {
     { "mp3",  &Factory<import::mp3::TagReader> },
     { "mp2",  &Factory<import::mp3::TagReader> },
     { "flac", &Factory<import::TagReaderBase>  },
 };
+
+template<>
+const util::ChooseByExtension<import::TagWriterBase>::ExtensionMap
+util::ChooseByExtension<import::TagWriterBase>::sm_map[] = {
+    { "mp3",  &Factory<import::mp3::TagWriter> },
+    { "mp2",  &Factory<import::mp3::TagWriter> },
+    { "flac", &Factory<import::flac::TagWriter>  },
+};
+
+namespace import {
+
+/* TagReader */
+
 
 TagReader::TagReader()
 {
@@ -44,14 +51,6 @@ unsigned TagReader::Read(db::Recordset *rs)
 
 /* TagWriter */
 
-
-template<>
-const util::ChooseByExtension<TagWriterBase>::ExtensionMap 
-util::ChooseByExtension<TagWriterBase>::sm_map[] = {
-    { "mp3",  &Factory<import::mp3::TagWriter> },
-    { "mp2",  &Factory<import::mp3::TagWriter> },
-    { "flac", &Factory<import::flac::TagWriter>  },
-};
 
 TagWriter::TagWriter()
 {

@@ -25,12 +25,12 @@ namespace dvb {
 
 VideoStream::VideoStream()
     : m_audio_fd(-1),
-      m_video_fd(-1),
-      m_started(false),
-      m_pes_packet_remaining(0),
-      m_fill(0),
-      m_esdata(NULL),
-      m_eslen(0)
+      m_video_fd(-1)
+      //m_started(false),
+      //m_pes_packet_remaining(0),
+      //m_fill(0),
+      //m_esdata(NULL),
+      //m_eslen(0)
 {
 }
 

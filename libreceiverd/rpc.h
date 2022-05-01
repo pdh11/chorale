@@ -72,7 +72,7 @@ class RPCServer: public util::Task
 {
     uint32_t m_program_number;
     uint32_t m_version;
-    util::Scheduler *m_poller;
+//    util::Scheduler *m_poller;
     util::IPFilter *m_filter;
     util::DatagramSocket m_socket;
     enum { BUFSIZE = 9000 };

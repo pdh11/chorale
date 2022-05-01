@@ -101,9 +101,9 @@ public:
     typedef map_t (Settings::*getter_fn)() const;
 
 private:
-    Settings *m_settings;
-    setter_fn m_setter;
-    getter_fn m_getter;
+    //Settings *m_settings;
+    //setter_fn m_setter;
+    //getter_fn m_getter;
     QTableWidget *m_table;
 
 public:

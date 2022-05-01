@@ -329,7 +329,7 @@ AC_DEFUN([PDH_CHECK_TCP_WRAPPERS],[
 int allow_severity = 0;
 int deny_severity = 0;
 		]],
-	        [[return hosts_access();]])],
+	        [[return hosts_access(NULL);]])],
 	    [AC_MSG_RESULT([yes]); HAVE_LIBWRAP="yes"; LIBWRAP="-lwrap"],
             [AC_MSG_RESULT([no]) ; HAVE_LIBWRAP="no" ] )
         # Set it back unconditionally; we don't want to link with -lwrap

@@ -307,7 +307,7 @@ static void PrintSeconds(unsigned long long sec)
 class UpdateObserver: public mediadb::SyncObserver
 {
     db::Database *m_src;
-    db::Database *m_dest;
+    //db::Database *m_dest;
 
     void Print(db::Database *db, const char *verb, unsigned int id,
 	       size_t num, size_t denom)
@@ -325,9 +325,9 @@ class UpdateObserver: public mediadb::SyncObserver
     }
 
 public:
-    UpdateObserver(db::Database *src, db::Database *dest)
-	: m_src(src), m_dest(dest) {}
-	
+    UpdateObserver(db::Database *src, db::Database*)
+	: m_src(src) {}
+
     void OnAddFile(unsigned int srcid, size_t num, size_t denom)
     {
 	Print(m_src, "Adding", srcid, num, denom);

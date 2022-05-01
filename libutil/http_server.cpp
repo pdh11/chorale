@@ -994,13 +994,14 @@ class FetchTask: public util::Task
     std::string m_contents;
     util::Scheduler *m_poller;
     volatile bool m_done;
-    unsigned int m_which;
+//    unsigned int m_which;
 
 public:
     FetchTask(util::http::Client *client, const std::string& url,
-	      util::Scheduler *poller, unsigned int which)
-	: m_client(client), m_url(url), m_poller(poller), m_done(false),
-	  m_which(which) {}
+	      util::Scheduler *poller, unsigned int)
+	: m_client(client), m_url(url), m_poller(poller), m_done(false)
+	  //m_which(which)
+    {}
 
     unsigned int Run()
     {

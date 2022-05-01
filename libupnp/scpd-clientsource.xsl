@@ -169,7 +169,7 @@ unsigned int <xsl:value-of select="$class"/>ClientAsync::<xsl:value-of select="n
           <xsl:with-param name="camelcase" select="name"/>
         </xsl:call-template>,
         util::Bind(this).To&lt;unsigned int, const soap::Params*,
-            &amp;<xsl:value-of select="$class"/>ClientAsync::On<xsl:value-of select="name"/>Done&gt;()<xsl:for-each select="argumentList/argument">
+            &amp;<xsl:value-of select="$class"/>ClientAsync::On<xsl:value-of select="name"/>Done&gt;(), 0<xsl:for-each select="argumentList/argument">
 <xsl:if test="direction='in'">,
         <xsl:call-template name="camelcase-to-underscore">
   <xsl:with-param name="camelcase" select="name"/>

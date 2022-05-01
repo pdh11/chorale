@@ -95,7 +95,7 @@ constexpr const Data *const ArrayHelper<Selectors...>::data[] = {
 };
 
 template<>
-constexpr const Data *const ArrayHelper<>::data[];
+const Data *const ArrayHelper<>::data[];
 
 unsigned int Parse(util::Stream*, void *target,
 		   const Data *table);

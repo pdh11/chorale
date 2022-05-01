@@ -11,8 +11,6 @@ namespace mediatree {
 
 class Root: public Node
 {
-    db::Database *m_db;
-
     /** Construct a root item.
      *
      * flags is a bitfield of which query-node children to create.
@@ -20,7 +18,7 @@ class Root: public Node
     Root(db::Database*, uint32_t flags);
 
     std::vector<NodePtr> m_children;
-    
+
 public:
     ~Root();
 

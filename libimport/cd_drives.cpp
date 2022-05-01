@@ -34,6 +34,7 @@ namespace import {
 CDDrives::CDDrives(util::hal::Context *hal)
     : m_hal(hal)
 {
+    (void)m_hal;
 }
 
 CDDrives::~CDDrives()
@@ -197,6 +198,7 @@ void LocalCDDrive::Impl::OnDeviceRemoved(util::hal::DevicePtr dev)
     }
 #else
     (void)dev;
+    (void)m_parent;
 #endif
 }
 

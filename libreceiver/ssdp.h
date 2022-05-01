@@ -6,7 +6,7 @@
 #include <boost/utility.hpp>
 #include "libutil/counted_pointer.h"
 
-namespace util { class IPEndPoint; }
+namespace util { struct IPEndPoint; }
 namespace util { class Scheduler; }
 namespace util { class IPFilter; }
 

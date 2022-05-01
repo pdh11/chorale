@@ -230,13 +230,13 @@ unsigned int Connection::Init(const util::IPAddress& ip)
 	    }
 	    else
 	    {
-		unsigned int *pdata = (unsigned int*)pptr;
-
 		std::vector<unsigned int> children;
 
 		for (unsigned int i=0; i<plen/4; ++i)
 		{
-		    children.push_back(pdata[i]);
+                    unsigned int child = 0;
+                    memcpy(&child, pptr + i*4, 4);
+		    children.push_back(i);
 		}
 
 		rsp->SetString(mediadb::CHILDREN,

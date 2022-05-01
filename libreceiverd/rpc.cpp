@@ -18,7 +18,6 @@ RPCServer::RPCServer(uint32_t program_number, uint32_t version,
 		     util::Scheduler *poller, util::IPFilter *filter)
     : m_program_number(program_number),
       m_version(version),
-      m_poller(poller),
       m_filter(filter)
 {
     m_socket.SetNonBlocking(true);

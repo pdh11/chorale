@@ -13,7 +13,8 @@
 namespace empeg {
 
 ProtocolClient::ProtocolClient()
-    : m_buffer(new unsigned char[MAX_PAYLOAD + 8 + 16 + 2 + 1]),
+    : m_aligned_buffer(new uint64_t[(MAX_PAYLOAD + 8 + 16 + 2 + 1 + 7)/8]),
+      m_buffer((unsigned char*)m_aligned_buffer),
       m_packet_id(0),
       m_fast(0)
 {
@@ -70,7 +71,7 @@ unsigned int ProtocolClient::Init(util::IPAddress ip)
 
 unsigned int ProtocolClient::Transaction()
 {
-    PacketHeader *header = (PacketHeader*)m_buffer;
+    PacketHeader *header = (PacketHeader*)m_aligned_buffer;
 
     GetNextPacketId();
     header->type = REQUEST;
@@ -136,7 +137,7 @@ unsigned int ProtocolClient::Transaction()
 	{
 	case PROGRESS:
 	{
-	    ProgressReply *progress = (ProgressReply*)m_buffer;
+	    ProgressReply *progress = (ProgressReply*)m_aligned_buffer;
 //	    TRACE << "Progress packet " << progress->stage_num << "/"
 //		  << progress->stage_denom << ", " << progress->num
 //		  << "/" << progress->denom << "\n";
@@ -161,14 +162,14 @@ unsigned int ProtocolClient::Ping(uint16_t *minor, uint16_t *major)
 {
     util::Mutex::Lock lock(m_mutex);
 
-    PingRequest *req = (PingRequest*)m_buffer;
+    PingRequest *req = (PingRequest*)m_aligned_buffer;
     req->header.datasize = 0;
     req->header.opcode = PING;
     unsigned int rc = Transaction();
 
     if (rc == 0)
     {
-	PingReply *reply = (PingReply*)m_buffer;
+	PingReply *reply = (PingReply*)m_aligned_buffer;
 	if (minor)
 	    *minor = reply->version_minor;
 	if (major)
@@ -182,7 +183,7 @@ unsigned int ProtocolClient::Stat(uint32_t fid, uint32_t *size)
 {
     util::Mutex::Lock lock(m_mutex);
 
-    StatRequest *req = (StatRequest*)m_buffer;
+    StatRequest *req = (StatRequest*)m_aligned_buffer;
     req->header.datasize = 4;
     req->header.opcode = STAT;
     req->fid = fid;
@@ -191,7 +192,7 @@ unsigned int ProtocolClient::Stat(uint32_t fid, uint32_t *size)
     if (rc != 0)
 	return rc;
 
-    StatReply *reply = (StatReply*)m_buffer;
+    StatReply *reply = (StatReply*)m_aligned_buffer;
 
 //    TRACE << "status " << reply->status << " id " << reply->fid << " size "
 //	  << reply->size << "\n";
@@ -216,7 +217,7 @@ unsigned int ProtocolClient::Read(uint32_t fid, uint32_t offset, uint32_t size,
     if (size > MAX_PAYLOAD)
 	size = MAX_PAYLOAD;
 
-    ReadRequest *req = (ReadRequest*)m_buffer;
+    ReadRequest *req = (ReadRequest*)m_aligned_buffer;
     req->header.datasize = sizeof(ReadRequest) - sizeof(PacketHeader);
     req->header.opcode = READ_FID;
     req->fid = fid;
@@ -226,7 +227,7 @@ unsigned int ProtocolClient::Read(uint32_t fid, uint32_t offset, uint32_t size,
     if (rc != 0)
 	return rc;
 
-    ReadReply *reply = (ReadReply*)m_buffer;
+    ReadReply *reply = (ReadReply*)m_aligned_buffer;
     
     if (reply->status)
     {
@@ -245,7 +246,7 @@ unsigned int ProtocolClient::Read(uint32_t fid, uint32_t offset, uint32_t size,
 unsigned int ProtocolClient::EnableWrite(bool whether)
 {
     util::Mutex::Lock lock(m_mutex);
-    MountRequest *req = (MountRequest*)m_buffer;
+    MountRequest *req = (MountRequest*)m_aligned_buffer;
     req->header.datasize = sizeof(MountRequest) - sizeof(PacketHeader);
     req->header.opcode = MOUNT;
     req->partition = 0;
@@ -254,7 +255,7 @@ unsigned int ProtocolClient::EnableWrite(bool whether)
     if (rc != 0)
 	return rc;
     
-    MountReply *reply = (MountReply*)m_buffer;
+    MountReply *reply = (MountReply*)m_aligned_buffer;
     if (reply->status)
     {
 	TRACE << "Mount returned error " << reply->status << "\n";
@@ -266,7 +267,7 @@ unsigned int ProtocolClient::EnableWrite(bool whether)
 unsigned int ProtocolClient::RebuildDatabase()
 {
     util::Mutex::Lock lock(m_mutex);
-    RebuildRequest *req = (RebuildRequest*)m_buffer;
+    RebuildRequest *req = (RebuildRequest*)m_aligned_buffer;
     req->header.datasize = sizeof(RebuildRequest) - sizeof(PacketHeader);
     req->header.opcode = REBUILD;
     req->flags = 0;
@@ -274,7 +275,7 @@ unsigned int ProtocolClient::RebuildDatabase()
     if (rc != 0)
 	return rc;
     
-    RebuildReply *reply = (RebuildReply*)m_buffer;
+    RebuildReply *reply = (RebuildReply*)m_aligned_buffer;
     if (reply->status)
     {
 	TRACE << "Rebuild returned error " << reply->status << "\n";
@@ -286,7 +287,7 @@ unsigned int ProtocolClient::RebuildDatabase()
 unsigned int ProtocolClient::Delete(uint32_t fid, uint16_t mask)
 {
     util::Mutex::Lock lock(m_mutex);
-    DeleteRequest *req = (DeleteRequest*)m_buffer;
+    DeleteRequest *req = (DeleteRequest*)m_aligned_buffer;
     req->header.datasize = sizeof(DeleteRequest) - sizeof(PacketHeader);
     req->header.opcode = DELETE;
     req->fid = fid;
@@ -295,7 +296,7 @@ unsigned int ProtocolClient::Delete(uint32_t fid, uint16_t mask)
     if (rc != 0)
 	return rc;
     
-    DeleteReply *reply = (DeleteReply*)m_buffer;
+    DeleteReply *reply = (DeleteReply*)m_aligned_buffer;
     if (reply->status)
     {
 	TRACE << "Delete returned error " << reply->status << "\n";
@@ -307,7 +308,7 @@ unsigned int ProtocolClient::Delete(uint32_t fid, uint16_t mask)
 unsigned int ProtocolClient::Prepare(uint32_t fid, uint32_t size)
 {
     util::Mutex::Lock lock(m_mutex);
-    PrepareRequest *req = (PrepareRequest*)m_buffer;
+    PrepareRequest *req = (PrepareRequest*)m_aligned_buffer;
     req->header.datasize = sizeof(PrepareRequest) - sizeof(PacketHeader);
     req->header.opcode = PREPARE;
     req->fid = fid;
@@ -317,7 +318,7 @@ unsigned int ProtocolClient::Prepare(uint32_t fid, uint32_t size)
     if (rc != 0)
 	return rc;
     
-    PrepareReply *reply = (PrepareReply*)m_buffer;
+    PrepareReply *reply = (PrepareReply*)m_aligned_buffer;
     if (reply->status)
     {
 	TRACE << "Prepare returned error " << reply->status << "\n";
@@ -403,7 +404,7 @@ unsigned int ProtocolClient::Write(uint32_t fid, uint32_t offset,
 	return rc;
     }
 
-    WriteRequest *req = (WriteRequest*)m_buffer;
+    WriteRequest *req = (WriteRequest*)m_aligned_buffer;
     if (size > MAX_PAYLOAD)
 	size = MAX_PAYLOAD;
 
@@ -424,7 +425,7 @@ unsigned int ProtocolClient::Write(uint32_t fid, uint32_t offset,
     if (rc != 0)
 	return rc;
 
-    WriteReply *reply = (WriteReply*)m_buffer;
+    WriteReply *reply = (WriteReply*)m_aligned_buffer;
     
     if (reply->status)
     {
@@ -443,7 +444,7 @@ unsigned int ProtocolClient::SendCommand(uint32_t command, uint32_t param0,
 {
     util::Mutex::Lock lock(m_mutex);
 
-    CommandRequest *req = (CommandRequest*)m_buffer;
+    CommandRequest *req = (CommandRequest*)m_aligned_buffer;
     req->header.datasize = sizeof(CommandRequest) - sizeof(PacketHeader);
     req->header.opcode = COMMAND;
     req->command = command;
@@ -454,7 +455,7 @@ unsigned int ProtocolClient::SendCommand(uint32_t command, uint32_t param0,
     if (rc != 0)
 	return rc;
     
-    CommandReply *reply = (CommandReply*)m_buffer;
+    CommandReply *reply = (CommandReply*)m_aligned_buffer;
     if (reply->status)
     {
 	TRACE << "Command returned error " << reply->status << "\n";

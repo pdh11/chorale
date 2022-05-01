@@ -30,7 +30,6 @@ namespace upnp {
 
 class Server::Impl: public util::http::ContentFactory
 {
-    Server *m_parent;
     util::Scheduler *m_scheduler;
     util::http::Client *m_client;
     util::http::Server *m_server;
@@ -88,11 +87,10 @@ public:
     bool StreamForPath(const util::http::Request*, util::http::Response*);
 };
 
-Server::Impl::Impl(Server *parent, util::Scheduler *scheduler,
+Server::Impl::Impl(Server*, util::Scheduler *scheduler,
 		   util::http::Client *client, util::http::Server *server, 
 		   ssdp::Responder *ssdp)
-    : m_parent(parent),
-      m_scheduler(scheduler),
+    : m_scheduler(scheduler),
       m_client(client),
       m_server(server),
       m_ssdp(ssdp)

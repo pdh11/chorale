@@ -17,11 +17,10 @@ namespace upnpav {
 class URLPlayer::TimecodeTask: public util::Task
 {
     URLPlayer *m_parent;
-    util::Scheduler *m_scheduler;
 
 public:
-    TimecodeTask(URLPlayer *parent, util::Scheduler *scheduler)
-	: m_parent(parent), m_scheduler(scheduler) {}
+    TimecodeTask(URLPlayer *parent, util::Scheduler*)
+	: m_parent(parent) {}
 
     unsigned OnTimer();
     unsigned Run() { return 0; }

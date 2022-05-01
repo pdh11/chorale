@@ -2,6 +2,7 @@
 
 namespace receiver {
 
+#if 0
 static const struct {
     int id;
     const char *name;
@@ -30,5 +31,6 @@ static const struct {
     { ENSEMBLE, "ensemble" },
     { LYRICIST, "lyricist" }
 };
+#endif
 
 } // namespace receiver

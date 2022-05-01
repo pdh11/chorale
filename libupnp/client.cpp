@@ -696,13 +696,14 @@ bool ServiceClient::GenaBool(const std::string& s)
 }
 
 unsigned int ServiceClient::SoapAction(unsigned int action,
-				       const SoapCallback& callback, ...)
+				       const SoapCallback& callback,
+                                       unsigned int dummy, ...)
 {
     soap::Params out;
 
     va_list va;
-    va_start(va, callback);
-    
+    va_start(va, dummy);
+
     uint32_t *ptr32 = out.ints;
     uint16_t *ptr16 = out.shorts;
     uint8_t *ptr8 = out.bytes;

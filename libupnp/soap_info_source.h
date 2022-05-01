@@ -1,7 +1,7 @@
 #ifndef LIBUPNP_SOAP_INFO_SOURCE_H
 #define LIBUPNP_SOAP_INFO_SOURCE_H 1
 
-namespace util { class IPEndPoint; }
+namespace util { struct IPEndPoint; }
 
 namespace upnp {
 
