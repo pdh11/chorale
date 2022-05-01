@@ -61,9 +61,10 @@ AC_DEFUN([PDH_C_WARNING],
     AC_MSG_CHECKING([whether ${CC} accepts $1])
 
     ok_CFLAGS="$CFLAGS"
-    CFLAGS="$CFLAGS $1"
+    new_CFLAGS="$CFLAGS"
+    CFLAGS="$CFLAGS $1 -Werror"
     AC_COMPILE_IFELSE([AC_LANG_PROGRAM()],
-		      [AC_MSG_RESULT([yes])],
+		      [AC_MSG_RESULT([yes]); CFLAGS=$new_CFLAGS],
 		      [AC_MSG_RESULT([no]); CFLAGS=$ok_CFLAGS; $2])
 ])
 
@@ -88,6 +89,7 @@ PDH_C_WARNING([-Wmissing-declarations])
 PDH_C_WARNING([-pedantic -Wno-long-long])
 PDH_C_WARNING([-fdiagnostics-show-option])
 PDH_C_WARNING([-Wdeclaration-after-statement])
+PDH_C_WARNING([-Wno-unused-command-line-argument])
 
 AC_MSG_CHECKING(bitfield ordering in structs)
 AC_LINK_IFELSE([AC_LANG_SOURCE([
@@ -152,9 +154,10 @@ AC_DEFUN([PDH_CXX_WARNING],
     AC_LANG_PUSH([C++])
 
     ok_CXXFLAGS="$CXXFLAGS"
-    CXXFLAGS="$CXXFLAGS $1"
+    new_CXXFLAGS="$CXXFLAGS $1"
+    CXXFLAGS="$CXXFLAGS $1 -Werror"
     AC_COMPILE_IFELSE([AC_LANG_PROGRAM()],
-		      [AC_MSG_RESULT([yes])],
+		      [AC_MSG_RESULT([yes]); CXXFLAGS=$new_CXXFLAGS],
 		      [AC_MSG_RESULT([no]); CXXFLAGS=$ok_CXXFLAGS])
 
     AC_LANG_POP
@@ -184,13 +187,13 @@ PDH_CXX_WARNING([-Wwrite-strings])
 PDH_CXX_WARNING([-Wpointer-arith])
 # PDH_CXX_WARNING([-Wsuggest-override])
 PDH_CXX_WARNING([-Wnon-virtual-dtor])
-PDH_CXX_WARNING([-Wstrict-overflow=5])
 PDH_CXX_WARNING([-Woverloaded-virtual])
 PDH_CXX_WARNING([-Wno-sign-conversion])
 # PDH_CXX_WARNING([-Wsuggest-final-types])
 PDH_CXX_WARNING([-Wmissing-declarations])
 PDH_CXX_WARNING([-Wunused-but-set-variable])
 PDH_CXX_WARNING([-fdiagnostics-show-option])
+PDH_CXX_WARNING([-Wno-unused-command-line-argument])
 
 AC_CHECK_TOOL([GCOV], [gcov], [:])
 AC_CHECK_TOOL([SIZE], [size], [:])

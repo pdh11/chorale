@@ -1,5 +1,8 @@
 TOP?=../
 DIR:=choralecd/
+
+ifeq ($(QT),yes)
+
 SRCS:= \
 	browse_widget.cpp \
 	browse_widget.moc.cpp \
@@ -109,8 +112,6 @@ endif
 ifeq ($(imagery),)
 include $(TOP)imagery/Makefile
 endif
-
-ifeq ($(QT),yes)
 
 $(libchoralecd): $(CHORALECD_OBJS)
 	rm -f $@

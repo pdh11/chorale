@@ -45,7 +45,7 @@ $(libdbreceiver): $(LIBDBRECEIVER_OBJS)
 $(receiverscan): $(RECEIVERSCAN_OBJS) $(libdbreceiver) $(libreceiver) \
 		$(libdb) $(libutil) Makefile $(libmediadb)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
-		$(CXX) -o $@ $(RECEIVERSCAN_OBJS) $(libdbreceiver) \
+		$(CXX) -o $@ $(LDFLAGS) $(RECEIVERSCAN_OBJS) $(libdbreceiver) \
 		$(libreceiver) $(libmediadb) $(libdb) $(libutil) \
 		$(BOOST_LIBS) $(LIBS)
 

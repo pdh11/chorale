@@ -20,7 +20,6 @@ class Client;
  */
 class Stream: public util::SeekableStream
 {
-    Client *m_client;
     IPEndPoint m_ipe;
     std::string m_host;
     std::string m_path;

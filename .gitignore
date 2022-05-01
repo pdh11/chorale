@@ -10,3 +10,6 @@ configure
 libtool*
 *~
 *.gcov
+*.mp3
+*.flac
+.headercheck

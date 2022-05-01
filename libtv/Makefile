@@ -59,6 +59,6 @@ $(libtv): $(LIBTV_OBJS)
 
 $(tsdemux): $(TSDEMUX_OBJS)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
-		$(CXX) -o $@ $(TSDEMUX_OBJS)
+		$(CXX) -o $@ $(LDFLAGS) $(TSDEMUX_OBJS)
 
 CLEANS += $(libtv) $(LIBTV_OBJS) $(tsdemux)

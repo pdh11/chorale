@@ -482,7 +482,7 @@ int main()
     assert(rs && !rs->IsEOF());
     mediadb::ChildrenToVector(rs->GetString(mediadb::CHILDREN), &children);
     assert(children.size() == 1);
-    assert(children[0] = 0x120);
+    assert(children[0] == 0x120);
 
     mdb.AddDatabase(&db2);
     

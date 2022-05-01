@@ -31,7 +31,6 @@ class Task: public util::CountedObject<util::PerObjectRecursiveLocking>
 {
     std::string m_name;
     TaskObserver *m_observer;
-    bool m_done;
 
 protected:
     void FireProgress(unsigned num, unsigned denom);

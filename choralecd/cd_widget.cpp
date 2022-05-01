@@ -113,7 +113,7 @@ void UpnpCDWidgetFactory::OnService(const std::string& url,
     unsigned rc = cd->Init(url, udn);
     if (rc != 0)
     {
-	free(cd);
+        delete cd;
 	return;
     }
     import::CDDrivePtr cdp(cd);

@@ -22,10 +22,9 @@ namespace util {
 
 namespace http {
 
-Stream::Stream(Client *client, const IPEndPoint& ipe, const std::string& host,
+Stream::Stream(Client*, const IPEndPoint& ipe, const std::string& host,
 	       const std::string& path)
-    : m_client(client),
-      m_ipe(ipe),
+    : m_ipe(ipe),
       m_host(host),
       m_path(path),
       m_len(0),

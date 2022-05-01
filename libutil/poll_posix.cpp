@@ -144,7 +144,7 @@ void PollerCore::Wake()
     char ch = '*';
     ssize_t rc = write(m_waker_fd[1], &ch, 1);
     assert(rc == 1);
-    rc = rc;
+    (void)rc;
 }
 
 PollerCore::~PollerCore()

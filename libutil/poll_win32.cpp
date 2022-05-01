@@ -2,11 +2,11 @@
 #include "poll.h"
 #include "trace.h"
 
-LOG_DECL(POLL);
-
 #ifdef WIN32
 
 #include <windows.h>
+
+LOG_DECL(POLL);
 
 #undef IN
 #undef OUT

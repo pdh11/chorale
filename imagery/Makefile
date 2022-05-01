@@ -172,7 +172,5 @@ endif
 
 .force-header-generation: $(CHORALE_XPMS) $(TOP)$(DIR)icon.ico
 
-CLEANS += $(CHORALE_PNGS) \
+MAINTAINERCLEANS += $(CHORALE_XPMS) $(TOP)$(DIR)icon.ico $(CHORALE_PNGS) \
 	$(TOP)$(DIR)icon*_*.gif
-
-MAINTAINERCLEANS += $(CHORALE_XPMS) $(TOP)$(DIR)icon.ico

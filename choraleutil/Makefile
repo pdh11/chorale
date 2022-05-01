@@ -99,12 +99,12 @@ $(play): $(PLAY_OBJS) $(liboutput) $(libdb) $(libutil) \
 
 $(tcp): $(TCP_OBJS) $(libutil)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
-		 $(CXX) -o $@ $(TCP_OBJS) $(libutil) \
+		 $(CXX) -o $@ $(LDFLAGS) $(TCP_OBJS) $(libutil) \
 		 $(BOOST_LIBS) $(LIBS)
 
 $(wall): $(WALL_OBJS) $(libutil)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
-		 $(CXX) -o $@ $(WALL_OBJS) $(libutil) \
+		 $(CXX) -o $@ $(LDFLAGS) $(WALL_OBJS) $(libutil) \
 		 $(BOOST_LIBS) $(LIBS)
 
 $(pparse): $(PPARSE_OBJS) $(libimport) $(libutil) Makefile
@@ -137,7 +137,7 @@ $(doctor): $(DOCTOR_OBJS) \
 
 $(playlist2dir): $(PLAYLIST2DIR_OBJS) $(libimport) $(libutil)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
-		 $(CXX) -o $@ $(PLAYLIST2DIR_OBJS) $(libimport) $(libutil) \
+		 $(CXX) -o $@ $(LDFLAGS) $(PLAYLIST2DIR_OBJS) $(libimport) $(libutil) \
 		 $(BOOST_LIBS) $(LIBS)
 
 $(readtags): $(READTAGS_OBJS) $(libimport) $(libdb) $(libutil) \
@@ -151,7 +151,7 @@ $(readtags): $(READTAGS_OBJS) $(libimport) $(libdb) $(libutil) \
 $(squirt): $(SQUIRT_OBJS) $(libimport) $(libdb) $(libutil) \
 		$(libdblocal) $(libdbsteam) $(libmediadb) $(libkarma)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
-		$(CXX) -o $@ $(SQUIRT_OBJS) \
+		$(CXX) -o $@ $(LDFLAGS) $(SQUIRT_OBJS) \
 		$(libdblocal) $(libimport) $(libdbsteam) $(libmediadb) \
 		$(libkarma) $(libdb) $(libutil) \
 		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS)
@@ -159,7 +159,7 @@ $(squirt): $(SQUIRT_OBJS) $(libimport) $(libdb) $(libutil) \
 $(timedb): $(TIMEDB_OBJS) $(libimport) $(libdb) $(libutil) \
 		$(libdbsteam) $(libmediadb)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
-		$(CXX) -o $@ $(CXXFLAGS) $(TIMEDB_OBJS) \
+		$(CXX) -o $@ $(LDFLAGS) $(TIMEDB_OBJS) \
 		$(libimport) $(libdbsteam) $(libmediadb) \
 		$(libdb) $(libutil) \
 		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS)

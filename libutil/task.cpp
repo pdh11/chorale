@@ -6,15 +6,13 @@ namespace util {
 
 Task::Task()
     : m_name(Printf() << this),
-      m_observer(NULL),
-      m_done(false)
+      m_observer(NULL)
 {
 }
 
 Task::Task(const std::string& name)
     : m_name(name),
-      m_observer(NULL),
-      m_done(false)
+      m_observer(NULL)
 {
 }
 

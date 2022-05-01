@@ -7,7 +7,7 @@
 namespace util {
 
 class Scheduler;
-class IPEndPoint;
+struct IPEndPoint;
 
 namespace http {
 
