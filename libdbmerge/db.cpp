@@ -9,9 +9,12 @@
 #include "libutil/errors.h"
 #include <vector>
 #include <algorithm>
+#include <functional>
 
 namespace db {
 namespace merge {
+
+using namespace std::placeholders;
 
 class Database::Impl final: public mediadb::Database,
                             public util::PerObjectLocking
@@ -360,8 +363,9 @@ unsigned int Database::RootRecordset::SetString(unsigned int which,
     // Remove from the list anything >0xFFFFFF
     children.erase(std::remove_if(children.begin(),
 				  children.end(),
-				  std::bind2nd(std::greater<unsigned int>(),
-					       0xFFFFFF)),
+				  std::bind(std::greater<unsigned int>(),
+                                            _1,
+                                            0xFFFFFF)),
 		   children.end());
     return m_rs->SetString(which, mediadb::VectorToChildren(children));
 }

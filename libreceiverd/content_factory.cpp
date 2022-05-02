@@ -613,7 +613,8 @@ void PREFlattener::OnItem(unsigned int id, db::RecordsetPtr rs)
 
 static std::unique_ptr<util::Stream> ListStream(mediadb::Database *db,
                                                 unsigned int id,
-                                                const char *path)
+                                                const char *path,
+                                                std::default_random_engine *rng)
 {
     db::QueryPtr qp = db->CreateQuery();
     qp->Where(qp->Restrict(mediadb::ID, db::EQ, id));
@@ -631,8 +632,9 @@ static std::unique_ptr<util::Stream> ListStream(mediadb::Database *db,
 	PREFlattener pf(&vec);
 	Flatten(db, id, utf8, &pf);
 
-	if (shuffle)
-	    std::random_shuffle(vec.begin(), vec.end());
+	if (shuffle) {
+	    std::shuffle(vec.begin(), vec.end(), *rng);
+        }
 
 	size_t size = vec.size();
 	if (size > 999)
@@ -645,6 +647,16 @@ static std::unique_ptr<util::Stream> ListStream(mediadb::Database *db,
     }
     ms->Seek(0);
     return ms;
+}
+
+ContentFactory::ContentFactory(mediadb::Database *db)
+    : m_db(db)
+{
+    std::vector<uint32_t> random_data(624); // enough for Mersenne-19937
+    std::random_device source;
+    std::generate(random_data.begin(), random_data.end(), std::ref(source));
+    std::seed_seq seeds(random_data.begin(), random_data.end());
+    m_random.seed(seeds);
 }
 
 bool ContentFactory::StreamForPath(const util::http::Request *rq,
@@ -684,7 +696,7 @@ bool ContentFactory::StreamForPath(const util::http::Request *rq,
     }
     else if (sscanf(path, "/list/%x", &id) == 1)
     {
-	rs->body_source = ListStream(m_db, id, path);
+	rs->body_source = ListStream(m_db, id, path, &m_random);
 	return true;
     }
     else
