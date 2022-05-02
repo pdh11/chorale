@@ -5,6 +5,7 @@
 #include "libutil/mutex.h"
 #include <vector>
 #include <string>
+#include <random>
 
 namespace mediadb { class Database; }
 namespace mediadb { class Registry; }
@@ -75,6 +76,8 @@ private:
     unsigned m_current_index; ///< Index into m_queue
     std::vector<unsigned int> m_queue; ///< Offsets into m_entries
     std::vector<Entry> m_entries;
+    std::default_random_engine m_random;
+
     std::string m_name;
     bool m_shuffled;
 

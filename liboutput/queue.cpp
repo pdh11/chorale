@@ -100,8 +100,15 @@ public:
 
 
 Queue::Queue(URLPlayer *player)
-    : m_current_index(0), m_shuffled(false), m_impl(new Impl(this, player))
+    : m_current_index(0),
+      m_shuffled(false),
+      m_impl(new Impl(this, player))
 {
+    std::vector<uint32_t> random_data(624); // enough for Mersenne-19937
+    std::random_device source;
+    std::generate(random_data.begin(), random_data.end(), std::ref(source));
+    std::seed_seq seeds(random_data.begin(), random_data.end());
+    m_random.seed(seeds);
 }
 
 Queue::~Queue()
@@ -411,7 +418,7 @@ void Queue::SetShuffle(bool whether)
 		m_queue.push_back(i);
 	}
 //	TRACE << "Shuffling " << m_queue.size() << " played tracks\n";
-	std::random_shuffle(m_queue.begin(), m_queue.end());
+	std::shuffle(m_queue.begin(), m_queue.end(), m_random);
 
 	m_current_index = (unsigned int)m_queue.size();
 	m_queue.push_back(current_entry);
@@ -425,8 +432,9 @@ void Queue::SetShuffle(bool whether)
 	}
 //	TRACE << "Shuffling " << (m_queue.size() - m_current_index - 1)
 //	      << " unplayed tracks\n";
-	std::random_shuffle(m_queue.begin() + m_current_index + 1,
-			    m_queue.end());
+	std::shuffle(m_queue.begin() + m_current_index + 1,
+                     m_queue.end(),
+                     m_random);
     }
     else
     {
