@@ -62,7 +62,7 @@ static void Test()
 	{
 	    util::CountedPointer<Foo<LockingPolicy> > fooptr3 = fooptr2;
 
-	    TRACE << fooptr3 << "\n";
+	    //TRACE << fooptr3 << "\n";
 	}
     }
 

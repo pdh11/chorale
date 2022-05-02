@@ -1145,7 +1145,7 @@ public:
     unsigned int OnBegin(const char *tag)
     {
 	CheckContent();
-	TRACE << "OnBegin(" << tag << ")\n";
+	//TRACE << "OnBegin(" << tag << ")\n";
 	assert(m_events[m_count].event == 'b');
 	assert(!strcmp(tag, m_events[m_count].arg1));
 	++m_count;
@@ -1154,7 +1154,7 @@ public:
     unsigned int OnEnd(const char *tag)
     {
 	CheckContent();
-	TRACE << "OnEnd(" << tag << ")\n";
+	//TRACE << "OnEnd(" << tag << ")\n";
 	assert(m_events[m_count].event == 'e');
 	assert(!strcmp(tag, m_events[m_count].arg1));
 	++m_count;
@@ -1162,7 +1162,7 @@ public:
     }
     unsigned int OnContent(const char *tag)
     {
-	TRACE << "OnContent(" << tag << ")\n";
+	//TRACE << "OnContent(" << tag << ")\n";
 	m_in_content = true;
 	m_content += tag;
 	return 0;
@@ -1170,7 +1170,7 @@ public:
     unsigned int OnAttribute(const char *tag, const char *value)
     {
 	assert(!m_in_content);
-	TRACE << "OnAttribute(" << tag << "," << value << ")\n";
+	//TRACE << "OnAttribute(" << tag << "," << value << ")\n";
 	assert(m_events[m_count].event == 'a');
 	assert(!strcmp(tag, m_events[m_count].arg1));
 	assert(!strcmp(value, m_events[m_count].arg2));

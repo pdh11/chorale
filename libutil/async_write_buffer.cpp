@@ -186,8 +186,10 @@ unsigned AsyncWriteBuffer::Impl::WriteAt(const void *buffer, uint64_t pos,
     // We've got a buffer. Now write into it.
 
     size_t accept = std::min(len, BUFSIZE-m_bufpos);
-	
-    memcpy(m_buf[m_filling] + m_bufpos, buffer, accept);
+
+    if (accept) {
+        memcpy(m_buf[m_filling] + m_bufpos, buffer, accept);
+    }
     *pwrote = accept;
     m_bufpos += accept;
 
