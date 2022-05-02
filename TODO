@@ -1,6 +1,9 @@
   TP1
   ---
 util::win32::MakeRelativePath
+Remove HAL
+Remove Win32?
+Remove Macintosh?
 
   TP2
   ---

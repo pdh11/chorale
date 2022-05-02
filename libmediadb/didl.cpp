@@ -22,6 +22,8 @@ LOG_DECL(UPNP);
 namespace mediadb {
 namespace didl {
 
+using namespace std::placeholders;
+
 class ParserObserver: public xml::SaxParserObserver
 {
     MetadataList *m_results;
@@ -172,9 +174,10 @@ unsigned int ToRecord(const Metadata& md, db::RecordsetPtr rs)
 		 * may be pointless DLNA blithering in the fourth field.
 		 */
 		std::vector<std::string> fields;
-		boost::algorithm::split(fields, ci->second, 
-					std::bind2nd(std::equal_to<char>(), 
-						     ':'));
+		boost::algorithm::split(
+                    fields,
+                    ci->second,
+                    std::bind(std::equal_to<char>(), _1, ':'));
 
 		if (fields.size() >= 4 && fields[0] == "http-get")
 		{
