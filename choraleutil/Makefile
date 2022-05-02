@@ -166,6 +166,6 @@ $(timedb): $(TIMEDB_OBJS) $(libimport) $(libdb) $(libutil) \
 
 CLEANS += $(pparse) $(playlist2dir) $(PPARSE_OBJS) $(protocoltool) \
 	$(PLAYLIST2DIR_OBJS) $(readtags) $(play) $(squirt) $(timedb) \
-	$(tcp) $(doctor)
+	$(tcp) $(doctor) $(wall)
 
 -include $(CUTIL_DEPS)

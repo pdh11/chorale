@@ -96,4 +96,4 @@ $(rip2): $(RIP2_OBJS) $(libimport) $(libutil)
 		$(PARANOIA_LIBS) $(LIBCDIOP_LIBS) $(BOOST_LIBS) \
 		$(LAME_LIBS) $(LIBFLAC_LIBS) $(LIBS)
 
-CLEANS += $(libimport) $(rip)
+CLEANS += $(libimport) $(rip) $(rip2)
