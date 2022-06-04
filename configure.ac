@@ -490,49 +490,6 @@ AC_DEFUN([PDH_CHECK_BOOST], [
   AC_SUBST(BOOST_LIBS)
 ])
 
-## Check for InnoDB (NYI)
-#
-AC_DEFUN([PDH_CHECK_INNODB],[
-AC_MSG_CHECKING([for innodb])
-pdh_haveit=0
-if test "x${with_gpl}" != xno ; then
-# Listed in reverse order of preference
-for i in /usr/include/embedded_innodb-1.0 /usr/include/embedded_innodb /usr/include/innodb; do
-  ok_CFLAGS=$CFLAGS
-  CFLAGS="$CFLAGS -I$i"
-  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <api0api.h>
-]])],
-	[INNODB_CFLAGS=-I$i ; pdh_haveit=1],
-	[])
-  CFLAGS=$ok_CFLAGS
-done
-if test "$pdh_haveit" = 1 ; then
-  ok_LIBS=$LIBS
-  LIBS="$LIBS -linnodb -lpthread"
-  AC_LINK_IFELSE([AC_LANG_PROGRAM([],[[
-(void)ib_init();
-  ]])],
-	[AC_MSG_RESULT([yes]); pdh_haveit=1],
-	[AC_MSG_RESULT([no]);  pdh_haveit=0])
-  LIBS=$ok_LIBS
-else
-  AC_MSG_RESULT([no])
-fi
-else
-  AC_MSG_RESULT([no (GPL)])
-fi
-if test "$pdh_haveit" = 1 ; then
-    INNODB="yes"
-    INNODB_LIBS="-linnodb -lpthread"
-else
-    INNODB="no"
-fi
-AC_SUBST(INNODB)
-AC_SUBST(INNODB_CFLAGS)
-AC_SUBST(INNODB_LIBS)
-AC_DEFINE_UNQUOTED(HAVE_INNODB, $pdh_haveit, [Define to 1 if you have Embedded InnoDB, or to 0 if you don't])
-])
-
 disable_gpl=""
 disable_lgpl=""
 if test "x${with_gpl}" == xno ; then
@@ -603,7 +560,6 @@ PDH_CHECK_LAME
 PDH_PKGCONFIG(LIBFLAC,   flac,      1.1.3)
 PDH_PKGCONFIG(CAIRO,     cairo,     1.6.4)
 PDH_CHECK_BOOST
-PDH_CHECK_INNODB
 PDH_PKGCONFIG(DBUS,      dbus-1,    1.1.1)
 PDH_PKGCONFIG(TAGLIB,    taglib,    1.4,   $disable_lgpl)
 PDH_PKGCONFIG(LIBCDDB,   libcddb,   1.2.1, $disable_lgpl)

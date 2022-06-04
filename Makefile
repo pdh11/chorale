@@ -273,7 +273,7 @@ ALL_HEADERS:=$(shell ls $(TOP)*/*.h | fgrep -v all- )
 CHECKED_HEADERS:=$(ALL_HEADERS:$(TOP)%=$(TOP).headercheck/%)
 
 $(TOP).headercheck/%: $(TOP)% scripts/headercheck Makefile
-	@scripts/headercheck $< $(CXXFLAGS) $(QT_CXXFLAGS) $(INNODB_CXXFLAGS)
+	@scripts/headercheck $< $(CXXFLAGS) $(QT_CXXFLAGS)
 	@mkdir -p `dirname $@`
 	@touch $@
 
