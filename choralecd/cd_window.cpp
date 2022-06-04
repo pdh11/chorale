@@ -83,7 +83,7 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
 		   import::CDDBLookupPtr cddb,
 		   const Settings *settings, util::TaskQueue *cpu_queue,
 		   util::TaskQueue *disk_queue)
-    : QDialog(NULL, NULL),
+    : QDialog(NULL),
       m_rip(drive, cd, cpu_queue, disk_queue,
 	    settings->GetMP3Root(), settings->GetFlacRoot()),
       m_ntracks((unsigned int)cd->GetTrackCount()),

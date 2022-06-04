@@ -58,7 +58,7 @@ typedef CustomEvent<output::PlayState> PlayStateEvent;
 #define UTF8_STOP  "\xE2\x9D\x9A" /* U+275A */
 
 SetlistWindow::SetlistWindow(output::Queue *queue, mediadb::Registry *registry)
-    : QDialog(NULL, NULL),
+    : QDialog(NULL),
       m_queue(queue),
       m_timecode(NULL),
       m_toplayout(NULL),
