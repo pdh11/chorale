@@ -28,7 +28,7 @@ Settings::Settings()
 
 std::string Settings::GetMP3Root() const
 {
-    std::string s = m_qs.readEntry(MP3ROOT).toUtf8().data();
+    std::string s = m_qs.value(MP3ROOT).toString().toUtf8().data();
     if (s.empty())
     {
 	s = getenv("HOME");
@@ -39,12 +39,12 @@ std::string Settings::GetMP3Root() const
 
 void Settings::SetMP3Root(const std::string& s)
 {
-    m_qs.writeEntry(MP3ROOT, QString::fromUtf8(s.c_str()));
+    m_qs.setValue(MP3ROOT, QString::fromUtf8(s.c_str()));
 }
 
 std::string Settings::GetFlacRoot() const
 {
-    std::string s = m_qs.readEntry(FLACROOT).toUtf8().data();
+    std::string s = m_qs.value(FLACROOT).toString().toUtf8().data();
     if (s.empty())
     {
 	s = getenv("HOME");
@@ -55,57 +55,57 @@ std::string Settings::GetFlacRoot() const
 
 void Settings::SetFlacRoot(const std::string& s)
 {
-    m_qs.writeEntry(FLACROOT, QString::fromUtf8(s.c_str()));
+    m_qs.setValue(FLACROOT, QString::fromUtf8(s.c_str()));
 }
 
 bool Settings::GetUseCDDB() const
 {
-    return m_qs.readBoolEntry(CDDBENABLE, false);
+    return m_qs.value(CDDBENABLE, false).toBool();
 }
 
 void Settings::SetUseCDDB(bool whether)
 {
-    m_qs.writeEntry(CDDBENABLE, whether);
+    m_qs.setValue(CDDBENABLE, whether);
 }
 
 bool Settings::GetUseHttpProxy() const
 {
-    return m_qs.readBoolEntry(PROXYENABLE, false);
+    return m_qs.value(PROXYENABLE, false).toBool();
 }
 
 void Settings::SetUseHttpProxy(bool whether)
 {
-    m_qs.writeEntry(PROXYENABLE, whether);
+    m_qs.setValue(PROXYENABLE, whether);
 }
 
 std::string Settings::GetHttpProxyHost() const
 {
-    return m_qs.readEntry(PROXYHOST).toUtf8().data();
+    return m_qs.value(PROXYHOST).toString().toUtf8().data();
 }
 
 void Settings::SetHttpProxyHost(const std::string& s)
 {
-    m_qs.writeEntry(PROXYHOST, QString::fromUtf8(s.c_str()));
+    m_qs.setValue(PROXYHOST, QString::fromUtf8(s.c_str()));
 }
 
 unsigned short Settings::GetHttpProxyPort() const
 {
-    return (unsigned short)m_qs.readNumEntry(PROXYPORT);
+    return (unsigned short)m_qs.value(PROXYPORT).toInt();
 }
 
 void Settings::SetHttpProxyPort(unsigned short s)
 {
-    m_qs.writeEntry(PROXYPORT, s);
+    m_qs.setValue(PROXYPORT, s);
 }
 
 std::string Settings::GetDefaultDatabase() const
 {
-    return m_qs.readEntry(DEFAULT_DATABASE).toUtf8().data();
+    return m_qs.value(DEFAULT_DATABASE).toString().toUtf8().data();
 }
 
 void Settings::SetDefaultDatabase(const std::string& s)
 {
-    m_qs.writeEntry(DEFAULT_DATABASE, QString::fromUtf8(s.c_str()));
+    m_qs.setValue(DEFAULT_DATABASE, QString::fromUtf8(s.c_str()));
 }
 
 } // namespace choraleqt

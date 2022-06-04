@@ -1,11 +1,11 @@
 #ifndef CLOUD_STYLE_H
 #define CLOUD_STYLE_H 1
 
-#include <QPlastiqueStyle>
+#include <QProxyStyle>
 
 namespace cloud {
 
-class Style: public QPlastiqueStyle
+class Style: public QProxyStyle
 {
     Q_OBJECT
 
@@ -21,8 +21,8 @@ public:
 
     // Being a QStyle
     void polish(QPalette&);
-    void polish(QWidget *w) { QPlastiqueStyle::polish(w); }
-    void polish(QApplication *a) { QPlastiqueStyle::polish(a); }
+    void polish(QWidget *w) { QProxyStyle::polish(w); }
+    void polish(QApplication *a) { QProxyStyle::polish(a); }
 };
 
 QPixmap ShadeImage(QColor fg, QColor bg, const char *const *xpm);

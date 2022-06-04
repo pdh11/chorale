@@ -73,9 +73,9 @@ SetlistWindow::SetlistWindow(output::Queue *queue, mediadb::Registry *registry)
 {
     setWindowTitle("Playback on " + QString::fromUtf8(queue->GetName().c_str()));
 
-    QVBoxLayout *vlayout = new QVBoxLayout(this, 0, 0);
+    QVBoxLayout *vlayout = new QVBoxLayout(this);
 
-    m_toplayout = new QHBoxLayout(NULL, 6, 0);
+    m_toplayout = new QHBoxLayout(NULL);
 
     QPixmap stop_pixmap(stop_xpm);
     m_stop_button = new QPushButton(stop_pixmap, "", this);
@@ -149,7 +149,7 @@ SetlistWindow::SetlistWindow(output::Queue *queue, mediadb::Registry *registry)
     m_timecode = new QLCDNumber(this);
     m_timecode->setSegmentStyle(QLCDNumber::Flat);
     m_timecode->setFrameStyle(0);
-    m_timecode->setNumDigits(4);
+    m_timecode->setDigitCount(4);
     m_timecode->display("-:--");
     m_toplayout->addWidget(m_timecode);
 
@@ -167,7 +167,7 @@ SetlistWindow::SetlistWindow(output::Queue *queue, mediadb::Registry *registry)
     m_table_view.setDragDropOverwriteMode(false);
     m_table_view.setAlternatingRowColors(true);
 
-    m_table_view.horizontalHeader()->setResizeMode(0, QHeaderView::Stretch);
+    m_table_view.horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
     m_table_view.horizontalHeader()->hide();
     m_table_view.verticalHeader()->setDefaultSectionSize(
 	(QFontInfo(font()).pixelSize() * 5) /4);
@@ -241,7 +241,7 @@ void SetlistWindow::UpdateCaption()
 	s = (boost::format("%u:%02u") % (sec/60) % (sec%60)).str();
 
     m_timecode->display(s.c_str());
-    m_timecode->setNumDigits((int)s.length());
+    m_timecode->setDigitCount((int)s.length());
 
     s += " ";
     switch (m_state)
@@ -253,11 +253,11 @@ void SetlistWindow::UpdateCaption()
     s += " ";
     if (m_state != output::STOP && m_current_index < m_queue->Count())
     {
-	s += m_model.Name(m_queue->QueueAt(m_current_index)).utf8().data();
+	s += m_model.Name(m_queue->QueueAt(m_current_index)).toUtf8().data();
 	s += " on ";
     }
     s += m_queue->GetName();
-    setCaption(QString::fromUtf8(s.c_str()));
+    setWindowTitle(QString::fromUtf8(s.c_str()));
 }
 
 void SetlistWindow::Play()

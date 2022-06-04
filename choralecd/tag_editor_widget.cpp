@@ -251,7 +251,7 @@ void TagEditorWidget::commitData(QWidget *editor)
 	    }
 
 	    // Check we got the right row
-	    unsigned int id = atoi(item(row, 0)->text().toAscii());
+	    unsigned int id = atoi(item(row, 0)->text().toUtf8());
 	    if (id != rs->GetInteger(mediadb::ID))
 	    {
 		TRACE << "id=" << id << " not "

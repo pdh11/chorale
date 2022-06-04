@@ -25,9 +25,9 @@ SettingsWindow::SettingsWindow(Settings *settings)
       m_settings(settings),
       m_gb(NULL)
 {
-    setCaption("Settings for choralecd");
+    setWindowTitle("Settings for choralecd");
 
-    QVBoxLayout *vert = new QVBoxLayout(this, 0, 6);
+    QVBoxLayout *vert = new QVBoxLayout(this);
 
     QScrollArea *view = new QScrollArea(this);
 
@@ -75,7 +75,8 @@ SettingsWindow::SettingsWindow(Settings *settings)
 
     vert->addWidget(view);
     
-    QHBoxLayout *horz = new QHBoxLayout(vert, 12);
+    QHBoxLayout *horz = new QHBoxLayout();
+    vert->addLayout(horz);
     horz->addStretch();
 
     QPushButton *cancel = new QPushButton(this);

@@ -207,7 +207,7 @@ CDWindow::CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
 	m_table->setRowHeight(i, (QFontInfo(font()).pixelSize() * 5) /4 + 4);
     }
     m_table->horizontalHeader()->setStretchLastSection(true);
-    m_table->verticalHeader()->setResizeMode(QHeaderView::Fixed);
+    m_table->verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
     // http://developer.qt.nokia.com/faq/answer/how_can_i_get_rid_of_the_white_space_outside_the_cells_of_my_table
     m_table->setMaximumHeight(m_table->horizontalHeader()->height()
 			      // + 2*m_table->frameWidth()

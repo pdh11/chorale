@@ -30,7 +30,6 @@ SetlistModel::SetlistModel(const QFont& base_font,
       m_timecode_sec(0)
 {
     m_bold_font.setBold(true);
-    setSupportedDragActions(Qt::MoveAction);
 }
 
 SetlistModel::~SetlistModel()

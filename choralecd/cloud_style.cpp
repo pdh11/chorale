@@ -29,10 +29,10 @@ QPixmap ShadeImage(QColor fg, QColor bg, const char *const *xpm)
 {
     QImage im(xpm);
 
-    for (int i=0; i<im.numColors(); ++i)
+    for (int i=0; i<im.colorCount(); ++i)
     {
 	QRgb c = im.color(i);
-	
+
 	int r = (qRed(c) * bg.red() + (255-qRed(c)) * fg.red()) / 255;
 	int g = (qRed(c) * bg.green() + (255-qRed(c)) * fg.green()) / 255;
 	int b = (qRed(c) * bg.blue() + (255-qRed(c)) * fg.blue()) / 255;

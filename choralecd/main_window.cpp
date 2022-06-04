@@ -41,22 +41,21 @@ void VBoxWidget::childEvent(QChildEvent *ce)
 
 MainWindow::MainWindow(Settings *settings, util::TaskQueue *cpu_queue,
 		       util::TaskQueue *disk_queue)
-    : QMainWindow(NULL, "choralecd"),
+    : QMainWindow(NULL),
       m_settings(settings),
       m_cpu_queue(cpu_queue),
       m_disk_queue(disk_queue),
       m_view(NULL),
       m_encode_tasks(0)
 {
-    QMenu *file = new QMenu(this);
-    file->insertItem("&Settings...", this, SLOT(ShowSettings()));
-    file->insertItem("&Quit", qApp, SLOT(quit()));
-    menuBar()->insertItem("&App", file); 
+    QMenu *file = menuBar()->addMenu("&App");
+    file->addAction("&Settings...", this, SLOT(ShowSettings()));
+    file->addAction("&Quit", qApp, SLOT(quit()));
 
-    statusBar()->message("");
+    statusBar()->showMessage("");
 
     setCentralWidget(&m_view);
-    setCaption("choralecd");
+    setWindowTitle("choralecd");
 
     startTimer(1000);
 }
@@ -78,10 +77,10 @@ void MainWindow::timerEvent(QTimerEvent*)
 	{
 	    std::ostringstream os;
 	    os << encode_tasks << " tasks";
-	    statusBar()->message(os.str().c_str());
+	    statusBar()->showMessage(os.str().c_str());
 	}
 	else
-	    statusBar()->message("");
+	    statusBar()->showMessage("");
     }
 }
 

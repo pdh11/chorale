@@ -8,7 +8,7 @@ AC_DEFINE_UNQUOTED([PACKAGE_WEBSITE], ["${PACKAGE_WEBSITE}"], [Define to the pac
 
 
 AC_MSG_NOTICE([Required: Boost.])
-AC_MSG_NOTICE([Optional: Taglib, Qt4, gstreamer, cdparanoia or libcdio, libcddb, lame, flac, dbus, hal, libmpg123, inkscape, xsltproc, imagemagick.])
+AC_MSG_NOTICE([Optional: Taglib, Qt5, gstreamer, cdparanoia or libcdio, libcddb, lame, flac, dbus, hal, libmpg123, inkscape, xsltproc, imagemagick.])
 AC_MSG_NOTICE([])
 
 AC_CONFIG_SRCDIR([libdb/db.h])
@@ -262,7 +262,7 @@ AC_DEFINE_UNQUOTED(HAVE_CADAVER, $haveit,
 # Checks for libraries.
 
 AC_ARG_WITH([gpl],
-[AS_HELP_STRING([--without-gpl],[Avoid using GPL libraries (e.g. Qt 4.4)])],
+[AS_HELP_STRING([--without-gpl],[Avoid using GPL libraries])],
 [],[with_gpl=yes])
 AC_ARG_WITH([lgpl],
 [AS_HELP_STRING([--without-lgpl],[Avoid using GPL and LGPL libraries])],
@@ -547,29 +547,21 @@ fi
 QT="no"
 AC_MSG_CHECKING([for Qt])
 if test "x${with_lgpl}" != xno ; then
-PKG_CHECK_EXISTS([QtGui >= 4.5.0 QtCore >= 4.5.0],
+PKG_CHECK_EXISTS([Qt5Gui >= 5.0.0 Qt5Core >= 5.0.0 Qt5Widgets >= 5.0.0],
  [QT="yes"
   AC_MSG_RESULT([yes (LGPL)])
  ],[
-  if test "x${with_gpl}" != xno ; then
-    PKG_CHECK_EXISTS([QtGui >= 4.4.0 QtCore >= 4.4.0],
-     [QT="yes"
-      AC_MSG_RESULT([yes (GPL)])
-     ],[
-      AC_MSG_RESULT([no])
-     ])
-   else
-      AC_MSG_RESULT([no (GPL)])
-   fi
+          AC_MSG_RESULT([no])
 ])
 else
-   AC_MSG_RESULT([no (LGPL)])
+   AC_MSG_RESULT([no])
 fi
 
 if test "${QT}" = "yes" ; then
-  QT_MOC=`$PKG_CONFIG --variable=moc_location QtGui`
-  QT_CFLAGS=`$PKG_CONFIG --cflags QtGui QtCore`
-  QT_LIBS=`$PKG_CONFIG --libs QtGui QtCore`
+  qt5tooldir=`QT_SELECT=qt5 qtchooser -print-env | grep QTTOOLDIR | cut -d '=' -f 2 | cut -d \" -f 2`
+  QT_MOC=$qt5tooldir/moc
+  QT_CFLAGS=`$PKG_CONFIG --cflags Qt5Gui Qt5Core Qt5Widgets`
+  QT_LIBS=`$PKG_CONFIG --libs Qt5Gui Qt5Core Qt5Widgets`
   AC_SUBST(QT_MOC)
   AC_SUBST(QT_CFLAGS)
   AC_SUBST(QT_LIBS)
@@ -924,7 +916,7 @@ printf "\n"
 pdh_ok=yes
 pdh_fail=no
 if test "${pdh_cd}${LIBCDDB}${QT}${LAME}${LIBFLAC}${GSTREAMER}${DBUS}${HAL}${MPG123}${TAGLIB}${HAVE_CONVERT}${HAVE_XSLTPROC}${HAVE_INKSCAPE}" != "yesyesyesyesyesyesyesyesyesyesyesyesyes" ; then
-test "${QT}" = "yes"        || printf "** Install Qt 4.4.0 or later to build optional choralecd (4.5.0 for LGPL)\n   http://www.troll.no\n"
+test "${QT}" = "yes"        || printf "** Install Qt 5.0.0 or later to build optional choralecd\n   http://www.troll.no\n"
 test "${LIBFLAC}" = "yes"   || printf "** Install flac 1.1.3 or later to build optional CD support\n   http://flac.sourceforge.net\n"
 test "${LAME}" = "yes"      || printf "** Install Lame 3.96.1 or later to build optional CD support\n   http://lame.sourceforge.net\n"
 test "${pdh_cd}" = "yes"    || printf "** Install cdparanoia 10 or later, or libcdio 0.76 or later to build\n   optional CD support\n   http://www.xiph.org/paranoia/\n   http://www.gnu.org/software/libcdio\n"
@@ -954,7 +946,7 @@ printf "With most distributions, it's the '-dev' packages you need. In Ubuntu\n"
 printf "or Debian, try:\n"
 printf "   sudo apt-get install inkscape make g++ autoconf pkg-config\n"
 printf "        libboost1.35-dev xsltproc libtool\n"
-printf "        libhal-dev libflac-dev libqt4-dev libgstreamer0.10-dev\n"
+printf "        libhal-dev libflac-dev libgstreamer0.10-dev\n"
 printf "        libcdparanoia-dev libtag1-dev libcddb-dev libmpg123-dev\n"
 printf "        liblame-dev\n"
 printf "\n"

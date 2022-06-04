@@ -14,6 +14,7 @@
 #include <qcursor.h>
 #include <QMouseEvent>
 #include <QDrag>
+#include <QMimeData>
 
 #ifndef HAVE_DIR_XPM
 #include "imagery/dir.xpm"
