@@ -144,7 +144,6 @@ SUBDIRS:= \
 	libdav \
 	libdb \
 	libdbempeg \
-	libdbisam \
 	libdblocal \
 	libdbmerge \
 	libdbreceiver \
@@ -167,11 +166,14 @@ SUBDIRS:= \
 
 libdeps.dot: Makefile
 	echo "digraph G {" > $@
-	for i in $(SUBDIRS) ; do \
-		grep "^#include.*\".*/" $$i/*.{h,cpp,mm} \
-			| fgrep -v all- \
-			| grep -v ".*include.*$$i" \
-			| sed -e 's,/[^\"]*\", -> ,'  -e s,/[^/]*\",, ; \
+	for j in $(SUBDIRS) ; do \
+		for i in `find $$j -maxdepth 2 -name '*.h' -o -name '*.cpp'` ; do \
+			grep -H "^#include.*\".*/" $$i \
+				| fgrep -v all- \
+				| grep -v ".*include.*$$j" \
+				| fgrep -v ".." \
+				| sed -e 's,/[^\"]*\", -> ,'  -e s,/[^/]*\",, ; \
+		done \
 	done | sort | uniq >> $@
 	echo "}" >> $@
 

@@ -39,7 +39,7 @@ public:
     QVariant data(const QModelIndex&, int role) const override;
     QStringList mimeTypes() const override;
     QMimeData *mimeData(const QModelIndexList&) const override;
-    Qt::DropActions supportedDragActions() const;
+    Qt::DropActions supportedDragActions() const override;
     Qt::DropActions supportedDropActions() const override;
     Qt::ItemFlags flags(const QModelIndex&) const override;
     bool dropMimeData(const QMimeData*, Qt::DropAction action,
