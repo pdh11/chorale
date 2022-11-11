@@ -4,6 +4,7 @@ util::win32::MakeRelativePath
 Remove HAL
 Remove Win32?
 Remove Macintosh?
+Allow GCOV-less "make tests" (for clang -fsanitize=thread)
 
   TP2
   ---
