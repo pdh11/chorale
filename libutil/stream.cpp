@@ -101,8 +101,11 @@ unsigned Stream::WriteAllAt(const void *buffer, uint64_t pos, size_t len)
 	unsigned int rc = WriteAt(buffer, pos, len, &nwritten);
 	if (rc)
 	    return rc;
-	if (!nwritten)
+	if (!nwritten) {
+            TRACE << "WriteAllAt made no progress (" << len << "@" << pos
+                  << ")\n";;
 	    return EIO;
+        }
 	len -= nwritten;
 	pos += nwritten;
 	buffer = ((const char*)buffer) + nwritten;

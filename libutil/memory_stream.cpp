@@ -119,7 +119,10 @@ unsigned MemoryStream::Impl::WriteAt(const void *buf,
     if (pos > m_size)
 	m_size = (size_t)pos;
     *pwrote = nwrite;
-//    TRACE << "ms wrote " << nwrite << "/" << len << "\n";
+    if (!nwrite || !len) {
+        TRACE << "ms wrote " << nwrite << "/" << len << " @ " << pos << "/"
+              << m_size << "\n";
+    }
     return 0;
 }
 
