@@ -265,10 +265,18 @@ $(TOP)$(DIR)$(TARGETDIR)%.lo: $(TOP)$(DIR)%.c
 	@mv $@.dd $@.dep
 	@rm $@.d
 
+ifeq ($(DISABLE_GCOV),)
+GCOV_CC=-fprofile-arcs -ftest-coverage
+GCOV_LD=-fprofile-arcs -ftest-coverage -lgcov
+else
+GCOV_CC=
+GCOV_LD=
+endif
+
 $(TOP)$(DIR)$(TARGETDIR)%__$(TEST_SUFFIX)$(DOTEXE): $(TOP)$(DIR)%.cpp
 	@mkdir -p $(dir $@)
 	$(CC_PRE)$(LIBTOOL) --tag=CXX --mode=compile --silent \
-		$(CXX) $(CXXFLAGS) -fprofile-arcs -ftest-coverage \
+		$(CXX) $(CXXFLAGS) $(GCOV_CC) \
 		-I$(TOP). -DTEST -DSRCROOT=\"$(SRCROOT)\" -c $< -o $@.lo \
 		-MD -MF $@.d -MT $@ -MP
 	@sed -e "s| $(TOP_PATTERN)\([a-z.,]\)| \$$\(TOP\)\1|g" \
@@ -278,8 +286,9 @@ $(TOP)$(DIR)$(TARGETDIR)%__$(TEST_SUFFIX)$(DOTEXE): $(TOP)$(DIR)%.cpp
 	@mv $@.dd $@.dep
 	@rm $@.d
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
-		$(CXX) $(CXXFLAGS) $(LDFLAGS) -fprofile-arcs -ftest-coverage \
-		$@.lo $(filter %.la,$^) $(TEST_LIBS) $(LIBS) -lgcov -o $@ -Wl,-Map,$@.map
+		$(CXX) $(CXXFLAGS) $(LDFLAGS) \
+		$@.lo $(filter %.la,$^) $(TEST_LIBS) $(LIBS) $(GCOV_LD) \
+		-o $@ -Wl,-Map,$@.map
 	$(TEST_PRE)$(TEST_RUN) $@ || ( echo $@ FAILED ; mv -f $@ $@.fail ; false )
 	@if [ -f $(dir $@).libs/$(notdir $@).gcda ]; then \
 		$(GCOV) -o $(dir $@).libs/$(notdir $@).cpp $< > $@.gcov.txt ; \
