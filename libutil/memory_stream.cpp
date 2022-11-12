@@ -79,8 +79,8 @@ void MemoryStream::Impl::Ensure(size_t sz)
     }
 }
 
-unsigned MemoryStream::Impl::WriteAt(const void *buf, 
-				     uint64_t pos, size_t len,
+unsigned MemoryStream::Impl::WriteAt(const void *buf,
+				     const uint64_t pos, const size_t len,
 				     size_t *pwrote)
 {
     Ensure((size_t)pos+len);
@@ -90,7 +90,9 @@ unsigned MemoryStream::Impl::WriteAt(const void *buf,
 	*pwrote = 0;
 	return 0;
     }
-    
+
+    size_t nwrite;
+    size_t chunkpos;
     chunks_t::iterator i;
     {
 	Mutex::Lock lock(m_mutex);
@@ -107,17 +109,18 @@ unsigned MemoryStream::Impl::WriteAt(const void *buf,
 //	}
 	    --i;
 	}
-//    TRACE << "i->first = " << i->first << " m_pos = " << m_pos << "\n";
-	
+//        TRACE << "i->first = " << i->first << " m_pos = " << m_pos << "\n";
+
 	if (i->first > pos)
 	    --i;
+
+        chunkpos = (size_t)pos - i->first;
+        nwrite = std::min(len, i->second->len - chunkpos);
+        if ((pos + nwrite) > m_size) {
+            m_size = pos + nwrite;
+        }
     }
-    size_t chunkpos = (size_t)pos - i->first;
-    size_t nwrite = std::min(len, i->second->len - chunkpos);
     memcpy(((char*)i->second->data) + chunkpos, buf, nwrite);
-    pos += nwrite;
-    if (pos > m_size)
-	m_size = (size_t)pos;
     *pwrote = nwrite;
     if (!nwrite || !len) {
         TRACE << "ms wrote " << nwrite << "/" << len << " @ " << pos << "/"
