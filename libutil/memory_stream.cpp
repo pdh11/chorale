@@ -13,8 +13,8 @@ class MemoryStream::Impl
 public:
     struct Chunk
     {
-	size_t len;
-	void *data;
+	const size_t len;
+	void *const data;
 
 	explicit Chunk(size_t len);
 	~Chunk();
@@ -35,12 +35,11 @@ public:
     void Ensure(size_t size);
 };
 
-MemoryStream::Impl::Chunk::Chunk(size_t l)
-    : len(l), 
-      data(NULL)
+MemoryStream::Impl::Chunk::Chunk(size_t length)
+    : len(length),
+      data(calloc(length,1))
 {
-    data = malloc(len);
-    memset(data, '\0', len);
+    assert(len > 0);
 }
 
 MemoryStream::Impl::Chunk::~Chunk()
@@ -67,15 +66,14 @@ MemoryStream::Impl::~Impl()
 
 void MemoryStream::Impl::Ensure(size_t sz)
 {
-    if (sz > m_capacity)
-    {
-	Mutex::Lock lock(m_mutex);
-
-	const size_t ROUNDUP = 1024*1024;
-	const size_t MASK = ROUNDUP-1;
-	size_t add = ((sz - m_capacity) + MASK) & ~MASK;
-	m_chunks.insert(std::make_pair(m_capacity, new Chunk(add)));
-	m_capacity += add;
+    Mutex::Lock lock(m_mutex);
+    if (sz > m_capacity) {
+        const size_t ROUNDUP = 1024*1024;
+        const size_t MASK = ROUNDUP-1;
+        size_t add = ((sz - m_capacity) + MASK) & ~MASK;
+        assert(add > 0);
+        m_chunks.insert(std::make_pair(m_capacity, new Chunk(add)));
+        m_capacity += add;
     }
 }
 
@@ -91,19 +89,11 @@ unsigned MemoryStream::Impl::WriteAt(const void *buf,
 	return 0;
     }
 
-    size_t nwrite;
-    size_t chunkpos;
-    chunks_t::iterator i;
-    size_t atfound;
-    size_t lenfound;
-    bool decremented = false;
-    bool foundend = false;
-    {
-	Mutex::Lock lock(m_mutex);
-	i = m_chunks.lower_bound((size_t)pos);
+    Mutex::Lock lock(m_mutex);
+    chunks_t::iterator i = m_chunks.lower_bound((size_t)pos);
 
-	if (i == m_chunks.end())
-	{
+    if (i == m_chunks.end())
+    {
 //	TRACE << "Oh dear can't find m_pos " << m_pos << "\n";
 
 //	for (chunks_t::iterator j = m_chunks.begin(); j != m_chunks.end(); ++j)
@@ -111,42 +101,23 @@ unsigned MemoryStream::Impl::WriteAt(const void *buf,
 //	    TRACE << "  at " << j->first << " len " << j->second->len
 //		  << " ends " << (j->first + j->second->len) << "\n";
 //	}
-	    --i;
-            decremented = true;
-            foundend = true;
-	}
+        --i;
+    }
 //        TRACE << "i->first = " << i->first << " m_pos = " << m_pos << "\n";
 
-	if (i->first > pos) {
-	    --i;
-            decremented = true;
-        }
+    if (i->first > pos) {
+        --i;
+    }
 
-        atfound = i->first;
-        lenfound = i->second->len;
-        chunkpos = (size_t)pos - i->first;
-        nwrite = std::min(len, i->second->len - chunkpos);
-        if ((pos + nwrite) > m_size) {
-            m_size = pos + nwrite;
-        }
+    size_t chunkpos = (size_t)pos - i->first;
+    size_t nwrite = std::min(len, i->second->len - chunkpos);
+    assert(nwrite > 0);
+
+    if ((pos + nwrite) > m_size) {
+        m_size = pos + nwrite;
     }
     memcpy(((char*)i->second->data) + chunkpos, buf, nwrite);
     *pwrote = nwrite;
-    if (!nwrite || !len) {
-        TRACE << "ms wrote " << nwrite << "/" << len << " @ " << pos << "/"
-              << m_size << "\n";
-        TRACE << " chunkpos " << chunkpos
-              << " atfound " << atfound
-              << " lenfound " << lenfound
-              << " decremented " << decremented
-              << " foundend " << foundend
-              << "\n";
-	for (chunks_t::iterator j = m_chunks.begin(); j != m_chunks.end(); ++j)
-	{
-	    TRACE << "  at " << j->first << " len " << j->second->len
-		  << " ends " << (j->first + j->second->len) << "\n";
-	}
-    }
     return 0;
 }
 
