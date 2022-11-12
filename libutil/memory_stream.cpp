@@ -94,6 +94,10 @@ unsigned MemoryStream::Impl::WriteAt(const void *buf,
     size_t nwrite;
     size_t chunkpos;
     chunks_t::iterator i;
+    size_t atfound;
+    size_t lenfound;
+    bool decremented = false;
+    bool foundend = false;
     {
 	Mutex::Lock lock(m_mutex);
 	i = m_chunks.lower_bound((size_t)pos);
@@ -108,12 +112,18 @@ unsigned MemoryStream::Impl::WriteAt(const void *buf,
 //		  << " ends " << (j->first + j->second->len) << "\n";
 //	}
 	    --i;
+            decremented = true;
+            foundend = true;
 	}
 //        TRACE << "i->first = " << i->first << " m_pos = " << m_pos << "\n";
 
-	if (i->first > pos)
+	if (i->first > pos) {
 	    --i;
+            decremented = true;
+        }
 
+        atfound = i->first;
+        lenfound = i->second->len;
         chunkpos = (size_t)pos - i->first;
         nwrite = std::min(len, i->second->len - chunkpos);
         if ((pos + nwrite) > m_size) {
@@ -125,6 +135,17 @@ unsigned MemoryStream::Impl::WriteAt(const void *buf,
     if (!nwrite || !len) {
         TRACE << "ms wrote " << nwrite << "/" << len << " @ " << pos << "/"
               << m_size << "\n";
+        TRACE << " chunkpos " << chunkpos
+              << " atfound " << atfound
+              << " lenfound " << lenfound
+              << " decremented " << decremented
+              << " foundend " << foundend
+              << "\n";
+	for (chunks_t::iterator j = m_chunks.begin(); j != m_chunks.end(); ++j)
+	{
+	    TRACE << "  at " << j->first << " len " << j->second->len
+		  << " ends " << (j->first + j->second->len) << "\n";
+	}
     }
     return 0;
 }
