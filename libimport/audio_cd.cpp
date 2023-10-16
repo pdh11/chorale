@@ -129,11 +129,12 @@ class ParanoiaStream: public util::SeekableStream
     unsigned int m_skip;
 
     /** Neither cdparanoia nor libcdio lets us know which instance the
-     * callback relates to. So we "guess"; if due to race conditions we get it
-     * wrong, the only effect is slowing down the wrong drive.
+     * callback relates to. So we use C++11 thread-local storage
+     * (there's at most one call to paranoia_read *per thread* active
+     * at any one time).
      */
-    static cdrom_drive *sm_current_drive;
-    static unsigned int sm_speed;
+    thread_local static cdrom_drive *sm_current_drive;
+    thread_local static unsigned int sm_speed;
 
     static void StaticCallback(long int i, paranoia_cb_mode_t cbm)
     {
@@ -146,20 +147,23 @@ class ParanoiaStream: public util::SeekableStream
 #else
 	    const char *cbmstr = paranoia_cb_mode2str[cbm];
 #endif
-	    TRACE << "paranoia callback " << i << " mode " << cbm
+	    TRACE << "paranoia callback "
+                  << sm_current_drive->ioctl_device_name << ": "
+                  << i << " mode " << cbm
 		  << " " << cbmstr << "\n";
-	    
+
 	    if (cbm != PARANOIA_CB_CACHEERR && cbm != PARANOIA_CB_DRIFT)
 	    {
 		// For serious errors, try and slow down the drive
 
-		if (sm_speed > 1)
+		if (sm_speed > 1) {
 		    sm_speed /= 2;
-		TRACE << "Setting speed to " << sm_speed << "x\n";
+                    TRACE << "Setting speed to " << sm_speed << "x\n";
 
-		cdrom_drive *d = sm_current_drive;
-		if (d)
-		    cdda_speed_set(d, sm_speed);
+                    cdrom_drive *d = sm_current_drive;
+                    if (d)
+                        cdda_speed_set(d, sm_speed);
+                }
 	    }
 	}
     }
@@ -175,7 +179,10 @@ public:
 	  m_skip(2352)
     {
 	sm_speed = 64;
-	cdda_speed_set(cdt, 64);
+	int rc = cdda_speed_set(cdt, 64);
+        printf("speed(64): %d\n", rc);
+        rc = cdda_speed_set(cdt, 48);
+        printf("speed(48): %d\n", rc);
 
 	TRACE << "Read starting\n";
 	paranoia_modeset(m_paranoia, 
@@ -199,8 +206,8 @@ public:
     unsigned SetLength(uint64_t);
 };
 
-cdrom_drive *ParanoiaStream::sm_current_drive = NULL;
-unsigned int ParanoiaStream::sm_speed = 64;
+thread_local cdrom_drive *ParanoiaStream::sm_current_drive = NULL;
+thread_local unsigned int ParanoiaStream::sm_speed = 64;
 
 unsigned ParanoiaStream::ReadAt(void *buffer, uint64_t pos, size_t len,
 				size_t *pread)
