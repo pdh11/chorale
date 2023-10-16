@@ -270,7 +270,17 @@ unsigned int LocalCDDrive::Eject()
     }
 
 #if HAVE_LINUX_CDROM_H
-    int rc = ::ioctl(fd, CDROMEJECT);
+    int lock = 0;
+    (void)::ioctl(fd, CDROM_LOCKDOOR, lock); // might fail
+    int rc = ::ioctl(fd, CDROMSTOP);
+    if (rc < 0) {
+        TRACE << "Can't stop CD: " << errno << "\n";
+    } else {
+        rc = ::ioctl(fd, CDROMEJECT);
+        if (rc < 0) {
+            TRACE << "Can't eject CD: " << errno << "\n";
+        }
+    }
 #elif HAVE_SYS_DISK_H
     int rc = ::ioctl(fd, DKIOCEJECT); /* MacOS */
 #endif
