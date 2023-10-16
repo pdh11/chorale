@@ -96,4 +96,14 @@ $(rip2): $(RIP2_OBJS) $(libimport) $(libutil)
 		$(PARANOIA_LIBS) $(LIBCDIOP_LIBS) $(BOOST_LIBS) \
 		$(LAME_LIBS) $(LIBFLAC_LIBS) $(LIBS)
 
+rip2-perf: $(rip2)
+	sudo /usr/bin/perf record \
+	    -e cycles \
+	    -e context-switches --switch-events \
+	    --sample-cpu \
+	    -m 8M \
+	    --aio \
+	    --call-graph dwarf \
+	$(rip2)
+
 CLEANS += $(libimport) $(rip) $(rip2)

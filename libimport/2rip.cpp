@@ -64,11 +64,17 @@ int main()
     rc1.Done();
     rc2.Done();
 
-    while (cpupool.Count() || diskpool.Count()) {
-        printf("cpu=%u disk=%u\n", unsigned(cpupool.Count()),
-               unsigned(diskpool.Count()));
+    do {
+        printf("cpu=%u disk=%u cd1=%u cd2=%u\n", unsigned(cpupool.Count()),
+               unsigned(diskpool.Count()),
+               unsigned(drv1->GetTaskQueue()->Count()),
+               unsigned(drv2->GetTaskQueue()->Count()));
         sleep(1);
-    }
+    } while ( cpupool.Count() || diskpool.Count()
+              || drv1->GetTaskQueue()->Count()
+              || drv2->GetTaskQueue()->Count() );
+
+    printf("Leaving\n");
 
     return 0;
 }

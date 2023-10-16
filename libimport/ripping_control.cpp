@@ -42,6 +42,7 @@ RippingControl::RippingControl(import::CDDrivePtr drive, import::AudioCDPtr cd,
     for (unsigned int i=0; i<m_ntracks; ++i)
     {
 	m_tracks[i].tags = db::FreeRecordset::Create();
+        m_tracks[i].tags->SetInteger(mediadb::TRACKNUMBER, i+1);
     }
 
     for (unsigned int i=0; i<m_ntracks; ++i)
