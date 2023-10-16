@@ -242,7 +242,7 @@ cycles.png: compdeps.dot
 		| awk -F '[; \t]' '{ if ($$2 != $$4 || $$2 == "") print }' \
 		| grep -v cluster >> cycles.dot
 	circo -Tsvg -Nfontname="Luxi Sans" -Gfontnames=gd -o compdeps.svg cycles.dot
-	inkscape -z -b white -y 1.0 -e $@ compdeps.svg -d60 > /dev/null
+	inkscape -z -b white -y 1.0 --export-png=$@ compdeps.svg > /dev/null
 
 # All dependencies including on system headers
 alldeps.dot: Makefile
@@ -264,7 +264,7 @@ alldeps.dot: Makefile
 
 %.png: %.dot
 	tred $< | dot -Tsvg -Nfontname="Luxi Sans" -Gfontnames=gd -o $*.svg
-	inkscape -z -b white -y 1.0 -e $@ $*.svg -d60 > /dev/null
+	inkscape -z -b white -y 1.0 --export-png=$@ $*.svg > /dev/null
 
 CLEANS += $(TOP)filedeps.dot $(TOP)libdeps.dot
 
