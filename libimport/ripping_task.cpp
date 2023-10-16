@@ -38,8 +38,27 @@ RippingTask::RippingTask(AudioCDPtr cd, unsigned int track,
 
 RippingTask::~RippingTask()
 {
-//    TRACE << "~RippingTask\n";
+    TRACE << "~RippingTask\n";
 }
+
+class AlignedBuffer
+{
+    void *m_buffer;
+
+public:
+    AlignedBuffer() : m_buffer(NULL) {}
+    ~AlignedBuffer()
+    {
+        free(m_buffer);
+    }
+
+    int allocate(unsigned size)
+    {
+        return posix_memalign(&m_buffer, 4096, size);
+    }
+
+    void *get() { return m_buffer; }
+};
 
 unsigned int RippingTask::Run()
 {
@@ -53,8 +72,11 @@ unsigned int RippingTask::Run()
     unsigned int rc;
 
     // If there's CPU to spare, back to RAM, else back to disk
+    //
+    // Backing to disk uses >25% of this thread's CPU; to RAM, <10% (which
+    // still feels like a lot), mostly in faulting-in the pages.
     std::unique_ptr<util::Stream> backingstream;
-    if (0 && m_encode_queue->AnyWaiting())
+    if (m_encode_queue->AnyWaiting())
     {
 	backingstream.reset(new util::MemoryStream(pcmsize));
 	TRACE << "Chosen to rip via RAM\n";
@@ -97,7 +119,12 @@ unsigned int RippingTask::Run()
 	return ENOENT;
     }
 
-    char buf[2352*20];
+    const unsigned SIZE = 2352*20;
+    AlignedBuffer buf;
+    rc = buf.allocate(SIZE);
+    if (rc) {
+        return rc;
+    }
 
     time_t t = time(NULL);
 
@@ -105,18 +132,18 @@ unsigned int RippingTask::Run()
     while (done < pcmsize)
     {
 	size_t lump = pcmsize - done;
-	if (lump > sizeof(buf))
-	    lump = sizeof(buf);
+	if (lump > SIZE)
+	    lump = SIZE;
 
 	size_t nread;
-	rc = cdstream->Read(buf, lump, &nread);
+	rc = cdstream->Read(buf.get(), lump, &nread);
 	if (rc != 0 || nread == 0)
 	{
 	    FireError(rc);
 	    TRACE << "Read error " << rc << "\n";
 	    return rc;
 	}
-	rc = msp->WriteAll(buf, nread);
+	rc = msp->WriteAll(buf.get(), nread);
 	if (rc != 0)
 	{
 	    TRACE << "Write error " << rc << "\n";
@@ -130,7 +157,7 @@ unsigned int RippingTask::Run()
 
 	FireProgress((unsigned int)done, pcmsize);
     }
-    
+
     t = time(NULL) - t;
 
     if (t)
