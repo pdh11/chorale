@@ -600,7 +600,7 @@ static const struct {
       "<upnp:genre>Electronica</upnp:genre>"
       "<dc:date>1996-01-01</dc:date>"
       "<res protocolInfo=\"http-get:*:audio/mpeg:*\" size=\"10296067\""
-      " duration=\"0:07:34.00\">12e</res>"
+      " duration=\"0:07:34.00\">12e?_range=1</res>"
       "</item></DIDL-Lite>",
       1, 1 },
 
@@ -640,7 +640,7 @@ static const struct {
       "<upnp:class>object.item.audioItem.musicTrack</upnp:class>"
       "<dc:date>1996-01-01</dc:date>"
       "<res protocolInfo=\"http-get:*:audio/mpeg:*\" size=\"10296067\""
-      " duration=\"0:07:34.00\">12e</res>"
+      " duration=\"0:07:34.00\">12e?_range=1</res>"
       "</item></DIDL-Lite>",
       1, 1 },
 };
@@ -705,9 +705,9 @@ static const struct {
       "<upnp:genre>Electronica</upnp:genre>"
       "<dc:date>2005-01-01</dc:date>"
       "<res protocolInfo=\"http-get:*:audio/mpeg:*\" size=\"4209148\""
-      " duration=\"0:02:44.00\">161</res>"
+      " duration=\"0:02:44.00\">161?_range=1</res>"
       "<res protocolInfo=\"http-get:*:audio/x-flac:*\" size=\"22115187\""
-      " duration=\"0:02:44.00\">162</res>"
+      " duration=\"0:02:44.00\">162?_range=1</res>"
       "</item>"
       "</DIDL-Lite>", 1, 1 },
 
@@ -791,9 +791,9 @@ static const struct {
       "<upnp:genre>Rock</upnp:genre>"
       "<dc:date>1990-01-01</dc:date>"
       "<res protocolInfo=\"http-get:*:audio/mpeg:*\" size=\"9557588\""
-      " duration=\"0:05:38.00\">14b</res>"
+      " duration=\"0:05:38.00\">14b?_range=1</res>"
       "<res protocolInfo=\"http-get:*:audio/x-flac:*\" size=\"33977715\""
-      " duration=\"0:05:38.00\">15f</res>"
+      " duration=\"0:05:38.00\">15f?_range=1</res>"
       "</item>"
       "<item id=\"366\" parentID=\"0\" restricted=\"true\">"
       "<dc:title>World In My Eyes</dc:title>"
@@ -805,11 +805,11 @@ static const struct {
       "<dc:date>1990-01-01</dc:date>"
       "<res protocolInfo=\"http-get:*:audio/mpeg:*\" size=\"7629896\""
       " duration=\"0:04:27.00\">"
-      "16e"
+      "16e?_range=1"
       "</res>"
       "<res protocolInfo=\"http-get:*:audio/x-flac:*\" size=\"30686347\""
       " duration=\"0:04:27.00\">"
-      "16f"
+      "16f?_range=1"
       "</res>"
       "</item>"
       "</DIDL-Lite>", 2, 9 },

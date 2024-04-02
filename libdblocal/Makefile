@@ -42,7 +42,7 @@ ifeq ($(libimport),)
 include $(TOP)libimport/Makefile
 endif
 
-$(DBLOCAL_TESTS) : TEST_LIBS += $(libdblocal) $(libmediadb) $(libdbsteam) $(libdb) $(libimport) $(libutil) $(TAGLIB_LIBS) $(BOOST_LIBS) $(LIBS)
+$(DBLOCAL_TESTS) : TEST_LIBS += $(libdblocal) $(libmediadb) $(libdbsteam) $(libdb) $(libimport) $(libutil) $(TAGLIB_LIBS) $(BOOST_LIBS) $(AVFORMAT_LIBS) $(LIBS)
 
 $(DBLOCAL_TESTS) : $(libdblocal) $(libmediadb) $(libdbempeg) $(libempeg) $(libdbsteam) $(libdb) $(libimport) $(libutil)
 
