@@ -124,7 +124,8 @@ enum {
     MP4,    /* MPEG-4 part 14 */
     MOV,    /* Quicktime */
     JPEG,   /* and/or JFIF */
-    
+    VOB,    /* DVD video object */
+
     CONTAINER_COUNT
 };
 

@@ -20,6 +20,12 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#if HAVE_AVFORMAT
+extern "C" {
+#include <libavformat/avformat.h>
+}
+#endif
+
 LOG_DECL(DBLOCAL);
 
 namespace db {
@@ -232,13 +238,35 @@ unsigned int FileScanner::Impl::OnFile(dircookie parent_cookie,
 //			      << m_map[flacname] << "\n";
 		}
 	    }
-	    else if (extension == "mp4" || extension == "mpg")
+	    else if (extension == "mp4" || extension == "mpg"
+                     || extension == "avi" || extension == "mkv"
+                     || extension == "vob")
 	    {
 		rs->SetInteger(mediadb::TYPE, mediadb::VIDEO);
 		if (extension == "mp4")
 		    rs->SetInteger(mediadb::CONTAINER, mediadb::MP4);
+		else if (extension == "avi")
+		    rs->SetInteger(mediadb::CONTAINER, mediadb::AVI);
+		else if (extension == "mkv")
+		    rs->SetInteger(mediadb::CONTAINER, mediadb::MATROSKA);
+		else if (extension == "vob")
+		    rs->SetInteger(mediadb::CONTAINER, mediadb::VOB);
 		else
 		    rs->SetInteger(mediadb::CONTAINER, mediadb::MPEGPS);
+
+#if HAVE_AVFORMAT
+                // https://stackoverflow.com/questions/6451814/how-to-use-libavcodec-ffmpeg-to-find-duration-of-video-file
+                AVFormatContext* pFormatCtx = avformat_alloc_context();
+                avformat_open_input(&pFormatCtx, path.c_str(), NULL, NULL);
+                avformat_find_stream_info(pFormatCtx,NULL);
+                // avformat duration is in microseconds, we want milliseconds
+                rs->SetInteger(mediadb::DURATIONMS,
+                               (uint32_t)(pFormatCtx->duration/1000));
+                avformat_close_input(&pFormatCtx);
+                avformat_free_context(pFormatCtx);
+#else
+                rs->SetInteger(mediadb::DURATIONMS, 5*60*1000);
+#endif
 	    }
 	    else if (extension == "jpg" || extension == "jpeg")
 	    {
