@@ -519,20 +519,37 @@ again:
 	    m_headers += "text/html";
 	m_headers += "\r\n";
 
+        bool do_bogus_range = false;
+
 	for (std::map<std::string, std::string>::const_iterator i = m_rs.headers.begin();
 	     i != m_rs.headers.end();
 	     ++i)
-	    m_headers += i->first + ": " + i->second + "\r\n";
+        {
+            if (i->first == "X-Receiver-Range")
+                do_bogus_range = true;
+            else
+                m_headers += i->first + ": " + i->second + "\r\n";
+        }
 
 	if (m_entity.do_range)
 	{
-	    /* This form of the Content-Range header is completely
-	     * bogus (the '=' should be whitespace), but is what
-	     * Receivers expect.
-	     */
-	    m_headers += util::Printf() << "Content-Range: bytes="
-					<< m_entity.range_min << "-"
-					<< (m_entity.range_max-1) << "\r\n";
+            if (do_bogus_range)
+            {
+                /* This form of the Content-Range header is completely
+                 * bogus (the '=' should be whitespace), but is what
+                 * Receivers expect.
+                 */
+                m_headers += util::Printf() << "Content-Range: bytes="
+                                            << m_entity.range_min << "-"
+                                            << (m_entity.range_max-1) << "\r\n";
+            }
+            else
+            {
+                m_headers += util::Printf() << "Content-Range: bytes "
+                                            << m_entity.range_min << "-"
+                                            << (m_entity.range_max-1) << "/"
+                                            << len << "\r\n";
+            }
 
 	    if (m_entity.range_min > 0 || m_entity.range_max != len)
 		m_response_stream = util::CreatePartialStream(m_rs.body_source.get(), 

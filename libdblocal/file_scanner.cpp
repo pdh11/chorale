@@ -239,6 +239,7 @@ unsigned int FileScanner::Impl::OnFile(dircookie parent_cookie,
 		    rs->SetInteger(mediadb::CONTAINER, mediadb::MP4);
 		else
 		    rs->SetInteger(mediadb::CONTAINER, mediadb::MPEGPS);
+                rs->SetInteger(mediadb::DURATIONMS, 5*60*1000);
 	    }
 	    else if (extension == "jpg" || extension == "jpeg")
 	    {

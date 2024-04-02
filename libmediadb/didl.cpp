@@ -371,7 +371,7 @@ static std::string ResItem(mediadb::Database *db, db::RecordsetPtr rs,
     if ( /* strncmp(url.c_str(), "http:", 5) && */
 	urlprefix)
     {
-	url = util::SPrintf("%s%x", urlprefix, id);
+	url = util::SPrintf("%s%x?_range=1", urlprefix, id);
     }
 
     url = util::XmlEscape(url);

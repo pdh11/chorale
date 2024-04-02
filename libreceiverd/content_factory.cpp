@@ -515,6 +515,16 @@ static void GetContentStream(mediadb::Database *db, unsigned int id,
 	return;
     }
 
+    /* Rio Receivers expect a bogus form of the Content-Range header,
+     * but most UPnP clients need the real one. We use ?_range=1 to
+     * force the real one.
+     */
+    const bool bogus_range = strstr(path, "_range=1") == NULL;
+    if (bogus_range)
+    {
+        rsp->headers["X-Receiver-Range"] = "1";
+    }
+
     // Must be a file then
     rsp->body_source = db->OpenRead(id);
     if (type == mediadb::RADIO)
@@ -522,15 +532,32 @@ static void GetContentStream(mediadb::Database *db, unsigned int id,
     else
 	rsp->length = rs->GetInteger(mediadb::SIZEBYTES);
 
-    switch (rs->GetInteger(mediadb::AUDIOCODEC))
+    switch (rs->GetInteger(mediadb::TYPE))
     {
-    case mediadb::MP2: rsp->content_type = "audio/x-mp2"; break;
-    case mediadb::MP3: rsp->content_type = "audio/mpeg"; break;
-    case mediadb::FLAC: rsp->content_type = "audio/x-flac"; break;
-    case mediadb::VORBIS: rsp->content_type = "application/ogg"; break;
-    case mediadb::PCM: rsp->content_type = "audio/L16"; break;
-    case mediadb::WAV: rsp->content_type = "audio/x-wav"; break;
+        case mediadb::TUNE:
+        case mediadb::TUNEHIGH:
+            switch (rs->GetInteger(mediadb::AUDIOCODEC))
+            {
+            case mediadb::MP2: rsp->content_type = "audio/x-mp2"; break;
+            case mediadb::MP3: rsp->content_type = "audio/mpeg"; break;
+            case mediadb::FLAC: rsp->content_type = "audio/x-flac"; break;
+            case mediadb::VORBIS: rsp->content_type = "application/ogg"; break;
+            case mediadb::PCM: rsp->content_type = "audio/L16"; break;
+            case mediadb::WAV: rsp->content_type = "audio/x-wav"; break;
+            }
+            break;
+        case mediadb::VIDEO:
+            switch (rs->GetInteger(mediadb::CONTAINER))
+            {
+            case mediadb::MP4: rsp->content_type = "video/mp4"; break;
+            case mediadb::MPEGPS: rsp->content_type = "video/mpeg"; break;
+            }
+        default:
+            break;
     }
+
+    rsp->headers["transferMode.dlna.org"] = "Streaming";
+    rsp->headers["contentFeatures.dlna.org"] = "DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000";
 }
 
 class Flattener
