@@ -1,8 +1,8 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ(2.59)
-AC_INIT(chorale, [0.20a3], pdh@utter.chaos.org.uk)
+AC_PREREQ([2.71])
+AC_INIT([chorale],[0.20a3],[pdh@utter.chaos.org.uk])
 AC_SUBST(PACKAGE_WEBSITE, [http://chorale.sf.net])
 AC_DEFINE_UNQUOTED([PACKAGE_WEBSITE], ["${PACKAGE_WEBSITE}"], [Define to the package's website])
 
@@ -17,7 +17,6 @@ AC_CONFIG_AUX_DIR([autotools])
 
 AC_DEFUN([PDH_REQUISITIONS],
 [
-	AC_REQUIRE([AC_GNU_SOURCE])
 	AC_REQUIRE([AC_USE_SYSTEM_EXTENSIONS])
 ])
 PDH_REQUISITIONS
@@ -29,7 +28,7 @@ CFLAGS="-O2" # Override -g
 AC_PROG_CXX
 CXXFLAGS="-O2" # Override -g
 
-AC_PROG_LIBTOOL
+LT_INIT
 AC_C_BIGENDIAN
 
 AC_SYS_LARGEFILE
@@ -76,7 +75,11 @@ PDH_C_WARNING([-Wundef])
 PDH_C_WARNING([-Wshadow])
 PDH_C_WARNING([-Wswitch])
 PDH_C_WARNING([-Waddress])
-PDH_C_WARNING([-std=gnu1x], PDH_C_WARNING([-std=gnu99]))
+PDH_C_WARNING([-std=gnu23],
+    PDH_C_WARNING([-std=gnu18],
+    PDH_C_WARNING([-std=gnu17],
+    PDH_C_WARNING([-std=gnu11],
+    PDH_C_WARNING([-std=gnu1x])))))
 PDH_C_WARNING([-Wcoercion])
 PDH_C_WARNING([-Wcast-align])
 PDH_C_WARNING([-Wconversion])
@@ -158,7 +161,7 @@ AC_DEFUN([PDH_CXX_WARNING],
     CXXFLAGS="$CXXFLAGS $1 -Werror"
     AC_COMPILE_IFELSE([AC_LANG_PROGRAM()],
 		      [AC_MSG_RESULT([yes]); CXXFLAGS=$new_CXXFLAGS],
-		      [AC_MSG_RESULT([no]); CXXFLAGS=$ok_CXXFLAGS])
+		      [AC_MSG_RESULT([no]); CXXFLAGS=$ok_CXXFLAGS; $2])
 
     AC_LANG_POP
 ])
@@ -174,7 +177,12 @@ PDH_CXX_WARNING([-Waddress])
 PDH_CXX_WARNING([-pedantic])
 PDH_CXX_WARNING([-Wnoexcept])
 PDH_CXX_WARNING([-Wcast-qual])
-PDH_CXX_WARNING([-std=gnu++14], PDH_CXX_WARNING([-std=gnu++11]))
+PDH_CXX_WARNING([-std=gnu++23],
+    PDH_CXX_WARNING([-std=gnu++20],
+    PDH_CXX_WARNING([-std=gnu++17],
+    PDH_CXX_WARNING([-std=gnu++14],
+    PDH_CXX_WARNING([-std=gnu++11],
+    PDH_CXX_WARNING([-std=gnu++1x]))))))
 PDH_CXX_WARNING([-Wlogical-op])
 PDH_CXX_WARNING([-Wcast-align])
 PDH_CXX_WARNING([-Wconversion])
@@ -916,7 +924,7 @@ TARGET=`${CC} -dumpmachine`
 AC_SUBST(TARGET)
 LIBTOOL=${LIBTOOL}.${TARGET}
 
-AC_CONFIG_HEADER([config.${TARGET}.h:config.h.in])
+AC_CONFIG_HEADERS([config.${TARGET}.h:config.h.in])
 AC_CONFIG_FILES([Make.config.${TARGET}:Make.config.in stamp-h])
 
 # Out-of-tree builds get their compiler defaulted

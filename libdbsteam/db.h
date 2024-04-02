@@ -56,7 +56,7 @@ class Database: public db::Database
 	bool svalid : 1;
 	bool ivalid : 1;
 
-	FieldValue() : i(0), svalid(0), ivalid(0) {}
+	FieldValue() noexcept : i(0), svalid(0), ivalid(0) {}
     };
 
     typedef std::vector<FieldValue> record_t;

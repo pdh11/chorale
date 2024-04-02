@@ -76,7 +76,7 @@ const unsigned g_nFields = sizeof(g_fields)/sizeof(g_fields[0]);
 
 struct Comparator
 {
-    bool operator()(const std::string& s1, const std::string& s2)
+    bool operator()(const std::string& s1, const std::string& s2) const
     {
         const int cmp(util::Compare(s1.c_str(), s2.c_str(), false));
         return cmp < 0;
