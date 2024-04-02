@@ -99,19 +99,21 @@ $(play): $(PLAY_OBJS) $(liboutput) $(libdb) $(libutil) \
 
 $(tcp): $(TCP_OBJS) $(libutil)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
-		 $(CXX) -o $@ $(LDFLAGS) $(TCP_OBJS) $(libutil) \
-		 $(BOOST_LIBS) $(LIBS)
+		$(CXX) -o $@ $(LDFLAGS) $(TCP_OBJS) $(libutil) \
+		$(BOOST_LIBS) $(LIBS)
 
 $(wall): $(WALL_OBJS) $(libutil)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
-		 $(CXX) -o $@ $(LDFLAGS) $(WALL_OBJS) $(libutil) \
-		 $(BOOST_LIBS) $(LIBS)
+		$(CXX) -o $@ $(LDFLAGS) $(WALL_OBJS) $(libutil) \
+		$(BOOST_LIBS) $(LIBS)
 
 $(pparse): $(PPARSE_OBJS) $(libimport) $(libutil) Makefile
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --silent \
-		 $(CXX) -o $@ $(LDFLAGS) $(PPARSE_OBJS) \
-		 $(libimport) $(libutil) \
-		 $(BOOST_LIBS) $(LIBS)
+		$(CXX) -o $@ $(LDFLAGS) $(PPARSE_OBJS) \
+		$(libimport) $(libdb) $(libutil) \
+	        $(AVFORMAT_LIBS) $(LAME_LIBS) $(LIBFLAC_LIBS) \
+	        $(TAGLIB_LIBS) \
+		$(BOOST_LIBS) $(LIBS)
 
 $(protocoltool): $(PROTOCOLTOOL_OBJS) \
 		$(libdbempeg) $(libimport) $(libdblocal) $(libkarma) \
@@ -122,6 +124,7 @@ $(protocoltool): $(PROTOCOLTOOL_OBJS) \
 		$(libdbempeg) $(libdblocal) $(libimport) $(libkarma) \
 		$(libmediadb) $(libdbsteam) $(libdb) $(libempeg) $(libkarma) \
 		$(libupnp) $(libutil) \
+                $(AVFORMAT_LIBS) $(LAME_LIBS) $(LIBFLAC_LIBS) \
 		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS)
 	@$(STRIP) $@
 
@@ -137,8 +140,10 @@ $(doctor): $(DOCTOR_OBJS) \
 
 $(playlist2dir): $(PLAYLIST2DIR_OBJS) $(libimport) $(libutil)
 	$(LD_PRE)$(LIBTOOL) --tag=CXX --mode=link --quiet \
-		 $(CXX) -o $@ $(LDFLAGS) $(PLAYLIST2DIR_OBJS) $(libimport) $(libutil) \
-		 $(BOOST_LIBS) $(LIBS)
+		$(CXX) -o $@ $(LDFLAGS) $(PLAYLIST2DIR_OBJS) \
+	        $(libimport) $(libdb) $(libutil) \
+                $(AVFORMAT_LIBS) $(LAME_LIBS) $(LIBFLAC_LIBS) \
+		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS)
 
 $(readtags): $(READTAGS_OBJS) $(libimport) $(libdb) $(libutil) \
 		$(libdbsteam) $(libmediadb) $(libdblocal)
@@ -146,6 +151,7 @@ $(readtags): $(READTAGS_OBJS) $(libimport) $(libdb) $(libutil) \
 		$(CXX) -o $@ $(LDFLAGS) $(READTAGS_OBJS) $(libdblocal) \
 		$(libimport) $(libdbsteam) $(libmediadb) \
 		$(libdb) $(libutil) \
+                $(AVFORMAT_LIBS) $(LAME_LIBS) $(LIBFLAC_LIBS) \
 		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS)
 
 $(squirt): $(SQUIRT_OBJS) $(libimport) $(libdb) $(libutil) \
@@ -154,7 +160,8 @@ $(squirt): $(SQUIRT_OBJS) $(libimport) $(libdb) $(libutil) \
 		$(CXX) -o $@ $(LDFLAGS) $(SQUIRT_OBJS) \
 		$(libdblocal) $(libimport) $(libdbsteam) $(libmediadb) \
 		$(libkarma) $(libdb) $(libutil) \
-		$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS)
+                $(AVFORMAT_LIBS) $(LAME_LIBS) $(LIBFLAC_LIBS) \
+	 	$(BOOST_LIBS) $(TAGLIB_LIBS) $(LIBS)
 
 $(timedb): $(TIMEDB_OBJS) $(libimport) $(libdb) $(libutil) \
 		$(libdbsteam) $(libmediadb)

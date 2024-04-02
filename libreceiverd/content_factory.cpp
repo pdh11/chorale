@@ -549,6 +549,9 @@ static void GetContentStream(mediadb::Database *db, unsigned int id,
         case mediadb::VIDEO:
             switch (rs->GetInteger(mediadb::CONTAINER))
             {
+            case mediadb::VOB: rsp->content_type = "video/dvd"; break;
+            case mediadb::AVI: rsp->content_type = "video/x-msvideo"; break;
+            case mediadb::MATROSKA: rsp->content_type = "video/x-matroska"; break;
             case mediadb::MP4: rsp->content_type = "video/mp4"; break;
             case mediadb::MPEGPS: rsp->content_type = "video/mpeg"; break;
             }

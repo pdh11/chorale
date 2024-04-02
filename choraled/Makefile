@@ -95,6 +95,7 @@ $(choraled): $(libchoraled) $(libtv) $(libdblocal) $(libdbmerge) \
 		$(libreceiverd) $(libreceiver) $(libupnpd) $(libupnp) \
 		$(liboutput) $(libdblocal) $(libdbmerge) \
 		$(libimport) $(libdbsteam) $(libmediadb) $(libdb) $(libutil) \
+                $(AVFORMAT_LIBS) \
 		$(MPG123_LIBS) \
 		$(TAGLIB_LIBS) $(BOOST_LIBS) $(PARANOIA_LIBS) $(LIBWRAP) \
 		$(GSTREAMER_LIBS) $(HAL_LIBS) $(LIBCDIOP_LIBS) $(LIBS)\
@@ -129,6 +130,7 @@ ifneq ($(FINAL),no)
 		$(libreceiverd) $(libreceiver) $(libupnpd) $(libupnp) \
 		$(liboutput) \
 		$(libimport) $(libdbsteam) $(libmediadb) $(libdb) $(libutil) \
+                $(AVFORMAT_LIBS) \
 		$(MPG123_LIBS) \
 		$(TAGLIB_LIBS) $(BOOST_LIBS) $(PARANOIA_LIBS) $(LIBWRAP) \
 		$(GSTREAMER_LIBS) $(HAL_LIBS) $(LIBCDIOP_LIBS) $(LIBS)

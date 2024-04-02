@@ -113,7 +113,8 @@ static const char *const containermap[] = {
     "mpegps",
     "mp4",
     "mov",
-    "jpeg"
+    "jpeg",
+    "vob" 
 };
 
 enum { NCONTAINERS = sizeof(containermap)/sizeof(containermap[0]) };

@@ -210,7 +210,9 @@ $(tageditor): $(libchoralecd) $(libutil) $(libimport) $(libdblocal) $(libdb) \
 		$(libdbsteam) $(libdb) $(libimport) \
 		$(libutil) \
 		$(LIBCDIOP_LIBS) $(LIBCDDB_LIBS) \
-		$(TAGLIB_LIBS) $(BOOST_LIBS) $(QT_LIBS) $(LIBS)
+		$(TAGLIB_LIBS) $(BOOST_LIBS) $(QT_LIBS) \
+                $(AVFORMAT_LIBS) $(LAME_LIBS) $(LIBFLAC_LIBS) \
+		$(LIBS)
 
 else
 $(choralecd):
