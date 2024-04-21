@@ -8,6 +8,8 @@
 
 #include <list>
 
+#if 0
+
 class TextObserver: public import::RippingControlObserver
 {
     unsigned int m_percent[300]; // 6 tracks * 3 figures
@@ -78,3 +80,5 @@ int main()
 
     return 0;
 }
+
+#endif

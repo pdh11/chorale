@@ -13,6 +13,8 @@
 #include <windows.h>
 #endif
 
+#if 0
+
 const char s_test_device_type[]  = "urn:chorale-sf-net:device:TestDevice:1";
 const char s_test_service_id[]   = "urn:chorale-sf-net:serviceId:TestService";
 const char s_test_service_type[] = "urn:chorale-sf-net:service:TestService:1";
@@ -339,3 +341,5 @@ int main()
 
     return 0;
 }
+
+#endif

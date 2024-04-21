@@ -8,6 +8,8 @@
 #include "libutil/trace.h"
 #include "libutil/socket.h"
 
+#if 0
+
 static void DumpDB(db::Database *thedb, unsigned int id, unsigned int depth)
 {
     db::QueryPtr qp = thedb->CreateQuery();
@@ -91,3 +93,5 @@ int main()
 
     return 0;
 }
+
+#endif

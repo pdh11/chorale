@@ -1,3 +1,4 @@
+#if 0
 #include "audio_cd.h"
 #include "config.h"
 #include "libutil/stream.h"
@@ -451,3 +452,4 @@ std::auto_ptr<util::Stream> LocalAudioCD::GetTrackStream(unsigned int track)
 } // namespace import
 
 #endif // HAVE_LINUX_CDROM_H
+#endif

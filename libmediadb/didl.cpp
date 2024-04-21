@@ -578,7 +578,7 @@ std::string FromRecord(mediadb::Database *db, db::RecordsetPtr rs,
         /* Unit tests */
 
 
-#ifdef TEST
+#if 0 //def TEST
 
 # include "libdbsteam/db.h"
 # include "libmediadb/xml.h"

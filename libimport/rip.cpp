@@ -9,6 +9,8 @@
 #include <map>
 #include <vector>
 
+#if 0
+
 namespace rip {
 
 enum { RIP_NONE = 100, RIP_ALL = 101 };
@@ -482,3 +484,4 @@ int main(int argc, char *argv[])
 {
     return rip::Main(argc, argv);
 }
+#endif
