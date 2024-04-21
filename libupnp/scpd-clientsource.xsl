@@ -10,7 +10,7 @@
 
 #include &quot;config.h&quot;
 #include &quot;<xsl:value-of select="$class"/>_client.h&quot;
-#include &quot;soap.h&quot;
+#include &quot;libupnp/soap.h&quot;
 #include &quot;libutil/bind.h&quot;
 #include &quot;libutil/trace.h&quot;
 #include &lt;errno.h&gt;

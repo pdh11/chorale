@@ -10,7 +10,7 @@
 #include &quot;config.h&quot;
 #include &quot;<xsl:value-of select="$class"/>.h&quot;
 #include &quot;libutil/trace.h&quot;
-#include &quot;data.h&quot;
+#include &quot;libupnp/data.h&quot;
 #include &lt;errno.h&gt;
 #include &lt;string.h&gt;
 

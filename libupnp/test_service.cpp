@@ -1,5 +1,5 @@
-#include "TestService_server.h"
-#include "TestService_client.h"
+#include "libupnp/TestService_server.h"
+#include "libupnp/TestService_client.h"
 #include "libutil/bind.h"
 #include "libutil/trace.h"
 #include "libutil/scheduler.h"

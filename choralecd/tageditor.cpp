@@ -190,7 +190,9 @@ int Main(int argc, char *argv[])
 
 } // namespace tageditor
 
+#if 0
 int main(int argc, char *argv[])
 {
     return tageditor::Main(argc, argv);
 }
+#endif

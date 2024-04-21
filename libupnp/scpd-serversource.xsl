@@ -10,7 +10,7 @@
 #include &quot;config.h&quot;
 #include &quot;<xsl:value-of select="$class"/>_server.h&quot;
 #include &quot;<xsl:value-of select="$class"/>.h&quot;
-#include &quot;soap.h&quot;
+#include &quot;libupnp/soap.h&quot;
 #include &lt;string.h&gt;
 #include &lt;stdlib.h&gt;
 #include &lt;errno.h&gt;
