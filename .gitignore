@@ -13,3 +13,6 @@ libtool*
 *.mp3
 *.flac
 .headercheck
+obj
+.sconf_temp
+.sconsign.dblite
