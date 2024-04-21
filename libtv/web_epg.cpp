@@ -45,7 +45,7 @@ struct WebEPGItem
 
 struct WebEPGItemLess
 {
-    bool operator()(const WebEPGItem& e1, const WebEPGItem& e2)
+    bool operator()(const WebEPGItem& e1, const WebEPGItem& e2) const
     {
 	return e1.start < e2.start;
     }

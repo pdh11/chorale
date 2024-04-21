@@ -188,7 +188,7 @@ static const unsigned char <xsl:value-of select="$class"/>_param_types[] =
 <xsl:for-each select="//argument/name[generate-id()=generate-id(key('arguments',.))]">
       <xsl:sort select="translate(.,$lcase,$ucase)"/>
 <xsl:variable name="rsv" select="//argument[name=current()]/relatedStateVariable"/>
-<xsl:variable name="type" select="//stateVariable[name=$rsv]/dataType"/>    Data::<xsl:if test="//stateVariable[name=$rsv]/allowedValueList">ENUM + <xsl:value-of select="$class"/>_<xsl:call-template name="camelcase-to-upper-underscore"><xsl:with-param name="camelcase" select="str:replace(//stateVariable[name=$rsv]/name,'A_ARG_TYPE_','')"/></xsl:call-template>, // <xsl:value-of select="current()"/>.
+<xsl:variable name="type" select="//stateVariable[name=$rsv]/dataType"/>    (unsigned char)Data::<xsl:if test="//stateVariable[name=$rsv]/allowedValueList">ENUM + (unsigned char)<xsl:value-of select="$class"/>_<xsl:call-template name="camelcase-to-upper-underscore"><xsl:with-param name="camelcase" select="str:replace(//stateVariable[name=$rsv]/name,'A_ARG_TYPE_','')"/></xsl:call-template>, // <xsl:value-of select="current()"/>.
 </xsl:if>
 <xsl:if test="not(//stateVariable[name=$rsv]/allowedValueList)">
 <xsl:choose select="$type">

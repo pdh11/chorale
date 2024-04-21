@@ -46,7 +46,7 @@ struct NameAndType
     std::string name;
     bool is_composite;
 
-    bool operator==(const NameAndType& other)
+    bool operator==(const NameAndType& other) const
     {
 	return name == other.name && is_composite == other.is_composite;
     }

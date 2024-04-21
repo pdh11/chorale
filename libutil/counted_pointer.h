@@ -24,7 +24,7 @@ class CountedPointer
     T *m_ptr;
 
 public:
-    CountedPointer()
+    CountedPointer() noexcept
 	: m_ptr(NULL)
     {
     }

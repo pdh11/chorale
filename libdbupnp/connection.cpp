@@ -76,8 +76,8 @@ unsigned Connection::OnCDSInitialised(unsigned int rc)
 	Lock lock(this);
 
 	// Set up root item
-	m_idmap[0x100] = "0";
-	m_revidmap["0"] = 0x100;
+	m_idmap[0x100] = std::string("0");
+	m_revidmap[std::string("0")] = 0x100;
 	m_nextid = 0x110;
     }
 

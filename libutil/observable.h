@@ -35,15 +35,15 @@ protected:
     public:
 	explicit Iterator(Observer *observer) : m_observer(observer) {}
 
-	Observer *operator*() { return m_observer; }
+	Observer *operator*() const { return m_observer; }
 	void operator++() { m_observer = NULL; }
 
-	bool operator==(const Iterator& other)
+	bool operator==(const Iterator& other) const
 	{
 	    return !m_observer && !other.m_observer; 
 	}
 
-	bool operator!=(const Iterator& other)
+	bool operator!=(const Iterator& other) const
 	{
 	    return m_observer || other.m_observer; 
 	}
