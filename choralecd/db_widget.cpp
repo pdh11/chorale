@@ -171,6 +171,7 @@ void UpnpDBWidgetFactory::OnServiceLost(const std::string&,
     }
 }
 
+#if 0
 
         /* EmpegDBWidgetFactory */
 
@@ -198,5 +199,6 @@ void EmpegDBWidgetFactory::OnDiscoveredEmpeg(const util::IPAddress& ip,
     (void) new choraleqt::DBWidget(m_parent, name, *m_pixmap, thedb, 
 				   m_registry);
 }
+#endif
 
 } // namespace choraleqt

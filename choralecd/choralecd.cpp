@@ -133,10 +133,12 @@ int Main(int argc, char *argv[])
     uclient.Search(upnp::s_service_type_optical_drive, &ucdwf);
 #endif
 
+#if 0
     QPixmap empeg_pixmap(empeg_xpm);
     choraleqt::EmpegDBWidgetFactory edbwf(&empeg_pixmap, &db_registry,
 					  &http_server);
     mainwin->AddWidgetFactory(&edbwf);
+#endif
 
 //    empeg::Discovery edisc;
 //    edisc.Init(&fg_poller, &edbwf);
