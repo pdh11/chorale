@@ -1,36 +1,143 @@
+# SConstruct for Chorale
+#
+# Options:
+#    PREFIX=<dir>  -- set install prefix (default /usr/local)
+#    WERROR=1      -- compile everything with -Werror
+#    PROFILE=1     -- do profiling build
+#    DEBUG=0       -- do release build
+#    SINGLE=1      -- force non-parallel build
+#
 PACKAGE="chorale"
 PACKAGE_VERSION="0.21"
 PACKAGE_WEBSITE="https://github.com/pdh11/chorale"
 
 import subprocess
 import os
-SetOption('num_jobs', os.cpu_count())
+if not ARGUMENTS.get('SINGLE', 0):
+    SetOption('num_jobs', os.cpu_count())
+
+def CheckCFlag(ctx, flag):
+    ctx.Message("Checking whether C compiler accepts "+flag + "... ")
+    old_CFLAGS=ctx.env["CFLAGS"]
+    ctx.env.Append(CFLAGS=flag)
+    ok = ctx.TryCompile("", ".c")
+    if not ok:
+        ctx.env["CFLAGS"] = old_CFLAGS
+    ctx.Result(ok)
+    return ok
+
+def CheckCXXFlag(ctx, flag):
+    ctx.Message("Checking whether C++ compiler accepts "+flag + "... ")
+    old_CXXFLAGS=ctx.env["CXXFLAGS"]
+    ctx.env.Append(CXXFLAGS=flag)
+    ok = ctx.TryCompile("", ".cpp")
+    if not ok:
+        ctx.env["CXXFLAGS"] = old_CXXFLAGS
+    ctx.Result(ok)
+    return ok
 
 env = Environment()
 if not env.GetOption('clean'):
     PREFIX = ARGUMENTS.get("PREFIX", "/usr/local")
     print("Compiling Chorale to install in PREFIX="+PREFIX)
-    conf = env.Configure(config_h = "config.h")
+    conf = env.Configure(config_h = "config.h",
+                         custom_tests={'CheckCXXFlag': CheckCXXFlag,
+                                       'CheckCFlag': CheckCFlag})
     conf.CheckLib('wrap')
     conf.CheckLib('boost_regex')
     conf.CheckLib('boost_system')
     conf.CheckLib('boost_thread')
     conf.CheckLib('pthread')
+    if not conf.CheckCFlag("-std=gnu23"):
+        if not conf.CheckCFlag("-std=gnu18"):
+            if not conf.CheckCFlag("-std=gnu17"):
+                if not conf.CheckCFlag("-std=gnu11"):
+                    conf.CheckCFlag("-std=gnu1x")
+    for flag in [
+            "-W",
+            "-Wall",
+            "-fPIC",
+            "-Wextra",
+            "-Wundef",
+            "-Wshadow",
+            "-Wswitch",
+            "-Waddress",
+            "-Wcoercion",
+            "-Wcast-align",
+            "-Wconversion",
+            "-Wwrite-strings",
+            "-Wpointer-arith",
+            "-Wbad-function-cast",
+            "-Wstrict-prototypes",
+            "-Wmissing-prototypes",
+            "-pedantic -Wno-long-long",
+            "-fdiagnostics-show-option",
+            "-Wdeclaration-after-statement",
+            "-Wno-unused-command-line-argument",
+    ]:
+        conf.CheckCFlag(flag)
+    if not conf.CheckCXXFlag("-std=gnu++23"):
+        if not conf.CheckCXXFlag("-std=gnu++20"):
+            if not conf.CheckCXXFlag("-std=gnu++17"):
+                if not conf.CheckCXXFlag("-std=gnu++14"):
+                    if not conf.CheckCXXFlag("-std=gnu++11"):
+                        conf.CheckCXXFlag("-std=gnu++1x")
+    for flag in [
+            "-W",
+            "-Wall",
+            "-fPIC",
+            "-Wextra",
+            "-Wundef",
+            "-Wshadow",
+            "-pedantic",
+            "-Wnoexcept",
+            "-Wcast-qual",
+            "-Wlogical-op",
+            "-Wcast-align",
+            #"-Wconversion",
+            "-Wc++0x-compat",
+            "-Wc++11-compat",
+            "-Wc++14-compat",
+            "-Wc++17-compat",
+            "-Wc++20-compat",
+            "-fstrict-enums",
+            "-Wno-long-long",
+            "-Wwrite-strings",
+            "-Wpointer-arith",
+            "-Wnon-virtual-dtor",
+            "-Wno-system-headers",
+            "-Woverloaded-virtual",
+            "-Wno-sign-conversion",
+            "-Wmissing-declarations",
+            "-Wunused-but-set-variable",
+            "-fdiagnostics-show-option",
+            "-Wno-unused-command-line-argument",
+    ]:
+        conf.CheckCXXFlag(flag)
+    if ARGUMENTS.get("WERROR", 0):
+        conf.CheckCFlag("-Werror")
+        conf.CheckCXXFlag("-Werror")
     for header in [
             "time.h",
             "poll.h",
             "sched.h",
             "net/if.h",
             "stdint.h",
+            "unistd.h",
+            "pthread.h",
             "sys/disk.h",
             "sys/time.h",
             "sys/poll.h",
             "sys/types.h",
             "sys/socket.h",
             "netinet/ip.h",
+            "sys/syslog.h",
             "sys/utsname.h",
             "linux/cdrom.h",
+            "linux/unistd.h",
             "sys/resource.h",
+            "linux/dvb/dmx.h",
+            "linux/dvb/frontend.h",
     ]:
         conf.CheckHeader(header)
     conf.CheckHeader("boost/spirit/include/classic.hpp", language="C++")
@@ -64,6 +171,11 @@ if not env.GetOption('clean'):
             "IP_PKTINFO",
     ]:
         conf.CheckDeclaration(t, "#include <netinet/ip.h>")
+    for l in [
+            "LOG_ERR",
+            "LOG_NOTICE",
+            "LOG_WARNING"]:
+        conf.CheckDeclaration(l, "#include <sys/syslog.h>")
     for (t, header) in [
             ("boost::mutex", "<boost/thread/mutex.hpp>"),
             ("boost::thread", "<boost/thread/thread.hpp>"),
@@ -88,13 +200,25 @@ if not env.GetOption('clean'):
     conf.Define("HAVE_CONDITION_TIMED_WAIT_INTERVAL", 1)
     conf.Define("HAVE_HAL", 0)
     conf.Define("HAVE_LAME", 1)
+    conf.Define("HAVE_DBUS", 0)
+    conf.Define("HAVE_LAME_GET_LAMETAG_FRAME", 1)
     conf.Define("HAVE_CAIRO", 0)
     conf.Define("HAVE_TAGLIB", 1)
+    conf.Define("HAVE_MPG123", 1)
+    conf.Define("HAVE_TCP_CORK", 1)
     conf.Define("HAVE_LIBCDDB", 1)
     conf.Define("HAVE_LIBFLAC", 1)
+    conf.Define("HAVE_LIBCDIOP", 0)
+    conf.Define("HAVE_NET_IF_DL_H", 0)
     conf.Define("HAVE_PARANOIA", 1)
+    conf.Define("HAVE_AVFORMAT", 1)
+    conf.Define("HAVE_WINDOWS_H", 0)
+    conf.Define("HAVE_GSTREAMER", 0) # For now
+    conf.Define("HAVE_WS2TCPIP_H", 0)
+    conf.Define("HAVE_CANONICALIZE_FILE_NAME", 0)
     conf.Define("HAVE_DECL_PARANOIA_CB_CACHEERR", 1)
     conf.Define("HAVE_IP_PKTINFO", "HAVE_DECL_IP_PKTINFO")
+    conf.Define("HAVE_DVB", "(HAVE_LINUX_DVB_DMX_H && HAVE_LINUX_DVB_FRONTEND_H)")
     conf.Define("PACKAGE_NAME", '"'+PACKAGE+'"')
     conf.Define("PACKAGE_VERSION", '"'+PACKAGE_VERSION+'"')
     conf.Define("PACKAGE_STRING", 'PACKAGE_NAME " " PACKAGE_VERSION');
@@ -106,24 +230,28 @@ if not env.GetOption('clean'):
     conf.CheckLib(["cdda_paranoia"])
     conf.CheckLib(["cdda_interface"])
     env = conf.Finish()
-    env.MergeFlags("!pkg-config --libs --cflags taglib")
-    env.MergeFlags("!pkg-config --libs --cflags libcddb")
-    env.MergeFlags("!pkg-config --libs flac") # Not the cflags
-    env.MergeFlags("!pkg-config --libs --cflags Qt5Gui Qt5Core Qt5Widgets")
-    env.Append(CPPPATH="#")
+    env.MergeFlags("!pkg-config --libs taglib libcddb libavformat flac libmpg123")
+    env.MergeFlags("!pkg-config --libs Qt5Gui Qt5Core Qt5Widgets")
+    # Convert "-I" to "-isystem" otherwise -Wno-system-headers doesn't work
+    flags = env.ParseFlags(
+        "!pkg-config --cflags taglib libcddb libavformat", # Not the flac ones
+        "!pkg-config --cflags Qt5Gui Qt5Core Qt5Widgets")
+    for f in flags["CPPPATH"]:
+        env.Append(CCFLAGS = ["-isystem", f])
+    env.Append(CPPPATH=["."])
 
 debug = ARGUMENTS.get('DEBUG', 1)
 profile = ARGUMENTS.get('PROFILE', 0)
-if debug:
-    suffix = "debug"
-    env.Append(CCFLAGS=["-g", "-O2", "-DDEBUG=1", "-fPIC"])
-elif profile:
+if profile:
     suffix = "profile"
     env.Append(CCFLAGS=["-fprofile-arcs", "-ftest-coverage", "-DDEBUG=0",
-                        "-DNDEBUG", "-O2", "-fPIC"])
+                        "-DNDEBUG", "-O2"])
+elif debug:
+    suffix = "debug"
+    env.Append(CCFLAGS=["-g", "-O2", "-DDEBUG=1"])
 else:
     suffix = "release"
-    env.Append(CCFLAGS=["-DDEBUG=0", "-O2", "-Os", "-DNDEBUG", "-fPIC"])
+    env.Append(CCFLAGS=["-DDEBUG=0", "-O2", "-Os", "-DNDEBUG"])
 env.Append(CPPPATH="#obj/"+suffix)
 
 if ARGUMENTS.get('VERBOSE') != "1":
@@ -135,6 +263,7 @@ if ARGUMENTS.get('VERBOSE') != "1":
 
 testenv = env.Clone()
 testenv.Append(CCFLAGS="-DTEST")
+testenv["CCOMSTR"] = "Compiling test ${SOURCE}"
 testenv["CXXCOMSTR"] = "Compiling test ${SOURCE}"
 
 def XSLT(service, stylesheet, output):
@@ -243,7 +372,7 @@ for (i, area, w, h) in [
     png = "obj/" + suffix + "/imagery/" + i + ".png"
     env.Command(png, "imagery/chorale.svg",
                 Action([
-                    "@inkscape -z --export-filename="+png+" --export-area="+area+" -w "+str(w)+" -h "+str(h) + " ${SOURCE} > /dev/null 2>&1"],
+                    "@inkscape --export-png-color-mode=RGBA_8 --export-filename="+png+" --export-area="+area+" -w "+str(w)+" -h "+str(h) + " ${SOURCE} > /dev/null 2>&1"],
                        "Creating       "+png))
     xpm = "obj/" + suffix + "/imagery/" + i + ".xpm"
     xpm0 = xpm + ".0.xpm"
@@ -277,7 +406,8 @@ env.Command(ico,
              base + "48_16.gif", base + "48_256.gif"],
             Action([
                 "convert ${SOURCES} ${TARGET}"
-                ]))
+                ],
+                   "Creating       ${TARGET}"))
 
 libs = []
 
@@ -359,6 +489,7 @@ for i in [
         "dbmerge",
         "ui",
         "output",
+        "tv",
 
         "dbreceiver",
         "dblocal",

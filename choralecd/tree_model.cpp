@@ -55,9 +55,9 @@ TreeModel::Item *TreeModel::Item::GetChild(unsigned int n)
 	mediatree::Node::EnumeratorPtr ep = node->GetChildren();
 	while (ep->IsValid())
 	{
-	    mediatree::NodePtr n = ep->Get();
-	    if (n->IsCompound())
-		children.push_back(new Item(this, n));
+	    mediatree::NodePtr child = ep->Get();
+	    if (child->IsCompound())
+		children.push_back(new Item(this, child));
 	    ep->Next();
 	}
 	got_children = true;

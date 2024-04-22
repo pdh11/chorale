@@ -14,6 +14,8 @@
 #include <getopt.h>
 #include <stdio.h>
 
+#if 0
+
 #if HAVE_TAGLIB
 #define LICENCE "  This program is free software under the GNU Lesser General Public Licence.\n\n"
 #else
@@ -190,7 +192,6 @@ int Main(int argc, char *argv[])
 
 } // namespace tageditor
 
-#if 0
 int main(int argc, char *argv[])
 {
     return tageditor::Main(argc, argv);

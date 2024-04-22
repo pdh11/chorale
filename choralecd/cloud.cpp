@@ -31,6 +31,8 @@
 #include "imagery/noart100.xpm"
 #include "imagery/file.xpm"
 
+#if 0
+
 namespace cloud {
 
 namespace {
@@ -280,7 +282,6 @@ int Main(int argc, char *argv[])
 
 } // namespace cloud
 
-#if 0
 int main(int argc, char *argv[])
 {
     return cloud::Main(argc, argv);

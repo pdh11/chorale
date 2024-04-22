@@ -52,17 +52,17 @@ void BrowseWidget::SetNode(mediatree::NodePtr np)
 	mediatree::Node::EnumeratorPtr ep = m_node->GetChildren();
 	while (ep->IsValid())
 	{
-	    mediatree::NodePtr np = ep->Get();
+	    mediatree::NodePtr np2 = ep->Get();
 	    BrowseItem *item = new BrowseItem(this, 
 					      QString::fromUtf8(np->GetName().c_str()),
-					      np);
-	    if (np->IsCompound())
+					      np2);
+	    if (np2->IsCompound())
 	    {
 		item->setIcon(QPixmap(dir_xpm));
 	    }
 	    else
 	    {
-		unsigned int type = np->GetInfo()->GetInteger(mediadb::TYPE);
+		unsigned int type = np2->GetInfo()->GetInteger(mediadb::TYPE);
 		switch (type)
 		{
 		case mediadb::IMAGE:

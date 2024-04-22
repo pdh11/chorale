@@ -102,11 +102,11 @@ QColor TagEditorWidget::ColourFor(const QString& s)
     return Qt::red;
 }
 
-void TagEditorWidget::SetNode(mediatree::NodePtr np)
+void TagEditorWidget::SetNode(mediatree::NodePtr parent)
 {
-    if (np != m_parent)
+    if (parent != m_parent)
     {
-	m_parent = np;
+	m_parent = parent;
 	clearContents();
 	m_items.clear();
 	setSortingEnabled(false);
@@ -115,7 +115,7 @@ void TagEditorWidget::SetNode(mediatree::NodePtr np)
 
 	std::list<mediatree::NodePtr> items;
 
-	mediatree::Node::EnumeratorPtr ep = np->GetChildren();
+	mediatree::Node::EnumeratorPtr ep = parent->GetChildren();
 	while (ep->IsValid())
 	{
 	    mediatree::NodePtr np = ep->Get();
