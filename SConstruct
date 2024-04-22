@@ -487,12 +487,14 @@ for i in [
         "util",
 
         "db",
+        "empeg",
 
         "dbsteam",
         "mediadb",
         "upnp",
 
         "dbupnp",
+        "dbempeg",
         "import",
         "receiver",
         "dbmerge",
@@ -507,6 +509,9 @@ for i in [
         "upnpd",
         "receiverd",
         "mediatree",
+        "karma",
+
+        "misc",
 ]:
     ChoraleLib(i)
 
@@ -520,6 +525,5 @@ for i in [
 #
 # - lcov on profile build
 # - all the metrics (topten etc.)
-# - build binaries again
 # - installer https://scons.org/doc/4.0.1/HTML/scons-user.html#chap-install
 # - release packaging

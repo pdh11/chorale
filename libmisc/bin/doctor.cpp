@@ -169,7 +169,6 @@ static unsigned CheckSync(util::Stream *st, uint64_t *skip, bool *ok)
 union FrameHeader
 {
     uint32_t x;
-#if BITFIELDS_LSB_FIRST
     struct {
 	unsigned emphasis : 2;
 	unsigned original : 1;
@@ -185,23 +184,6 @@ union FrameHeader
 	unsigned version : 2;
 	unsigned sync : 11;
     } s;
-#else
-    struct {
-	unsigned sync : 11;
-	unsigned version : 2;
-	unsigned layer : 2;
-	unsigned protection: 1;
-	unsigned bitrate : 4;
-	unsigned samplerate : 2;
-	unsigned padding : 1;
-	unsigned privatebit : 1;
-	unsigned channelmode : 2;
-	unsigned extension : 2;
-	unsigned copyright : 1;
-	unsigned original : 1;
-	unsigned emphasis : 2;
-    } s;
-#endif
 };
 
 static unsigned BitRate(FrameHeader fh)
