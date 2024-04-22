@@ -102,14 +102,14 @@ if not env.GetOption('clean'):
     conf.Define("LOCALSTATEDIR", '"'+PREFIX+'/var"')
     conf.Define("CHORALE_DATADIR", '"'+PREFIX+'/share"')
     conf.Define("SRCROOT", '"' + Dir(".").path + '"')
+    conf.CheckLib(["mp3lame"])
     conf.CheckLib(["cdda_paranoia"])
     conf.CheckLib(["cdda_interface"])
     env = conf.Finish()
     env.MergeFlags("!pkg-config --libs --cflags taglib")
     env.MergeFlags("!pkg-config --libs --cflags libcddb")
-    env.MergeFlags("!pkg-config --libs flac")
+    env.MergeFlags("!pkg-config --libs flac") # Not the cflags
     env.MergeFlags("!pkg-config --libs --cflags Qt5Gui Qt5Core Qt5Widgets")
-    env.Append(LIBS="-lmp3lame")
     env.Append(CPPPATH="#")
 
 debug = ARGUMENTS.get('DEBUG', 1)
@@ -250,8 +250,34 @@ for (i, area, w, h) in [
     env.Command(xpm, png,
                 Action([
                     "@convert -transparent white ${SOURCE} "+xpm0,
-                    '@sed -e "s/static.*\[]/static const char *const '+i+'_xpm[]/" < '+xpm0 + " > " + xpm],
+                    '@sed -e "s/static.*\[]/static const char *const '+i+'_xpm[]/" < '+xpm0 + " > " + xpm,
+                    '@rm '+xpm0],
                        "Creating       "+xpm))
+
+# The gifs
+for base in [16,32,48]:
+    png = "obj/" + suffix + "/imagery/icon"+str(base)+".png"
+    gif = "obj/" + suffix + "/imagery/icon"+str(base)
+    env.Command(gif + "_16.gif", png,
+                Action([
+                    "@convert -colors 16 ${SOURCE} ${TARGET}"],
+                       "Creating       ${TARGET}"))
+    env.Command(gif + "_256.gif", png,
+                Action([
+                    "@convert -map netscape: ${SOURCE} ${TARGET}"],
+                       "Creating       ${TARGET}"))
+
+# The icon (for favicon.ico)
+ico = "obj/" + suffix + "/imagery/icon.ico"
+base = "obj/" + suffix + "/imagery/icon"
+env.Command(ico,
+            [base + "16.png", base + "32.png", base + "48.png",
+             base + "16_16.gif", base + "16_256.gif",
+             base + "32_16.gif", base + "32_256.gif",
+             base + "48_16.gif", base + "48_256.gif"],
+            Action([
+                "convert ${SOURCES} ${TARGET}"
+                ]))
 
 libs = []
 
@@ -352,9 +378,8 @@ for i in [
 
 # SCons TODO list
 #
-# - fix remaining imagery (gif and ico)
 # - lcov on profile build
 # - all the metrics (topten etc.)
 # - build binaries again
-# - installer
+# - installer https://scons.org/doc/4.0.1/HTML/scons-user.html#chap-install
 # - release packaging
