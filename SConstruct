@@ -515,7 +515,7 @@ def ChoraleBin(name):
                     LIBS = libs + env["LIBS"])
 
 # Libraries listed in dependency order
-for i in [
+LIBDIRS = [
         "util",
 
         "db",
@@ -542,14 +542,18 @@ for i in [
         "receiverd",
         "mediatree",
         "karma",
-]:
+]
+
+for i in LIBDIRS:
     ChoraleLib(i)
 
-for i in [
+BINDIRS= [
         "choraled",
         "choralecd",
         "choraleutil",
-]:
+]
+
+for i in BINDIRS:
     ChoraleBin(i)
 
 if profile:
@@ -560,9 +564,37 @@ if profile:
                     [ 'lcov -q --rc "lcov_branch_coverage=1"' + ''.join([' -a '+str(a) for a in lcovs]) + ' -o '+infofile,
                       'genhtml -q  --rc "lcov_branch_coverage=1" -p `pwd` -o '+htmldir+' '+infofile])
 
+metrics = "obj/metrics/"
+SUBDIRS = BINDIRS + ["lib"+lib for lib in LIBDIRS]
+env.Command(metrics+"libdeps.dot", ["SConstruct", "scripts/make-libdeps"],
+            ["scripts/make-libdeps "+" ".join(SUBDIRS)+" > ${TARGET}"])
+env.Command(metrics+"filedeps.dot", ["SConstruct", "scripts/make-filedeps"],
+            ["scripts/make-filedeps "+" ".join(SUBDIRS)+" > ${TARGET}"])
+env.Command(metrics+"filedeps-all.dot",
+            [metrics+"filedeps.dot", "SConstruct", "scripts/transitive-closure"],
+            ["scripts/transitive-closure < ${SOURCE} > ${TARGET}"])
+env.Command(metrics+"fan.txt",
+            ["SConstruct", "scripts/fan", metrics+"filedeps-all.dot"],
+            ["scripts/fan "+metrics+"filedeps-all.dot > ${TARGET}"])
+env.Command(metrics+"compdeps.dot", [metrics+"filedeps.dot", "SConstruct"],
+            ["	sed -e 's/[.]cpp//g' -e 's/[.]h//g' -e 's/_posix//g'  -e 's/_linux//g' -e 's/_win32//g' \
+	    -e 's,libupnp/\([A-Z][a-zA-Z0-9]*\)_client,libupnp/\\1,g' \
+	    -e 's,libupnp/\([A-Z][a-zA-Z0-9]*\)_server,libupnp/\\1,g' \
+            -e 's,^\\(.*\\) -> \\1$,,g' \
+	    -e 's/_internal//g' < ${SOURCE} > ${TARGET}"])
+env.Command(metrics+"compdeps2.dot", [metrics+"compdeps.dot", "scripts/make-compdeps2"],
+            ["scripts/make-compdeps2 ${SOURCE} "+" ".join(SUBDIRS)+" > ${TARGET}"])
+env.Command(metrics+"cycles.png", [metrics+"compdeps.dot", "scripts/make-cycles"],
+            ["scripts/make-cycles ${SOURCE} ${TARGET}"])
+
+DOTS=["libdeps", "filedeps", "compdeps", "compdeps2"]
+for dot in DOTS:
+    env.Command(metrics+dot+".svg", metrics+dot+".dot",
+                ['tred ${SOURCE} | dot -Tsvg -Nfontname="Luxi Sans" -Gfontnames=gd -o ${TARGET}'])
+    env.Command(metrics+dot+".png", metrics+dot+".svg",
+                ['inkscape -b white -y 1.0 --export-filename=${TARGET} ${SOURCE} > /dev/null 2>&1'])
 
 # SCons TODO list
 #
-# - all the metrics (topten etc.)
 # - installer https://scons.org/doc/4.0.1/HTML/scons-user.html#chap-install
 # - release packaging

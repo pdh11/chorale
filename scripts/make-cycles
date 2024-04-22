@@ -1,0 +1,11 @@
+#!/bin/bash
+
+echo "strict digraph {" > $2.dot
+sccmap $1 \
+    | sed -e 's/digraph cluster_/subgraph sg/' \
+	  -e 's/scc_map/cluster/' \
+    | awk -F '[; \t]' '{ if ($2 != $4 || $2 == "") print }' \
+    | grep -v cluster >> $2.dot
+circo -Tsvg -Nfontname="Luxi Sans" -Gfontnames=gd -o $2.svg $2.dot
+inkscape -b white -y 1.0 --export-filename=$2 $2.svg > /dev/null 2>&1
+rm $2.dot $2.svg
