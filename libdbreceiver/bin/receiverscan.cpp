@@ -1,4 +1,4 @@
-#include "database.h"
+#include "libdbreceiver/database.h"
 #include "libmediadb/schema.h"
 #include "libreceiver/ssdp.h"
 #include "libdb/query.h"
@@ -7,8 +7,6 @@
 #include "libutil/http_client.h"
 #include "libutil/trace.h"
 #include "libutil/socket.h"
-
-#if 0
 
 static void DumpDB(db::Database *thedb, unsigned int id, unsigned int depth)
 {
@@ -93,5 +91,3 @@ int main()
 
     return 0;
 }
-
-#endif

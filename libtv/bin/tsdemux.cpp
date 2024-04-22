@@ -4,8 +4,6 @@
 #include <map>
 #include <string>
 
-#if 0
-
 static const unsigned char mpegps_header[] =
 {
     0x00, 0x00, 0x01, 0xBA,
@@ -122,5 +120,3 @@ int main(int, char**)
 	++n;
     }
 }
-
-#endif

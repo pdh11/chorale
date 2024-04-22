@@ -1,14 +1,12 @@
-#include "audio_cd.h"
-#include "cd_drives.h"
-#include "ripping_control.h"
+#include "libimport/audio_cd.h"
+#include "libimport/cd_drives.h"
+#include "libimport/ripping_control.h"
 #include "libutil/counted_pointer.h"
 #include "libutil/worker_thread_pool.h"
 
 #include <unistd.h>
 
 #include <list>
-
-#if 0
 
 class TextObserver: public import::RippingControlObserver
 {
@@ -80,5 +78,3 @@ int main()
 
     return 0;
 }
-
-#endif

@@ -6,14 +6,12 @@
 #include "libutil/http_client.h"
 #include "libutil/http_server.h"
 #include "libutil/worker_thread_pool.h"
-#include "ssdp.h"
-#include "server.h"
+#include "libupnp/ssdp.h"
+#include "libupnp/server.h"
 #include <boost/format.hpp>
 #if HAVE_WINDOWS_H
 #include <windows.h>
 #endif
-
-#if 0
 
 const char s_test_device_type[]  = "urn:chorale-sf-net:device:TestDevice:1";
 const char s_test_service_id[]   = "urn:chorale-sf-net:serviceId:TestService";
@@ -341,5 +339,3 @@ int main()
 
     return 0;
 }
-
-#endif

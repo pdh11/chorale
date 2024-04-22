@@ -454,6 +454,15 @@ def ChoraleLib(name):
     env.Depends(lib, tested)
     libs = [lib] + libs
 
+    bins = Glob("lib"+name+"/bin/*.cpp")
+    for j in bins:
+        name = os.path.splitext(os.path.split(str(j))[1])[0]
+        obj = "#obj/"+suffix+"/"+os.path.splitext(str(j))[0] + ".o"
+        env.StaticObject(target = obj, source = j)
+        bin = "#obj/"+suffix+"/bin/"+name
+        env.Program(target=bin, source=obj,
+                    LIBS = libs + env["LIBS"])
+
 def ChoraleBin(name):
     srcs = Glob(name + "/*.cpp")
     objs = []

@@ -1,5 +1,5 @@
-#include "scsi.h"
-#include "ripping_engine.h"
+#include "libimport/scsi.h"
+#include "libimport/ripping_engine.h"
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -8,8 +8,6 @@
 #include <stdint.h>
 #include <map>
 #include <vector>
-
-#if 0
 
 namespace rip {
 
@@ -484,4 +482,3 @@ int main(int argc, char *argv[])
 {
     return rip::Main(argc, argv);
 }
-#endif
