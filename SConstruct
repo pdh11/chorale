@@ -681,5 +681,3 @@ for (src,dest) in [
 # SCons TODO list
 #
 # - tageditor
-# - Doxygen
-# - documentation (choralecd/choralecd.cpp)
