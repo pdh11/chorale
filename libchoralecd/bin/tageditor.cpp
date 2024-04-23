@@ -8,13 +8,11 @@
 #include "libutil/errors.h"
 #include "libmediadb/schema.h"
 #include "libmediadb/registry.h"
-#include "tag_editor_widget.h"
-#include "explorer_window.h"
-#include "events.h"
+#include "libchoralecd/tag_editor_widget.h"
+#include "libchoralecd/explorer_window.h"
+#include "libchoralecd/events.h"
 #include <getopt.h>
 #include <stdio.h>
-
-#if 0
 
 #if HAVE_TAGLIB
 #define LICENCE "  This program is free software under the GNU Lesser General Public Licence.\n\n"
@@ -196,4 +194,3 @@ int main(int argc, char *argv[])
 {
     return tageditor::Main(argc, argv);
 }
-#endif

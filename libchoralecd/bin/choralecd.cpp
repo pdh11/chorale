@@ -7,11 +7,11 @@
  * are thus subject to the licence under which you obtained Qt:
  * typically, the GPL.
  */
-#include "features.h"
+#include "libchoralecd/features.h"
 #include <qapplication.h>
 #include <qpixmap.h>
-#include "main_window.h"
-#include "settings.h"
+#include "libchoralecd/main_window.h"
+#include "libchoralecd/settings.h"
 #include "config.h"
 #include "libutil/dbus.h"
 #include "libutil/http_client.h"
@@ -23,11 +23,11 @@
 #include "libmediadb/registry.h"
 #include "libmediadb/db.h"
 #include "liboutput/registry.h"
-#include "cd_widget.h"
-#include "db_widget.h"
-#include "output_widget.h"
+#include "libchoralecd/cd_widget.h"
+#include "libchoralecd/db_widget.h"
+#include "libchoralecd/output_widget.h"
 #include "libimport/test_cd.h"
-#include "cd_window.h"
+#include "libchoralecd/cd_window.h"
 #include <memory>
 #include <iostream>
 
