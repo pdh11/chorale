@@ -5,7 +5,9 @@
 #    WERROR=1      -- compile everything with -Werror
 #    PROFILE=1     -- do profiling build
 #    DEBUG=0       -- do release build
-#    SINGLE=1      -- force non-parallel build
+#    SINGLE=1      -- force non-parallel build#
+#    CC=<cmd>      -- set C compiler (default gcc)
+#    CXX=<cmd>     -- set C++ compiler (default g++)
 #
 PACKAGE="chorale"
 PACKAGE_VERSION="0.21"
@@ -17,26 +19,32 @@ if not ARGUMENTS.get('SINGLE', 0):
     SetOption('num_jobs', os.cpu_count())
 
 def CheckCFlag(ctx, flag):
-    ctx.Message("Checking whether C compiler accepts "+flag + "... ")
+    ctx.Message("Checking whether "+ctx.env["CC"]+" accepts "+flag + "... ")
     old_CFLAGS=ctx.env["CFLAGS"]
-    ctx.env.Append(CFLAGS=flag)
+    ctx.env.Append(CFLAGS=[flag,"-Werror"])
     ok = ctx.TryCompile("", ".c")
-    if not ok:
-        ctx.env["CFLAGS"] = old_CFLAGS
+    ctx.env["CFLAGS"] = old_CFLAGS
+    if ok:
+        ctx.env.Append(CFLAGS=flag)
     ctx.Result(ok)
     return ok
 
 def CheckCXXFlag(ctx, flag):
-    ctx.Message("Checking whether C++ compiler accepts "+flag + "... ")
+    ctx.Message("Checking whether "+ctx.env["CXX"]+" accepts "+flag + "... ")
     old_CXXFLAGS=ctx.env["CXXFLAGS"]
-    ctx.env.Append(CXXFLAGS=flag)
+    ctx.env.Append(CXXFLAGS=[flag, "-Werror"])
     ok = ctx.TryCompile("", ".cpp")
-    if not ok:
-        ctx.env["CXXFLAGS"] = old_CXXFLAGS
+    ctx.env["CXXFLAGS"] = old_CXXFLAGS
+    if ok:
+        ctx.env.Append(CXXFLAGS=flag)
     ctx.Result(ok)
     return ok
 
 env = Environment()
+if "CC" in ARGUMENTS:
+    env["CC"] = ARGUMENTS["CC"]
+if "CXX" in ARGUMENTS:
+    env["CXX"] = ARGUMENTS["CXX"]
 if not env.GetOption('clean'):
     PREFIX = ARGUMENTS.get("PREFIX", "/usr/local")
     print("Compiling Chorale to install in PREFIX="+PREFIX)
@@ -48,75 +56,6 @@ if not env.GetOption('clean'):
     conf.CheckLib('boost_system')
     conf.CheckLib('boost_thread')
     conf.CheckLib('pthread')
-    if not conf.CheckCFlag("-std=gnu23"):
-        if not conf.CheckCFlag("-std=gnu18"):
-            if not conf.CheckCFlag("-std=gnu17"):
-                if not conf.CheckCFlag("-std=gnu11"):
-                    conf.CheckCFlag("-std=gnu1x")
-    for flag in [
-            "-W",
-            "-Wall",
-            "-fPIC",
-            "-Wextra",
-            "-Wundef",
-            "-Wshadow",
-            "-Wswitch",
-            "-Waddress",
-            "-Wcoercion",
-            "-Wcast-align",
-            "-Wconversion",
-            "-Wwrite-strings",
-            "-Wpointer-arith",
-            "-Wbad-function-cast",
-            "-Wstrict-prototypes",
-            "-Wmissing-prototypes",
-            "-pedantic -Wno-long-long",
-            "-fdiagnostics-show-option",
-            "-Wdeclaration-after-statement",
-            "-Wno-unused-command-line-argument",
-    ]:
-        conf.CheckCFlag(flag)
-    if not conf.CheckCXXFlag("-std=gnu++23"):
-        if not conf.CheckCXXFlag("-std=gnu++20"):
-            if not conf.CheckCXXFlag("-std=gnu++17"):
-                if not conf.CheckCXXFlag("-std=gnu++14"):
-                    if not conf.CheckCXXFlag("-std=gnu++11"):
-                        conf.CheckCXXFlag("-std=gnu++1x")
-    for flag in [
-            "-W",
-            "-Wall",
-            "-fPIC",
-            "-Wextra",
-            "-Wundef",
-            "-Wshadow",
-            "-pedantic",
-            "-Wnoexcept",
-            "-Wcast-qual",
-            "-Wlogical-op",
-            "-Wcast-align",
-            #"-Wconversion",
-            "-Wc++0x-compat",
-            "-Wc++11-compat",
-            "-Wc++14-compat",
-            "-Wc++17-compat",
-            "-Wc++20-compat",
-            "-fstrict-enums",
-            "-Wno-long-long",
-            "-Wwrite-strings",
-            "-Wpointer-arith",
-            "-Wnon-virtual-dtor",
-            "-Wno-system-headers",
-            "-Woverloaded-virtual",
-            "-Wno-sign-conversion",
-            "-Wmissing-declarations",
-            "-Wunused-but-set-variable",
-            "-fdiagnostics-show-option",
-            "-Wno-unused-command-line-argument",
-    ]:
-        conf.CheckCXXFlag(flag)
-    if ARGUMENTS.get("WERROR", 0):
-        conf.CheckCFlag("-Werror")
-        conf.CheckCXXFlag("-Werror")
     for header in [
             "time.h",
             "poll.h",
@@ -195,6 +134,83 @@ if not env.GetOption('clean'):
             "EINPROGRESS",
             ]:
         conf.Define("HAVE_"+e, 1)
+    conf.CheckLib(["mp3lame"])
+    conf.CheckLib(["cdda_paranoia"])
+    conf.CheckLib(["cdda_interface"])
+
+    # Set compiler flags -- do this AFTER checks above, which fail with
+    # warnings enabled
+    if not conf.CheckCFlag("-std=gnu23"):
+        if not conf.CheckCFlag("-std=gnu18"):
+            if not conf.CheckCFlag("-std=gnu17"):
+                if not conf.CheckCFlag("-std=gnu11"):
+                    conf.CheckCFlag("-std=gnu1x")
+    for flag in [
+            "-W",
+            "-Wall",
+            "-fPIC",
+            "-Wextra",
+            "-Wundef",
+            "-Wshadow",
+            "-Wswitch",
+            "-Waddress",
+            "-Wcoercion",
+            "-Wcast-align",
+            "-Wconversion",
+            "-Wwrite-strings",
+            "-Wpointer-arith",
+            "-Wbad-function-cast",
+            "-Wstrict-prototypes",
+            "-Wmissing-prototypes",
+            "-pedantic -Wno-long-long",
+            "-fdiagnostics-show-option",
+            "-Wdeclaration-after-statement",
+            "-Wno-unused-command-line-argument",
+    ]:
+        conf.CheckCFlag(flag)
+    if not conf.CheckCXXFlag("-std=gnu++23"):
+        if not conf.CheckCXXFlag("-std=gnu++20"):
+            if not conf.CheckCXXFlag("-std=gnu++17"):
+                if not conf.CheckCXXFlag("-std=gnu++14"):
+                    if not conf.CheckCXXFlag("-std=gnu++11"):
+                        conf.CheckCXXFlag("-std=gnu++1x")
+    for flag in [
+            "-W",
+            "-Wall",
+            "-fPIC",
+            "-Wextra",
+            "-Wundef",
+            "-Wshadow",
+            "-pedantic",
+            "-Wnoexcept",
+            "-Wcast-qual",
+            "-Wlogical-op",
+            "-Wcast-align",
+            #"-Wconversion",
+            "-Wc++0x-compat",
+            "-Wc++11-compat",
+            "-Wc++14-compat",
+            "-Wc++17-compat",
+            "-Wc++20-compat",
+            "-fstrict-enums",
+            "-Wno-long-long",
+            "-fno-exceptions",
+            "-Wwrite-strings",
+            "-Wpointer-arith",
+            "-Wnon-virtual-dtor",
+            "-Wno-system-headers",
+            "-Woverloaded-virtual",
+            "-Wno-sign-conversion",
+            "-Wmissing-declarations",
+            "-Wunused-but-set-variable",
+            "-fdiagnostics-show-option",
+            "-Wno-unused-command-line-argument",
+    ]:
+        conf.CheckCXXFlag(flag)
+    if ARGUMENTS.get("WERROR", 0):
+        conf.CheckCFlag("-Werror")
+        conf.CheckCXXFlag("-Werror")
+
     # Changed in glibc 2.10, we don't care about earlier any more
     conf.Define("SCANDIR_COMPARATOR_ARG_T", "const struct dirent**")
     conf.Define("HAVE_CONDITION_TIMED_WAIT_INTERVAL", 1)
@@ -213,7 +229,7 @@ if not env.GetOption('clean'):
     conf.Define("HAVE_PARANOIA", 1)
     conf.Define("HAVE_AVFORMAT", 1)
     conf.Define("HAVE_WINDOWS_H", 0)
-    conf.Define("HAVE_GSTREAMER", 0) # For now
+    conf.Define("HAVE_GSTREAMER", 1)
     conf.Define("HAVE_WS2TCPIP_H", 0)
     conf.Define("HAVE_CANONICALIZE_FILE_NAME", 0)
     conf.Define("HAVE_DECL_PARANOIA_CB_CACHEERR", 1)
@@ -226,15 +242,14 @@ if not env.GetOption('clean'):
     conf.Define("LOCALSTATEDIR", '"'+PREFIX+'/var"')
     conf.Define("CHORALE_DATADIR", '"'+PREFIX+'/share"')
     conf.Define("SRCROOT", '"' + Dir(".").path + '"')
-    conf.CheckLib(["mp3lame"])
-    conf.CheckLib(["cdda_paranoia"])
-    conf.CheckLib(["cdda_interface"])
     env = conf.Finish()
-    env.MergeFlags("!pkg-config --libs taglib libcddb libavformat flac libmpg123")
+    env.MergeFlags("!pkg-config --libs taglib libcddb libavformat flac libmpg123 gstreamer-1.0")
     env.MergeFlags("!pkg-config --libs Qt5Gui Qt5Core Qt5Widgets")
-    # Convert "-I" to "-isystem" otherwise -Wno-system-headers doesn't work
+
+    # Convert "-I" to "-isystem" otherwise -Wno-system-headers doesn't work (?)
     flags = env.ParseFlags(
-        "!pkg-config --cflags taglib libcddb libavformat", # Not the flac ones
+        # Not the flac ones
+        "!pkg-config --cflags taglib libcddb libavformat gstreamer-1.0",
         "!pkg-config --cflags Qt5Gui Qt5Core Qt5Widgets")
     for f in flags["CPPPATH"]:
         env.Append(CCFLAGS = ["-isystem", f])
