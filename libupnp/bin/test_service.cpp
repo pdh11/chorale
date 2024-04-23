@@ -150,12 +150,13 @@ static void DoTest(upnp::TestService *service)
     std::string str;
     std::string url;
     upnp::TestService::Enum en;
-    unsigned rc = service->Wurdle(false, &b, -42, 221, &i1, &ui1,
-				  -2001, 50000, &i2, &ui2,
-				  -80386, 3u*1000*1000*1000, &i4, &ui4,
-				  "foo", &str,
-				  "http", &url,
-				  upnp::TestService::ENUM_FRINK, &en);
+    unsigned rc __attribute__((unused))
+        = service->Wurdle(false, &b, -42, 221, &i1, &ui1,
+                          -2001, 50000, &i2, &ui2,
+                          -80386, 3u*1000*1000*1000, &i4, &ui4,
+                          "foo", &str,
+                          "http", &url,
+                          upnp::TestService::ENUM_FRINK, &en);
     assert(rc == 0);
     assert(b);
     assert(i1 == -41);
@@ -168,7 +169,7 @@ static void DoTest(upnp::TestService *service)
     assert(url == "http#");
     assert(en == upnp::TestService::ENUM_WAAH);
 
-    int tries = 0;
+    int tries __attribute__((unused)) = 0;
     for (;;)
     {
 	if (pto.ptang) // set via eventing
@@ -199,17 +200,17 @@ class AsyncTest: public upnp::TestServiceAsyncObserver
     upnp::TestServiceClientAsync m_tsca;
     bool m_done;
 
-    void OnWurdleDone(unsigned int rc,
-		      bool boolout,
-		      int8_t scharout,
-		      uint8_t ucharout,
-		      int16_t shalfout,
-		      uint16_t uhalfout,
-		      int32_t swordout,
-		      uint32_t uwordout,
-		      const std::string& strout,
-		      const std::string& urlout,
-		      upnp::TestService::Enum enumout)
+    void OnWurdleDone(unsigned int rc __attribute__((unused)),
+		      bool boolout __attribute__((unused)),
+		      int8_t scharout __attribute__((unused)),
+		      uint8_t ucharout __attribute__((unused)),
+		      int16_t shalfout __attribute__((unused)),
+		      uint16_t uhalfout __attribute__((unused)),
+		      int32_t swordout __attribute__((unused)),
+		      uint32_t uwordout __attribute__((unused)),
+		      const std::string& strout __attribute__((unused)),
+		      const std::string& urlout __attribute__((unused)),
+		      upnp::TestService::Enum enumout __attribute__((unused)))
     {
 	TRACE << "In OnWurdleDone\n";
 	assert(rc == 0);
@@ -239,9 +240,10 @@ public:
     void Run(const std::string& descurl, const std::string& udn)
     {
 	TRACE << "In Run\n";
-	unsigned int rc = m_client->Init(descurl, udn,
-					 util::Bind(this).To<unsigned int,
-				                   &AsyncTest::OnInit>());
+	unsigned int rc __attribute__((unused))
+            = m_client->Init(descurl, udn,
+                             util::Bind(this).To<unsigned int,
+                             &AsyncTest::OnInit>());
 	assert(rc == 0);
 
     }
@@ -295,7 +297,7 @@ int main()
     TestDevice dev;
     dev.Init(&server, "/");
 
-    unsigned rc = server.Init();
+    unsigned rc __attribute__((unused)) = server.Init();
     assert(rc == 0);
 
     std::string descurl = (boost::format("http://127.0.0.1:%u/upnp/description.xml")
@@ -317,7 +319,7 @@ int main()
     AsyncTest at(&client2);
     at.Run(descurl, dev.GetUDN());
 
-    int tries = 0;
+    int tries __attribute__((unused)) = 0;
     for (;;)
     {
 	if (at.IsDone())

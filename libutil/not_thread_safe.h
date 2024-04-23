@@ -11,7 +11,7 @@
 
 namespace util {
 
-#ifndef WIN32
+#if DEBUG && !defined(WIN32)
 namespace posix {
 
 class NotThreadSafe
@@ -19,7 +19,7 @@ class NotThreadSafe
     pthread_t m_thread;
 public:
     NotThreadSafe() : m_thread(pthread_self()) {}
-    
+
     void CheckThread() { assert(m_thread == pthread_self()); }
 };
 

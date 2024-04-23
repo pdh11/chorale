@@ -296,16 +296,16 @@ if ARGUMENTS.get('UBSAN', 0):
 env.Append(CPPPATH="#obj/"+suffix)
 
 if ARGUMENTS.get('VERBOSE') != "1":
-    env["ARCOMSTR"]     = "Library        ${TARGET.file}"
-    env["RANLIBCOMSTR"] = "Ranlib         ${TARGET.file}"
-    env["LINKCOMSTR"]   = "Linking        ${TARGET.file}"
-    env["CCCOMSTR"]     = "Compiling      ${SOURCE}"
-    env["CXXCOMSTR"]    = "Compiling      ${SOURCE}"
-
+    env["ARCOMSTR"]      = "Library        ${TARGET.file}"
+    env["RANLIBCOMSTR"]  = "Ranlib         ${TARGET.file}"
+    env["LINKCOMSTR"]    = "Linking        ${TARGET.file}"
+    env["CCCOMSTR"]      = "Compiling      ${SOURCE}"
+    env["CXXCOMSTR"]     = "Compiling      ${SOURCE}"
 testenv = env.Clone()
-testenv.Append(CCFLAGS="-DTEST")
-testenv["CCOMSTR"] = "Compiling test ${SOURCE}"
-testenv["CXXCOMSTR"] = "Compiling test ${SOURCE}"
+testenv.Append(CCFLAGS=["-DTEST", "-UNDEBUG"])
+if ARGUMENTS.get('VERBOSE') != "1":
+    testenv["CCOMSTR"]   = "Compiling test ${SOURCE}"
+    testenv["CXXCOMSTR"] = "Compiling test ${SOURCE}"
 
 def XSLT(service, stylesheet, output):
     src = "libupnp/" + service + ".xml"
@@ -636,4 +636,3 @@ for dot in DOTS:
 # SCons TODO list
 #
 # - installer https://scons.org/doc/4.0.1/HTML/scons-user.html#chap-install
-# - DEBUG=0 WERROR=1 !
