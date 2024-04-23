@@ -9,6 +9,12 @@
 #    CC=<cmd>      -- set C compiler (default gcc)
 #    CXX=<cmd>     -- set C++ compiler (default g++)
 #
+# Dependencies:
+#    inkscape, xsltproc, graphviz, lcov, pkg-config;
+#    libboost-dev, libflac-dev, libgstreamer1.0-dev, libcdparanoia-dev,
+#    libtag1-dev, libcddb-dev, libmpg123-dev, liblame-dev, libavformat-dev,
+#    libwrap0-dev, qtbase5-dev.
+#
 PACKAGE="chorale"
 PACKAGE_VERSION="0.21"
 PACKAGE_WEBSITE="https://github.com/pdh11/chorale"
