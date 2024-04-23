@@ -271,18 +271,28 @@ if not env.GetOption('clean'):
 
 debug = ARGUMENTS.get('DEBUG', 1)
 profile = ARGUMENTS.get('PROFILE', 0)
-if profile:
+if int(profile):
     suffix = "profile"
     env.Append(CCFLAGS=["-fprofile-arcs", "-ftest-coverage", "-DDEBUG=0",
                         "-DNDEBUG", "-O2"])
     env.Append(LINKFLAGS=["-coverage"])
     env.Append(LIBS=["-lgcov"])
-elif debug:
+elif int(debug):
     suffix = "debug"
     env.Append(CCFLAGS=["-g", "-O2", "-DDEBUG=1"])
 else:
     suffix = "release"
     env.Append(CCFLAGS=["-DDEBUG=0", "-O2", "-Os", "-DNDEBUG"])
+if ARGUMENTS.get('ASAN', 0):
+    env.Append(CCFLAGS=["-fsanitize=address","-fno-sanitize-recover=all"])
+    env["LINK"] = env["CXX"]
+    env.Append(LINKFLAGS=["-fsanitize=address"])
+    suffix += "-asan"
+if ARGUMENTS.get('UBSAN', 0):
+    env.Append(CCFLAGS=["-fsanitize=undefined","-fno-sanitize-recover=all"])
+    env["LINK"] = env["CXX"]
+    env.Append(LINKFLAGS=["-fsanitize=undefined"])
+    suffix += "-ubsan"
 env.Append(CPPPATH="#obj/"+suffix)
 
 if ARGUMENTS.get('VERBOSE') != "1":
@@ -479,7 +489,7 @@ def ChoraleLib(name):
         tested.append(
             env.Command(
                 testflag,
-                test,
+                testbin,
                 Action([
                     "@" + str(testbin) + " > "+testoutput + " || { cat "+testoutput+" ; exit 1; }",
                     '@date >> ' + testflag ],
@@ -626,5 +636,4 @@ for dot in DOTS:
 # SCons TODO list
 #
 # - installer https://scons.org/doc/4.0.1/HTML/scons-user.html#chap-install
-# - release packaging
-# - ubsan/asan
+# - DEBUG=0 WERROR=1 !
