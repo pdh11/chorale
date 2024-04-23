@@ -5,7 +5,9 @@
 #    WERROR=1      -- compile everything with -Werror
 #    PROFILE=1     -- do profiling build
 #    DEBUG=0       -- do release build
-#    SINGLE=1      -- force non-parallel build#
+#    SINGLE=1      -- force non-parallel build
+#    UBSAN=1       -- enable undefined-behaviour sanitiser
+#    ASAN=1        -- enable address sanitiser
 #    CC=<cmd>      -- set C compiler (default gcc)
 #    CXX=<cmd>     -- set C++ compiler (default g++)
 #
@@ -289,6 +291,7 @@ if ARGUMENTS.get('ASAN', 0):
     env.Append(LINKFLAGS=["-fsanitize=address"])
     suffix += "-asan"
 if ARGUMENTS.get('UBSAN', 0):
+    # "undefined,integer" is appealing but Boost breaks it all the time
     env.Append(CCFLAGS=["-fsanitize=undefined","-fno-sanitize-recover=all"])
     env["LINK"] = env["CXX"]
     env.Append(LINKFLAGS=["-fsanitize=undefined"])
@@ -544,7 +547,7 @@ def ChoraleBin(name):
                           source = objs,
                           LIBS = libs + env["LIBS"])
 
-    bins = Glob("lib"+name+"/bin/*.cpp")
+    bins = Glob(name+"/bin/*.cpp")
     for j in bins:
         name = os.path.splitext(os.path.split(str(j))[1])[0]
         obj = "#obj/"+suffix+"/"+os.path.splitext(str(j))[0] + ".o"
@@ -633,6 +636,36 @@ for dot in DOTS:
     env.Command(metrics+dot+".png", metrics+dot+".svg",
                 ['inkscape -b white -y 1.0 --export-filename=${TARGET} ${SOURCE} > /dev/null 2>&1'])
 
+env.Alias("install", PREFIX)
+built = "obj/"+suffix+"/"
+for (src,dest) in [
+        ("libupnp/AVTransport.xml", "share/chorale/upnp"),
+        ("libupnp/RenderingControl.xml", "share/chorale/upnp"),
+        ("libupnp/ContentDirectory.xml", "share/chorale/upnp"),
+        ("libupnp/ConnectionManager.xml", "share/chorale/upnp"),
+        ("libupnp/OpticalDrive.xml", "share/chorale/upnp"),
+        ("imagery/default.css", "share/chorale/layout"),
+        ("imagery/search-amazon.png", "share/chorale/layout"),
+        ("imagery/search-imdb.png", "share/chorale/layout"),
+        ("imagery/search-google.png", "share/chorale/layout"),
+        ("imagery/search-wikipedia.png", "share/chorale/layout"),
+        (built+"imagery/icon32.png", "share/chorale/layout"),
+        (built+"imagery/icon32s.png", "share/chorale/layout"),
+        (built+"imagery/icon.ico", "share/chorale/layout"),
+        (built+"imagery/noart32.png", "share/chorale/layout"),
+        (built+"imagery/noart48.png", "share/chorale/layout"),
+        (built+"imagery/icon16.png", "share/icons/hicolor/16x16/apps"),
+        (built+"imagery/icon32.png", "share/icons/hicolor/32x32/apps"),
+        (built+"imagery/icon48.png", "share/icons/hicolor/48x48/apps"),
+        (built+"bin/choraled", "bin"),
+        (built+"bin/choralecd", "bin"),
+        (built+"bin/protocoltool", "bin"),
+        #(built+"bin/tageditor", "bin"),
+        ("choraleutil/protocoltool.1", "man/man1"),
+        ("README", "var"),
+        ]:
+    env.Install(PREFIX+"/"+dest, src)
+
 # SCons TODO list
 #
-# - installer https://scons.org/doc/4.0.1/HTML/scons-user.html#chap-install
+# - tageditor

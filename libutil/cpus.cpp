@@ -1,27 +1,9 @@
 #include "cpus.h"
+#include <sys/sysinfo.h>
 #include <fstream>
 #include <sstream>
 
 unsigned int util::CountCPUs()
 {
-    static unsigned int n = 0;
-
-    if (!n)
-    {
-	std::ifstream f("/proc/cpuinfo");
-	while (!f.eof() && !f.fail())
-	{
-	    std::string line;
-	    std::getline(f, line);
-	    
-	    std::istringstream is(line);
-	    std::string token;
-	    is >> token;
-	    if (token == "processor")
-		++n;
-	}
-	if (!n)
-	    n = 1;
-    }
-    return n;
+    return get_nprocs();
 }

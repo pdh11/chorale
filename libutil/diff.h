@@ -76,7 +76,7 @@ unsigned int Diff(Iter s1_begin, Iter s1_end,
 
 	for (unsigned int j=1; j <= len2; ++j)
 	{
-	    unsigned int cost = -1u;
+	    unsigned int cost = UINT_MAX;
 	    enum { NOTHING, ADD, DEL } edit = NOTHING;
 	    if (s1_begin[i-1] == s2_begin[j-1])
 		cost = p[j-1];
