@@ -15,14 +15,22 @@
 #    libtag1-dev, libcddb-dev, libmpg123-dev, liblame-dev, libavformat-dev,
 #    libwrap0-dev, qtbase5-dev.
 #
-PACKAGE="chorale"
-PACKAGE_VERSION="0.21"
-PACKAGE_WEBSITE="https://github.com/pdh11/chorale"
+PACKAGE = "chorale"
+PACKAGE_WEBSITE = "https://github.com/pdh11/chorale"
 
 import subprocess
 import os
+import pathlib
 if not ARGUMENTS.get('SINGLE', 0):
     SetOption('num_jobs', os.cpu_count())
+
+try:
+    # In a tarball, there's a version string
+    PACKAGE_VERSION = pathlib.Path(".version").read_text().strip()
+except FileNotFoundError:
+    # In a git checkout, ask git
+    raw_version = subprocess.check_output(['git', 'describe', '--tags'])
+    PACKAGE_VERSION = raw_version.decode('utf-8').strip()
 
 def CheckCFlag(ctx, flag):
     ctx.Message("Checking whether "+ctx.env["CC"]+" accepts "+flag + "... ")
@@ -53,7 +61,7 @@ if "CXX" in ARGUMENTS:
     env["CXX"] = ARGUMENTS["CXX"]
 if not env.GetOption('clean'):
     PREFIX = ARGUMENTS.get("PREFIX", "/usr/local")
-    print("Compiling Chorale to install in PREFIX="+PREFIX)
+    print("Compiling Chorale "+PACKAGE_VERSION+" to install in PREFIX="+PREFIX)
     conf = env.Configure(config_h = "config.h",
                          custom_tests={'CheckCXXFlag': CheckCXXFlag,
                                        'CheckCFlag': CheckCFlag})
@@ -619,3 +627,4 @@ for dot in DOTS:
 #
 # - installer https://scons.org/doc/4.0.1/HTML/scons-user.html#chap-install
 # - release packaging
+# - ubsan/asan

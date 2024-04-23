@@ -1,0 +1,14 @@
+#!/bin/bash -e
+#
+# tar  2,775,040
+# gzip   536,288
+# bzip2  438,723
+# xz     412,700
+# lzma   412,594
+
+version=$(git describe --tags HEAD)
+echo $version > .version
+git archive --format=tar --prefix="chorale-"$version"/" \
+    -o "chorale-"$version".tar" --add-file=".version" HEAD
+rm .version
+bzip2 -9 chorale-${version}.tar
