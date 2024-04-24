@@ -8,7 +8,6 @@
 #include "resource_widget.h"
 #include "widget_factory.h"
 #include "libupnp/ssdp.h"
-#include "libutil/hal.h"
 
 namespace mediadb { class Registry; }
 namespace output { class Registry; }
@@ -51,24 +50,19 @@ public:
 /** A WidgetFactory which creates OutputWidget items for local ALSA
  * outputs.
  */
-class OutputWidgetFactory: public WidgetFactory,
-			   public util::hal::DeviceObserver
+class OutputWidgetFactory: public WidgetFactory
 {
     QPixmap *m_pixmap;
     QWidget *m_parent;
-    util::hal::Context *m_hal;
     mediadb::Registry *m_registry;
     std::list<output::URLPlayer*> m_players;
 
 public:
-    OutputWidgetFactory(QPixmap*, util::hal::Context*, mediadb::Registry*);
+    OutputWidgetFactory(QPixmap*, mediadb::Registry*);
     ~OutputWidgetFactory();
     
     // Being a WidgetFactory
     void CreateWidgets(QWidget *parent);
-
-    // Being a util::hal::DeviceObserver
-    void OnDevice(util::hal::DevicePtr dev);
 };
 
 class UpnpOutputWidget: public OutputWidget

@@ -6,14 +6,13 @@
 #include <boost/lambda/construct.hpp>
 #include <algorithm>
 
-CDService::CDService(util::hal::Context *hal)
-    : m_drives(hal)
+CDService::CDService()
 {
 }
 
 CDService::~CDService()
 {
-    std::for_each(m_factories.begin(), m_factories.end(), 
+    std::for_each(m_factories.begin(), m_factories.end(),
 		  boost::lambda::delete_ptr());
     std::for_each(m_devices.begin(), m_devices.end(),
 		  boost::lambda::delete_ptr());

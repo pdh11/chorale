@@ -7,14 +7,9 @@
 namespace upnpd { class OpticalDriveDevice; }
 namespace import { class CDContentFactory; }
 namespace util { namespace http { class Server; } }
-namespace util { namespace hal { class Context; } }
 namespace upnp { class Server; }
 
-#ifdef WIN32
 #define HAVE_CD (HAVE_LIBCDIOP || HAVE_PARANOIA)
-#else
-#define HAVE_CD ((HAVE_LIBCDIOP || HAVE_PARANOIA) && HAVE_HAL)
-#endif
 
 class CDService
 {
@@ -23,7 +18,7 @@ class CDService
     std::list<upnpd::OpticalDriveDevice*> m_devices;
 
 public:
-    explicit CDService(util::hal::Context *hal);
+    CDService();
     ~CDService();
 
     unsigned int Init(util::http::Server*, const char *hostname, 

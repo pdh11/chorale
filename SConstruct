@@ -232,9 +232,7 @@ if not env.GetOption('clean'):
     # Changed in glibc 2.10, we don't care about earlier any more
     conf.Define("SCANDIR_COMPARATOR_ARG_T", "const struct dirent**")
     conf.Define("HAVE_CONDITION_TIMED_WAIT_INTERVAL", 1)
-    conf.Define("HAVE_HAL", 0)
     conf.Define("HAVE_LAME", 1)
-    conf.Define("HAVE_DBUS", 0)
     conf.Define("HAVE_LAME_GET_LAMETAG_FRAME", 1)
     conf.Define("HAVE_TAGLIB", 1)
     conf.Define("HAVE_MPG123", 1)
