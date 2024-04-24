@@ -5,6 +5,7 @@
 #include "trace.h"
 #include <algorithm>
 #include <string.h>
+#if 0
 #if HAVE_IO_H
 #include <io.h>
 #endif
@@ -13,6 +14,7 @@
 #endif
 #if HAVE_WINDOWS_H
 #include <windows.h>
+#endif
 #endif
 
 namespace util {
@@ -69,6 +71,7 @@ std::string StripExtension(const char *filename)
     return std::string(filename, dot);
 }
 
+#if 0
 #if HAVE__WMKDIR
 unsigned int Mkdir(const char *dirname)
 {
@@ -256,6 +259,7 @@ unsigned int ReadDirectory(const std::string& path,
 
     return 0;
 }
+#endif
 #endif
 
 } // namespace win32

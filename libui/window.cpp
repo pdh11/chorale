@@ -60,3 +60,7 @@ void Window::Render(FrameBuffer *fb)
 } // namespace ui
 
 #endif // HAVE_CAIRO
+
+#ifdef TEST
+int main() { return 0; }
+#endif

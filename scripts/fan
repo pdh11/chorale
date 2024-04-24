@@ -11,6 +11,10 @@ END_G {
   };
 }' $1 > $1.fan
 
+echo -n 'Total files: '
+wc -l < $1.fan
+echo
+
 echo 'Top ten included files:'
 awk -- '{ print $2, $4; }' < $1.fan | sort -n -r | head -n 10
 echo

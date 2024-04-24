@@ -1,6 +1,8 @@
 #ifndef LIBUI_QT_FRAME_BUFFER_WINDOW_H
 #define LIBUI_QT_FRAME_BUFFER_WINDOW_H 1
 
+#if 0
+
 #include <QWidget>
 
 namespace ui {
@@ -29,5 +31,7 @@ public:
 
 } // namespace ui::qt
 } // namespace ui
+
+#endif
 
 #endif

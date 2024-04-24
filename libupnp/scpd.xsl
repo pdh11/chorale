@@ -231,7 +231,7 @@ namespace upnp {
 #ifndef UPNP_<xsl:value-of select="translate($class,$lcase,$ucase)"/>_SERVER_H
 #define UPNP_<xsl:value-of select="translate($class,$lcase,$ucase)"/>_SERVER_H 1
 
-#include &quot;device.h&quot;
+#include &quot;libupnp/device.h&quot;
 #include &quot;<xsl:value-of select="$class"/>.h&quot;
 
 namespace upnp {

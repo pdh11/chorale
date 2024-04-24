@@ -66,7 +66,7 @@ std::unique_ptr<util::Stream> Database::OpenWrite(unsigned int)
         /* Unit tests */
 
 
-#ifdef TEST
+#if 0 //def TEST
 
 # include "libutil/scheduler.h"
 # include "libutil/http_client.h"

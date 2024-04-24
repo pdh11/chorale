@@ -24,7 +24,7 @@ enum {
 class ProtocolObserver
 {
 public:
-    virtual ~ProtocolObserver();
+    virtual ~ProtocolObserver() {}
     virtual void OnProgress(uint32_t stage_num, uint32_t stage_denom,
 			    uint32_t num, uint32_t denom) = 0;
 };

@@ -1,0 +1,13 @@
+#!/bin/bash -e
+
+echo "digraph G {"
+for j in $* ; do \
+    for i in `find $j -maxdepth 2 -name '*.h' -o -name '*.cpp'` ; do
+	grep -H "^#include.*\".*/" $i \
+	    | fgrep -v all- \
+	    | grep -v ".*include.*$j" \
+	    | fgrep -v ".." \
+	    | sed -e 's,/[^\"]*\", -> ,'  -e s,/[^/]*\",, ;
+    done
+done | sort | uniq
+echo "}"

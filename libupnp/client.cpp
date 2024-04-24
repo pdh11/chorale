@@ -690,6 +690,11 @@ unsigned int ServiceClient::GenaUInt(const std::string& s)
     return (unsigned int)strtoul(s.c_str(), NULL, 10);
 }
 
+int ServiceClient::GenaInt(const std::string& s)
+{
+    return (int)strtol(s.c_str(), NULL, 10);
+}
+
 bool ServiceClient::GenaBool(const std::string& s)
 {
     return soap::ParseBool(s);

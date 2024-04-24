@@ -8,16 +8,13 @@
 	lot of hassle.
 
 
-Chorale uses the standard "configure" mechanism, so installing it is
+Chorale uses the standard "SConstruct" mechanism, so installing it is
 like any other package:
 
 	tar xjf chorale-X.XX.tar.bz2
 	cd chorale-X.XX
-	configure --help
-	configure <any-options-you-feel-you-need>
-	make -j4
-	su
-	make install
+        scons
+	sudo scons install
 
 If all is successful, it will install two binaries: choraled, the
 background daemon that does all the file-serving, and choralecd, the
@@ -31,8 +28,8 @@ To test the choraled installation, start it with:
 
 After a pause while choraled scans your media files, it will announce
 its presence on the network, and UPnP and Receiver-protocol clients
-should be able to connect and play your music. If you don't yet
-have any suitable clients, choralecd itself can be used.
+should be able to connect and play your music. If you don't yet have
+any suitable clients, choralecd itself can be used.
 
 Consult "choraled --help" for other settings to customise the
 operation of choraled. Once it's working to your satisfaction, you
@@ -60,13 +57,8 @@ on the network.
 By default, Chorale is built with debugging and tracing
 support enabled. To build leaner versions, use:
 
-	make DEBUG=0 -j4
-	make DEBUG=0 install
-
-Naturally you don't have to use "-j4". Use whatever "-jN" number you
-normally would, or omit it altogether. (Don't use -j without the
-number -- make will start over 180 g++'s simultaneously, enough to
-trouble even a very fast machine.)
+	scons DEBUG=0
+        sudo scons DEBUG=0 install
 
 Using the tracing support (by running "choraled -d <your-args>")
 should be very helpful if you need to report a problem with choraled.
@@ -90,11 +82,11 @@ Rio Receiver service from Linux/Unix
 ------------------------------------
 
 Rio Receivers (and Dell Digital Audio Receivers, which are the same
-thing really) boot their firmware from the network when
-powered-on. The firmware in question is copyright Rio, and will be for
-decades, so can't be offered for download here. The file
-"libreceiverd/README" in the Chorale distribution explains
-how and where to obtain the firmware files.
+thing really) boot their firmware from the network when powered-on.
+The firmware in question is copyright Rio, and will be for decades, so
+can't be offered for download here. The file "libreceiverd/README" in
+the Chorale distribution explains how and where to obtain the firmware
+files.
 
-This is only necessary for real Rio Receivers; Empeg
-car-player Receiver Edition does not require these firmware files.
+This is only necessary for real Rio Receivers; Empeg car-player
+Receiver Edition does not require these firmware files.

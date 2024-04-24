@@ -1,0 +1,16 @@
+#!/bin/bash
+
+IN=$1
+shift
+
+echo "strict digraph {"
+for i in $* ; do
+    echo "subgraph cluster_$i {"
+    echo "label=$i"
+    grep "$i/.*->.*$i/" $IN
+    echo "}"
+done
+sed -e 's, -> ,,' \
+    -e 's,"\([a-z]*\)/\([a-zA-Z_0-9]*\)","\1/\2" [label="\2"]\n,g' \
+    < $INt | grep label | sort | uniq
+echo "}"

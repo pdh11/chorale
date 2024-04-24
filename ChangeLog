@@ -1,5 +1,6 @@
 9999-XXX-99: Version 0.20 released; changes since 0.19:
 
+	* SConstruct: replaced Autotools with SConstruct
 	* libdblocal: fix paper-bag bug in file scanning
 	* configure: find Cairo includes properly
 	* configure: find Boost libs on systems where they have "-mt" suffix

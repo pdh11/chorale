@@ -11,7 +11,7 @@
 #define UPNP_<xsl:value-of select="translate($class,$lcase,$ucase)"/>_CLIENT_H 1
 
 #include &quot;<xsl:value-of select="$class"/>.h&quot;
-#include &quot;client.h&quot;
+#include &quot;libupnp/client.h&quot;
 
 namespace upnp {
 

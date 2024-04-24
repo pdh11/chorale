@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+#
+# Calculate transitive closure of a Graphviz graph (dotgraph) (dotfile)
+#
+# Usage: transitive-closure < in.dot > out.dot
+#
+# This is the inverse of the Graphviz "tred" program: for each node in the
+# source graph, it adds *direct* edges to all nodes *indirectly* reachable
+# from that node.
+#
+# Running time is O(n^3), so beware if using on really huge graphs. Memory
+# usage is O(n^2).
+
+import sys
+
+node_to_ix = {}
+ix_to_node = {}
+edges = []
+
+next_node = 0
+
+def find_or_add(node):
+    global next_node
+    try:
+        ix = node_to_ix[node]
+    except KeyError:
+        ix = next_node
+        next_node += 1
+        node_to_ix[node] = ix
+        ix_to_node[ix] = node
+    return ix
+
+for f in sys.stdin:
+    if "->" in f:
+        [head, tail] = f.split("->")
+        head = head.strip()
+        tail = tail.strip()
+        hix = find_or_add(head)
+        tix = find_or_add(tail)
+        edges.append((hix, tix))
+
+
+# Transitive closure using Floyd-Warshall algorithm
+#
+# See https://www.geeksforgeeks.org/transitive-closure-of-a-graph/
+#
+class Graph:
+    def __init__(self, vertices):
+        self.V = vertices
+
+    def transitiveClosure(self,graph):
+        reach =[i[:] for i in graph]
+        for k in range(self.V):
+            for i in range(self.V):
+                for j in range(self.V):
+                    reach[i][j] = reach[i][j] or (reach[i][k] and reach[k][j])
+        return reach
+
+g= Graph(next_node)
+
+graph = []
+# Not "graph = [[0] * next_node] * next_node", as that makes N
+# references to the same row-list, not N distinct lists
+for i in range(next_node):
+    graph.append([0] * next_node)
+
+for e in edges:
+    graph[e[0]][e[1]] = 1
+
+#print(graph)
+
+closure = g.transitiveClosure(graph)
+
+print("digraph G {")
+for i in range(next_node):
+    for j in range(next_node):
+        if i != j:
+            if closure[i][j]:
+                print(ix_to_node[i] + " -> " + ix_to_node[j])
+print("}")
