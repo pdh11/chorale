@@ -239,7 +239,6 @@ if not env.GetOption('clean'):
     conf.Define("HAVE_TCP_CORK", 1)
     conf.Define("HAVE_LIBCDDB", 1)
     conf.Define("HAVE_LIBFLAC", 1)
-    conf.Define("HAVE_LIBCDIOP", 0)
     conf.Define("HAVE_NET_IF_DL_H", 0)
     conf.Define("HAVE_PARANOIA", 1)
     conf.Define("HAVE_AVFORMAT", 1)

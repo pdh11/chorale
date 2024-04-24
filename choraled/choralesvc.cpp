@@ -537,9 +537,7 @@ void ChoraleService::Uninstall()
         /* Command-line handling */
 
 
-#if (HAVE_LIBCDIOP && !HAVE_PARANOIA)
-#define LICENCE "This program is free software under the GNU General Public Licence.\n\n"
-#elif (HAVE_TAGLIB || HAVE_PARANOIA)
+#if (HAVE_TAGLIB || HAVE_PARANOIA)
 #define LICENCE "This program is free software under the GNU Lesser General Public Licence.\n\n"
 #else
 #define LICENCE "This program is placed in the public domain by its authors.\n\n"

@@ -9,7 +9,7 @@ namespace import { class CDContentFactory; }
 namespace util { namespace http { class Server; } }
 namespace upnp { class Server; }
 
-#define HAVE_CD (HAVE_LIBCDIOP || HAVE_PARANOIA)
+#define HAVE_CD HAVE_PARANOIA
 
 class CDService
 {

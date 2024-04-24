@@ -8,16 +8,12 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#if HAVE_LIBCDIOP && !HAVE_PARANOIA
-# include <cdio/cdio.h>
-#else
-# if HAVE_LINUX_CDROM_H
-#  include <linux/cdrom.h>
-# elif HAVE_SYS_DISK_H
-#  include <sys/disk.h>
-# endif
-# include <sys/ioctl.h>
+#if HAVE_LINUX_CDROM_H
+# include <linux/cdrom.h>
+#elif HAVE_SYS_DISK_H
+# include <sys/disk.h>
 #endif
+#include <sys/ioctl.h>
 #include "libutil/task.h"
 #include "libutil/worker_thread_pool.h"
 #include "libutil/counted_pointer.h"
@@ -170,10 +166,6 @@ unsigned int LocalCDDrive::Eject()
 {
     TRACE << "Ejecting " << GetDevice() << "\n";
 
-#if HAVE_LIBCDIOP && !HAVE_PARANOIA
-    cdio_eject_media_drive(GetDevice().c_str());
-    return 0;
-#else
     int fd = ::open(GetDevice().c_str(), O_RDONLY|O_NONBLOCK);
     if (fd < 0)
     {
@@ -199,7 +191,6 @@ unsigned int LocalCDDrive::Eject()
     ::close(fd);
 
     return (rc < 0) ? (unsigned int)errno : 0;
-#endif
 }
 
 unsigned int LocalCDDrive::GetCD(AudioCDPtr *result)
