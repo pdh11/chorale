@@ -236,7 +236,6 @@ if not env.GetOption('clean'):
     conf.Define("HAVE_LAME", 1)
     conf.Define("HAVE_DBUS", 0)
     conf.Define("HAVE_LAME_GET_LAMETAG_FRAME", 1)
-    conf.Define("HAVE_CAIRO", 0)
     conf.Define("HAVE_TAGLIB", 1)
     conf.Define("HAVE_MPG123", 1)
     conf.Define("HAVE_TCP_CORK", 1)
@@ -272,7 +271,7 @@ if not env.GetOption('clean'):
     for f in flags["CPPPATH"]:
         env.Append(CCFLAGS = ["-isystem", f])
     env.Append(CPPPATH=["."])
-    env.Append(LINKFLAGS=["-Wl,--as-needed","-Wl,-Map,map.txt"])
+    env.Append(LINKFLAGS=["-Wl,--as-needed","-Wl,-Map,${TARGET}.map"])
 
 debug = ARGUMENTS.get('DEBUG', 1)
 profile = ARGUMENTS.get('PROFILE', 0)
@@ -358,9 +357,6 @@ for i in [
         "libchoralecd/cd_progress.h",
         "libchoralecd/cd_widget.h",
         "libchoralecd/cd_window.h",
-        "libchoralecd/cloud_database_widget.h",
-        "libchoralecd/cloud_style.h",
-        "libchoralecd/cloud_window.h",
         "libchoralecd/db_widget.h",
         "libchoralecd/explorer_window.h",
         "libchoralecd/main_window.h",
@@ -583,7 +579,6 @@ LIBDIRS = [
         "import",
         "receiver",
         "dbmerge",
-        "ui",
         "output",
         "tv",
 
