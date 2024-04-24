@@ -17,9 +17,6 @@
 #include "libutil/task.h"
 #include "libutil/worker_thread_pool.h"
 #include "libutil/counted_pointer.h"
-#if HAVE_WINDOWS_H
-# include <windows.h>
-#endif
 
 namespace import {
 
@@ -37,56 +34,34 @@ CDDrives::~CDDrives()
 
 void CDDrives::Refresh()
 {
-#ifdef WIN32
-    DWORD d = ::GetLogicalDrives();
-    for (unsigned i=0; i<26; ++i)
+    std::ifstream f("/proc/sys/dev/cdrom/info");
+
+    while (!f.eof() && !f.fail())
     {
-	if (d & (1<<i))
-	{
-	    char buf[4];
-	    sprintf(buf, "%c:", 'A' + i);
-	    UINT t = ::GetDriveTypeA(buf);
-	    if (t == DRIVE_CDROM)
-	    {
-		if (!m_map.count(buf))
-		    m_map[buf] = CDDrivePtr(new LocalCDDrive(buf));
-	    }
-	}
+        std::string line;
+        std::getline(f, line);
+
+        if (std::string(line, 0, 11) == "drive name:")
+        {
+            std::istringstream is(line);
+            std::string token;
+            is >> token;
+            is >> token;
+
+            while (!is.eof())
+            {
+                token.clear();
+                is >> token;
+                if (!token.empty())
+                {
+                    token = "/dev/" + token;
+                    if (!m_map.count(token))
+                        m_map[token] = CDDrivePtr(new LocalCDDrive(token));
+                }
+            }
+            break;
+        }
     }
-#else
-    {
-	/* libcdio gets this wrong if /dev/cdrom is a symlink */
-    
-	std::ifstream f("/proc/sys/dev/cdrom/info");
-
-	while (!f.eof() && !f.fail())
-	{
-	    std::string line;
-	    std::getline(f, line);
-
-	    if (std::string(line, 0, 11) == "drive name:")
-	    {
-		std::istringstream is(line);
-		std::string token;
-		is >> token;
-		is >> token;
-
-		while (!is.eof())
-		{
-		    token.clear();
-		    is >> token;
-		    if (!token.empty())
-		    {
-			token = "/dev/" + token;
-			if (!m_map.count(token))
-			    m_map[token] = CDDrivePtr(new LocalCDDrive(token));
-		    }
-		}
-		break;
-	    }
-	}
-    }
-#endif
 }
 
 CDDrivePtr CDDrives::GetDriveForDevice(const std::string& device)

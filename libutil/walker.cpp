@@ -372,7 +372,6 @@ void TestObserver::WaitForCompletion()
 
 int main()
 {
-#ifndef WIN32
     util::WorkerThreadPool wtp(util::WorkerThreadPool::NORMAL);
 
     char root[] = "file_scanner.test.XXXXXX";
@@ -408,7 +407,6 @@ int main()
 
     wtp.Shutdown();
 
-#endif
     return 0;
 }
 

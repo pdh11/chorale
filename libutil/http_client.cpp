@@ -20,9 +20,6 @@
 #if HAVE_SYS_UTSNAME_H
 #include <sys/utsname.h>
 #endif
-#if HAVE_WINDOWS_H
-#include <windows.h>
-#endif
 
 LOG_DECL(HTTP);
 LOG_DECL(HTTP_CLIENT);
@@ -582,17 +579,6 @@ unsigned int Client::Task::Read(void *buffer, size_t len, size_t *pread)
 
 Client::Client()
 {
-#ifdef WIN32
-    OSVERSIONINFO osvi;
-    memset(&osvi, '\0', sizeof(osvi));
-    osvi.dwOSVersionInfoSize = sizeof(osvi);
-    GetVersionEx(&osvi);
-
-    m_useragent_header = (boost::format("User-Agent: Windows/%u.%u UPnP/1.0 " 
-				     PACKAGE_NAME "/" PACKAGE_VERSION "\r\n"
-			   ) % osvi.dwMajorVersion % osvi.dwMinorVersion).str();
-
-#else
     struct utsname ubuf;
 
     uname(&ubuf);
@@ -601,7 +587,6 @@ Client::Client()
 	= util::Printf() << "User-Agent: "
 			 << ubuf.sysname << "/" << ubuf.release
 			 << " UPnP/1.0 " PACKAGE_NAME "/" PACKAGE_VERSION "\r\n";
-#endif
 }
 
 unsigned int Client::Connect(util::Scheduler *scheduler,

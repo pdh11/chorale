@@ -11,9 +11,6 @@
 #include <errno.h>
 #include <stdio.h>
 #include <map>
-#if HAVE_WINDOWS_H
-#include <windows.h>
-#endif
 #if HAVE_LINUX_UNISTD_H
 #include <linux/unistd.h>
 #endif

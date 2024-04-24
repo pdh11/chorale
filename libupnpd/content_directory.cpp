@@ -438,9 +438,6 @@ unsigned int ContentDirectoryImpl::GetServiceResetToken(std::string *srt)
 # include "libmediadb/xml.h"
 # include "media_server.h"
 # include <boost/format.hpp>
-#if HAVE_WINDOWS_H
-# include <windows.h>
-#endif
 
 static const struct {
     const char *objectid;
@@ -989,11 +986,7 @@ int main(int, char**)
     rc = cdc.Init();
     assert(rc == 0);
     
-#ifdef WIN32
-    Sleep(2000);
-#else
     sleep(2);
-#endif
 
     for (unsigned int i=0; i<BROWSETESTS; ++i)
     {
@@ -1065,11 +1058,7 @@ int main(int, char**)
     rc = udb.Init(descurl, ms.GetUDN());
     assert(rc == 0);
     
-#ifdef WIN32
-    Sleep(2000);
-#else
     sleep(2);
-#endif
 
     db::QueryPtr qp = udb.CreateQuery();
     qp->Where(qp->Restrict(mediadb::ID, db::EQ, 0x100));

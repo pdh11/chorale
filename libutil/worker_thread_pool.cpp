@@ -17,9 +17,6 @@
 #if HAVE_SCHED_H
 #include <sched.h>
 #endif
-#if HAVE_WINDOWS_H
-#include <windows.h>
-#endif
 
 namespace util {
 
@@ -51,9 +48,7 @@ unsigned int WorkerThread::Run()
 {
     if (m_priority == WorkerThreadPool::LOW)
     {
-#ifdef WIN32
-	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_LOWEST);
-#elif HAVE_SETPRIORITY
+#if HAVE_SETPRIORITY
 	/* Both in linuxthreads and in NPTL, this affects only this thread, not
 	 * the whole process (fortunately).
 	 */
@@ -62,9 +57,7 @@ unsigned int WorkerThread::Run()
     }
     else if (m_priority == WorkerThreadPool::HIGH)
     {
-#ifdef WIN32
-	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
-#elif HAVE_SCHED_SETSCHEDULER
+#if HAVE_SCHED_SETSCHEDULER
 
 	struct sched_param param;
 	param.sched_priority = 1;
@@ -290,11 +283,7 @@ Snooze::~Snooze()
 unsigned int Snooze::Run()
 {
 //    TRACE << "In run\n";
-#ifdef WIN32
-    Sleep(1000);
-#else
     sleep(1);
-#endif
 //    TRACE << "Trying to lock\n";
     util::Mutex::Lock lock(s_mx);
     ++s_run;

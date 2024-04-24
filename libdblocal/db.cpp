@@ -308,7 +308,6 @@ int main()
 	    ids.erase(delendum);
 	}
 
-#ifndef WIN32
 	if ((i%17) == 16)
 	{
 //	    TRACE << "Bouncing\n";
@@ -328,14 +327,13 @@ int main()
 	    sdb->SetFieldInfo(mediadb::ID, 
 			      db::steam::FIELD_INT|db::steam::FIELD_INDEXED);
 	    mdb = new db::local::Database(sdb, &client);
-	    
+
 	    rc = mediadb::ReadXML(sdb, fname);
 	    assert(rc == 0);
 
 	    unlink(fname);
 	}
-#endif
-	
+
 //	TRACE << "Checking " << i << "\n";
 	CheckDB(&ids, mdb);
     }

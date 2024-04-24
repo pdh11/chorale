@@ -2,16 +2,12 @@
 #define LIBUTIL_NOT_THREAD_SAFE_H 1
 
 #include "config.h"
-
-#if HAVE_PTHREAD_H
 #include <pthread.h>
-#endif
-
 #include <assert.h>
 
 namespace util {
 
-#if DEBUG && !defined(WIN32)
+#if DEBUG
 namespace posix {
 
 class NotThreadSafe
@@ -24,7 +20,7 @@ public:
 };
 
 } // namespace pthread
-#endif // HAVE_PTHREAD_H
+#endif // DEBUG
 
 /** Portability classes, %empty stub versions (cf util::win32, util::posix)
  */
@@ -37,7 +33,7 @@ struct NotThreadSafe
 
 } // namespace empty
 
-#if DEBUG && !defined(WIN32)
+#if DEBUG
 namespace threadapi = posix;
 #else
 namespace threadapi = empty;

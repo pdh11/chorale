@@ -5,21 +5,14 @@
 #include <sys/stat.h>
 
 #include "file_posix.h"
-#include "file_win32.h"
-
 
 /** Utility classes and routines which didn't fit anywhere else.
  */
 namespace util {
 
 namespace posix { }
-namespace win32 { }
 
-#ifdef WIN32
-namespace fileapi = ::util::win32;
-#else
 namespace fileapi = ::util::posix;
-#endif
 
 using fileapi::Mkdir;
 using fileapi::DirExists;

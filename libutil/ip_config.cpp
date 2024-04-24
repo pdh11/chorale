@@ -3,77 +3,6 @@
 #include "errors.h"
 #include <assert.h>
 #include <unistd.h>
-
-#ifdef WIN32
-
-#include <ws2tcpip.h>
-
-#ifndef IFF_RUNNING
-#define IFF_RUNNING 0
-#endif
-
-namespace util {
-
-unsigned IPConfig::GetInterfaceList(Interfaces *interfaces)
-{
-    interfaces->clear();
-
-    SOCKET s = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
-    if (s == INVALID_SOCKET)
-    {
-	TRACE << "Can't create socket\n";
-	return WSAGetLastError();
-    }
-    
-    enum { MAX_IFS = 32 };
-
-    INTERFACE_INFO reqs[MAX_IFS];
-    DWORD bytes_returned;
-    int rc = WSAIoctl(s, SIO_GET_INTERFACE_LIST, 
-		      NULL, 0,
-		      reqs, sizeof(reqs),
-		      &bytes_returned, NULL, NULL);
-    ::closesocket(s);
-    if (rc)
-    {
-	TRACE << "Can't SIO_GET_INTERFACE_LIST\n";
-	return WSAGetLastError();
-    }
-
-//    TRACE << bytes_returned << " bytes, size=" << sizeof(INTERFACE_INFO) << "\n";
-
-    unsigned int n = bytes_returned / sizeof(INTERFACE_INFO);
-
-    for (unsigned int i=0; i<n; ++i)
-    {
-	Interface iface;
-
-//	TRACE << "flags=" << reqs[i].iiFlags << "\n";
-
-	iface.flags = (unsigned int)reqs[i].iiFlags;
-	iface.address = IPAddress::FromNetworkOrder(
-	    reqs[i].iiAddress.AddressIn.sin_addr.s_addr);
-
-	// This is probably a Wine bug
-	if (iface.address == IPAddress::ALL)
-	    continue;
-
-	iface.broadcast = IPAddress::FromNetworkOrder(
-	    reqs[i].iiBroadcastAddress.AddressIn.sin_addr.s_addr);
-	iface.netmask = IPAddress::FromNetworkOrder(
-	    reqs[i].iiNetmask.AddressIn.sin_addr.s_addr);
-	// Interfaces don't seem to have names in win32
-
-	interfaces->push_back(iface);
-    }
-
-    return 0;
-}
-
-} // namespace util
-
-#else
-
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -149,8 +78,6 @@ unsigned IPConfig::GetInterfaceList(Interfaces *interfaces)
 }
 
 } // namespace util
-
-#endif // !WIN32
 
 #ifdef TEST
 

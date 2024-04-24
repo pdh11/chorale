@@ -43,12 +43,6 @@ namespace {
 int Main(int argc, char *argv[])
 {
     QApplication app( argc, argv );
-#ifdef WIN32
-    /** The System font comes up blank in Wine for some reason, so we use this
-     * font instead.
-     */
-    app.setFont(QFont("Verdana", 8, QFont::Normal));
-#endif
 
     choraleqt::Settings settings;
     util::WorkerThreadPool cpu_pool(util::WorkerThreadPool::LOW);
@@ -192,7 +186,7 @@ digraph G {
   sync [label="Sync to device"];
   op1 [label="Local playback"];
   op2 [label="UPnP A/V renderer"];
-};
+}
 \enddot
  *
  * @section notable Notable things in the code

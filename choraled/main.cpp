@@ -26,9 +26,6 @@
 #include "nfs.h"
 #include "web.h"
 #include <signal.h>
-#if HAVE_WS2TCPIP_H
-#include <ws2tcpip.h>  /* For gethostname */
-#endif
 
 
 namespace choraled {

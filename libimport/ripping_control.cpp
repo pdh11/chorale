@@ -219,12 +219,10 @@ unsigned int RippingControl::Done()
 	playlist.Save(&playlist_entries);
     }
 
-#ifndef WIN32
     std::string link = m_mp3_root + "/New Albums/" + 
 	util::ProtectLeafname(m_album_name);
     util::MkdirParents(link.c_str());
     util::posix::MakeRelativeLink(link, album_filename);
-#endif
 
     return 0;
 }
@@ -235,9 +233,6 @@ unsigned int RippingControl::Done()
 # include "test_cd.h"
 # include "libutil/worker_thread_pool.h"
 # include <string.h>
-# if HAVE_WINDOWS_H
-#  include <windows.h>
-# endif
 
 class TextObserver: public import::RippingControlObserver
 {
@@ -311,11 +306,7 @@ int main()
     rc.AddObserver(&tobs);
 
     do {
-#ifdef WIN32
-	Sleep(1000);
-#else
 	sleep(1);
-#endif
     } while (disk_pool.Count() || cpu_pool.Count());
 
     TRACE << "Exiting\n";

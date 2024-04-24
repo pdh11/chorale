@@ -17,9 +17,6 @@
 #include <errno.h>
 #include <stdio.h>
 #include <boost/thread/tss.hpp>
-#if HAVE_WS2TCPIP_H
-#include <ws2tcpip.h>  /* For gethostname */
-#endif
 
 static const char s_description_path[] = "/upnp/description.xml";
 
