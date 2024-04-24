@@ -18,7 +18,7 @@ namespace http {
  * all of) Write(), OnHeader(), OnEndPoint(), and OnDone(), all of
  * which are called as necessary by the implementation.
  */
-class Recipient: public util::CountedObject<>
+class Recipient: public util::CountedObject
 {
 public:
     virtual ~Recipient() {}

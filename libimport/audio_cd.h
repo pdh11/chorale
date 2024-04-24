@@ -6,15 +6,13 @@
 #include <string>
 #include <memory>
 #include "config.h"
-#if HAVE_STDINT_H
 #include <stdint.h>
-#endif
 
 namespace util { class Stream; }
 
 namespace import {
 
-class AudioCD: public util::CountedObject<>
+class AudioCD: public util::CountedObject
 {
 protected:
     /** No, they shouldn't be unsigned -- sector numbers are allowed to be -ve.

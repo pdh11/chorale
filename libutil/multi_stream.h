@@ -10,7 +10,7 @@ namespace util {
 
 /** One-input, n-output multi-threaded sequential stream in memory.
  */
-class MultiStream final: public Stream, public CountedObject<>
+class MultiStream final: public Stream, public CountedObject
 {
     class Impl;
     Impl *m_impl;

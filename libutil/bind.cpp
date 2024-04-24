@@ -6,7 +6,7 @@
 #include "counted_object.h"
 #include "counted_pointer.h"
 
-class Foo: public util::CountedObject<>
+class Foo: public util::CountedObject
 {
     static Foo *sm_this;
 public:
@@ -18,7 +18,7 @@ public:
 
 Foo *Foo::sm_this = NULL;
 
-typedef util::CountedPointer<util::CountedObject<> > BasePtr;
+typedef util::CountedPointer<util::CountedObject> BasePtr;
 typedef util::PtrCallback<BasePtr> BaseCallback;
 
 typedef util::CountedPointer<Foo> FooPtr;

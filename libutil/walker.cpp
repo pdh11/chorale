@@ -14,7 +14,7 @@ LOG_DECL(WALKER);
 
 namespace util {
 
-struct DirectoryWalkerState: public util::CountedObject<>
+struct DirectoryWalkerState: public util::CountedObject
 {
     util::Mutex mutex;
     unsigned int flags;

@@ -31,7 +31,7 @@ enum RestrictionType
  * Query implementation. If yours sometimes don't, override them, make
  * your checks, then call the base-class (Query) version.
  */
-class Query: public util::CountedObject<>
+class Query: public util::CountedObject
 {
 public:
     struct Restriction {

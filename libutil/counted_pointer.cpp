@@ -4,7 +4,7 @@
 
 #ifdef TEST
 
-class Foo: public util::CountedObject<util::NoLocking>
+class Foo: public util::CountedObject
 {
 };
 

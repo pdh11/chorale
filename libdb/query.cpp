@@ -1,6 +1,7 @@
 #include "query.h"
 #include "libutil/trace.h"
 #include <sstream>
+#include <assert.h>
 
 namespace db {
 

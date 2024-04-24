@@ -2,6 +2,7 @@
 #define TASK_H
 
 #include "counted_object.h"
+#include "mutex.h"
 #include <stddef.h>
 #include <string>
 
@@ -27,9 +28,10 @@ public:
  * the background thread). To hand off a Task to a WorkerThread, push
  * it on the WorkerThread's TaskQueue.
  */
-class Task: public util::CountedObject<util::PerObjectRecursiveLocking>
+class Task: public util::CountedObject
 {
     std::string m_name;
+    RecursiveMutex m_mutex; // protects m_observer
     TaskObserver *m_observer;
 
 protected:

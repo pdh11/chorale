@@ -25,7 +25,7 @@ public:
     virtual void OnDiscPresent(bool) = 0;
 };
 
-class CDDrive: public util::CountedObject<>,
+class CDDrive: public util::CountedObject,
 	       public util::Observable<CDDriveObserver>
 {
 public:

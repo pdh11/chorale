@@ -1,3 +1,4 @@
+#include "config.h"
 #include "discovery.h"
 #include "libutil/scheduler.h"
 #include "libutil/bind.h"

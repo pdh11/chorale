@@ -6,15 +6,12 @@
 
 namespace util {
 
-template <class LockingPolicy>
 class CountedObject;
 
 } // namespace util
 
-template <class LP>
-void intrusive_ptr_add_ref(util::CountedObject<LP>*);
-template <class LP>
-void intrusive_ptr_release(util::CountedObject<LP>*);
+void intrusive_ptr_add_ref(util::CountedObject*);
+void intrusive_ptr_release(util::CountedObject*);
 
 namespace util {
 
