@@ -586,7 +586,6 @@ LIBDIRS = [
         "upnpd",
         "receiverd",
         "mediatree",
-        "karma",
 
     "choralecd"
 ]
