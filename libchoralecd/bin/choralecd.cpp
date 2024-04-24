@@ -13,7 +13,6 @@
 #include "libchoralecd/main_window.h"
 #include "libchoralecd/settings.h"
 #include "config.h"
-#include "libutil/dbus.h"
 #include "libutil/http_client.h"
 #include "libutil/http_server.h"
 #include "libutil/scheduler.h"
@@ -44,12 +43,6 @@ namespace {
 int Main(int argc, char *argv[])
 {
     QApplication app( argc, argv );
-#ifdef WIN32
-    /** The System font comes up blank in Wine for some reason, so we use this
-     * font instead.
-     */
-    app.setFont(QFont("Verdana", 8, QFont::Normal));
-#endif
 
     choraleqt::Settings settings;
     util::WorkerThreadPool cpu_pool(util::WorkerThreadPool::LOW);
@@ -59,22 +52,8 @@ int Main(int argc, char *argv[])
     util::BackgroundScheduler bg_poller;
     disk_pool.PushTask(util::SchedulerTask::Create(&bg_poller));
 
-    util::hal::Context *halp = NULL;
-#if HAVE_HAL && 0
-    util::dbus::Connection dbusc(&fg_poller);
-    unsigned int res = dbusc.Connect(util::dbus::Connection::SYSTEM);
-    if (res)
-    {
-	TRACE << "Can't connect to D-Bus\n";
-    }
-    util::hal::Context halc(&dbusc);
-    res = halc.Init();
-    if (res == 0)
-	halp = &halc;
-#endif
-
 #if HAVE_CD
-    import::CDDrives cds(halp);
+    import::CDDrives cds;
 #endif
 
     std::unique_ptr<choraleqt::MainWindow> mainwin(
@@ -91,10 +70,6 @@ int Main(int argc, char *argv[])
     output::Registry output_registry;
 
     QPixmap output_pixmap(output_xpm);
-#if HAVE_LIBOUTPUT && HAVE_HAL
-    choraleqt::OutputWidgetFactory owf(&output_pixmap, halp, &db_registry);
-    mainwin->AddWidgetFactory(&owf);
-#endif
 
     util::http::Client http_client;
     util::http::Server http_server(&bg_poller, &disk_pool);
@@ -211,7 +186,7 @@ digraph G {
   sync [label="Sync to device"];
   op1 [label="Local playback"];
   op2 [label="UPnP A/V renderer"];
-};
+}
 \enddot
  *
  * @section notable Notable things in the code

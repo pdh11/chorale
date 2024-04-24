@@ -9,11 +9,8 @@
 #include "libutil/counted_object.h"
 #include "libutil/counted_pointer.h"
 #include "libutil/observable.h"
-#include "libutil/hal.h"
 
 namespace util { class TaskQueue; }
-
-namespace util { namespace hal { class Context; } }
 
 namespace import {
 
@@ -56,7 +53,7 @@ class LocalCDDrive: public CDDrive
 
     friend class Impl;
 
-    LocalCDDrive(const std::string& device, util::hal::Context *hal = NULL);
+    LocalCDDrive(const std::string& device);
 
     friend class CDDrives;
 
@@ -73,18 +70,13 @@ public:
     unsigned int GetCD(util::CountedPointer<AudioCD> *result) override;
 };
 
-class CDDrives: public util::hal::DeviceObserver
+class CDDrives
 {
     typedef std::map<std::string, CDDrivePtr> map_t;
     map_t m_map;
 
-    util::hal::Context *m_hal;
-
 public:
-    /** Pass in a util::hal::Context to use HAL-based autodetection, or NULL
-     * to use static information.
-     */
-    explicit CDDrives(util::hal::Context *hal = NULL);
+    CDDrives();
     ~CDDrives();
 
     void Refresh();
@@ -94,9 +86,6 @@ public:
     const_iterator end() { return m_map.end(); }
 
     CDDrivePtr GetDriveForDevice(const std::string& device);
-
-    // Being a util::hal::DeviceObserver
-    void OnDevice(util::hal::DevicePtr) override;
 };
 
 } // namespace import

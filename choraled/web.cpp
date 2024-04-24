@@ -10,9 +10,6 @@
 #include "libmediadb/db.h"
 #include "libmediadb/schema.h"
 #include <time.h>
-#if HAVE_WS2TCPIP_H
-#include <ws2tcpip.h>  /* For gethostname */
-#endif
 #if HAVE_UNISTD_H
 #include <unistd.h>
 #endif

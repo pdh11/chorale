@@ -1,9 +1,4 @@
 #include "protocol_client.h"
-#ifdef WIN32
-// Include this before protocol.h as it #defines all sorts of invasive stuff
-// e.g. DELETE
-#include <windows.h>
-#endif
 #include "protocol.h"
 #include "crc16.h"
 #include "libutil/trace.h"
@@ -395,11 +390,7 @@ unsigned int ProtocolClient::Write(uint32_t fid, uint32_t offset,
 	     * code is 100% reliable with the sleeping, and 0%
 	     * reliable without it, so here it must stay.
 	     */
-#ifdef WIN32
-	    Sleep(1000);
-#else
 	    sleep(1);
-#endif
 	}
 	return rc;
     }

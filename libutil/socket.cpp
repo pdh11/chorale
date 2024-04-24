@@ -3,26 +3,15 @@
 #include "counted_pointer.h"
 #include <unistd.h>
 
-#ifdef WIN32
-# include <windows.h>
-# include <winsock2.h>
-# include <ws2tcpip.h>
-# include <mswsock.h>
-typedef int socklen_t;
-#else
-# include <sys/uio.h>
-# include <sys/socket.h>
-# include <netinet/in.h>
-# include <netinet/tcp.h>
-# include <sys/ioctl.h>
-# include <netdb.h>
-# include <poll.h>
-# if HAVE_NET_IF_H
-#  include <net/if.h>
-# endif
-# if HAVE_NET_IF_DL_H
-#  include <net/if_dl.h>
-# endif
+#include <sys/uio.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <sys/ioctl.h>
+#include <netdb.h>
+#include <poll.h>
+#if HAVE_NET_IF_H
+# include <net/if.h>
 #endif
 
 #include <string.h>
@@ -84,23 +73,8 @@ unsigned int MappedError(unsigned int e)
     return e;
 }
 
-#ifdef WIN32
-unsigned int SocketError() { return MappedError(WSAGetLastError()); }
-#else
 unsigned int SocketError() { return MappedError((unsigned int)errno); }
-#endif
 
-
-#ifdef WIN32
-class SocketStartup
-{
-public:
-    SocketStartup() { WSADATA junk; WSAStartup(MAKEWORD(2,2), &junk); }
-    ~SocketStartup() { WSACleanup(); }
-};
-
-static SocketStartup g_ss;
-#endif
 
 enum { NO_SOCKET = (int)-1 };
 
@@ -220,11 +194,7 @@ IPEndPoint Socket::GetRemoteEndPoint()
 unsigned Socket::SetNonBlocking(bool nonblocking)
 {
     unsigned long whether = nonblocking;
-#ifdef WIN32
-    int rc = ::ioctlsocket(m_fd, FIONBIO, &whether);
-#else
     int rc = ::ioctl(m_fd, FIONBIO, &whether);
-#endif
     if (rc<0)
 	return SocketError();
     return 0;
@@ -232,14 +202,8 @@ unsigned Socket::SetNonBlocking(bool nonblocking)
 
 unsigned Socket::GetReadable(size_t *preadable)
 {
-#ifdef WIN32
-    unsigned long readable = 0;
-    int rc = ::ioctlsocket(m_fd, FIONREAD, &readable);
-//    TRACE << "FIONREAD says " << readable << " m_peeked=" << m_peeked << "\n";
-#else
     int readable = 0;
     int rc = ::ioctl(m_fd, FIONREAD, &readable);
-#endif
     if (rc<0)
 	return SocketError();
     *preadable = readable;
@@ -274,31 +238,13 @@ unsigned Socket::Close()
 	return 0;
     
     LOG(HTTP) << "Closing " << this << "\n";
-#ifdef WIN32
-    int rc = ::closesocket(m_fd);
-#else
     int rc = ::close(m_fd);
-#endif
     m_fd = NO_SOCKET;
     return (rc<0) ? SocketError() : 0;
 }
 
 unsigned Socket::WaitForRead(unsigned int ms)
 {
-#ifdef WIN32
-    fd_set fds;
-    FD_ZERO(&fds);
-    FD_SET(m_fd, &fds);
-    struct timeval tv;
-    tv.tv_sec = ms/1000;
-    tv.tv_usec = (ms%1000)*1000;
-    int rc = ::select(m_fd+1, &fds, NULL, NULL, &tv);
-    if (rc < 0)
-	return SocketError();
-    if (rc == 0)
-	return EWOULDBLOCK;
-    return 0;
-#else
 //    TRACE << "**** WaitForRead(" << m_fd << ") ****\n";
     struct pollfd pfd;
     pfd.fd = m_fd;
@@ -310,25 +256,10 @@ unsigned Socket::WaitForRead(unsigned int ms)
     if (rc == 0)
 	return EWOULDBLOCK;
     return 0;
-#endif
 }
 
 unsigned Socket::WaitForWrite(unsigned int ms)
 {
-#ifdef WIN32
-    fd_set fds;
-    FD_ZERO(&fds);
-    FD_SET(m_fd, &fds);
-    struct timeval tv;
-    tv.tv_sec = ms/1000;
-    tv.tv_usec = (ms%1000)*1000;
-    int rc = ::select(m_fd+1, NULL, &fds, &fds, &tv);
-    if (rc < 0)
-	return SocketError();
-    if (rc == 0)
-	return EWOULDBLOCK;
-    return 0;
-#else
 //    TRACE << "**** WaitForWrite(" << m_fd << ") ****\n";
     struct pollfd pfd;
     pfd.fd = m_fd;
@@ -340,21 +271,10 @@ unsigned Socket::WaitForWrite(unsigned int ms)
     if (rc == 0)
 	return EWOULDBLOCK;
     return 0;
-#endif
 }
 
 unsigned Socket::Read(void *buffer, size_t len, size_t *pread)
 {
-#ifdef WIN32
-    ssize_t rc = ::recv(m_fd, (char*)buffer, len, MSG_NOSIGNAL);
-
-    if (rc < 0)
-    {
-//	TRACE << "Socket read failed:" << WSAGetLastError() << "\n";
-	return SocketError();
-    }
-    *pread = (size_t)rc;
-#else
     if (len == 0)
     {
 	*pread = 0;
@@ -368,57 +288,29 @@ unsigned Socket::Read(void *buffer, size_t len, size_t *pread)
 	return (unsigned int)errno;
     }
     *pread = (size_t)rc;
-#endif
     return 0;
 }
 
 unsigned Socket::Write(const void *buffer, size_t len, size_t *pwrote)
 {
-#ifdef WIN32
-    ssize_t rc = ::send(m_fd, (const char*)buffer, len,
-			MSG_NOSIGNAL);
-
-    if (rc < 0)
-    {
-	return SocketError();
-    }
-    *pwrote = (size_t)rc;
-#else
     ssize_t rc = ::send(m_fd, (const char*)buffer, len, MSG_NOSIGNAL);
 //    TRACE << "Send() returned " << rc << " errno " << errno << "\n";
 
     if (rc < 0)
 	return (unsigned int)errno;
     *pwrote = (size_t)rc;
-#endif
     return 0;
 }
 
 unsigned Socket::WriteV(const Buffer *buffers, unsigned int nbuffers,
 			size_t *pwrote)
 {
-#ifdef WIN32
-    assert(nbuffers <= 4);
-    WSABUF wsab[4];
-    for (unsigned int i=0; i<nbuffers; ++i)
-    {
-	wsab[i].len = buffers[i].len;
-	wsab[i].buf = (char*)buffers[i].ptr;
-    }
-    DWORD nwrote = 0;
-    int rc = ::WSASend(m_fd, wsab, nbuffers, &nwrote, 0, NULL, NULL);
-    if (rc < 0 && WSAGetLastError() != WSAEWOULDBLOCK)
-	return SocketError();
-    *pwrote = nwrote;
-    return 0;
-#else
     *pwrote = 0;
     ssize_t rc = writev(m_fd, (const struct iovec*)buffers, nbuffers);
     if (rc < 0)
 	return (unsigned int)errno;
     *pwrote = (size_t)rc;
     return 0;
-#endif
 }
 
 
@@ -596,57 +488,6 @@ unsigned DatagramSocket::SetOutgoingMulticastInterface(IPAddress addr)
 unsigned DatagramSocket::Read(void *buffer, size_t buflen, size_t *nread,
 			      IPEndPoint *wasfrom, IPAddress *wasto)
 {
-#ifdef WIN32
-    /* Like so many things in Windows, there are multiple ways to do
-     * this -- one of which doesn't work, one of which requires you to
-     * rewrite your entire program to accommodate it, and the last of
-     * which only works on Vista. Here we ignore the problem of getting
-     * 'wasto' right.
-     */
-    WSABUF buf;
-    buf.buf = (char*)buffer;
-    buf.len = buflen;
-    DWORD bytesread = 0;
-    union {
-	sockaddr sa;
-	sockaddr_in sin;
-    } u;
-    DWORD flags = 0;
-    socklen_t fromlen = sizeof(u);
-
-    int rc = WSARecvFrom(m_fd, &buf, 1, &bytesread, &flags, &u.sa, &fromlen,
-			 NULL, NULL);
-    if (rc != 0)
-	return SocketError();
-    *nread = bytesread;
-
-    if (wasfrom)
-    {
-	wasfrom->addr.addr = u.sin.sin_addr.s_addr;
-	wasfrom->port = ntohs(u.sin.sin_port);
-    }
-
-    if (wasto)
-    {
-	*wasto = IPAddress::ANY;
-	char hostname[256];
-	if (::gethostname(hostname, sizeof(hostname)) == 0)
-	{
-//	    TRACE << "GHN succeeded\n";
-
-	    hostent *phost = ::gethostbyname(hostname);
-	    // In Win32 the storage is system-owned and thread-local
-
-	    if (phost)
-	    {
-		*wasto = IPAddress::FromNetworkOrder(((struct in_addr*)(*phost->h_addr_list))->s_addr);
-//		TRACE << "GHBN succeeded: " << wasto->ToString() << "\n";
-	    }
-	}
-    }
-
-    return 0;
-#else
     union {
 	sockaddr sa;
 	sockaddr_in sin;
@@ -756,7 +597,6 @@ unsigned DatagramSocket::Read(void *buffer, size_t buflen, size_t *nread,
 	}
     }
     return 0;
-#endif
 }
 
 unsigned DatagramSocket::Read(std::string *s, IPEndPoint *wasfrom, 
@@ -844,13 +684,6 @@ StreamSocket::~StreamSocket()
 unsigned StreamSocket::Open()
 {
     m_fd = ::socket(PF_INET, SOCK_STREAM, 0);
-
-#ifdef WIN32
-    /** http://support.microsoft.com/kb/823764/EN-US/
-     */
-    unsigned i = 65537;
-    ::setsockopt(m_fd, SOL_SOCKET, SO_SNDBUF, (const char*)&i, sizeof(i));
-#endif
     return 0;
 }
 
@@ -866,23 +699,9 @@ unsigned StreamSocket::Accept(std::unique_ptr<StreamSocket> *accepted)
 {
     struct sockaddr sa;
     socklen_t sl = sizeof(sa);
-#ifdef WIN32
-
-    SOCKET rc = ::accept(m_fd, &sa, &sl);
-    if (rc == INVALID_SOCKET)
-    {
-	unsigned int error = SocketError();
-	TRACE << "Accept failed: " << error << "\n";
-	return error;
-    }
-
-    /* It starts out eventing the parent socket's event. So disassociate it. */
-    WSAEventSelect(rc, NULL, 0);
-#else
     int rc = ::accept(m_fd, &sa, &sl);
     if (rc < 0)
 	return (unsigned int)errno;
-#endif
 
 //    TRACE << "Accepted fd " << rc << "\n";
 

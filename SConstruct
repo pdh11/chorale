@@ -232,24 +232,16 @@ if not env.GetOption('clean'):
     # Changed in glibc 2.10, we don't care about earlier any more
     conf.Define("SCANDIR_COMPARATOR_ARG_T", "const struct dirent**")
     conf.Define("HAVE_CONDITION_TIMED_WAIT_INTERVAL", 1)
-    conf.Define("HAVE_HAL", 0)
     conf.Define("HAVE_LAME", 1)
-    conf.Define("HAVE_DBUS", 0)
     conf.Define("HAVE_LAME_GET_LAMETAG_FRAME", 1)
-    conf.Define("HAVE_CAIRO", 0)
     conf.Define("HAVE_TAGLIB", 1)
     conf.Define("HAVE_MPG123", 1)
     conf.Define("HAVE_TCP_CORK", 1)
     conf.Define("HAVE_LIBCDDB", 1)
     conf.Define("HAVE_LIBFLAC", 1)
-    conf.Define("HAVE_LIBCDIOP", 0)
-    conf.Define("HAVE_NET_IF_DL_H", 0)
     conf.Define("HAVE_PARANOIA", 1)
     conf.Define("HAVE_AVFORMAT", 1)
-    conf.Define("HAVE_WINDOWS_H", 0)
     conf.Define("HAVE_GSTREAMER", 1)
-    conf.Define("HAVE_WS2TCPIP_H", 0)
-    conf.Define("HAVE_CANONICALIZE_FILE_NAME", 0)
     conf.Define("HAVE_DECL_PARANOIA_CB_CACHEERR", 1)
     conf.Define("HAVE_IP_PKTINFO", "HAVE_DECL_IP_PKTINFO")
     conf.Define("HAVE_DVB", "(HAVE_LINUX_DVB_DMX_H && HAVE_LINUX_DVB_FRONTEND_H)")
@@ -272,7 +264,7 @@ if not env.GetOption('clean'):
     for f in flags["CPPPATH"]:
         env.Append(CCFLAGS = ["-isystem", f])
     env.Append(CPPPATH=["."])
-    env.Append(LINKFLAGS=["-Wl,--as-needed","-Wl,-Map,map.txt"])
+    env.Append(LINKFLAGS=["-Wl,--as-needed","-Wl,-Map,${TARGET}.map"])
 
 debug = ARGUMENTS.get('DEBUG', 1)
 profile = ARGUMENTS.get('PROFILE', 0)
@@ -358,9 +350,6 @@ for i in [
         "libchoralecd/cd_progress.h",
         "libchoralecd/cd_widget.h",
         "libchoralecd/cd_window.h",
-        "libchoralecd/cloud_database_widget.h",
-        "libchoralecd/cloud_style.h",
-        "libchoralecd/cloud_window.h",
         "libchoralecd/db_widget.h",
         "libchoralecd/explorer_window.h",
         "libchoralecd/main_window.h",
@@ -583,7 +572,6 @@ LIBDIRS = [
         "import",
         "receiver",
         "dbmerge",
-        "ui",
         "output",
         "tv",
 
@@ -594,7 +582,6 @@ LIBDIRS = [
         "upnpd",
         "receiverd",
         "mediatree",
-        "karma",
 
     "choralecd"
 ]

@@ -9,9 +9,6 @@
 #include "libupnp/ssdp.h"
 #include "libupnp/server.h"
 #include <boost/format.hpp>
-#if HAVE_WINDOWS_H
-#include <windows.h>
-#endif
 
 const char s_test_device_type[]  = "urn:chorale-sf-net:device:TestDevice:1";
 const char s_test_service_id[]   = "urn:chorale-sf-net:serviceId:TestService";
@@ -176,11 +173,7 @@ static void DoTest(upnp::TestService *service)
 	    break;
 
 	assert(++tries < 30);
-#ifdef WIN32
-	Sleep(1000);
-#else
 	sleep(1);
-#endif
     }
 
     /** Relies on QueryStateVariable, which is deprecated */
@@ -327,11 +320,7 @@ int main()
 	
 	assert(++tries < 30);
 
-#ifdef WIN32
-	Sleep(1000);
-#else
 	sleep(1);
-#endif
     }
 
 //    TRACE << "Shutdown begins\n";

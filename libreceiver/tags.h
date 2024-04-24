@@ -36,14 +36,6 @@ enum {
     TAG_COUNT
 };
 
-#if 0
-/** Given a value from the above enum, what's its name? */
-const char *NameForTag(int receivertag);
-
-/** Given a tag name, what's its mediadb::TAG number? */
-int TagForName(const char *tag);
-#endif
-
 } // namespace receiver
 
 #endif

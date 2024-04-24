@@ -1,6 +1,5 @@
 #include "config.h"
 #include "libdbsteam/db.h"
-#include "libkarma/db_writer.h"
 #include "libdblocal/file_scanner.h"
 #include "libdblocal/db.h"
 #include "libdb/query.h"
@@ -31,7 +30,6 @@ static void Usage(FILE *f)
 " -f, --dbfile=FILE  Database file (default=\"" DEFAULT_DB_FILE "\")\n"
 " -h, --help         These hastily-scratched notes\n"
 " -t, --threads=N    Use N threads to scan files (default NCPUS*2)\n"
-" -k, --karma        Write Rio Karma file structure\n"
 	    "\n"
 "From chorale " PACKAGE_VERSION " built on " __DATE__ ".\n"
 	);
@@ -113,38 +111,7 @@ static void MaybeWriteInt(FILE *f, db::RecordsetPtr rs, const char *tag,
     fprintf(f, "%s=%u\n", tag, val);
 }
 
-#if 0
-static std::string EscapeKarmaPlaylist(const std::vector<unsigned int> *playlist)
-{
-    std::string s;
-    s.reserve(playlist->size()*16);
-    char buffer[8];
-    for (unsigned int i=0; i<playlist->size(); ++i) {
-        union {
-            unsigned u;
-            char c[4];
-        } u;
-        u.u = (*playlist)[i];
-        for (unsigned int j=0; j<4; ++j) {
-            char c = u.c[j];
-            if (c == '\\') {
-                s += "\\\\";
-            } else if (c == '\n') {
-                s += "\\n";
-            } else if (c >= 32) {
-                s += c;
-            } else {
-                sprintf(buffer, "\\x%02x", (unsigned char)c);
-                s += buffer;
-            }
-        }
-    }
-    return s;
-}
-#endif
-
-static void WriteFIDStructure(const char *odir, db::Database *thedb,
-                              bool karma)
+static void WriteFIDStructure(const char *odir, db::Database *thedb)
 {
     fidmap[0x100] = 0x100;
 
@@ -162,8 +129,6 @@ static void WriteFIDStructure(const char *odir, db::Database *thedb,
     drivesize[0] = 0;
     drivesize[1] = 0;
 
-    karma::DBWriter kdbwriter;
-
     for (fidmap_t::const_iterator i = fidmap.begin(); i != fidmap.end(); ++i)
     {
 	db::QueryPtr qp = thedb->CreateQuery();
@@ -177,14 +142,8 @@ static void WriteFIDStructure(const char *odir, db::Database *thedb,
 	    unsigned int drive;
             std::string playlist;
 
-            db::RecordsetPtr krs(db::FreeRecordset::Create());
-            krs->SetInteger(mediadb::ID, destfid);
+            drive = (drivesize[0] > drivesize[1]) ? 1 : 0;
 
-            if (karma) {
-                drive = 0;
-            } else {
-                drive = (drivesize[0] > drivesize[1]) ? 1 : 0;
-            }
 	    sprintf(outputleaf, "/drive%u/_%05x/%03x", drive^1,
 		    destfid/4096, destfid & 4095);
 	    unlink((s+outputleaf).c_str());
@@ -220,41 +179,20 @@ static void WriteFIDStructure(const char *odir, db::Database *thedb,
 	    else
 	    {
 		std::vector<unsigned int> children;
-                if (karma) {
-                    std::vector<unsigned int> rawChildren;
-                    mediadb::ChildrenToVector(rs->GetString(mediadb::CHILDREN),
-                                              &rawChildren);
-                    children.reserve(rawChildren.size()*2 + 1);
-                    children.push_back(0x2ff); // new-type-playlist marker
-                    for (std::vector<unsigned int>::const_iterator j = rawChildren.begin();
-                         j != rawChildren.end();
-                         ++j) {
-                        if (*j) {
-                            unsigned lefid = fidmap[*j];
-                            if (lefid) {
-                                children.push_back(lefid);
-                                children.push_back(1); // "fid generation"
-                            }
-                        }
-                    }
-                } else {
-                    std::vector<unsigned int> rawChildren;
-                    mediadb::ChildrenToVector(rs->GetString(mediadb::CHILDREN),
-                                              &rawChildren);
-                    children.reserve(rawChildren.size());
-                    for (std::vector<unsigned int>::const_iterator j = rawChildren.begin();
-                         j != rawChildren.end();
-                         ++j) {
-                        if (*j) {
-                            unsigned lefid = fidmap[*j];
-                            if (lefid) {
-                                children.push_back(lefid);
-                            }
+                std::vector<unsigned int> rawChildren;
+                mediadb::ChildrenToVector(rs->GetString(mediadb::CHILDREN),
+                                          &rawChildren);
+                children.reserve(rawChildren.size());
+                for (std::vector<unsigned int>::const_iterator j = rawChildren.begin();
+                     j != rawChildren.end();
+                     ++j) {
+                    if (*j) {
+                        unsigned lefid = fidmap[*j];
+                        if (lefid) {
+                            children.push_back(lefid);
                         }
                     }
                 }
-
-                /// @todo if (karma) write to krs too
 
 		length = 0;
 		FILE *f = fopen((s+outputleaf).c_str(), "w");
@@ -281,12 +219,6 @@ static void WriteFIDStructure(const char *odir, db::Database *thedb,
 	    FILE *f = fopen((s+outputleaf).c_str(), "w");
 	    if (f)
 	    {
-                /// @todo Write fields to krs too
-
-                krs->SetString(mediadb::TITLE, rs->GetString(mediadb::TITLE));
-                krs->SetString(mediadb::TYPE,  typemap[type]);
-                krs->SetInteger(mediadb::SIZEBYTES, length);
-
 		fprintf(f, "type=%s\n", typemap[type]);
 		fprintf(f, "title=%s\n",
 			rs->GetString(mediadb::TITLE).c_str());
@@ -308,41 +240,11 @@ static void WriteFIDStructure(const char *odir, db::Database *thedb,
 		    MaybeWriteString(f, rs, "source", mediadb::ALBUM);
 		    MaybeWriteInt(f, rs, "tracknr", mediadb::TRACKNUMBER);
 		    MaybeWriteInt(f, rs, "year",    mediadb::YEAR);
-                    if (karma) {
-                        MaybeWriteInt(f, rs, "ctime", mediadb::CTIME);
-                        fprintf(f, "fid_generation=1\n");
-                    }
-                    krs->SetString(mediadb::ARTIST, rs->GetString(mediadb::ARTIST));
-                    krs->SetString(mediadb::ALBUM, rs->GetString(mediadb::ALBUM));
-                    krs->SetString(mediadb::GENRE, rs->GetString(mediadb::GENRE));
-                    krs->SetString(mediadb::YEAR, rs->GetString(mediadb::YEAR));
-                    krs->SetString(mediadb::BITSPERSEC, ebr.c_str());
-		} else if (karma) {
-                    fprintf(f, "fid_generation=1\n");
                 }
 
 		fclose(f);
 	    }
-
-            if (karma) {
-                kdbwriter.addRecord(krs);
-            }
 	}
-    }
-
-    if (karma) {
-        std::string smalldb(outputdir);
-        smalldb += "/smalldb";
-        std::unique_ptr<util::Stream> fs;
-        unsigned rc = OpenFileStream(smalldb.c_str(), util::WRITE, &fs);
-        if (rc) {
-            perror("open smalldb");
-        } else {
-            rc = kdbwriter.write(fs.get());
-            if (rc) {
-                perror("write smalldb");
-            }
-        }
     }
 
     printf("Drive 0: %llu bytes used\n", (unsigned long long)drivesize[0]);
@@ -354,13 +256,11 @@ int main(int argc, char *argv[])
     static const struct option options[] =
     {
 	{ "help",  no_argument, NULL, 'h' },
-	{ "karma",  no_argument, NULL, 'k' },
 	{ "threads", required_argument, NULL, 't' },
 	{ NULL, 0, NULL, 0 }
     };
 
     int nthreads = 0;
-    bool karma = false;
 
     int option_index;
     int option;
@@ -375,9 +275,6 @@ int main(int argc, char *argv[])
 	case 't':
 	    nthreads = (int)strtoul(optarg, NULL, 10);
 	    break;
-        case 'k':
-            karma = true;
-            break;
 	default:
 	    Usage(stderr);
 	    return 1;
@@ -430,7 +327,7 @@ int main(int argc, char *argv[])
 
     TRACE << "arranging\n";
 
-    WriteFIDStructure(outputdir, &sdb, karma);
+    WriteFIDStructure(outputdir, &sdb);
 #endif
 
     return 0;

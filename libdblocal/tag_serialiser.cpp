@@ -170,9 +170,6 @@ int main()
 
     char root[] = "tag_serialiser.test.XXXXXX";
 
-#ifndef WIN32
-    /** @todo Write a test which runs on Win32 -- the code itself does */
-
     if (!mkdtemp(root))
     {
 	fprintf(stderr, "Can't create temporary dir\n");
@@ -231,7 +228,6 @@ int main()
 	fprintf(stderr, "Can't tidy up: %d\n", errno);
 	return 1;
     }
-#endif // !WIN32
 
     return 0;
 }

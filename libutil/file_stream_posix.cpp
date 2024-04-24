@@ -6,8 +6,6 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-#ifndef WIN32
-
 namespace util {
 
 namespace posix {
@@ -128,8 +126,6 @@ unsigned FileStream::SetLength(uint64_t len)
 } // namespace posix
 
 } // namespace util
-
-#endif // !WIN32
 
 #ifdef TEST
 

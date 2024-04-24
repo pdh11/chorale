@@ -1,7 +1,5 @@
 #include "config.h"
 #include "main.h"
-#include "libutil/dbus.h"
-#include "libutil/hal.h"
 #include "libutil/http_client.h"
 #include "libutil/http_server.h"
 #include "libutil/scheduler.h"
@@ -28,9 +26,6 @@
 #include "nfs.h"
 #include "web.h"
 #include <signal.h>
-#if HAVE_WS2TCPIP_H
-#include <ws2tcpip.h>  /* For gethostname */
-#endif
 
 
 namespace choraled {
@@ -259,27 +254,6 @@ int Main(const Settings *settings, Complaints *complaints)
 			       &ras);
     }
 
-#if HAVE_HAL
-    util::hal::Context *halp = NULL;
-    util::dbus::Connection dbusc(&poller);
-    rc = dbusc.Connect(util::dbus::Connection::SYSTEM);
-    if (rc)
-    {
-	TRACE << "Can't connect to D-Bus\n";
-    }
-    util::hal::Context halc(&dbusc);
-
-    if (!rc)
-    {
-	rc = halc.Init();
-	if (rc == 0)
-	{
-	    TRACE << "Hal initialised OK\n";
-	    halp = &halc;
-	}
-    }
-#endif
-
     char hostname[256];
     hostname[0] = '\0';
     gethostname(hostname, sizeof(hostname));
@@ -318,7 +292,7 @@ int Main(const Settings *settings, Complaints *complaints)
 #endif
 
 #if HAVE_CD
-    CDService cds(halp);
+    CDService cds;
     if (settings->flags & CD)
 	cds.Init(&ws, hostname, &upnpserver);
 #endif

@@ -55,7 +55,6 @@ std::string StripExtension(const char *filename)
 }
 
 
-#ifndef WIN32
 unsigned int Mkdir(const char *dirname)
 {
     int rc = ::mkdir(dirname, 0775);
@@ -95,9 +94,7 @@ unsigned MakeRelativeLink(const std::string& from, const std::string& to)
 std::string Canonicalise(const std::string& path)
 {
 //    TRACE << "Canonicalising " << path << "\n";
-#if HAVE_CANONICALIZE_FILE_NAME
-    char *cpath = canonicalize_file_name(path.c_str());
-#elif HAVE_REALPATH
+#if HAVE_REALPATH
     char buffer[PATH_MAX];
     char *cpath = realpath(path.c_str(), buffer);
 #else
@@ -109,9 +106,6 @@ std::string Canonicalise(const std::string& path)
 //    TRACE << "Canonicalise(" << path << ")=(" << cpath << ")\n";
 
     std::string s(cpath);
-#if HAVE_CANONICALIZE_FILE_NAME
-    free(cpath);
-#endif
     return s;
 }
 
@@ -155,7 +149,6 @@ unsigned int ReadDirectory(const std::string& path,
 
     return 0;
 }
-#endif
 
 } // namespace posix
 

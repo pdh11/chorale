@@ -1,15 +1,10 @@
 #include "file_stream.h"
 #include "file_stream_posix.h"
-#include "file_stream_win32.h"
 #include "counted_pointer.h"
 
 namespace util {
 
-#ifdef WIN32
-using win32::FileStream;
-#else
 using posix::FileStream;
-#endif
 
 unsigned int OpenFileStream(const char *filename, unsigned int mode,
 			    std::unique_ptr<Stream> *pstm)

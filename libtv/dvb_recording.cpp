@@ -106,7 +106,6 @@ unsigned int Recording::Run()
 
 int main()
 {
-#ifndef WIN32
     tv::dvb::Channels c;
     c.Load("/etc/channels.conf");
 
@@ -172,7 +171,6 @@ int main()
     }
 
     TRACE << "Exiting\n";
-#endif
     return 0;
 }
 

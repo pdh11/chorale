@@ -21,9 +21,6 @@
 #if HAVE_SYS_UTSNAME_H
 #include <sys/utsname.h>
 #endif
-#if HAVE_WINDOWS_H
-#include <windows.h>
-#endif
 #include <fcntl.h>
 #include <errno.h>
 #include <boost/format.hpp>
@@ -838,17 +835,6 @@ Server::Server(util::Scheduler *scheduler,
       m_filter(filter),
       m_port(0)
 {
-#ifdef WIN32
-    OSVERSIONINFO osvi;
-    memset(&osvi, '\0', sizeof(osvi));
-    osvi.dwOSVersionInfoSize = sizeof(osvi);
-    GetVersionEx(&osvi);
-
-    m_server_header = (boost::format("Server: Windows/%u.%u UPnP/1.0 " 
-				     PACKAGE_NAME "/" PACKAGE_VERSION "\r\n"
-			   ) % osvi.dwMajorVersion % osvi.dwMinorVersion).str();
-
-#else
     struct utsname ubuf;
 
     uname(&ubuf);
@@ -857,7 +843,6 @@ Server::Server(util::Scheduler *scheduler,
 	= util::Printf() << "Server: "
 			 << ubuf.sysname << "/" << ubuf.release
 			 << " UPnP/1.0 " PACKAGE_NAME "/" PACKAGE_VERSION "\r\n";
-#endif
 
     LOG(HTTP_SERVER) << m_server_header;
 }

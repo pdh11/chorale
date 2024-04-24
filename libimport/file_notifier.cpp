@@ -167,7 +167,6 @@ int main()
 
     assert(rc == 0);
 
-#ifndef WIN32
     char root[] = "file_notifier.test.XXXXXX";
 
     if (!mkdtemp(root))
@@ -201,7 +200,6 @@ int main()
 	fprintf(stderr, "Clean up failed\n");
 	return 1;
     }
-#endif
     return 0;
 }
 

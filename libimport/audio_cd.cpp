@@ -6,9 +6,6 @@
 #include <errno.h>
 #include <string.h>
 
-#if HAVE_LIBCDIOP || HAVE_PARANOIA
-
-#if HAVE_PARANOIA
 // Oh joy, not C++-compatible
 extern "C" {
 //#define private c_private
@@ -18,18 +15,6 @@ extern "C" {
 }
 typedef int paranoia_cb_mode_t;
 typedef unsigned int track_t;
-#else
-#include <cdio/cdio.h>
-#include <cdio/cdda.h>
-#include <cdio/cd_types.h>
-#include <cdio/paranoia.h>
-typedef cdrom_paranoia_t cdrom_paranoia;
-#endif
-
-#if !HAVE_DECL_PARANOIA_CB_CACHEERR
-// CDParanoia has this, libcdio doesn't. Define to something innocuous.
-#define PARANOIA_CB_CACHEERR PARANOIA_CB_VERIFY
-#endif
 
 namespace import {
 
@@ -142,15 +127,9 @@ class ParanoiaStream: public util::SeekableStream
 	if (cbm != PARANOIA_CB_READ && cbm != PARANOIA_CB_VERIFY
 	    && cbm != PARANOIA_CB_OVERLAP)
 	{
-#if HAVE_PARANOIA
-	    const char *cbmstr = "";
-#else
-	    const char *cbmstr = paranoia_cb_mode2str[cbm];
-#endif
 	    TRACE << "paranoia callback "
                   << sm_current_drive->ioctl_device_name << ": "
-                  << i << " mode " << cbm
-		  << " " << cbmstr << "\n";
+                  << i << " mode " << cbm << "\n";
 
 	    if (cbm != PARANOIA_CB_CACHEERR && cbm != PARANOIA_CB_DRIFT)
 	    {
@@ -314,5 +293,3 @@ std::unique_ptr<util::Stream> LocalAudioCD::GetTrackStream(unsigned int track)
 }
 
 } // namespace import
-
-#endif // HAVE_LIBCDIOP

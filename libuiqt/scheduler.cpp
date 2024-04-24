@@ -211,8 +211,6 @@ int main(int argc, char *argv[])
     assert(g_done);
     assert(g_dead);
 
-#ifndef WIN32
-
     g_done = g_dead = false;
 
     int pipefd[2];
@@ -234,7 +232,6 @@ int main(int argc, char *argv[])
 
     assert(g_done);
     assert(g_dead);
-#endif
 
     return 0;
 }

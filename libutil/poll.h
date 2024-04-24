@@ -49,34 +49,7 @@ public:
 
 } // namespace util::posix
 
-namespace win32 {
-
-class PollerCore
-{
-    void **m_array;
-    size_t m_count;
-    int m_which;
-    void *m_which_handle;
-    void *m_wakeup_event;
-
-public:
-    PollerCore();
-    ~PollerCore();
-
-    unsigned int SetUpArray(std::vector<PollRecord>*);
-    unsigned int Poll(unsigned int timeout_ms);
-    unsigned int DoCallbacks(std::vector<PollRecord>*, bool valid);
-    void Deleting(PollRecord*);
-    void Wake();
-};
-
-} // namespace util::win32
-
-#ifdef WIN32
-namespace pollapi = ::util::win32;
-#else
 namespace pollapi = ::util::posix;
-#endif
 
 } // namespace util
 
