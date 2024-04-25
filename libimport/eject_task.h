@@ -4,19 +4,20 @@
 #include "libutil/task.h"
 #include "libutil/task_queue.h"
 #include <string>
-#include "cd_drives.h"
 #include "libutil/counted_pointer.h"
 #include "libutil/bind.h"
 
 namespace import {
+
+class CDDrive;
 
 /** Not much of a task, but encapsulated as one so it gets queued after all
  * the ripping.
  */
 class EjectTask: public util::Task
 {
-    CDDrivePtr m_cd;
-    explicit EjectTask(CDDrivePtr cd) : util::Task("eject"), m_cd(cd) {}
+    util::CountedPointer<CDDrive> m_cd;
+    explicit EjectTask(util::CountedPointer<CDDrive> cd) : util::Task("eject"), m_cd(cd) {}
 
     unsigned int Run();
 
@@ -24,7 +25,7 @@ class EjectTask: public util::Task
 
 public:
 
-    static util::TaskCallback Create(CDDrivePtr cd)
+    static util::TaskCallback Create(util::CountedPointer<CDDrive> cd)
     {
 	EjectTaskPtr ejp(new EjectTask(cd));
 	return util::Bind(ejp).To<&EjectTask::Run>();

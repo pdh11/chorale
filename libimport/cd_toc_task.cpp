@@ -1,4 +1,5 @@
 #include "cd_toc_task.h"
+#include "cd_drive.h"
 
 namespace import {
 

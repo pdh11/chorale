@@ -1,4 +1,5 @@
 #include "ripping_control.h"
+#include "cd_drive.h"
 #include "playlist.h"
 #include "eject_task.h"
 #include "mp3_encoder.h"

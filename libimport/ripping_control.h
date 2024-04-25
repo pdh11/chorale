@@ -4,12 +4,13 @@
 #include "libutil/task_observer.h"
 #include "libutil/observable.h"
 #include "libdb/db.h"
-#include "cd_drives.h"
-#include "audio_cd.h"
 
 namespace util { class TaskQueue; }
 
 namespace import {
+
+class AudioCD;
+class CDDrive;
 
 /** Values for RippingControlObserver::OnProgress's type */
 enum {
@@ -49,7 +50,8 @@ class RippingControl: public util::TaskObserver,
     void OnProgress(const util::Task *task, unsigned num, unsigned denom);
 
 public:
-    RippingControl(CDDrivePtr drive, AudioCDPtr cd,
+    RippingControl(util::CountedPointer<CDDrive> drive,
+                   util::CountedPointer<AudioCD> cd,
 		   util::TaskQueue *cpu_queue, util::TaskQueue *disk_queue,
 		   const std::string& mp3_root, const std::string& flac_root);
     ~RippingControl();

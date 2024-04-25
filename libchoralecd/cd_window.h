@@ -2,12 +2,14 @@
 #define CD_WINDOW_H
 
 #include <qdialog.h>
-#include "libimport/audio_cd.h"
-#include "libimport/cd_drives.h"
 #include "libimport/cddb_service.h"
 #include "libimport/ripping_control.h"
+#include "libutil/counted_pointer.h"
 
 namespace util { class TaskQueue; }
+namespace import { class CDDrive; }
+namespace import { class AudioCD; }
+
 class QButtonGroup;
 class QSpinBox;
 class QLineEdit;
@@ -48,7 +50,8 @@ class CDWindow: public QDialog, public import::RippingControlObserver
     void SetUpCDDBStrings(unsigned int which);
 
 public:
-    CDWindow(import::CDDrivePtr drive, import::AudioCDPtr cd,
+    CDWindow(util::CountedPointer<import::CDDrive> drive,
+             util::CountedPointer<import::AudioCD> cd,
 	     import::CDDBLookupPtr cddb, const Settings*,
 	     util::TaskQueue *cpu_queue, util::TaskQueue *disk_queue);
     ~CDWindow();

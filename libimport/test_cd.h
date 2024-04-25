@@ -2,7 +2,7 @@
 #define LIBIMPORT_TEST_CD_H
 
 #include "audio_cd.h"
-#include "cd_drives.h"
+#include "cd_drive.h"
 #include "libutil/worker_thread_pool.h"
 
 namespace import {

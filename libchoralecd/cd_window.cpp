@@ -31,6 +31,7 @@
 #include <iomanip>
 #include "libmediadb/schema.h"
 #include "libdb/recordset.h"
+#include "libimport/cd_drive.h"
 #include <fcntl.h>
 #include <stdio.h>
 

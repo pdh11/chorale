@@ -2,6 +2,7 @@
 #define CHORALED_CD_H
 
 #include "config.h"
+#include <list>
 #include "libimport/cd_drives.h"
 
 namespace upnpd { class OpticalDriveDevice; }

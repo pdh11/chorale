@@ -12,6 +12,7 @@
 #include "cd_window.h"
 #include "events.h"
 #include "settings.h"
+#include "libimport/cd_drive.h"
 #include "libutil/trace.h"
 #include "libutil/bind.h"
 #include "libutil/task_queue.h"

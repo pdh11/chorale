@@ -27,6 +27,7 @@
 #include "libchoralecd/db_widget.h"
 #include "libchoralecd/output_widget.h"
 #include "libimport/test_cd.h"
+#include "libimport/cd_drives.h"
 #include "libchoralecd/cd_window.h"
 #include <memory>
 #include <iostream>
