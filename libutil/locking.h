@@ -1,7 +1,7 @@
 #ifndef LIBUTIL_LOCKING_H
 #define LIBUTIL_LOCKING_H 1
 
-#include "mutex.h"
+#include <mutex>
 
 namespace util {
     
@@ -9,12 +9,12 @@ namespace util {
  */
 class PerObjectLocking
 {
-    Mutex m_mutex;
+    std::mutex m_mutex;
 
 public:
     class Lock
     {
-	Mutex::Lock m_lock;
+        std::lock_guard<std::mutex> m_lock;
     public:
 	Lock(PerObjectLocking *l);
 	~Lock();
@@ -28,12 +28,12 @@ public:
  */
 class PerObjectRecursiveLocking
 {
-    RecursiveMutex m_mutex;
+    std::recursive_mutex m_mutex;
 
 public:
     class Lock
     {
-	RecursiveMutex::Lock m_lock;
+        std::lock_guard<std::recursive_mutex> m_lock;
 
     public:
 	Lock(PerObjectRecursiveLocking *l);
@@ -49,12 +49,12 @@ public:
 template <class T>
 class PerClassLocking
 {
-    static Mutex sm_mutex;
+    static std::mutex sm_mutex;
 
 public:
     class Lock
     {
-	Mutex::Lock m_lock;
+        std::lock_guard<std::mutex> m_lock;
 
     public:
 	Lock(PerClassLocking<T> *l) : m_lock(l->sm_mutex) {}
@@ -62,7 +62,7 @@ public:
 };
 
 template<class T>
-Mutex util::PerClassLocking<T>::sm_mutex;
+std::mutex util::PerClassLocking<T>::sm_mutex;
 
 /** Locking policy: none
  */

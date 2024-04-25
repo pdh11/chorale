@@ -1,7 +1,6 @@
 #ifndef WORKER_THREAD_POOL_H
 #define WORKER_THREAD_POOL_H 1
 
-#include "attributes.h"
 #include "task.h"
 #include "mutex.h"
 #include <list>

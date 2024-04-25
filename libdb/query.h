@@ -6,7 +6,6 @@
 #include <string>
 #include <stdint.h>
 #include "libutil/counted_object.h"
-#include "libutil/attributes.h"
 
 namespace util { template <class T> class CountedPointer; }
 
