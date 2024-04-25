@@ -10,6 +10,7 @@
 #include <boost/scoped_array.hpp>
 
 namespace util { class Stream; }
+namespace util { class TaskQueue; }
 
 namespace import {
 

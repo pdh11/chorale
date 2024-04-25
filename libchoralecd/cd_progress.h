@@ -8,7 +8,7 @@
 #define CD_PROGRESS_H
 
 #include <qprogressdialog.h>
-#include "libutil/task.h"
+#include "libutil/task_observer.h"
 #include "libimport/cd_drives.h"
 #include "libimport/cd_toc_task.h"
 

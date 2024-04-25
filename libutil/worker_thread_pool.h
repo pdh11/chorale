@@ -1,7 +1,7 @@
 #ifndef WORKER_THREAD_POOL_H
 #define WORKER_THREAD_POOL_H 1
 
-#include "task.h"
+#include "task_queue.h"
 #include "mutex.h"
 #include <list>
 #include <deque>

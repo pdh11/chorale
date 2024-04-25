@@ -2,6 +2,7 @@
 #include "poll.h"
 #include "trace.h"
 #include "bind.h"
+#include "task_queue.h"
 
 #if HAVE_POLL_H && HAVE_SYS_POLL_H
 

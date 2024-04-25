@@ -5,6 +5,7 @@
 #include "counted_pointer.h"
 #include "mutex.h"
 #include "bind.h"
+#include "task.h"
 #include <unistd.h>
 #include <math.h>
 #include <iostream>

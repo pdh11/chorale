@@ -12,6 +12,7 @@
 #include "libutil/string_stream.h"
 #include "libutil/trace.h"
 #include "libutil/errors.h"
+#include "libutil/task.h"
 #if HAVE_NET_IF_H
 # include <netinet/in.h>
 # include <net/if.h>

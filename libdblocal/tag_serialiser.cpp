@@ -1,5 +1,6 @@
 #include "tag_serialiser.h"
 #include "libutil/task.h"
+#include "libutil/task_queue.h"
 #include "libutil/trace.h"
 #include "libutil/bind.h"
 #include "libutil/counted_pointer.h"

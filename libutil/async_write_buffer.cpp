@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdint.h>
 #include "task.h"
+#include "task_queue.h"
 #include "mutex.h"
 #include "trace.h"
 #include "bind.h"

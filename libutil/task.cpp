@@ -1,4 +1,5 @@
 #include "task.h"
+#include "task_observer.h"
 #include "printf.h"
 
 namespace util {

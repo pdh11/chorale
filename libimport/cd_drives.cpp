@@ -14,7 +14,6 @@
 # include <sys/disk.h>
 #endif
 #include <sys/ioctl.h>
-#include "libutil/task.h"
 #include "libutil/worker_thread_pool.h"
 #include "libutil/counted_pointer.h"
 

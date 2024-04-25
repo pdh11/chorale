@@ -10,6 +10,7 @@
 #include "libutil/errors.h"
 #include "libutil/scheduler.h"
 #include "libutil/file_stream.h"
+#include "libutil/task_observer.h"
 #include "libutil/async_write_buffer.h"
 #include <stdio.h>
 

@@ -6,6 +6,7 @@
 #include "libutil/mutex.h"
 #include "libutil/errors.h"
 #include "libutil/bind.h"
+#include "libutil/task.h"
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>

@@ -14,6 +14,7 @@
 #include "settings.h"
 #include "libutil/trace.h"
 #include "libutil/bind.h"
+#include "libutil/task_queue.h"
 #include <qapplication.h>
 #include <qmessagebox.h>
 

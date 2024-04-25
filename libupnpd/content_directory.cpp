@@ -5,6 +5,7 @@
 #include "libmediadb/db.h"
 #include "libdb/query.h"
 #include "libdb/recordset.h"
+#include "libutil/scheduler_task.h"
 #include "libutil/counted_pointer.h"
 #include "libutil/trace.h"
 #include "libutil/xmlescape.h"

@@ -5,6 +5,7 @@
 #include "libutil/socket.h"
 #include "libutil/trace.h"
 #include "libutil/ip_config.h"
+#include "libutil/task.h"
 #include <boost/tokenizer.hpp>
 #include <set>
 #include <string.h>

@@ -1,7 +1,7 @@
 #ifndef LIBIMPORT_RIPPING_CONTROL_H
 #define LIBIMPORT_RIPPING_CONTROL_H
 
-#include "libutil/task.h"
+#include "libutil/task_observer.h"
 #include "libutil/observable.h"
 #include "libdb/db.h"
 #include "cd_drives.h"

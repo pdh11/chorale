@@ -140,6 +140,7 @@ unsigned int Fetcher::FetchToString(std::string *presult)
 
 # include "bind.h"
 # include "scheduler.h"
+# include "scheduler_task.h"
 # include "http_server.h"
 # include "worker_thread_pool.h"
 # include "string_stream.h"

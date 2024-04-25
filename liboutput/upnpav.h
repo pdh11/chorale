@@ -3,7 +3,6 @@
 
 #include "urlplayer.h"
 #include "libutil/bind.h"
-#include "libutil/task.h"
 #include "libutil/counted_pointer.h"
 #include "libutil/observable.h"
 #include "libupnp/AVTransport_client.h"

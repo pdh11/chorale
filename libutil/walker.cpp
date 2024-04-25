@@ -2,6 +2,7 @@
 #include "walker.h"
 #include "mutex.h"
 #include "task.h"
+#include "task_queue.h"
 #include "file.h"
 #include "counted_pointer.h"
 #include "counted_object.h"

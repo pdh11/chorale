@@ -15,7 +15,7 @@
 #include <sstream>
 #include "settings_window.h"
 #include "widget_factory.h"
-#include "libutil/task.h"
+#include "libutil/task_queue.h"
 
 namespace choraleqt {
 
