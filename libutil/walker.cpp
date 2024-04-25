@@ -1,5 +1,6 @@
 #include "config.h"
 #include "walker.h"
+#include "mutex.h"
 #include "task.h"
 #include "file.h"
 #include "counted_pointer.h"

@@ -6,6 +6,7 @@
 #include "libutil/trace.h"
 #include "libutil/ip_filter.h"
 #include "libutil/ip_config.h"
+#include "libutil/mutex.h"
 #include <boost/format.hpp>
 #include <map>
 #include <sstream>

@@ -2,7 +2,7 @@
 #define TASK_H
 
 #include "counted_object.h"
-#include "mutex.h"
+#include <mutex>
 #include <stddef.h>
 #include <string>
 
@@ -31,7 +31,7 @@ public:
 class Task: public util::CountedObject
 {
     std::string m_name;
-    RecursiveMutex m_mutex; // protects m_observer
+    std::recursive_mutex m_mutex; // protects m_observer
     TaskObserver *m_observer;
 
 protected:

@@ -4,6 +4,7 @@
 #include "libutil/scheduler.h"
 #include "libutil/not_thread_safe.h"
 #include "libutil/counted_pointer.h"
+#include "libutil/mutex.h"
 #include "libutil/task.h"
 #include "libutil/bind.h"
 #include <QTimer>

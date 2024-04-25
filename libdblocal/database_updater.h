@@ -3,6 +3,7 @@
 
 #include "libimport/file_notifier.h"
 #include "libutil/counted_pointer.h"
+#include "libutil/mutex.h"
 #include "file_scanner.h"
 
 namespace db {
