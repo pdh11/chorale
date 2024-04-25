@@ -1,3 +1,4 @@
+#include "config.h"
 #include "content_factory.h"
 #include "libutil/memory_stream.h"
 #include "libutil/string_stream.h"

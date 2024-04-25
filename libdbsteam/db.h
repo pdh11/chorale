@@ -3,9 +3,9 @@
 #ifndef STEAMDB_STEAMDB_H
 #define STEAMDB_STEAMDB_H
 
-#include "libutil/mutex.h"
 #include "libdb/db.h"
 #include <string>
+#include <mutex>
 #include <map>
 #include <vector>
 #include <set>
@@ -35,11 +35,11 @@ class Database: public db::Database
     friend class CollateRecordset;
     friend class IndexedRecordset;
     friend class OrderedRecordset;
-    
+
     /** Could use a rwlock in theory, but the critical sections are very
      * small.
      */
-    util::RecursiveMutex m_mutex;
+    std::recursive_mutex m_mutex;
 
     unsigned int m_nfields;
     unsigned int m_next_recno;

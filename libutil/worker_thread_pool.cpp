@@ -107,7 +107,7 @@ WorkerThreadPool::WorkerThreadPool(Priority p, unsigned int n)
 
 void WorkerThreadPool::SuggestNewThread()
 {
-    util::Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
     if (m_threads.size() >= m_max_threads)
     {
 //	TRACE << "Max " << m_max_threads << " threads, holding\n";
@@ -127,14 +127,14 @@ void WorkerThreadPool::Shutdown()
 {
     m_max_threads = 0; // Stop new ones being created
 
-    util::Mutex::Lock lock(m_mutex);
+    std::unique_lock<std::mutex> lock(m_mutex);
 //    TRACE << "wtp" << this << " Shutdown pushing\n";
     for (unsigned int i=0; i<m_threads.size(); ++i)
 	m_queue.PushTask(TaskCallback());
 //    TRACE << "Shutdown waiting\n";
     while (!m_threads.empty())
     {
-	m_threads_empty.Wait(lock, 60);
+	m_threads_empty.wait_for(lock, std::chrono::seconds(60));
     }
 //    TRACE << "Shutdown done\n";
 }
@@ -164,12 +164,12 @@ TaskCallback WorkerThreadPool::PopTaskOrQuit(WorkerThread *wt)
     TaskCallback cb = PopTask(10);
     if (!cb.IsValid())
     {
-	util::Mutex::Lock lock(m_mutex);
+        std::lock_guard<std::mutex> lock(m_mutex);
 	m_threads.remove(wt);
 	delete wt;
 //	TRACE << "-Now " << m_threads.size() << " threads\n";
 	if (m_threads.empty())
-	    m_threads_empty.NotifyAll();
+	    m_threads_empty.notify_all();
     }
     return cb;
 }
@@ -184,13 +184,13 @@ bool WorkerThreadPool::AnyWaiting()
     if (m_queue.AnyWaiting())
 	return true;
 
-    util::Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
     return m_threads.size() < m_max_threads;
 }
 
 size_t WorkerThreadPool::Count()
 {
-    util::Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
     return m_queue.Count() + m_threads.size();
 }
 
@@ -205,30 +205,32 @@ SimpleTaskQueue::SimpleTaskQueue()
 
 void SimpleTaskQueue::PushTask(const TaskCallback& cb)
 {
-    util::Mutex::Lock lock(m_deque_mutex);
+    std::lock_guard<std::mutex> lock(m_deque_mutex);
     m_deque.push_back(cb);
-    m_dequenotempty.NotifyOne();
+    m_dequenotempty.notify_one();
 }
 
 void SimpleTaskQueue::PushTaskFront(const TaskCallback& cb)
 {
-    util::Mutex::Lock lock(m_deque_mutex);
+    std::lock_guard<std::mutex> lock(m_deque_mutex);
     m_deque.push_front(cb);
-    m_dequenotempty.NotifyOne();
+    m_dequenotempty.notify_one();
 }
 
 TaskCallback SimpleTaskQueue::PopTask(unsigned int timeout_sec)
 {
-    util::Mutex::Lock lock(m_deque_mutex);
+    std::unique_lock<std::mutex> lock(m_deque_mutex);
 
     ++m_waiting;
     while (m_deque.empty())
     {
 //	TRACE << m_waiting << " waiting\n";
-	bool ret = m_dequenotempty.Wait(lock, timeout_sec);
+	if (m_dequenotempty.wait_for(lock,
+                                     std::chrono::seconds(timeout_sec))
+            == std::cv_status::timeout) {
 //	TRACE << "waited " << ret << "\n";
-	if (!ret)
 	    break;
+        }
     }
     --m_waiting;
     if (m_deque.empty())
@@ -241,13 +243,13 @@ TaskCallback SimpleTaskQueue::PopTask(unsigned int timeout_sec)
 
 bool SimpleTaskQueue::AnyWaiting()
 {
-    util::Mutex::Lock lock(m_deque_mutex);
+    std::lock_guard<std::mutex> lock(m_deque_mutex);
     return m_waiting > m_deque.size();
 }
 
 size_t SimpleTaskQueue::Count()
 {
-    util::Mutex::Lock lock(m_deque_mutex);
+    std::lock_guard<std::mutex> lock(m_deque_mutex);
     return m_deque.size() - m_waiting;
 }
 

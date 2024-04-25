@@ -19,7 +19,7 @@ AllocateID::AllocateID(db::Database *thedb)
 
 unsigned int AllocateID::Allocate()
 {
-    util::Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
 
     if (m_gap_begin == m_gap_end)
     {

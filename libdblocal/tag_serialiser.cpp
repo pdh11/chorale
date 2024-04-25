@@ -45,7 +45,7 @@ unsigned int TagSerialiser::Task::Run()
     bool finished = false;
     
     {
-	util::Mutex::Lock lock(m_parent->m_mutex);
+        std::lock_guard<std::mutex> lock(m_parent->m_mutex);
 	m_parent->m_need_rewrite.erase(m_id);
     }
     
@@ -81,7 +81,7 @@ unsigned int TagSerialiser::Task::Run()
 	}
 
 	{
-	    util::Mutex::Lock lock(m_parent->m_mutex);
+            std::lock_guard<std::mutex> lock(m_parent->m_mutex);
 
 	    // Was another rewrite called-for while we were doing it?
 	    if (m_parent->m_need_rewrite.find(m_id)
@@ -117,7 +117,7 @@ TagSerialiser::TagSerialiser(mediadb::Database *database,
 
 unsigned int TagSerialiser::Rewrite(unsigned int id)
 {
-    util::Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
 
     if (m_need_rewrite.find(id) != m_need_rewrite.end())
     {

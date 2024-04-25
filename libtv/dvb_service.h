@@ -3,7 +3,6 @@
 
 #include <string>
 #include <memory>
-#include "libutil/locking.h"
 
 namespace util { class Scheduler; }
 namespace util { class TaskQueue; }
@@ -17,7 +16,7 @@ class Channels;
 
 /** High-level interface to the complete DVB service.
  */
-class Service: public util::PerObjectLocking
+class Service
 {
     Frontend *m_frontend;
     Channels *m_channels;
