@@ -105,7 +105,7 @@ unsigned int FlacEncoder::Init(util::Stream *output,
 	nseekpoints = 64;
 
     FLAC__bool ok = FLAC__metadata_object_seektable_template_append_spaced_points(md, nseekpoints, sample_pairs);
-    ok = FLAC__metadata_object_seektable_template_sort(md, true);
+    ok = ok && FLAC__metadata_object_seektable_template_sort(md, true);
 
     FLAC__StreamEncoderInitStatus state
 	= FLAC__stream_encoder_init_stream(enc,

@@ -161,7 +161,7 @@ Server::DataTask::DataTask(Server *parent, std::unique_ptr<StreamSocket> client)
 {
     LOG(HTTP_SERVER)
 	<< "st" << this << ": accepted fd "
-	<< client << "\n";
+	<< m_socket << "\n";
     m_socket->SetNonBlocking(true);
     m_rq.Clear();
     m_rq.local_ep = m_socket->GetLocalEndPoint();
@@ -181,9 +181,6 @@ unsigned int Server::DataTask::Run()
     LOG(HTTP_SERVER) << "In WSTR with live socket "
 		     << m_socket << " state " << m_state
 		     << "\n";
-
-    unsigned int rc;
-
 again:
 
     switch (m_state)
@@ -206,7 +203,7 @@ again:
     {
 	std::string version;
 
-	rc = m_parser.GetRequestLine(&m_rq.verb, &m_rq.path, &version);
+	unsigned int rc = m_parser.GetRequestLine(&m_rq.verb, &m_rq.path, &version);
 	if (rc == EWOULDBLOCK)
 	{
 //	    TRACE << "st" << this << " going idle waiting for request " << m_socket << "\n";
@@ -251,7 +248,7 @@ again:
 	for (;;)
 	{
 	    std::string key, value;
-	    rc = m_parser.GetHeaderLine(&key, &value);
+	    unsigned int rc = m_parser.GetHeaderLine(&key, &value);
 	    if (rc == EWOULDBLOCK)
 	    {
 //		TRACE << "Going idle waiting for header " << m_socket << "\n";
@@ -377,8 +374,8 @@ again:
 	    if (lump)
 	    {
 		size_t nread;
-		rc = m_socket->Read(m_buffer.get() + m_buffer_fill,
-				    lump, &nread);
+		unsigned int rc = m_socket->Read(m_buffer.get() + m_buffer_fill,
+                                                 lump, &nread);
 //		TRACE << "Read returned " << rc << " nread=" << nread << "\n";
 		if (rc == EWOULDBLOCK)
 		{
@@ -405,8 +402,9 @@ again:
 	    {
 		size_t nwrote;
 
-		rc = m_rs.body_sink->Write(m_buffer.get(), m_buffer_fill,
-					   &nwrote);
+		unsigned int rc = m_rs.body_sink->Write(m_buffer.get(),
+                                                        m_buffer_fill,
+                                                        &nwrote);
 		if (rc == EWOULDBLOCK)
 		{
 		    if (lump == 0)
@@ -435,7 +433,12 @@ again:
 
 	// Signal successful completion with a 0-byte write
 	if (m_rs.body_sink.get())
-	    rc = m_rs.body_sink->Write(&remain, 0, &remain);
+        {
+	    unsigned int rc = m_rs.body_sink->Write(&remain, 0, &remain);
+            if (rc) {
+                return rc;
+            }
+        }
 
 	m_rs.body_sink.reset(NULL);
 	m_headers.clear();
@@ -580,8 +583,9 @@ again:
 	{
 	    do {
 		size_t nwrote;
-		rc = m_socket->Write(m_headers.c_str(), m_headers.length(),
-				     &nwrote);
+		unsigned int rc = m_socket->Write(m_headers.c_str(),
+                                                  m_headers.length(),
+                                                  &nwrote);
 		if (rc == EWOULDBLOCK)
 		{
 //		TRACE << "Going idle waiting for header writability\n";
@@ -617,7 +621,7 @@ again:
 		if (m_buffer_fill < BUFFER_SIZE)
 		{
 		    size_t nread;
-		    rc = m_response_stream->Read(
+		    unsigned int rc = m_response_stream->Read(
 			m_buffer.get() + m_buffer_fill,
 			BUFFER_SIZE - m_buffer_fill, &nread);
 
@@ -668,6 +672,7 @@ again:
 		LOG(HTTP_SERVER) << "Attempting to write " << m_buffer_fill
 				 << "\n";
 		size_t nwrote = 0;
+                unsigned int rc;
 
 		if (m_headers.empty())
 		{

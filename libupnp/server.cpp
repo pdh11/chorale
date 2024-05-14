@@ -151,7 +151,7 @@ std::string Server::Impl::MakeUUID(const std::string& resource)
     hostname[0] = '\0';
     gethostname(hostname, sizeof(hostname));
 
-    strcpy((char*)u.ch, "chorale ");
+    memcpy(u.ch, "chorale ", 8);
     u.ui[2] = SimpleHash(hostname);
     u.ui[3] = SimpleHash(resource.c_str());
 

@@ -32,7 +32,7 @@ CDWidget::CDWidget(QWidget *parent, import::CDDrivePtr cd, QPixmap pm,
 {
     cd->AddObserver(this);
     if (cd->SupportsDiscPresent())
-	OnDiscPresent(cd->DiscPresent());
+        CDWidget::OnDiscPresent(cd->DiscPresent());
 }
 
 void CDWidget::OnTopButton() /* "Rip" */

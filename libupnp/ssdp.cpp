@@ -416,7 +416,7 @@ unsigned Responder::Task::OnPacket(const std::string& packet,
 	
 	std::string key, value;
 	do {
-	    rc = hh.GetHeaderLine(&key, &value);
+	    (void) hh.GetHeaderLine(&key, &value);
 
 	    if (!strcasecmp(key.c_str(), "ST")
 		|| !strcasecmp(key.c_str(), "NT"))
@@ -478,7 +478,7 @@ unsigned Responder::Task::OnPacket(const std::string& packet,
 	std::string key, value;
 	std::string service_type, search_id;
 	do {
-	    rc = hh.GetHeaderLine(&key, &value);
+	    (void) hh.GetHeaderLine(&key, &value);
 	    if (!strcasecmp(key.c_str(), "ST"))
 		service_type = value;
 	} while (!key.empty());

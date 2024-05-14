@@ -61,7 +61,7 @@ unsigned int ProtocolClient::Init(util::IPAddress ip)
 
 //    TRACE << "Protocol version " << major << ":" << minor << "\n";
 
-    return 0;
+    return rc;
 }
 
 unsigned int ProtocolClient::Transaction()

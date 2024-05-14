@@ -619,7 +619,7 @@ unsigned DatagramSocket::Read(std::string *s, IPEndPoint *wasfrom,
 //    TRACE << "MSG_PEEKed " << rc << " bytes\n";
 
     char *ptr = new char[rc];
-    size_t nread;
+    size_t nread = 0;
     unsigned int rc2 = Read(ptr, rc, &nread, wasfrom, wasto);
     if (rc2 == 0)
 	s->assign(ptr, ptr+nread);
