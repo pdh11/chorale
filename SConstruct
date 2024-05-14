@@ -467,8 +467,9 @@ def ChoraleLib(name):
         env.StaticObject(obj, j)
         objs.append(obj)
 
+        tidied = "#obj/"+suffix+"/tidied/" + str(j)
         if tidy:
-            env.Command(obj+".tidied", j,
+            env.Command(tidied, [j, ".clang-tidy"],
                         Action([
                             "clang-tidy --config-file=.clang-tidy ${SOURCE} -- ${CCFLAGS} -I. -Iobj/"+suffix+" && touch ${TARGET}" ],
                                env.get("LINTSTR", "")))
