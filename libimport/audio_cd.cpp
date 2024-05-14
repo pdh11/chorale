@@ -271,12 +271,12 @@ unsigned ParanoiaStream::Seek(uint64_t pos)
 
 uint64_t ParanoiaStream::Tell()
 {
-    return (m_sector - m_first_sector) * 2352 + m_skip;
+    return (m_sector - m_first_sector) * UINT64_C(2352) + m_skip;
 }
 
 uint64_t ParanoiaStream::GetLength()
 {
-    return (m_last_sector - m_first_sector + 1) * 2352;
+    return (m_last_sector - m_first_sector + 1) * UINT64_C(2352);
 }
 
 unsigned int ParanoiaStream::SetLength(uint64_t)

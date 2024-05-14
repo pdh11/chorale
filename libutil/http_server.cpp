@@ -936,7 +936,7 @@ static const char *ContentType(const std::string& path)
 bool FileContentFactory::StreamForPath(const Request *rq, Response *rs)
 {
 //    TRACE << "Request for page '" << rq->path << "'\n";
-    if (strncmp(rq->path.c_str(), m_page_root.c_str(), m_page_root.length()))
+    if (strncmp(rq->path.c_str(), m_page_root.c_str(), m_page_root.length()) != 0)
     {
 //	TRACE << "Not in my root '" << m_page_root << "'\n";
 	return false;
@@ -947,7 +947,7 @@ bool FileContentFactory::StreamForPath(const Request *rq, Response *rs)
     path2 = util::Canonicalise(path2);
 
     // Make sure it's still under the right root (no "/../" attacks)
-    if (strncmp(path2.c_str(), m_file_root.c_str(), m_file_root.length()))
+    if (strncmp(path2.c_str(), m_file_root.c_str(), m_file_root.length()) != 0)
     {
 	TRACE << "Resolved file '" << path2 << "' not in my root '" 
 	      << m_file_root << "'\n";

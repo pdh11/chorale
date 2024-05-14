@@ -191,9 +191,7 @@ static const db::Query::Subexpression Translate(db::Query *qp,
 	    which = mediadb::GENRE;
 	else if (field == "dc:date")
 	    which = mediadb::YEAR;
-	else if (field == "upnp:author")
-	    which = mediadb::COMPOSER;
-	else if (field == "upnp:author@role")
+	else if (field == "upnp:author" || field == "upnp:author@role")
 	    which = mediadb::COMPOSER; // Placeholder for later
 	else
 	{
@@ -212,9 +210,7 @@ static const db::Query::Subexpression Translate(db::Query *qp,
 
 	db::RestrictionType rt = db::EQ;
 	std::string op(i->value.begin(), i->value.end());
-	if (op == "=")
-	    rt = db::EQ;
-	else if (op == "derivedfrom")
+	if (op == "=" || op == "derivedfrom")
 	    rt = db::EQ;
 	else if (op == "!=")
 	    rt = db::NE;
@@ -234,9 +230,9 @@ static const db::Query::Subexpression Translate(db::Query *qp,
 	else if (op == "exists")
 	{
 	    if (literal == "false")
-		op = db::EQ;
+		op = "=";
 	    else
-		op = db::NE;
+		op = "!=";
 	    literal = "\"\"";
 	}
 	else
@@ -269,9 +265,8 @@ static const db::Query::Subexpression Translate(db::Query *qp,
 		type = mediadb::PLAYLIST;
 	    else if (literal == "object.container.storageFolder")
 		type = mediadb::DIR;
-	    else if (literal == "object.item.audioItem.musicTrack")
-		type = mediadb::TUNE;
-	    else if (literal == "object.item.audioItem")
+	    else if (literal == "object.item.audioItem.musicTrack"
+                     || literal == "object.item.audioItem")
 		type = mediadb::TUNE;
 	    else if (literal == "object.item.audioItem.audioBroadcast")
 		type = mediadb::RADIO;

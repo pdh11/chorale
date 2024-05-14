@@ -265,14 +265,8 @@ unsigned int EPGParserTask::Run()
 		    break;
 
 		case 0x50: // Format and language
-		    break;
-
 		case 0x54: // Content type
-		    break;
-
 		case 0x76: // CRID
-		    break;
-
 		case 0x53: // CA data
 		    break;
 

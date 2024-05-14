@@ -216,7 +216,7 @@ void Responder::Task::Advertisement::SendNotify(bool alive)
 	m_scheduler->Remove(util::TaskPtr(this));
 	m_scheduler->Wait(
 	    util::Bind(AdvertisementPtr(this)).To<&Advertisement::OnTimer>(),
-	    time(NULL) + 800*1000,
+	    time(NULL) + (time_t)800*1000,
 	    84 + (rand() & 15));
     }
 }

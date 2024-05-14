@@ -47,9 +47,9 @@ void TestSeekableStream(Stream *msp)
 
     assert(msp->GetLength() == 614400 * sizeof(unsigned int));
 
-    for (unsigned int i=0; i<1024; ++i)
+    for (size_t i=0; i<1024; ++i)
     {
-	unsigned int ii = i ^ 0x13b;
+	size_t ii = i ^ 0x13b;
 	msp->Seek(ii*600*4);
 
 	unsigned int j[600];
@@ -68,9 +68,9 @@ void TestSeekableStream(Stream *msp)
 	}
     }
 
-    msp->Seek(400000*4);
-    msp->SetLength(300000*4);
-    assert(msp->Tell() == 300000*4);
+    msp->Seek((size_t)400000*4);
+    msp->SetLength((size_t)300000*4);
+    assert(msp->Tell() == (size_t)300000*4);
     size_t nread;
     char buf[4];
     rc = msp->Read(&buf, 4, &nread);

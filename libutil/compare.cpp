@@ -12,7 +12,7 @@ namespace {
  */
 utf32_t Simplify(utf32_t ch)
 {
-    unsigned int ui = ch;
+    unsigned int ui = ch; // NOLINT clang-tidy thinks this is bogus
     for (const simplify::Table *t = &simplify::tables[0]; t->from; ++t)
     {
 	if (ui < t->from)
