@@ -232,7 +232,7 @@ unsigned int Connection::Init(const util::IPAddress& ip)
 	    {
 		std::vector<unsigned int> children;
 
-		for (unsigned int i=0; i<plen/4; ++i)
+		for (size_t i=0; i<plen/4; ++i)
 		{
                     unsigned int child = 0;
                     memcpy(&child, pptr + i*4, 4);

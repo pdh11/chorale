@@ -1,4 +1,3 @@
-#define __STDC_CONSTANT_MACROS
 #include "trace.h"
 #include <stdint.h>
 #include "config.h"

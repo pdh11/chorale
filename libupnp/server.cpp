@@ -1,4 +1,5 @@
 #include "config.h"
+#include "version.h"
 #include "server.h"
 #include "device.h"
 #include "soap.h"
@@ -151,7 +152,7 @@ std::string Server::Impl::MakeUUID(const std::string& resource)
     hostname[0] = '\0';
     gethostname(hostname, sizeof(hostname));
 
-    strcpy((char*)u.ch, "chorale ");
+    memcpy(u.ch, "chorale ", 8);
     u.ui[2] = SimpleHash(hostname);
     u.ui[3] = SimpleHash(resource.c_str());
 
@@ -385,47 +386,6 @@ public:
 
     ~SoapReplier()
     {
-	// End of body -- assemble reply
-	unsigned int rc = ENOSYS;
-
-	soap::Params result;
-	
-	SoapInfo *soap_info = new SoapInfo;
-	soap_info->ipe = m_ipe;
-	soap_info->access = m_access;
-	m_endpoints->reset(soap_info);
-
-	rc = m_service->OnAction(m_action, m_args, &result);
-
-	if (rc)
-	{
-	    m_response->status_line = "HTTP/1.1 801 Error\r\n";
-
-	    std::string body(
-		"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n"
-		"<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\""
-		" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\r\n"
-		" <s:Body>"
-		"  <s:Fault><faultcode>soap:Server</faultcode>"
-		"  <faultstring>Service error ");
-	    body += util::SPrintf("%u", rc);
-	    body += "</faultstring></s:Fault></s:Body></s:Envelope>\r\n";
-	
-	    LOG(SOAP) << "Soap response is " << body << "\n";
-	
-	    m_response->body_source.reset(new util::StringStream(body));
-	}
-	else
-	{
-	    std::string body = soap::CreateBody(m_service->GetData(),
-						m_action, true,
-						m_service->GetServiceType(),
-						result);
-	
-	    LOG(SOAP) << "Soap response is " << body << "\n";
-	
-	    m_response->body_source.reset(new util::StringStream(body));
-	}
     }
 
     // Being a Stream
@@ -434,9 +394,51 @@ public:
     unsigned Write(const void *buffer, size_t len, size_t *pwrote)
     {
 	unsigned int rc = m_parser.WriteAll(buffer, len);
-	if (!rc)
-	    *pwrote = len;
-	return rc;
+        if (rc)
+            return rc;
+
+        *pwrote = len;
+        if (!len) // End of body -- assemble reply
+        {
+            soap::Params result;
+
+            SoapInfo *soap_info = new SoapInfo;
+            soap_info->ipe = m_ipe;
+            soap_info->access = m_access;
+            m_endpoints->reset(soap_info);
+
+            rc = m_service->OnAction(m_action, m_args, &result);
+            if (rc)
+            {
+                m_response->status_line = "HTTP/1.1 801 Error\r\n";
+
+                std::string body(
+		"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n"
+		"<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\""
+		" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\r\n"
+		" <s:Body>"
+		"  <s:Fault><faultcode>soap:Server</faultcode>"
+		"  <faultstring>Service error ");
+                body += util::SPrintf("%u", rc);
+                body += "</faultstring></s:Fault></s:Body></s:Envelope>\r\n";
+	
+                LOG(SOAP) << "Soap response is " << body << "\n";
+	
+                m_response->body_source.reset(new util::StringStream(body));
+            }
+            else
+            {
+                std::string body = soap::CreateBody(m_service->GetData(),
+                                                    m_action, true,
+                                                    m_service->GetServiceType(),
+                                                    result);
+	
+                LOG(SOAP) << "Soap response is " << body << "\n";
+	
+                m_response->body_source.reset(new util::StringStream(body));
+            }
+        }
+	return 0;
     }
 };
 

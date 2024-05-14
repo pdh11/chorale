@@ -1,4 +1,5 @@
 #include "config.h"
+#include "version.h"
 #include "libdbsteam/db.h"
 #include "libdblocal/file_scanner.h"
 #include "libdblocal/db.h"

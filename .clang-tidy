@@ -1,0 +1,3 @@
+Checks: 'bugprone-*,-bugprone-easily-swappable-parameters,-bugprone-narrowing-conversions,misc-include-cleaner'
+#modernize-*,-modernize-use-auto,-modernize-use-trailing-return-type'
+WarningsAsErrors: '*'

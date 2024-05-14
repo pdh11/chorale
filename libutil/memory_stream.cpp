@@ -68,7 +68,7 @@ void MemoryStream::Impl::Ensure(size_t sz)
 {
     Mutex::Lock lock(m_mutex);
     if (sz > m_capacity) {
-        const size_t ROUNDUP = 1024*1024;
+        const size_t ROUNDUP = (size_t)1024*1024;
         const size_t MASK = ROUNDUP-1;
         size_t add = ((sz - m_capacity) + MASK) & ~MASK;
         assert(add > 0);

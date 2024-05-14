@@ -14,11 +14,13 @@ int IsAllowed(unsigned int ipaddr_network, const char *daemon)
     struct request_info ri;
     char clientip[20];
 
-    sprintf(clientip, "%u.%u.%u.%u",
-	    ipaddr_network & 0xFF,
-	    (ipaddr_network >> 8) & 0xFF,
-	    (ipaddr_network >> 16) & 0xFF,
-	    ipaddr_network >> 24);
+    // NOLINTBEGIN we can't use snprintf_s, clang-tidy, 'cos it's not in glibc
+    snprintf(clientip, sizeof(clientip), "%u.%u.%u.%u",
+             ipaddr_network & 0xFF,
+             (ipaddr_network >> 8) & 0xFF,
+             (ipaddr_network >> 16) & 0xFF,
+             ipaddr_network >> 24);
+    // NOLINTEND
 
     request_init(&ri,
 		 RQ_CLIENT_ADDR, clientip,

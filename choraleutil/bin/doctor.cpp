@@ -3,6 +3,7 @@
 #include "libutil/partial_stream.h"
 #include "libutil/endian.h"
 #include "config.h"
+#include "version.h"
 #include <string.h>
 #include <getopt.h>
 #include <stdio.h>

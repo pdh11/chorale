@@ -1,4 +1,5 @@
 #include "config.h"
+#include "version.h"
 #include <getopt.h>
 #include <stdlib.h>
 #include <sys/stat.h>

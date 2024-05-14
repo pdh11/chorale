@@ -125,7 +125,10 @@ unsigned int Synchroniser::CheckPlaylistNames(unsigned int srcid,
 //		      << destid << " and destid " << m_srctodest[srcid]
 //		      << "\n";
 		m_destids_maybe_delete.insert(destid);
-		*amend_parent = true;
+                if (amend_parent)
+                {
+                    *amend_parent = true;
+                }
 	    }
 	    return 0;
 	}

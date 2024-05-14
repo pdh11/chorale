@@ -1,4 +1,5 @@
 #include "config.h"
+#include "version.h"
 #include "libutil/trace.h"
 #include "libutil/counted_pointer.h"
 #include "cd.h"

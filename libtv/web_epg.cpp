@@ -138,13 +138,13 @@ std::unique_ptr<util::Stream> WebEPG::EPGStream(bool tv, bool radio, int day)
     starttime -= (starttime % 86400);
 
     if (day != -1)
-	starttime += day*86400;
+	starttime += day*(time_t)86400;
 
     time_t endtime = starttime + 86400;
 
     // For one-day listings, go through to 6am the next day
     if (day != -1)
-	endtime += 6*60*60;
+	endtime += (time_t)6*60*60;
 
     std::string s =
 	"<html>"
@@ -415,7 +415,7 @@ bool WebEPG::StreamForPath(const util::http::Request *rq,
 
     const char *path = rq->path.c_str();
 
-    if (strncmp(path, "/epg/", 5))
+    if (strncmp(path, "/epg", 4) != 0)
 	return false;
 
     if (!strcmp(path, "/epg"))
@@ -446,8 +446,10 @@ bool WebEPG::StreamForPath(const util::http::Request *rq,
     {
 	rs->body_source.reset(
 	    new util::StringStream("<i>niddle noddle noo</i>"));
+    } else {
+        return false;
     }
-    
+
     return true;
 }
 

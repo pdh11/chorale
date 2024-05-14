@@ -123,7 +123,6 @@ unsigned MP3Stream::Read(void *buffer, size_t len, size_t *pread)
 				   inbuf, inbufsize, m_buffer, BUFSIZE,
 				   &decoded);
 //	    TRACE << "Fed " << inbufsize << " bytes, got back " << decoded << " bytes\n";
-	    inbufsize = 0;
 	    if (rc != MPG123_ERR && rc != MPG123_NEED_MORE && decoded > 0)
 	    {
 #if __BYTE_ORDER == __BIG_ENDIAN

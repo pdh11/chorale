@@ -139,10 +139,7 @@ unsigned int ToRecord(const Metadata& md, db::RecordsetPtr rs)
 	{
 	    unsigned int type = mediadb::FILE;
 	    
-	    if (i->content == "object.container.storageFolder"
-		|| i->content == "object.container")
-		type = mediadb::DIR;
-	    else if (i->content == "object.item.audioItem.audioBroadcast")
+	    if (i->content == "object.item.audioItem.audioBroadcast")
 		type = mediadb::RADIO;
 	    else if (prefixeq(i->content, "object.item.audioItem"))
 		type = mediadb::TUNE;

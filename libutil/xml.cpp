@@ -223,10 +223,14 @@ void SaxParser::Parse()
 	    char *gt = strchr(m_buffer, '>');
 	    if (gt == NULL && !m_eof && m_buffered < BUFSIZE)
 		return;
-	    unsigned int usedup = (unsigned)(gt+1 - m_buffer);
-	    memmove(m_buffer, gt+1, m_buffered-usedup + 1);
-	    m_buffered -= usedup;
-	    m_state = CONTENT;
+            if (gt) {
+                unsigned int usedup = (unsigned)(gt+1 - m_buffer);
+                memmove(m_buffer, gt+1, m_buffered-usedup + 1);
+                m_buffered -= usedup;
+                m_state = CONTENT;
+            } else {
+                m_buffered = 0;
+            }
 	    break;
 	}
 
@@ -347,13 +351,20 @@ void SaxParser::Parse()
 	case IN_QUOTEDVALUE:
 	{
 	    char *quote = strchr(m_buffer, '"');
-	    if (!quote && !m_eof && m_buffered < BUFSIZE)
-		return;
+	    if (!quote) {
+                if (!m_eof && m_buffered < BUFSIZE)
+                    return;
+
+                // Quoted string too big (or includes EOF) -- discard it
+                m_buffered = 0;
+                break;
+            }
+
 	    *quote = '\0';
-	    
+
 	    std::string value = util::XmlUnEscape(m_buffer);
 	    m_observer->OnAttribute(m_attrname.c_str(), value.c_str());
-	    
+
 	    m_state = IN_TAG;
 	    unsigned int usedup = (unsigned)(quote+1 - m_buffer);
 	    memmove(m_buffer, quote+1, m_buffered - usedup + 1);

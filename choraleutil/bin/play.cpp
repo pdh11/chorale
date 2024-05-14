@@ -1,4 +1,5 @@
 #include "config.h"
+#include "version.h"
 #include "liboutput/queue.h"
 #include "liboutput/gstreamer.h"
 #include "libimport/tags.h"

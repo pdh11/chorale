@@ -1,5 +1,6 @@
 #include <QApplication>
 #include <QProgressDialog>
+#include "version.h"
 #include "libdbsteam/db.h"
 #include "libdblocal/db.h"
 #include "libdblocal/file_scanner.h"

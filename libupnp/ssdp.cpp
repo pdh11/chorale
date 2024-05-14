@@ -1,5 +1,6 @@
 #include "ssdp.h"
 #include "config.h"
+#include "version.h"
 #include "libutil/http_parser.h"
 #include "libutil/ip_config.h"
 #include "libutil/ip_filter.h"
@@ -216,7 +217,7 @@ void Responder::Task::Advertisement::SendNotify(bool alive)
 	m_scheduler->Remove(util::TaskPtr(this));
 	m_scheduler->Wait(
 	    util::Bind(AdvertisementPtr(this)).To<&Advertisement::OnTimer>(),
-	    time(NULL) + 800*1000,
+	    time(NULL) + (time_t)800*1000,
 	    84 + (rand() & 15));
     }
 }
@@ -416,7 +417,7 @@ unsigned Responder::Task::OnPacket(const std::string& packet,
 	
 	std::string key, value;
 	do {
-	    rc = hh.GetHeaderLine(&key, &value);
+	    (void) hh.GetHeaderLine(&key, &value);
 
 	    if (!strcasecmp(key.c_str(), "ST")
 		|| !strcasecmp(key.c_str(), "NT"))
@@ -478,7 +479,7 @@ unsigned Responder::Task::OnPacket(const std::string& packet,
 	std::string key, value;
 	std::string service_type, search_id;
 	do {
-	    rc = hh.GetHeaderLine(&key, &value);
+	    (void) hh.GetHeaderLine(&key, &value);
 	    if (!strcasecmp(key.c_str(), "ST"))
 		service_type = value;
 	} while (!key.empty());

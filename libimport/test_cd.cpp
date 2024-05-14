@@ -23,7 +23,7 @@ TestCD::TestCD()
 std::unique_ptr<util::Stream> TestCD::GetTrackStream(unsigned int t)
 {
     std::unique_ptr<util::Stream> ss(new util::MemoryStream);
-    ss->SetLength((m_toc[t].last_sector - m_toc[t].first_sector + 1) * 2352);
+    ss->SetLength((m_toc[t].last_sector - m_toc[t].first_sector + 1) * UINT64_C(2352));
     return ss;
 }
 

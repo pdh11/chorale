@@ -165,7 +165,7 @@ bool IsInRoot(const char *root, const char *path)
     if (root[rootlen-1] == '/')
 	--rootlen;
 
-    if (strncmp(root, path, rootlen))
+    if (strncmp(root, path, rootlen) != 0)
 	return false;
 
     if (path[rootlen] && path[rootlen] != '/')
@@ -183,16 +183,13 @@ std::string PathToURL(const std::string& path)
     for (unsigned int i=0; i<path.length(); ++i)
     {
 	char c = path[i];
-	if ((c>='A' && c<='Z') || (c>='a' && c<='z'))
-	    result += c; // alpha
-	else if (c>='0' && c<='9')
-	    result += c; // digit
-	else if (c=='/' || c=='-' || c == '.' || c == '_' || c =='~')
-	    result += c; // unreserved or /
-	else if (c=='!' || c=='$' || c == '&' || c == '\'' || c == '('
-		 || c == ')' || c == '*' || c == '+' || c == ';' || c == '=')
-	    result += c; // sub-delims
-	else if (c==':' || c == '@')
+	if ((c>='A' && c<='Z') || (c>='a' && c<='z') // alpha
+
+            || (c>='0' && c<='9') // digit
+            || (c=='/' || c=='-' || c == '.' || c == '_' || c =='~') // unreserved or /
+            || (c=='!' || c=='$' || c == '&' || c == '\'' || c == '('
+		 || c == ')' || c == '*' || c == '+' || c == ';' || c == '=') // sub-delims
+            || (c==':' || c == '@'))
 	    result += c; // remaining cases of pchar
 	else
 	{
@@ -208,7 +205,7 @@ std::string PathToURL(const std::string& path)
 
 std::string URLToPath(const std::string& url)
 {
-    if (strncasecmp(url.c_str(), "file:///", 8))
+    if (strncasecmp(url.c_str(), "file:///", 8) != 0)
 	return std::string();
 
     std::string result;

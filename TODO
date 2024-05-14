@@ -1,9 +1,6 @@
   TP1
   ---
 util::win32::MakeRelativePath
-Remove HAL
-Remove Win32
-Remove Macintosh
 Replace boost::mutex (etc) with C++11 std::mutex (etc)
 
   TP2
