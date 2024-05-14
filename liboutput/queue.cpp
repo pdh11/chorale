@@ -47,7 +47,7 @@ public:
 	unsigned int index = 0;
 
 	{
-	    util::RecursiveMutex::Lock lock(m_parent->m_mutex);
+	    std::lock_guard<std::recursive_mutex> lock(m_parent->m_mutex);
 	    if (url == m_expected_url && !url.empty())
 	    {
 		current = true;
@@ -123,7 +123,7 @@ void Queue::Add(mediadb::Database *db, unsigned int id)
     dbp.id = id;
     dbp.flags = 0;
     {
-	util::RecursiveMutex::Lock lock(m_mutex);
+	std::lock_guard<std::recursive_mutex> lock(m_mutex);
 	m_entries.push_back(dbp);
 	m_queue.push_back((unsigned int)m_entries.size()-1);
     }
@@ -148,7 +148,7 @@ void Queue::QueueInsert(mediadb::Database *db, unsigned int id,
     bool set_next = false;
 
     {
-	util::RecursiveMutex::Lock lock(m_mutex);
+	std::lock_guard<std::recursive_mutex> lock(m_mutex);
 	m_entries.push_back(dbp);
 	m_queue.insert(m_queue.begin() + where, 
 		       (unsigned int)m_entries.size()-1);
@@ -183,7 +183,7 @@ void Queue::EntryInsert(mediadb::Database *db, unsigned int id,
     bool set_next = false;
 
     {
-	util::RecursiveMutex::Lock lock(m_mutex);
+	std::lock_guard<std::recursive_mutex> lock(m_mutex);
 	m_entries.insert(m_entries.begin() + where, dbp);
 
 	for (unsigned int i=0; i<m_queue.size(); ++i)
@@ -252,7 +252,7 @@ void Queue::QueueRemove(unsigned int from, unsigned int to)
     bool set_next = false;
 
     {
-	util::RecursiveMutex::Lock lock(m_mutex);
+	std::lock_guard<std::recursive_mutex> lock(m_mutex);
 
 	// Mark the relevant entries for deletion
 	for (unsigned int i=from; i<to; ++i)
@@ -310,7 +310,7 @@ void Queue::EntryRemove(unsigned int from, unsigned int to)
     bool set_next = false;
 
     {
-	util::RecursiveMutex::Lock lock(m_mutex);
+	std::lock_guard<std::recursive_mutex> lock(m_mutex);
 
 	unsigned int next_entry = 0;
 	if (m_current_index + 1 < m_queue.size())
@@ -398,7 +398,7 @@ void Queue::SetShuffle(bool whether)
     if (m_entries.size() <= 1)
 	return;
 
-    util::RecursiveMutex::Lock lock(m_mutex);
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
 
     if (whether)
     {
@@ -452,7 +452,7 @@ void Queue::Seek(unsigned int index, unsigned int /*ms*/)
 {
 //    TRACE << "Seeking to index " << index << "\n";
     {
-	util::RecursiveMutex::Lock lock(m_mutex);
+	std::lock_guard<std::recursive_mutex> lock(m_mutex);
 	if (index < m_queue.size())
 	    m_current_index = index;
     }
@@ -472,7 +472,7 @@ void Queue::SetURL()
 {
     Entry dbp;
     {
-	util::RecursiveMutex::Lock lock(m_mutex);
+	std::lock_guard<std::recursive_mutex> lock(m_mutex);
 	if (m_current_index >= m_entries.size())
 	    return;
 	dbp = m_entries[m_queue[m_current_index]];
@@ -488,7 +488,7 @@ void Queue::SetURL()
 	    + mediadb::didl::s_footer;
     
     {
-	util::RecursiveMutex::Lock lock(m_mutex);
+	std::lock_guard<std::recursive_mutex> lock(m_mutex);
 	m_impl->m_expected_url = url.c_str();
     }
     m_impl->m_player->SetURL(url, metadata);
@@ -498,7 +498,7 @@ void Queue::SetNextURL()
 {
     Entry dbp;
     {
-	util::RecursiveMutex::Lock lock(m_mutex);
+	std::lock_guard<std::recursive_mutex> lock(m_mutex);
 	if ((m_current_index+1) >= m_entries.size())
 	    return;
 	dbp = m_entries[m_queue[m_current_index+1]];
@@ -514,7 +514,7 @@ void Queue::SetNextURL()
 	    + mediadb::didl::s_footer;
 
     {
-	util::RecursiveMutex::Lock lock(m_mutex);
+	std::lock_guard<std::recursive_mutex> lock(m_mutex);
 	m_impl->m_expected_next_url = url.c_str();
     }
     m_impl->m_player->SetNextURL(url, metadata);

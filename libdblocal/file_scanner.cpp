@@ -1,9 +1,9 @@
 #include "file_scanner.h"
+#include "config.h"
 #include "libutil/walker.h"
 #include "libutil/trace.h"
 #include "libutil/file.h"
 #include "libutil/http.h"
-#include "libutil/mutex.h"
 #include "libutil/observable.h"
 #include "libutil/counted_pointer.h"
 #include "libdb/query.h"
@@ -19,6 +19,8 @@
 #include <limits.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <mutex>
+#include <condition_variable>
 
 #if HAVE_AVFORMAT
 extern "C" {
@@ -38,8 +40,8 @@ namespace local {
 class FileScanner::Impl: public util::DirectoryWalker::Observer,
 			 public util::Observable<FileScanner::Observer>
 {
-    util::Mutex m_mutex;
-    util::Condition m_finished;
+    std::mutex m_mutex;
+    std::condition_variable m_finished;
     unsigned int m_count;
     unsigned int m_tunes;
     unsigned int m_hicount;
@@ -116,7 +118,7 @@ public:
 db::RecordsetPtr FileScanner::Impl::GetRecordForPath(const std::string& path,
 						     uint32_t *id)
 {
-    util::Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
 
     db::QueryPtr qp = m_db->CreateQuery();
     qp->Where(qp->Restrict(mediadb::PATH, db::EQ, path));
@@ -160,7 +162,7 @@ unsigned int FileScanner::Impl::OnFile(dircookie parent_cookie,
     bool seen_this_time = false;
 
     {
-	util::Mutex::Lock lock(m_mutex);
+	std::lock_guard<std::mutex> lock(m_mutex);
 
 	map_t::iterator i = m_map.find(path);
 	if (i != m_map.end())
@@ -232,7 +234,7 @@ unsigned int FileScanner::Impl::OnFile(dircookie parent_cookie,
 
 		if (extension != "flac" && !flacname.empty())
 		{
-		    util::Mutex::Lock lock(m_mutex);
+		    std::lock_guard<std::mutex> lock(m_mutex);
 		    rs->SetInteger(mediadb::IDHIGH, m_map[flacname]);
 //			TRACE << "flac(" << id << ")="
 //			      << m_map[flacname] << "\n";
@@ -329,7 +331,7 @@ unsigned int FileScanner::Impl::OnFile(dircookie parent_cookie,
 		    }
 		    else
 		    {
-			util::Mutex::Lock lock(m_mutex);
+			std::lock_guard<std::mutex> lock(m_mutex);
 			std::vector<unsigned int>& vec = m_children[id];
 			vec.erase(std::remove(vec.begin(), vec.end(), 0U), 
 				  vec.end());
@@ -346,7 +348,7 @@ unsigned int FileScanner::Impl::OnFile(dircookie parent_cookie,
 
     if (parent_cookie)
     {
-	util::Mutex::Lock lock(m_mutex);
+	std::lock_guard<std::mutex> lock(m_mutex);
 	size_t oldsz = m_children[(unsigned int)parent_cookie].size();
 	if (index >= oldsz)
 	    m_children[(unsigned int)parent_cookie].resize(index+1);
@@ -377,7 +379,7 @@ unsigned int FileScanner::Impl::OnEnterDirectory(dircookie parent_cookie,
 	rs->SetInteger(mediadb::IDPARENT, (unsigned int)parent_cookie);
 	rs->Commit();
 
-	util::Mutex::Lock lock(m_mutex);
+	std::lock_guard<std::mutex> lock(m_mutex);
 	size_t oldsz = m_children[(unsigned int)parent_cookie].size();
 	if (index >= oldsz)
 	    m_children[(unsigned int)parent_cookie].resize(index+1);
@@ -410,7 +412,7 @@ unsigned int FileScanner::Impl::OnLeaveDirectory(dircookie cookie,
     rs->SetInteger(mediadb::TYPE, mediadb::DIR);
     rs->SetString(mediadb::TITLE, leaf);
     {
-	util::Mutex::Lock lock(m_mutex);
+	std::lock_guard<std::mutex> lock(m_mutex);
 	std::vector<unsigned int>& vec = m_children[(unsigned int)cookie];
 	vec.erase(std::remove(vec.begin(), vec.end(), 0u), vec.end());
 	rs->SetString(mediadb::CHILDREN, mediadb::VectorToChildren(vec));
@@ -506,8 +508,8 @@ void FileScanner::Impl::OnFinished(unsigned int error)
 	}
     }
 
-    util::Mutex::Lock lock(m_mutex);
-    m_finished.NotifyAll();
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_finished.notify_all();
     m_scanning = false;
     m_error = error;
 
@@ -516,11 +518,11 @@ void FileScanner::Impl::OnFinished(unsigned int error)
 
 unsigned int FileScanner::Impl::WaitForCompletion()
 {
-    util::Mutex::Lock lock(m_mutex);
+    std::unique_lock<std::mutex> lock(m_mutex);
 
     while (m_scanning)
     {
-	m_finished.Wait(lock, 60);
+	m_finished.wait_for(lock, std::chrono::seconds(60));
     }
     return m_error;
 }

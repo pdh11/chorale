@@ -2,9 +2,9 @@
 #include "bind.h"
 #include "task.h"
 #include "trace.h"
-#include "mutex.h"
 #include "errors.h"
 #include "counted_pointer.h"
+#include <mutex>
 #include <string.h>
 #include <algorithm>
 
@@ -24,7 +24,7 @@ class MultiStream::Impl
     uint64_t m_outputposes[MAX_OP];
     util::TaskCallback m_callbacks[MAX_OP];
 
-    util::Mutex m_mutex;
+    std::mutex m_mutex;
 
     unsigned OutputRead(void *buffer, size_t len, size_t *pread, unsigned ix);
     unsigned OutputWait(const util::TaskCallback& callback, unsigned ix);
@@ -112,7 +112,7 @@ unsigned MultiStream::Impl::OutputRead(void *buffer, size_t len,
 
     uint64_t offset;
     {
-	util::Mutex::Lock lock(m_mutex);
+	std::lock_guard<std::mutex> lock(m_mutex);
 
 	assert(m_inputpos >= m_outputposes[ix]);
 	offset = m_inputpos - m_outputposes[ix];
@@ -145,7 +145,7 @@ unsigned MultiStream::Impl::OutputWait(const util::TaskCallback& callback,
 {
     bool doit = false;
     {
-	util::Mutex::Lock lock(m_mutex);
+	std::lock_guard<std::mutex> lock(m_mutex);
 
 	/* Has more data been written in-between Write() returning EWOULDBLOCK,
 	 * and Wait() being called?
@@ -180,7 +180,7 @@ unsigned MultiStream::Impl::Write(const void *buffer, size_t len,
 	if (rc)
 	    return rc;
 
-	util::Mutex::Lock lock(m_mutex);
+	std::lock_guard<std::mutex> lock(m_mutex);
 	m_inputpos += *pwrote;
     }
 

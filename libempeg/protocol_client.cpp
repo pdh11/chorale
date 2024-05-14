@@ -155,7 +155,7 @@ unsigned int ProtocolClient::Transaction()
 
 unsigned int ProtocolClient::Ping(uint16_t *minor, uint16_t *major)
 {
-    util::Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
 
     PingRequest *req = (PingRequest*)m_aligned_buffer;
     req->header.datasize = 0;
@@ -176,7 +176,7 @@ unsigned int ProtocolClient::Ping(uint16_t *minor, uint16_t *major)
 
 unsigned int ProtocolClient::Stat(uint32_t fid, uint32_t *size)
 {
-    util::Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
 
     StatRequest *req = (StatRequest*)m_aligned_buffer;
     req->header.datasize = 4;
@@ -207,7 +207,7 @@ unsigned int ProtocolClient::Stat(uint32_t fid, uint32_t *size)
 unsigned int ProtocolClient::Read(uint32_t fid, uint32_t offset, uint32_t size,
 				  void *buffer, uint32_t *nread)
 {
-    util::Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
 
     if (size > MAX_PAYLOAD)
 	size = MAX_PAYLOAD;
@@ -240,7 +240,7 @@ unsigned int ProtocolClient::Read(uint32_t fid, uint32_t offset, uint32_t size,
 
 unsigned int ProtocolClient::EnableWrite(bool whether)
 {
-    util::Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
     MountRequest *req = (MountRequest*)m_aligned_buffer;
     req->header.datasize = sizeof(MountRequest) - sizeof(PacketHeader);
     req->header.opcode = MOUNT;
@@ -261,7 +261,7 @@ unsigned int ProtocolClient::EnableWrite(bool whether)
 
 unsigned int ProtocolClient::RebuildDatabase()
 {
-    util::Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
     RebuildRequest *req = (RebuildRequest*)m_aligned_buffer;
     req->header.datasize = sizeof(RebuildRequest) - sizeof(PacketHeader);
     req->header.opcode = REBUILD;
@@ -281,7 +281,7 @@ unsigned int ProtocolClient::RebuildDatabase()
 
 unsigned int ProtocolClient::Delete(uint32_t fid, uint16_t mask)
 {
-    util::Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
     DeleteRequest *req = (DeleteRequest*)m_aligned_buffer;
     req->header.datasize = sizeof(DeleteRequest) - sizeof(PacketHeader);
     req->header.opcode = DELETE;
@@ -302,7 +302,7 @@ unsigned int ProtocolClient::Delete(uint32_t fid, uint16_t mask)
 
 unsigned int ProtocolClient::Prepare(uint32_t fid, uint32_t size)
 {
-    util::Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
     PrepareRequest *req = (PrepareRequest*)m_aligned_buffer;
     req->header.datasize = sizeof(PrepareRequest) - sizeof(PacketHeader);
     req->header.opcode = PREPARE;
@@ -359,7 +359,7 @@ unsigned int ProtocolClient::Write(uint32_t fid, uint32_t offset,
     if (!size)
 	return 0;
 
-    util::Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
 
     if (!m_fast)
     {
@@ -433,7 +433,7 @@ unsigned int ProtocolClient::Write(uint32_t fid, uint32_t offset,
 unsigned int ProtocolClient::SendCommand(uint32_t command, uint32_t param0,
 					 uint32_t param1, const char *param2)
 {
-    util::Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
 
     CommandRequest *req = (CommandRequest*)m_aligned_buffer;
     req->header.datasize = sizeof(CommandRequest) - sizeof(PacketHeader);

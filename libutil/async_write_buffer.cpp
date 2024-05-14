@@ -4,10 +4,11 @@
 #include <stdint.h>
 #include "task.h"
 #include "task_queue.h"
-#include "mutex.h"
 #include "trace.h"
 #include "bind.h"
 #include "counted_pointer.h"
+#include <mutex>
+#include <condition_variable>
 
 namespace util {
 
@@ -23,8 +24,8 @@ class AsyncWriteBuffer::Impl
     Stream *m_stream;
     TaskQueue *m_queue;
 
-    util::Mutex m_mutex;
-    util::Condition m_buffree;
+    std::mutex m_mutex;
+    std::condition_variable m_buffree;
     bool m_busy[2];
 
     /** Which buffer we're currently filling
@@ -89,9 +90,9 @@ unsigned int AsyncWriteBuffer::Impl::Task::Run()
 //	else
 //	    TRACE << "Async Wrote\n";
 
-    util::Mutex::Lock lock(m_parent->m_mutex);
+    std::lock_guard<std::mutex> lock(m_parent->m_mutex);
     m_parent->m_busy[m_which] = false;
-    m_parent->m_buffree.NotifyOne();
+    m_parent->m_buffree.notify_one();
     return 0;
 }
 
@@ -115,10 +116,10 @@ void AsyncWriteBuffer::Impl::SynchronousFlush()
 {
     // Wait for tasks
     {
-	util::Mutex::Lock lock(m_mutex);
+	std::unique_lock<std::mutex> lock(m_mutex);
 
 	while (m_busy[0] || m_busy[1])
-	    m_buffree.Wait(lock, 60);
+	    m_buffree.wait_for(lock, std::chrono::seconds(60));
     }
 
     // Anything left, write synchronously
@@ -173,10 +174,10 @@ unsigned AsyncWriteBuffer::Impl::WriteAt(const void *buffer, uint64_t pos,
 
     if (m_bufpos == 0)
     {
-	util::Mutex::Lock lock(m_mutex);
+	std::unique_lock<std::mutex> lock(m_mutex);
 
 	while (m_busy[0] && m_busy[1])
-	    m_buffree.Wait(lock, 60);
+	    m_buffree.wait_for(lock, std::chrono::seconds(60));
 
 	if (!m_busy[0])
 	    m_filling = 0;

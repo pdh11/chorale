@@ -133,15 +133,6 @@ if not env.GetOption('clean'):
             "LOG_NOTICE",
             "LOG_WARNING"]:
         conf.CheckDeclaration(l, "#include <sys/syslog.h>")
-    for (t, header) in [
-            ("boost::mutex", "<boost/thread/mutex.hpp>"),
-            ("boost::thread", "<boost/thread/thread.hpp>"),
-            ("boost::condition", "<boost/thread/condition.hpp>"),
-            ("boost::recursive_mutex", "<boost/thread/recursive_mutex.hpp>"),
-            ("boost::mutex::scoped_lock", "<boost/thread/mutex.hpp>"),
-            ("boost::recursive_mutex::scoped_lock", "<boost/thread/recursive_mutex.hpp>"),
-    ]:
-        n = conf.CheckTypeSize(t, "#include "+header, language="C++")
     for e in [
             "EINVAL",
             "EISCONN",

@@ -1,6 +1,5 @@
 #include "config.h"
 #include "walker.h"
-#include "mutex.h"
 #include "task.h"
 #include "task_queue.h"
 #include "file.h"
@@ -11,6 +10,7 @@
 #include "trace.h"
 #include <errno.h>
 #include <stdio.h>
+#include <mutex>
 
 LOG_DECL(WALKER);
 
@@ -18,7 +18,7 @@ namespace util {
 
 struct DirectoryWalkerState: public util::CountedObject
 {
-    util::Mutex mutex;
+    std::mutex mutex;
     unsigned int flags;
     unsigned int count;
     unsigned int error;
@@ -49,14 +49,14 @@ public:
     Task(StatePtr state, DirectoryTaskPtr parent_task)
 	: m_state(state), m_parent_task(parent_task)
     {
-	util::Mutex::Lock lock(m_state->mutex);
+	std::lock_guard<std::mutex> lock(m_state->mutex);
 	++m_state->count;
 	LOG(WALKER) << "state->count++ now " << m_state->count << "\n";
     }
 
     ~Task()
     {
-	util::Mutex::Lock lock(m_state->mutex);
+	std::lock_guard<std::mutex> lock(m_state->mutex);
 	if (--m_state->count == 0)
 	{
 	    // We're last
@@ -110,7 +110,7 @@ unsigned int DirectoryWalker::FileTask::Run()
 						   m_leaf, &m_st);
     if (error)
     {
-	util::Mutex::Lock lock(m_state->mutex);
+	std::lock_guard<std::mutex> lock(m_state->mutex);
 	if (!m_state->error)
 	    m_state->error = error;
 	LOG(WALKER) << "Error " << error << ", stopping\n";
@@ -276,6 +276,7 @@ unsigned int DirectoryWalker::Walk(const std::string& root, Observer *obs,
 # include "worker_thread_pool.h"
 # include "locking.h"
 # include <stdlib.h>
+# include <condition_variable>
 
 /* Really we're just testing the loop avoidance */
 
@@ -285,8 +286,8 @@ class TestObserver: public util::DirectoryWalker::Observer
     size_t m_filecount;
     bool m_done;
 
-    util::Mutex m_mutex;
-    util::Condition m_finished;
+    std::mutex m_mutex;
+    std::condition_variable m_finished;
 
 public:
     TestObserver() : m_dircount(0), m_filecount(0), m_done(false) {}
@@ -323,7 +324,7 @@ unsigned int TestObserver::OnEnterDirectory(dircookie, unsigned int,
 					    const struct stat*,
 					    dircookie *cookie_out)
 {
-    util::Mutex::Lock lock(m_mutex);
+    std::unique_lock<std::mutex> lock(m_mutex);
 
     ++m_dircount;
     if (m_dircount > 100)
@@ -343,7 +344,7 @@ unsigned int TestObserver::OnLeaveDirectory(dircookie, const std::string&,
 unsigned int TestObserver::OnFile(dircookie, unsigned int, const std::string&, 
 				  const std::string&, const struct stat*)
 {
-    util::Mutex::Lock lock(m_mutex);
+    std::unique_lock<std::mutex> lock(m_mutex);
 
     ++m_filecount;
     if (m_filecount > 100)
@@ -357,18 +358,18 @@ void TestObserver::OnFinished(unsigned int error)
 
     TRACE << "Done\n";
 
-    util::Mutex::Lock lock(m_mutex);
+    std::unique_lock<std::mutex> lock(m_mutex);
     m_done = true;
-    m_finished.NotifyAll();
+    m_finished.notify_all();
 }
 
 void TestObserver::WaitForCompletion()
 {
-    util::Mutex::Lock lock(m_mutex);
+    std::unique_lock<std::mutex> lock(m_mutex);
     if (m_done)
 	return;
 
-    bool did_finish = m_finished.Wait(lock, 60);
+    bool did_finish = m_finished.wait_for(lock, std::chrono::seconds(60)) != std::cv_status::timeout;
     assert(did_finish);
 }
 

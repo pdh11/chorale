@@ -95,7 +95,7 @@ Scheduler::~Scheduler()
 
 void Scheduler::Remove(util::TaskPtr task)
 {
-    util::Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
     timermap_t::iterator it = m_timermap.find(task.get());
     if (it != m_timermap.end())
     {
@@ -119,13 +119,13 @@ void Scheduler::Remove(util::TaskPtr task)
 
 void Scheduler::RemoveTimer(util::Task *task)
 {
-    util::Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
     m_timermap.erase(task);
 }
 
 void Scheduler::RemoveSocketNotifier(int pollable)
 {
-    util::Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
     m_notifiermap.erase(pollable);
 }
 
@@ -138,7 +138,7 @@ void Scheduler::Wait(const util::TaskCallback& callback, time_t first,
 
     uint64_t firstms = first*(uint64_t)1000;
 
-    util::Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
     Timer* t = new Timer(this, repeatms, callback);
     t->moveToThread(QApplication::instance()->thread());
     m_timermap[callback.GetPtr().get()] = t;

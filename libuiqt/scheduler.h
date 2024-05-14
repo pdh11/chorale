@@ -4,11 +4,11 @@
 #include "libutil/scheduler.h"
 #include "libutil/not_thread_safe.h"
 #include "libutil/counted_pointer.h"
-#include "libutil/mutex.h"
 #include "libutil/bind.h"
 #include "libutil/task.h"
 #include <QTimer>
 #include <QSocketNotifier>
+#include <mutex>
 #include <map>
 
 /** User-interface classes */
@@ -59,7 +59,7 @@ public:
 
 class Scheduler: public util::Scheduler, public util::NotThreadSafe
 {
-    util::Mutex m_mutex;
+    std::mutex m_mutex;
     typedef std::map<util::Task*, Timer*> timermap_t;
     timermap_t m_timermap;
     typedef std::map<int, SocketNotifier*> notifiermap_t;

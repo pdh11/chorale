@@ -3,7 +3,6 @@
 #include "worker_thread_pool.h"
 #include "cpus.h"
 #include "counted_pointer.h"
-#include "mutex.h"
 #include "bind.h"
 #include "task.h"
 #include <unistd.h>
@@ -29,7 +28,7 @@ class WorkerThread
 {
     WorkerThreadPool *m_owner;
     WorkerThreadPool::Priority m_priority;
-    Thread m_thread;
+    std::thread m_thread;
     
 public:
     WorkerThread(WorkerThreadPool *owner, WorkerThreadPool::Priority p) 
@@ -40,6 +39,7 @@ public:
 
     ~WorkerThread()
     {
+        m_thread.detach();
     }
 
     unsigned int Run();
@@ -165,11 +165,11 @@ TaskCallback WorkerThreadPool::PopTaskOrQuit(WorkerThread *wt)
     if (!cb.IsValid())
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-	m_threads.remove(wt);
+        m_threads.remove(wt);
 	delete wt;
 //	TRACE << "-Now " << m_threads.size() << " threads\n";
-	if (m_threads.empty())
-	    m_threads_empty.notify_all();
+        if (m_threads.empty())
+            m_threads_empty.notify_all();
     }
     return cb;
 }
@@ -258,7 +258,7 @@ size_t SimpleTaskQueue::Count()
 #ifdef TEST
 
 
-static util::Mutex s_mx;
+static std::mutex s_mx;
 static unsigned int s_created = 0, s_destroyed = 0, s_run = 0;
 
 
@@ -273,13 +273,13 @@ public:
 
 Snooze::Snooze()
 {
-    util::Mutex::Lock lock(s_mx);
+    std::lock_guard<std::mutex> lock(s_mx);
     ++s_created;
 }
 
 Snooze::~Snooze()
 {
-    util::Mutex::Lock lock(s_mx);
+    std::lock_guard<std::mutex> lock(s_mx);
     ++s_destroyed;
 }
 
@@ -288,7 +288,7 @@ unsigned int Snooze::Run()
 //    TRACE << "In run\n";
     sleep(1);
 //    TRACE << "Trying to lock\n";
-    util::Mutex::Lock lock(s_mx);
+    std::lock_guard<std::mutex> lock(s_mx);
     ++s_run;
 //    TRACE << "Completed\n";
     return 0;
