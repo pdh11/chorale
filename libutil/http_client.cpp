@@ -1,5 +1,6 @@
 #include "http_client.h"
 #include "config.h"
+#include "version.h"
 #include "errors.h"
 #include "scheduler.h"
 #include "bind.h"

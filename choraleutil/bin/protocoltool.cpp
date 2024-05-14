@@ -1,4 +1,5 @@
 #include "config.h"
+#include "version.h"
 #include "libdbempeg/db.h"
 #include "libmediadb/xml.h"
 #include "libmediadb/sync.h"

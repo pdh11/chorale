@@ -252,13 +252,16 @@ if not env.GetOption('clean'):
     conf.Define("HAVE_IP_PKTINFO", "HAVE_DECL_IP_PKTINFO")
     conf.Define("HAVE_DVB", "(HAVE_LINUX_DVB_DMX_H && HAVE_LINUX_DVB_FRONTEND_H)")
     conf.Define("PACKAGE_NAME", '"'+PACKAGE+'"')
-    conf.Define("PACKAGE_VERSION", '"'+PACKAGE_VERSION+'"')
-    conf.Define("PACKAGE_STRING", 'PACKAGE_NAME " " PACKAGE_VERSION');
     conf.Define("PACKAGE_WEBSITE", '"'+PACKAGE_WEBSITE+'"')
     conf.Define("LOCALSTATEDIR", '"'+PREFIX+'/var"')
     conf.Define("CHORALE_DATADIR", '"'+PREFIX+'/share"')
     conf.Define("SRCROOT", '"' + Dir(".").path + '"')
     env = conf.Finish()
+    # Do version separately so everything doesn't recompile when it changes
+    conf = env.Configure(config_h = "version.h")
+    conf.Define("PACKAGE_VERSION", '"'+PACKAGE_VERSION+'"')
+    conf.Define("PACKAGE_STRING", 'PACKAGE_NAME " " PACKAGE_VERSION');
+    conf.Finish()
     env.MergeFlags("!pkg-config --libs taglib libcddb libavformat flac libmpg123 gstreamer-1.0")
     env.MergeFlags("!pkg-config --libs Qt5Gui Qt5Core Qt5Widgets")
 

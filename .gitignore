@@ -1,5 +1,6 @@
 map*.txt
 config.h
+version.h
 *~
 *.mp3
 *.flac

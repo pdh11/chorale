@@ -1,4 +1,5 @@
 #include "config.h"
+#include "version.h"
 #include "server.h"
 #include "device.h"
 #include "soap.h"

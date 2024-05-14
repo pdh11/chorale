@@ -1,5 +1,6 @@
 #include "http_server.h"
 #include "config.h"
+#include "version.h"
 #include "file.h"
 #include "bind.h"
 #include "http.h"

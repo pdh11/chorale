@@ -1,5 +1,6 @@
 #include "ssdp.h"
 #include "config.h"
+#include "version.h"
 #include "libutil/http_parser.h"
 #include "libutil/ip_config.h"
 #include "libutil/ip_filter.h"
