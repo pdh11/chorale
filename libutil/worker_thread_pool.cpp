@@ -17,6 +17,7 @@
 #if HAVE_SCHED_H
 #include <sched.h>
 #endif
+#include <thread>
 
 namespace util {
 
@@ -39,7 +40,7 @@ public:
 
     ~WorkerThread()
     {
-        m_thread.detach();
+        m_thread.join();
     }
 
     unsigned int Run();
@@ -115,12 +116,24 @@ void WorkerThreadPool::SuggestNewThread()
     }
     WorkerThread *thread = new WorkerThread(this, m_priority);
     m_threads.push_back(thread);
+    TRACE << "New thread\n";
 //    TRACE << "+Now " << m_threads.size() << " threads\n";
+}
+
+void WorkerThreadPool::ReapDeadThreads()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    for (WorkerThread *w : m_dead_threads) {
+        TRACE << "Reaped thread\n";
+        delete w;
+    }
+    m_dead_threads.clear();
 }
 
 WorkerThreadPool::~WorkerThreadPool()
 {
     Shutdown();
+    ReapDeadThreads();
 }
 
 void WorkerThreadPool::Shutdown()
@@ -144,6 +157,7 @@ void WorkerThreadPool::PushTask(const TaskCallback& cb)
     if (m_max_threads == 0) // Shutting down
 	return;
 
+    ReapDeadThreads();
     if (!m_queue.AnyWaiting())
 	SuggestNewThread();
     m_queue.PushTask(cb);
@@ -154,6 +168,7 @@ void WorkerThreadPool::PushTaskFront(const TaskCallback& cb)
     if (m_max_threads == 0) // Shutting down
 	return;
 
+    ReapDeadThreads();
     if (!m_queue.AnyWaiting())
 	SuggestNewThread();
     m_queue.PushTaskFront(cb);
@@ -165,8 +180,9 @@ TaskCallback WorkerThreadPool::PopTaskOrQuit(WorkerThread *wt)
     if (!cb.IsValid())
     {
         std::lock_guard<std::mutex> lock(m_mutex);
+        TRACE << "Dead thread\n";
         m_threads.remove(wt);
-	delete wt;
+	m_dead_threads.push_front(wt);
 //	TRACE << "-Now " << m_threads.size() << " threads\n";
         if (m_threads.empty())
             m_threads_empty.notify_all();

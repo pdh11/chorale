@@ -46,9 +46,11 @@ private:
     std::mutex m_mutex;
     std::list<WorkerThread*> m_threads;
     std::condition_variable m_threads_empty;
+    std::list<WorkerThread*> m_dead_threads;
 
     void SuggestNewThread();
     TaskCallback PopTask(unsigned int timeout_sec);
+    void ReapDeadThreads();
 
 public:
     /** Create a thread pool with up to n threads. 
