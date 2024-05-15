@@ -546,6 +546,13 @@ def ChoraleLib(name):
         env.Program(target=bin, source=obj,
                     LIBS = libs + env["LIBS"])
 
+        tidied = "#obj/"+suffix+"/tidied/" + str(j)
+        if tidy and env["CLANGTIDY"]:
+            env.Command(tidied, [j, ".clang-tidy"],
+                        Action([
+                                "${CLANGTIDY} --config-file=.clang-tidy ${SOURCE} -- ${CCFLAGS} -I. -Iobj/"+suffix+" && touch ${TARGET}" ],
+                                   env.get("LINTSTR", "")))
+
 def ChoraleBin(name):
     srcs = Glob(name + "/*.cpp")
     if srcs:
@@ -581,6 +588,13 @@ def ChoraleBin(name):
         bin = "#obj/"+suffix+"/bin/"+name
         env.Program(target=bin, source=obj,
                     LIBS = libs + env["LIBS"])
+
+        tidied = "#obj/"+suffix+"/tidied/" + str(j)
+        if tidy and env["CLANGTIDY"]:
+            env.Command(tidied, [j, ".clang-tidy"],
+                        Action([
+                                "${CLANGTIDY} --config-file=.clang-tidy ${SOURCE} -- ${CCFLAGS} -I. -Iobj/"+suffix+" && touch ${TARGET}" ],
+                                   env.get("LINTSTR", "")))
 
 # Libraries listed in dependency order
 LIBDIRS = [

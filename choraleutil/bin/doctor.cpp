@@ -84,6 +84,11 @@ static unsigned CheckID3v2(util::Stream *st, uint64_t *pos, bool *ok)
 		unsigned char frameheader[10];
 		st->Seek(10 + frame);
 		rc = st->ReadAll(&frameheader, version == 2 ? 6 : 10);
+                if (rc) {
+                    perror("read");
+                    return rc;
+                }
+
 		if (frameheader[0] == 0)
 		{
 		    if (s_all)
@@ -201,9 +206,8 @@ static unsigned BitRate(FrameHeader fh)
     };
 
     int version = 0;
-    if (fh.s.version == 0) // v2.5
-	version = 2;
-    else if (fh.s.version == 2) // v2
+    if (fh.s.version == 0 // v2.5
+	|| fh.s.version == 2) // v2
 	version = 2;
     else if (fh.s.version == 3) // v1
 	version = 1;
@@ -429,10 +433,14 @@ static unsigned Doctor(const char *filename)
     /** Look for sync */
 
     rc = CheckSync(st.get(), &pos, &ok);
+    if (rc)
+	return rc;
 
     /** Walk frames */
 
     rc = WalkFrames(st.get(), pos, &ok);
+    if (rc)
+	return rc;
 
     if (ok)
 	printf("  OK\n");

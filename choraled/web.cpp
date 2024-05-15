@@ -88,7 +88,7 @@ std::unique_ptr<util::Stream> RootContentFactory::HomePageStream()
 	"<td><a href=/epg/t1>Tomorrow</a></td>";
     for (unsigned int i=2; i<7; ++i)
     {
-	time_t day = time(NULL) + i * 86400;
+	time_t day = time(NULL) + i * (time_t)86400;
 	struct tm stm;
 	localtime_r(&day, &stm);
 	char buffer[80];
@@ -102,7 +102,7 @@ std::unique_ptr<util::Stream> RootContentFactory::HomePageStream()
 	"<td><a href=/epg/r1>Tomorrow</a></td>";
     for (unsigned int i=2; i<7; ++i)
     {
-	time_t day = time(NULL) + i * 86400;
+	time_t day = time(NULL) + i * (time_t)86400;
 	struct tm stm;
 	localtime_r(&day, &stm);
 	char buffer[80];
