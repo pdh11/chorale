@@ -68,7 +68,12 @@ if "CXX" in ARGUMENTS:
 if not env.GetOption('clean'):
     PREFIX = ARGUMENTS.get("PREFIX", "/usr/local")
     print("Compiling Chorale "+PACKAGE_VERSION+" to install in PREFIX="+PREFIX)
+    try:
+        os.mkdir("obj")
+    except FileExistsError:
+        pass
     conf = env.Configure(config_h = "config.h",
+                         log_file = "obj/config.log",
                          custom_tests={'CheckCXXFlag': CheckCXXFlag,
                                        'CheckCFlag': CheckCFlag})
     conf.CheckLib('wrap')
@@ -251,7 +256,7 @@ if not env.GetOption('clean'):
     conf.Define("SRCROOT", '"' + Dir(".").path + '"')
     env = conf.Finish()
     # Do version separately so everything doesn't recompile when it changes
-    conf = env.Configure(config_h = "version.h")
+    conf = env.Configure(config_h = "version.h", log_file = "obj/version.log")
     conf.Define("PACKAGE_VERSION", '"'+PACKAGE_VERSION+'"')
     conf.Define("PACKAGE_STRING", 'PACKAGE_NAME " " PACKAGE_VERSION');
     conf.Finish()
