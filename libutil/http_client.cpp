@@ -12,6 +12,7 @@
 #include "scanf64.h"
 #include "printf.h"
 #include "socket.h"
+#include "task.h"
 #include "line_reader.h"
 #include <string.h>
 #include <limits.h>

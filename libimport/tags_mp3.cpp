@@ -48,7 +48,7 @@ enum { NUM_TAGS = sizeof(tagmap)/sizeof(tagmap[0]) };
 unsigned TagWriter::Write(const std::string& filename, 
 			  const db::Recordset *tags)
 {
-    util::Mutex::Lock lock(s_taglib_mutex);
+    std::lock_guard<std::mutex> lock(s_taglib_mutex);
 
 //    TRACE << "Opening '" << filename << "'\n";
 
@@ -98,7 +98,7 @@ static std::string safe(const TagLib::String& s)
 
 unsigned TagReader::Read(const std::string& filename, db::Recordset *tags)
 {
-    util::Mutex::Lock lock(s_taglib_mutex);
+    std::lock_guard<std::mutex> lock(s_taglib_mutex);
 
     TagLib::MPEG::File tff(filename.c_str());
 

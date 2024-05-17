@@ -242,10 +242,12 @@ static void PrintSeconds(unsigned long long sec)
     if (sec == 0)
 	sec = 1;
 
-    if (sec > 3600*24)
+    const unsigned long long DAY = 3600ull*24;
+
+    if (sec > DAY)
     {
-	printf("%llud", sec/(3600*24));
-	sec %= (3600*24);
+	printf("%llud", sec/DAY);
+	sec %= DAY;
     }
     if (sec > 3600)
     {

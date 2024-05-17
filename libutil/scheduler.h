@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <time.h>
-#include "task.h"
+#include "task_queue.h"
 
 namespace util {
 
@@ -106,22 +106,6 @@ public:
     void Remove(TaskPtr) override;
     void Wake() override;
     void Shutdown() override;
-};
-
-/** For when you want a Scheduler to be polled from a background thread.
- *
- * Create one of these and push it to a task queue to get polling done
- * on a (single, consistent) background thread.
- */
-class SchedulerTask: public Task
-{
-    BackgroundScheduler *m_scheduler;
-
-    explicit SchedulerTask(BackgroundScheduler*);
-    unsigned Run() override;
-
-public:
-    static TaskCallback Create(BackgroundScheduler*);
 };
 
 } // namespace util

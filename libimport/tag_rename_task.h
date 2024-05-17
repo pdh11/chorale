@@ -2,6 +2,7 @@
 #define TAG_RENAME_TASK_H
 
 #include "libutil/task.h"
+#include "libutil/task_queue.h"
 #include "libutil/counted_pointer.h"
 #include "libdb/db.h"
 #include <string>

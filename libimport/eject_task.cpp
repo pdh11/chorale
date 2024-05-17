@@ -1,4 +1,5 @@
 #include "eject_task.h"
+#include "cd_drive.h"
 
 namespace import {
 

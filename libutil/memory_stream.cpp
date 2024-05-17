@@ -1,15 +1,16 @@
 #include "memory_stream.h"
 #include "trace.h"
-#include "mutex.h"
 #include <map>
+#include <mutex>
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 
 namespace util {
 
 class MemoryStream::Impl
 {
-    Mutex m_mutex;
+    std::mutex m_mutex;
 public:
     struct Chunk
     {
@@ -66,7 +67,7 @@ MemoryStream::Impl::~Impl()
 
 void MemoryStream::Impl::Ensure(size_t sz)
 {
-    Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
     if (sz > m_capacity) {
         const size_t ROUNDUP = (size_t)1024*1024;
         const size_t MASK = ROUNDUP-1;
@@ -89,7 +90,7 @@ unsigned MemoryStream::Impl::WriteAt(const void *buf,
 	return 0;
     }
 
-    Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
     chunks_t::iterator i = m_chunks.lower_bound((size_t)pos);
 
     if (i == m_chunks.end())
@@ -133,7 +134,7 @@ unsigned MemoryStream::Impl::ReadAt(void *buf, uint64_t pos,
     len = std::min(len, m_size - (size_t)pos);
     chunks_t::iterator i;
     {
-	Mutex::Lock lock(m_mutex);
+	std::lock_guard<std::mutex> lock(m_mutex);
 	i = m_chunks.lower_bound((size_t)pos);
 	if (i == m_chunks.end() || i->first > pos)
 	    --i;

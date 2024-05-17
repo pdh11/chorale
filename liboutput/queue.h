@@ -2,7 +2,7 @@
 #define OUTPUT_QUEUE_H 1
 
 #include "playstate.h"
-#include "libutil/mutex.h"
+#include <mutex>
 #include <vector>
 #include <string>
 #include <random>
@@ -72,7 +72,7 @@ private:
      * lock. Modifying the queue, or changing m_current_index from any
      * thread, requires the lock.
      */
-    util::RecursiveMutex m_mutex;
+    std::recursive_mutex m_mutex;
     unsigned m_current_index; ///< Index into m_queue
     std::vector<unsigned int> m_queue; ///< Offsets into m_entries
     std::vector<Entry> m_entries;

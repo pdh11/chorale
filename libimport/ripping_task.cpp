@@ -6,6 +6,7 @@
 #include "libutil/printf.h"
 #include "libutil/trace.h"
 #include "libutil/bind.h"
+#include "libutil/task_queue.h"
 #include <time.h>
 #include "audio_cd.h"
 

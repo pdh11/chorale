@@ -13,7 +13,7 @@ namespace db {
  * accessed via cursors, it's simpler to elide cursor->record->getfield into
  * just cursor->getfield.
  */
-class Recordset: public util::CountedObject<>
+class Recordset: public util::CountedObject
 {
 public:
     virtual ~Recordset() {}

@@ -3,13 +3,14 @@
 
 #include "libdb/db.h"
 #include "libutil/task.h"
-#include "libutil/mutex.h"
+#include <mutex>
 #include "libutil/counted_pointer.h"
 #include <string>
 #include <memory>
 #include <boost/scoped_array.hpp>
 
 namespace util { class Stream; }
+namespace util { class TaskQueue; }
 
 namespace import {
 
@@ -44,7 +45,7 @@ class EncodingTask final: public util::Task
     size_t m_input_size;
     size_t m_input_done;
 
-    util::Mutex m_rename_mutex;
+    std::mutex m_rename_mutex;
     std::string m_rename_filename;
     db::RecordsetPtr m_rename_tags;
 

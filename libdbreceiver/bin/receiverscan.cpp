@@ -8,7 +8,7 @@
 #include "libutil/trace.h"
 #include "libutil/socket.h"
 
-static void DumpDB(db::Database *thedb, unsigned int id, unsigned int depth)
+static void DumpDB(db::Database *thedb, unsigned int id, size_t depth)
 {
     db::QueryPtr qp = thedb->CreateQuery();
     qp->Where(qp->Restrict(mediadb::ID, db::EQ, id));

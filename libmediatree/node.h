@@ -16,7 +16,7 @@ namespace mediatree {
  *
  * @todo Push the database pointer into Node? all the subclasses have one
  */
-class Node: public util::CountedObject<util::NoLocking>
+class Node: public util::CountedObject
 {
 public:
     virtual ~Node() {}
@@ -27,7 +27,7 @@ public:
 
     typedef util::CountedPointer<Node> Pointer;
 
-    class Enumerator: public util::CountedObject<util::NoLocking>
+    class Enumerator: public util::CountedObject
     {
     public:
 	virtual ~Enumerator() {}

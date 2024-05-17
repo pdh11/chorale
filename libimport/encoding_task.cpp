@@ -10,6 +10,7 @@
 #include "libutil/errors.h"
 #include "libutil/scheduler.h"
 #include "libutil/file_stream.h"
+#include "libutil/task_observer.h"
 #include "libutil/async_write_buffer.h"
 #include <stdio.h>
 
@@ -58,7 +59,7 @@ void EncodingTask::SetInputStream(std::unique_ptr<util::Stream>& stm, size_t siz
 void EncodingTask::RenameAndTag(const std::string& new_filename,
 				db::RecordsetPtr tags)
 {
-    util::Mutex::Lock lock(m_rename_mutex);
+    std::lock_guard<std::mutex> lock(m_rename_mutex);
     if (m_rename_stage == LATE)
     {
 	m_disk_queue->PushTask(TagRenameTask::Create(m_output_filename,
@@ -200,7 +201,7 @@ unsigned int EncodingTask::Run()
 //	TRACE << "Locking\n";
 
 	{
-	    util::Mutex::Lock lock(m_rename_mutex);
+	    std::lock_guard<std::mutex> lock(m_rename_mutex);
 	    m_rename_stage = LATE;
 	    if (!m_rename_filename.empty())
 	    {

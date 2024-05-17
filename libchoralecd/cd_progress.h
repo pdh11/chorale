@@ -8,9 +8,9 @@
 #define CD_PROGRESS_H
 
 #include <qprogressdialog.h>
-#include "libutil/task.h"
-#include "libimport/cd_drives.h"
+#include "libutil/task_observer.h"
 #include "libimport/cd_toc_task.h"
+#include "libimport/cd_drive.h"
 
 namespace util { class TaskQueue; }
 
@@ -25,7 +25,7 @@ class CDProgress: public QProgressDialog, public util::TaskObserver
 {
     Q_OBJECT
 
-    import::CDDrivePtr m_drive;
+    util::CountedPointer<import::CDDrive> m_drive;
     const Settings *m_settings;
     util::TaskQueue *m_cpu_queue;
     util::TaskQueue *m_disk_queue;
@@ -36,7 +36,7 @@ class CDProgress: public QProgressDialog, public util::TaskObserver
     ~CDProgress();
 
 public:
-    CDProgress(import::CDDrivePtr drive, const Settings *settings,
+    CDProgress(util::CountedPointer<import::CDDrive> drive, const Settings *settings,
 	       util::TaskQueue *cpu_queue, util::TaskQueue *disk_queue);
 
     // Being a QWidget

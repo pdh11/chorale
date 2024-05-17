@@ -4,6 +4,7 @@
 #include <vector>
 #include "bind.h"
 #include "task.h"
+#include "task_queue.h"
 #include "counted_pointer.h"
 
 #undef IN

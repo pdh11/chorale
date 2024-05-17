@@ -50,7 +50,7 @@ DatabaseUpdater::~DatabaseUpdater()
 
 void DatabaseUpdater::OnChange()
 {
-    util::Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
     if (m_scanning)
 	m_changed = true;
     else
@@ -116,7 +116,7 @@ void DatabaseUpdater::OnFinished(unsigned int)
     }
 #endif
 
-    util::Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
     if (m_changed)
     {
 	m_changed = false;

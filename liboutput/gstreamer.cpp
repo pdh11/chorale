@@ -6,9 +6,11 @@
 #include <gst/gst.h>
 #include "libutil/bind.h"
 #include "libutil/trace.h"
-#include "libutil/mutex.h"
 #include "libutil/printf.h"
 #include "libutil/observable.h"
+#include <mutex>
+#include <thread>
+#include <condition_variable>
 
 namespace output {
 
@@ -52,8 +54,8 @@ class URLPlayer::Impl: public util::Observable<URLObserver>
     GstElement *m_play;
     GstBus *m_bus;
 
-    util::Mutex m_mutex;
-    util::Condition m_cstarted;
+    std::mutex m_mutex;
+    std::condition_variable m_cstarted;
     std::string m_url;
     std::string m_next_url;
     GstState m_last_state;
@@ -64,7 +66,7 @@ class URLPlayer::Impl: public util::Observable<URLObserver>
     volatile bool m_started;
     volatile bool m_exiting;
 
-    util::Thread m_thread;
+    std::thread m_thread;
 
     unsigned int Run();
 
@@ -125,7 +127,7 @@ URLPlayer::Impl::~Impl()
     if (m_loop)
 	g_main_loop_quit(m_loop);
     TRACE << "URLPlayer::~Impl joining\n";
-    m_thread.Join();
+    m_thread.join();
     TRACE << "URLPlayer::~Impl joined\n";
 }
 
@@ -138,12 +140,12 @@ gboolean URLPlayer::Impl::StaticStartup(gpointer data)
 /* GStreamer crashes if we call gst_element_factory_make from two threads
  * simultaneously.
  */
-static util::Mutex gstreamer_unnecessarily_not_re_entrant;
+static std::mutex gstreamer_unnecessarily_not_re_entrant;
 
 gboolean URLPlayer::Impl::OnStartup()
 {
     {
-	util::Mutex::Lock lock(gstreamer_unnecessarily_not_re_entrant);
+	std::lock_guard<std::mutex> lock(gstreamer_unnecessarily_not_re_entrant);
     
 	/** If it exists, playbin2 is newer and better than playbin */
 //	m_play = gst_element_factory_make("playbin2", "play");
@@ -189,9 +191,9 @@ gboolean URLPlayer::Impl::OnStartup()
     }
 
     {
-	util::Mutex::Lock lock(m_mutex);
+	std::lock_guard<std::mutex> lock(m_mutex);
 	m_started = true;
-	m_cstarted.NotifyAll();
+	m_cstarted.notify_all();
     }
 
     return false; // Don't call me again
@@ -225,7 +227,7 @@ unsigned int URLPlayer::Impl::Run()
     
     /* also clean up */
     {
-	util::Mutex::Lock lock(gstreamer_unnecessarily_not_re_entrant);
+	std::lock_guard<std::mutex> lock(gstreamer_unnecessarily_not_re_entrant);
     
 	if (m_play)
 	    gst_element_set_state(m_play, GST_STATE_NULL);
@@ -250,14 +252,14 @@ unsigned int URLPlayer::Impl::Run()
 unsigned int URLPlayer::Impl::SetURL(const std::string& url)
 {
     {
-	util::Mutex::Lock lock(m_mutex);
+	std::unique_lock<std::mutex> lock(m_mutex);
 	m_url = url.c_str(); // Deep copy for thread-safety
 	m_next_url.clear();
 
 	if (!m_started)
 	{
 	    TRACE << "Waiting for start\n";
-	    m_cstarted.Wait(lock, 60);
+	    m_cstarted.wait_for(lock, std::chrono::seconds(60));
 	}
     }
 
@@ -280,7 +282,7 @@ unsigned int URLPlayer::Impl::SetURL(const std::string& url)
 
 unsigned int URLPlayer::Impl::SetNextURL(const std::string& url)
 {
-    util::Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
     m_next_url = url.c_str(); // Deep copy for thread-safety
     return 0;
 }
@@ -288,11 +290,11 @@ unsigned int URLPlayer::Impl::SetNextURL(const std::string& url)
 unsigned int URLPlayer::Impl::SetPlayState(output::PlayState state)
 {
     {
-	util::Mutex::Lock lock(m_mutex);
+	std::unique_lock<std::mutex> lock(m_mutex);
 	if (!m_started)
 	{
 	    TRACE << "Waiting for start again\n";
-	    m_cstarted.Wait(lock, 60);
+	    m_cstarted.wait_for(lock, std::chrono::seconds(60));
 	}
     }
 
@@ -356,7 +358,7 @@ bool URLPlayer::Impl::OnAboutToFinish(GstElement*)
     std::string url;
     {
 	TRACE << "Taking lock\n";
-	util::Mutex::Lock lock(m_mutex);
+	std::lock_guard<std::mutex> lock(m_mutex);
 	if (!m_next_url.empty())
 	{
 	    url = m_url = m_next_url;

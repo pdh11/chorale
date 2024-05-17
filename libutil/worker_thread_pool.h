@@ -1,9 +1,9 @@
 #ifndef WORKER_THREAD_POOL_H
 #define WORKER_THREAD_POOL_H 1
 
-#include "attributes.h"
-#include "task.h"
-#include "mutex.h"
+#include "task_queue.h"
+#include <mutex>
+#include <condition_variable>
 #include <list>
 #include <deque>
 
@@ -13,8 +13,8 @@ class WorkerThread;
 
 class SimpleTaskQueue final: public TaskQueue
 {
-    util::Mutex m_deque_mutex;
-    util::Condition m_dequenotempty;
+    std::mutex m_deque_mutex;
+    std::condition_variable m_dequenotempty;
     typedef std::deque<TaskCallback> deque_t;
     deque_t m_deque;
     unsigned m_waiting;
@@ -43,12 +43,14 @@ private:
     SimpleTaskQueue m_queue;
     Priority m_priority;
     unsigned int m_max_threads;
-    util::Mutex m_mutex;
+    std::mutex m_mutex;
     std::list<WorkerThread*> m_threads;
-    util::Condition m_threads_empty;
+    std::condition_variable m_threads_empty;
+    std::list<WorkerThread*> m_dead_threads;
 
     void SuggestNewThread();
     TaskCallback PopTask(unsigned int timeout_sec);
+    void ReapDeadThreads();
 
 public:
     /** Create a thread pool with up to n threads. 

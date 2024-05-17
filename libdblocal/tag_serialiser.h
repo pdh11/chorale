@@ -2,7 +2,7 @@
 #define LIBDB_LOCAL_TAG_SERIALISER_H 1
 
 #include <set>
-#include "libutil/mutex.h"
+#include <mutex>
 
 namespace util { class TaskQueue; }
 namespace mediadb { class Database; }
@@ -27,7 +27,7 @@ class TagSerialiser
     mediadb::Database *m_database;
     util::TaskQueue *m_queue;
 
-    util::Mutex m_mutex;
+    std::mutex m_mutex;
     std::set<unsigned int> m_need_rewrite;
     std::set<unsigned int> m_rewrite_tasks;
 

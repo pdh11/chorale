@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <boost/scoped_array.hpp>
-#include "libutil/mutex.h"
+#include <mutex>
 #include "libutil/observable.h"
 #include "libutil/socket.h"
 
@@ -39,7 +39,7 @@ class ProtocolClient: public util::Observable<ProtocolObserver,
     uint64_t *m_aligned_buffer;
     unsigned char *m_buffer;
     unsigned int m_packet_id;
-    util::Mutex m_mutex;
+    std::mutex m_mutex;
     unsigned int m_fast;
 
     enum { 

@@ -17,7 +17,7 @@ namespace import {
 
 unsigned TagReaderBase::Read(const std::string& filename, db::Recordset *rs)
 {
-    util::Mutex::Lock lock(s_taglib_mutex);
+    std::lock_guard<std::mutex> lock(s_taglib_mutex);
 
     TagLib::FileRef fr(filename.c_str());
 
@@ -63,7 +63,7 @@ unsigned TagReaderBase::Read(const std::string& filename, db::Recordset *rs)
     return 0;
 }
 
-util::Mutex s_taglib_mutex;
+std::mutex s_taglib_mutex;
 
 } // namespace import
 

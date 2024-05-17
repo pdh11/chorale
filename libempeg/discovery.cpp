@@ -1,9 +1,11 @@
+#include "config.h"
 #include "discovery.h"
 #include "libutil/scheduler.h"
 #include "libutil/bind.h"
 #include "libutil/socket.h"
 #include "libutil/trace.h"
 #include "libutil/ip_config.h"
+#include "libutil/task.h"
 #include <boost/tokenizer.hpp>
 #include <set>
 #include <string.h>

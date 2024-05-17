@@ -16,6 +16,7 @@
 #include "libutil/http_client.h"
 #include "libutil/http_server.h"
 #include "libutil/scheduler.h"
+#include "libutil/scheduler_task.h"
 #include "libutil/trace.h"
 #include "libutil/worker_thread_pool.h"
 #include "libuiqt/scheduler.h"
@@ -26,6 +27,7 @@
 #include "libchoralecd/db_widget.h"
 #include "libchoralecd/output_widget.h"
 #include "libimport/test_cd.h"
+#include "libimport/cd_drives.h"
 #include "libchoralecd/cd_window.h"
 #include <memory>
 #include <iostream>

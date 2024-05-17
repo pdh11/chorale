@@ -6,8 +6,10 @@
 #include "libutil/trace.h"
 #include "libutil/ip_filter.h"
 #include "libutil/ip_config.h"
+#include "libutil/task.h"
 #include <boost/format.hpp>
 #include <map>
+#include <mutex>
 #include <sstream>
 #include <string.h>
 #include <stdio.h>
@@ -58,7 +60,7 @@ class Server::Task: public util::Task
 
     typedef std::map<std::string, Service> services_t;
 
-    util::Mutex m_mutex;
+    std::mutex m_mutex;
     services_t m_services;
 
 public:
@@ -91,7 +93,7 @@ void Server::Task::RegisterService(const char *uuid,
 				   unsigned short service_port,
 				   const char *service_host)
 {
-    util::Mutex::Lock lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
     Service svc;
     svc.port = service_port;
     svc.host = service_host;
@@ -129,7 +131,7 @@ unsigned Server::Task::Run()
 
     std::string reply;
     {
-	util::Mutex::Lock lock(m_mutex);
+	std::lock_guard<std::mutex> lock(m_mutex);
 	services_t::const_iterator i = m_services.find(std::string(buffer));
 
 	if (i == m_services.end())

@@ -6,7 +6,6 @@
 #include <string>
 #include <stdint.h>
 #include "libutil/counted_object.h"
-#include "libutil/attributes.h"
 
 namespace util { template <class T> class CountedPointer; }
 
@@ -31,7 +30,7 @@ enum RestrictionType
  * Query implementation. If yours sometimes don't, override them, make
  * your checks, then call the base-class (Query) version.
  */
-class Query: public util::CountedObject<>
+class Query: public util::CountedObject
 {
 public:
     struct Restriction {

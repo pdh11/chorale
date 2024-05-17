@@ -8,6 +8,7 @@
 
 namespace util { class Stream; }
 namespace util { class Scheduler; }
+namespace util { class TaskQueue; }
 namespace util { class WorkerThreadPool; }
 
 namespace tv {

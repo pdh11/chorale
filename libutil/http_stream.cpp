@@ -319,6 +319,7 @@ unsigned Stream::SetLength(uint64_t len)
 # include "string_stream.h"
 # include "worker_thread_pool.h"
 # include "bind.h"
+# include "task.h"
 # undef NDEBUG
 # include <assert.h>
 

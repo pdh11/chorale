@@ -17,7 +17,7 @@ namespace flac {
 unsigned TagWriter::Write(const std::string& filename, 
 			  const db::Recordset *tags)
 {
-    util::Mutex::Lock lock(s_taglib_mutex);
+    std::lock_guard<std::mutex> lock(s_taglib_mutex);
 
 //    TRACE << "Opening '" << filename << "'\n";
 	    

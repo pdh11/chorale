@@ -1,3 +1,3 @@
-Checks: 'bugprone-*,-bugprone-easily-swappable-parameters,-bugprone-narrowing-conversions,misc-include-cleaner'
+Checks: 'bugprone-*,-bugprone-easily-swappable-parameters,-bugprone-narrowing-conversions,misc-include-cleaner,clang-analyzer-*,misc-*,-misc-const-correctness,-misc-non-private-member-variables-in-classes,-misc-no-recursion'
 #modernize-*,-modernize-use-auto,-modernize-use-trailing-return-type'
 WarningsAsErrors: '*'

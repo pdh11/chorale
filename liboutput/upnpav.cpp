@@ -6,6 +6,7 @@
 #include "libutil/scheduler.h"
 #include "libupnp/description.h"
 #include "libupnp/ssdp.h"
+#include "libutil/task.h"
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>

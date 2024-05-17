@@ -1,41 +1,16 @@
 #include "counted_object.h"
 
-template <class LockingPolicy>
-void intrusive_ptr_add_ref(util::CountedObject<LockingPolicy> *o)
+void intrusive_ptr_add_ref(util::CountedObject* o)
 {
-    typename LockingPolicy::Lock lock(o);
-    ++o->m_refcount;
+    o->m_refcount.fetch_add(1);
 }
 
-template <class LockingPolicy>
-void intrusive_ptr_release(util::CountedObject<LockingPolicy> *o)
+void intrusive_ptr_release(util::CountedObject* o)
 {
-    bool deleteit = false;
-    {
-	typename LockingPolicy::Lock lock(o);
-	if (!--o->m_refcount)
-	    deleteit = true;
-    }
-    if (deleteit)
-    {
+    if (o->m_refcount.fetch_sub(1) == 1) {
 	delete o;
     }
 }
-
-/* Explicit instantiations (note "template" not "template<>") */
-
-template 
-void intrusive_ptr_add_ref<util::PerObjectRecursiveLocking>(util::CountedObject<util::PerObjectRecursiveLocking>*);
-template 
-void intrusive_ptr_release<util::PerObjectRecursiveLocking>(util::CountedObject<util::PerObjectRecursiveLocking>*);
-
-template 
-void intrusive_ptr_add_ref<util::PerObjectLocking>(util::CountedObject<util::PerObjectLocking>*);
-template 
-void intrusive_ptr_release<util::PerObjectLocking>(util::CountedObject<util::PerObjectLocking>*);
-
-template void intrusive_ptr_add_ref<util::NoLocking>(util::CountedObject<util::NoLocking>*);
-template void intrusive_ptr_release<util::NoLocking>(util::CountedObject<util::NoLocking>*);
 
 #ifdef TEST
 
@@ -44,23 +19,21 @@ template void intrusive_ptr_release<util::NoLocking>(util::CountedObject<util::N
 
 static bool s_exists;
 
-template <class LockingPolicy>
-class Foo: public util::CountedObject<LockingPolicy>
+class Foo: public util::CountedObject
 {
 public:
     Foo() { s_exists = true; }
     ~Foo() { s_exists = false; }
 };
 
-template <class LockingPolicy>
 static void Test()
 {
-    util::CountedPointer<Foo<LockingPolicy> > fooptr(new Foo<LockingPolicy>());
+    util::CountedPointer<Foo> fooptr(new Foo());
 
     {
-	util::CountedPointer<Foo<LockingPolicy> > fooptr2 = fooptr;
+	util::CountedPointer<Foo> fooptr2 = fooptr;
 	{
-	    util::CountedPointer<Foo<LockingPolicy> > fooptr3 = fooptr2;
+	    util::CountedPointer<Foo> fooptr3 = fooptr2;
 
 	    //TRACE << fooptr3 << "\n";
 	}
@@ -73,10 +46,7 @@ static void Test()
 
 int main()
 {
-    Test<util::NoLocking>();
-    Test<util::PerObjectLocking>();
-    Test<util::PerObjectRecursiveLocking>();
-    Test<util::PerClassLocking<int> >();
+    Test();
     return 0;
 }
 

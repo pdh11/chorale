@@ -7,7 +7,7 @@
 #include "resource_widget.h"
 #include "widget_factory.h"
 #include "libupnp/ssdp.h"
-#include "libimport/cd_drives.h"
+#include "libimport/cd_drive.h"
 #include "libutil/counted_pointer.h"
 
 class QWidget;
@@ -17,6 +17,8 @@ namespace util { class Scheduler; }
 namespace util { class TaskQueue; }
 namespace util { namespace http { class Client; } }
 namespace util { namespace http { class Server; } }
+
+namespace import { class CDDrives; }
 
 namespace choraleqt {
 

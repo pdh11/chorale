@@ -6,7 +6,6 @@
 #include <stdint.h>
 #include "stream.h"
 #include "ip.h"
-#include "attributes.h"
 
 namespace util {
 

@@ -4,6 +4,7 @@
 #include "libimport/file_notifier.h"
 #include "libutil/counted_pointer.h"
 #include "file_scanner.h"
+#include <mutex>
 
 namespace db {
 
@@ -14,7 +15,7 @@ class DatabaseUpdater: public import::FileNotifierTask::Observer,
 {
     import::FileNotifierPtr m_notifier;
     FileScanner m_file_scanner;
-    util::Mutex m_mutex;
+    std::mutex m_mutex;
     bool m_scanning;
     bool m_changed;
     std::string m_database_filename;

@@ -4,6 +4,7 @@
 #include "file.h"
 #include "bind.h"
 #include "http.h"
+#include "task.h"
 #include "trace.h"
 #include "socket.h"
 #include "errors.h"

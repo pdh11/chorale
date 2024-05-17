@@ -1,5 +1,5 @@
 #include "task.h"
-#include "trace.h"
+#include "task_observer.h"
 #include "printf.h"
 
 namespace util {
@@ -18,20 +18,20 @@ Task::Task(const std::string& name)
 
 void Task::SetObserver(TaskObserver *obs)
 {
-    Lock lock(this);
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
     m_observer = obs;
 }
 
 void Task::FireProgress(unsigned num, unsigned denom)
 {
-    Lock lock(this);
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
     if (m_observer)
 	m_observer->OnProgress(this, num, denom);
 }
 
 void Task::FireError(unsigned int e)
 {
-    Lock lock(this);
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
     if (m_observer)
 	m_observer->OnError(this, e);
 }

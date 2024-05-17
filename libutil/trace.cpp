@@ -2,7 +2,6 @@
 #include <stdint.h>
 #include "config.h"
 #include "utf8.h"
-#include "mutex.h"
 #include <boost/format.hpp>
 #include <stdarg.h>
 #include <string.h>
@@ -10,13 +9,14 @@
 #include <errno.h>
 #include <stdio.h>
 #include <map>
+#include <mutex>
 #if HAVE_LINUX_UNISTD_H
 #include <linux/unistd.h>
 #endif
 
 namespace util {
 
-static Mutex s_trace_mutex;
+static std::mutex s_trace_mutex;
 
 static FILE *s_logfile = NULL;
 
@@ -62,7 +62,7 @@ LogFileOpener s_logfile_opener;
 Tracer::Tracer(const char *env_var, const char *file, unsigned int line)
     : m_emit(false)
 {
-    s_trace_mutex.Acquire();
+    s_trace_mutex.lock();
 
 #ifdef __APPLE__
     m_emit = true;
@@ -169,7 +169,7 @@ Tracer::~Tracer()
 
     fflush(stdout);
 
-    s_trace_mutex.Release();
+    s_trace_mutex.unlock();
 }
 
 

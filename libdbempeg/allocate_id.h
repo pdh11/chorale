@@ -1,7 +1,7 @@
 #ifndef LIBDBEMPEG_ALLOCATE_ID
 #define LIBDBEMPEG_ALLOCATE_ID 1
 
-#include "libutil/mutex.h"
+#include <mutex>
 
 namespace db {
 
@@ -15,7 +15,7 @@ namespace empeg {
 class AllocateID
 {
     db::Database *m_db;
-    util::Mutex m_mutex;
+    std::mutex m_mutex;
     unsigned int m_gap_begin;
     unsigned int m_gap_end;
 

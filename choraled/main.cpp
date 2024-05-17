@@ -3,6 +3,7 @@
 #include "libutil/http_client.h"
 #include "libutil/http_server.h"
 #include "libutil/scheduler.h"
+#include "libutil/scheduler_task.h"
 #include "libutil/trace.h"
 #include "libutil/worker_thread_pool.h"
 #include "libutil/bind.h"
