@@ -671,7 +671,8 @@ static std::unique_ptr<util::Stream> ListStream(mediadb::Database *db,
 	if (size > 999)
 	    size = 999;
 
-	assert(sizeof(PlaylistReplyExtended) == 12);
+	static_assert(sizeof(PlaylistReplyExtended) == 12,
+                      "PlaylistReplyExtended declaration wrong");
 
 	PlaylistReplyExtended *pre = &vec[0];
         (void)!ms->WriteAll(pre, size * sizeof(PlaylistReplyExtended));
